@@ -1,0 +1,35 @@
+[   25.736345] xemacps e000b000.ps7-ethernet: Set clk to 24999999 Hz
+[   25.742364] xemacps e000b000.ps7-ethernet: link up (100/FULL)
+This is XILINX board. Totalram:       507527168
+Detect 512MB control board of XILINX
+DETECT HW version=0008c510
+miner ID : 80748d2c68808814
+Miner Type = S9
+AsicType = 1387
+real AsicNum = 63
+Find /tmp/searcherror: U6:1  The last log is below:
+This is XILINX board. Totalram:       507527168
+Detect 512MB control board of XILINX
+DETECT HW version=0008c510
+miner ID : 80748d2c68808814
+Miner Type = S9
+AsicType = 1387
+real AsicNum = 63
+use critical mode to search freq...
+get PLUG ON=0x000000e0
+Find hashboard on Chain[5]
+Find hashboard on Chain[6]
+Find hashboard on Chain[7]
+set_reset_allhashboard = 0x0000ffff
+Check chain[5] PIC fw version=0x00
+chain[5] PIC need restore ...
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+Error of set PIC FLASH addr: addr_H=3(0) addr_L=0(0) on Chain[5]
+After restore: chain[5] PIC fw version=0x00
+

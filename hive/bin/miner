@@ -1,0 +1,179 @@
+#!/hive/sbin/bash
+
+MINER_LOGS_BASE_DIR=/var/log/miner
+
+function usage() {
+	bname=`basename $0`
+	echo -e "Usage: ${CYAN}$bname start|stop|restart|log|config|config-gen${NOCOLOR}"
+	echo -e "If you run ${CYAN}$bname${NOCOLOR} without parameters miner screen will be tried to resume."
+}
+
+
+RIG_CONF="/hive-config/rig.conf"
+WALLET_CONF="/hive-config/wallet.conf"
+
+#[ -t 1 ] &&
+. colors
+
+#[ -z $1 ] && usage && exit 1
+
+
+if [ ! -f $RIG_CONF ]; then
+	echo -e "${RED}No config $RIG_CONF${NOCOLOR}"
+	#exit 1
+else
+	. $RIG_CONF
+fi
+
+[[ -e $WALLET_CONF ]] && . $WALLET_CONF
+
+[ -z $MINER ] && MINER="bmminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"bmminer\"${NOCOLOR}"
+
+#sgminer-gm is deprecated...
+miners_avail=("bmminer")
+if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
+	echo -e "${RED}Unknown miner $MINER${NOCOLOR}"
+	message error "Unknown miner $MINER"
+	exit 1
+fi
+
+
+########################################################################################################################
+
+
+
+function config-gen() {
+	/hive/bin/bmminer-config
+}
+
+
+function start() {
+	echo -e "Starting ${CYAN}$MINER${NOCOLOR}"
+	config-gen
+	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
+	nohup /etc/init.d/bmminer.sh start > /dev/null 2>&1 &
+	echo "";
+}
+
+
+function stop() {
+	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
+	/etc/init.d/bmminer.sh stop
+}
+
+
+function miner_log_basename() {
+	local miner=$1
+	[[ -z $miner ]] && echo "No miner given to miner_log_basename" && return 1
+
+	log_basename=""
+	case $miner in
+		"bmminer")
+			log_basename="/var/volatile/tmp/temp"
+			;;
+		*)
+			#log_basename="$MINER_LOGS_BASE_DIR/$miner/$miner"
+			echo "Unknown miner $miner to miner_log_basename"
+			return 1
+			;;
+	esac
+	echo $log_basename
+	return 0
+}
+
+function log_tail() {
+	local TAIL_LINE=80
+
+	log_basename=`miner_log_basename $MINER`
+	if [[ $? > 0 ]]; then
+		echo $log_basename #show error message
+		return
+	fi
+
+	#logname="${log_basename}.log"
+	logname="${log_basename}"
+
+	if [[ ! -e $logname ]]; then
+		echo "Log $logname does not exist yet"
+		return
+	fi
+
+	if [[ `ls -l $logname | awk '{print $5}'` -le 1 ]]; then #can be 1, empty line
+		echo "Log $logname is empty"
+		return
+	fi
+
+
+	echo -e "${YELLOW}=== $logname last $TAIL_LINE lines =================================================${NOCOLOR}"
+	echo "Last modified `stat -c %y $logname`"
+	echo ""
+	#tail -n $TAIL_LINE $logname | sed "s,$(printf '\033')\\[[0-9;]*[a-zA-Z],,g" #sed removes colors
+	tail -n $TAIL_LINE $1 $logname
+}
+
+
+function echo_config_file() {
+	echo -e "${YELLOW}=== $1 =================================================${NOCOLOR}"
+	cat $1
+	echo ""
+}
+
+#Shows miner config
+function config() {
+	logname=""
+	case $MINER in
+		"bmminer")
+			echo_config_file "/config/bmminer.conf"
+			;;
+		*)
+			echo "Unknown miner $MINER"
+			return
+			;;
+	esac
+}
+
+
+
+# Sets MINER to MINER2 if requested
+function check_second_miner {
+	[[ -z $1 || $1 != "2" ]] && return #not a second miner request
+
+	[[ $1 == "2" && -z $MINER2 ]] &&
+		echo "No second miner configured" &&
+		exit 1
+
+	MINER=$MINER2 #substitute MINER var with second miner
+}
+
+
+########################################################################################################################
+
+case $1 in
+	start)
+		start
+	;;
+	stop)
+		stop
+	;;
+	restart)
+#		echo -e "Restarting ${CYAN}$MINER${NOCOLOR}"
+		echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
+		stop
+		#need some time to finish it seems
+		sleep 1
+		start
+	;;
+	config)
+		config
+	;;
+	config-gen)
+		config-gen
+	;;
+	log) # supports args for tail
+		log_tail $2 $3 $4
+	;;
+	*)
+		screen -x -S miner
+		[[ $? != 0 ]] && usage
+	;;
+esac

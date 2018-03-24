@@ -1,0 +1,325 @@
+#!/hive/sbin/bash
+#Send stats, receives commands
+
+INTERVAL=10
+RIG_CONF="/hive-config/rig.conf"
+#NVIDIA_OC_CONF="/hive-config/nvidia-oc.conf"
+#AMD_OC_CONF="/hive-config/amd-oc.conf"
+WALLET_CONF="/hive-config/wallet.conf"
+#LOG="/var/log/hive-agent.log"
+LOG="/dev/null"
+
+API_TIMEOUT=15 #timeout to wait for miner API response, can take very long time on 13+ gpus
+
+[ -t 1 ] && . colors
+
+#$PPID - might be parent screen pid
+screen_count=`screen -ls | grep "\.agent" | grep -v $PPID | wc -l`
+
+#there will be still 1 process for subshell
+#[[ `ps aux | grep "./agent" | grep -vE "grep|screen|SCREEN|$$" | wc -l` > 1 ]] &&
+[[ $screen_count > 0 ]] &&
+	echo -e "${RED}Agent screen is already running${NOCOLOR}\nRun ${CYAN}agent-screen${NOCOLOR} to resume screen" &&
+	exit 1
+
+
+
+########################################################################################################################
+
+miner_stats () {
+	local miner=$1
+	local mindex=$2 #empty or 2
+
+	khs=0
+	stats=
+	stats_raw=
+	max_fan_rpm=6000
+	case $miner in
+		bmminer)
+			stats_raw=`echo '{"command":"stats"}' | nc -w $API_TIMEOUT localhost 4028 | tr -d '\0'`
+			if [[ $? -ne 0 || -z $stats_raw ]]; then
+				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
+			else
+				stats_raw=$(sed 's/"Antminer S9"}{"STATS"/"Antminer S9"},{"STATS"/' <<< "$stats_raw")
+				local STATS=$(jq '.STATS' <<< "$stats_raw")
+
+				#if [[ -z $algo || $algo == "null" ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc -w $API_TIMEOUT localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				local algo="sha256"
+				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
+				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
+				khs=$(awk '{print $1 * 1000000}' <<< "$khs")
+
+				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
+				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
+				#stats=$(jq -nc --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
+
+				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
+				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
+				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
+				local fan_rpm=$( (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
+				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("freq_avg\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+
+				stats=$(jq -nc \
+						--arg algo "$algo" --argjson hs "$hs" \
+						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+						--argjson freq "$freq" --argjson acn "$acn" \
+						--argjson hw_errors "$hw_errors" --argjson status "$status" \
+						--arg uptime "$uptime" \
+						'{$algo, $hs, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
+			fi
+		;;
+		*)
+			miner="unknown"
+			#MINER=miner
+			eval "MINER${mindex}=unknown"
+		;;
+	esac
+
+
+	[[ -z $khs ]] && khs=0
+	[[ -z $stats ]] && stats="null"
+
+#	[[ ! -z $mindex ]] &&
+#		eval "khs${mindex}"
+}
+
+
+########################################################################################################################
+
+loop () {
+	[[ ! -z $TIMEZONE ]] && export TZ=$TIMEZONE
+
+	date
+
+	[ ! -f $RIG_CONF ] && echo -e "No config $RIG_CONF" && return
+
+	#each time read config again
+	. $RIG_CONF
+	. $WALLET_CONF
+
+	[ -z $MINER ] && MINER="bmminer"
+	HIVE_URL="$HIVE_HOST_URL/worker/api"
+
+	miner_stats $MINER #khs and stats are global
+
+	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs > 0 ]] && echo -e ${YELLOW} || echo -e ${RED}`$khs${NOCOLOR} kH/s"
+	echo -en "\n"
+	echo $khs > /run/hive/khs
+
+
+	#echo $stats
+	#uptime: load averages for the past 1, 5, and 15 minutes
+
+	request=$(
+	jq -n \
+	--arg rig_id "$RIG_ID" \
+	--arg passwd "$RIG_PASSWD" \
+	--arg miner "$MINER" \
+	--argjson miner_stats "$stats" \
+	--arg total_khs "$khs" \
+	--arg df "`df -h / | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
+	--argjson cpuavg "[`uptime | awk -F': ' '{print $2}'`]" \
+	'{
+		"method": "stats", "jsonrpc": "2.0", "id": 0,
+		"params": {
+			$rig_id, $passwd, $miner,
+			$miner_stats, $total_khs,
+			$df, $cpuavg
+		}
+	}'
+	)
+
+	echo $request | jq '.' -c
+
+	#log request
+	echo "[`date`] > `echo $request | jq '.' -c`" >> $LOG
+	#echo "[`date`] > $request" >> $LOG
+
+	response=$(echo $request | curl --insecure -L --data @- \
+	--connect-timeout 7 --max-time 15 --silent \
+	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=stats"  -H "Content-Type: application/json")
+
+	exitcode=$?
+	if [[ "$exitcode" -ne 0 || -z "$response" ]]; then
+		echo -e "${RED}Error sending stats${NOCOLOR} $HIVE_HOST_URL" && human-curl-error $exitcode
+		echo "[`date`] < ERROR SENDING STATS TO $HIVE_HOST_URL (curl code=$exitcode) \"$response\"" >> $LOG
+		return $exitcode
+	fi
+
+	#echo $response
+	#echo "[`date`] < `echo $response | jq '.' -c`" >> $LOG
+	echo "[`date`] < $response" >> $LOG #full response even invalid
+
+	error=$(echo $response | jq '.error' --raw-output)
+	[[ $? != 0 ]] && echo -e "${RED}Invalid response${NOCOLOR}: $HIVE_HOST_URL\n$response" && return 1
+	[[ ! -z "$error" && "$error" != "null" ]] && echo -e "${RED}Error response${NOCOLOR}: $error" && return 1
+
+	command=$(echo $response | jq '.result.command' --raw-output)
+
+	[[ "$command" != "OK" ]] && echo "$response" | jq '.result'
+
+
+	if [[ "$command" != "batch" ]]; then
+		body=`echo $response | jq -c '.result'`
+		do_command
+	else
+		count=`echo $response | jq '.result.commands|length'`
+		echo "Got $count batch commands"
+		for (( i=0; i < $count; i++ )); do
+			body=`echo $response | jq -c ".result.commands[$i]"`
+			command=
+			do_command
+		done
+	fi
+}
+
+
+########################################################################################################################
+
+
+do_command () {
+	#body=$1
+	[[ -z "$command" ]] && command=`echo $body | jq -r '.command'` #get command for batch
+
+	case $command in
+		OK)
+			echo -e "${BGREEN}$command${NOCOLOR}"
+		;;
+		reboot)
+			message ok "Rebooting" 120
+			echo -e "${BRED}Rebooting${NOCOLOR}"
+			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
+			/sbin/reboot
+		;;
+		upgrade)
+			message warn "Not implemented yet"
+#			nohup bash -c '
+#				payload=`selfupgrade 2>&1`
+#				upgrade_exitcode=$?
+#				echo "$payload"
+#				[[ $upgrade_exitcode -eq 0 ]] &&
+#					echo "$payload" | message ok "Selfupgrade successful" payload ||
+#					echo "$payload" | message error "Selfupgrade failed" payload
+#			' > /tmp/nohup.log 2>&1 &
+		;;
+		exec)
+			exec=$(echo $body | jq '.exec' --raw-output)
+			payload=`timeout -t 360 bash -c "$exec" 2>&1`
+			exitcode=$?
+			echo "$payload"
+			[[ $exitcode -eq 0 ]] &&
+				echo "$payload" | message info "$exec" payload ||
+				echo "$payload" | message error "Exec failed, exitcode=$exitcode" payload
+		;;
+		config)
+			config=$(echo $body | jq '.config' --raw-output)
+			justwrite=$(echo $body | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
+			if [[ ! -z $config && $config != "null" ]]; then
+				#scan for password change
+				echo "$config" > /tmp/rig.conf.new
+				while read line; do
+					[[ $line =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD=${BASH_REMATCH[1]} && break
+				done < /tmp/rig.conf.new
+				rm /tmp/rig.conf.new
+
+				# Password change ---------------------------------------------------
+				if [[ $RIG_PASSWD != $NEW_PASSWD ]]; then
+					echo -e "${RED}New password:${NOCOLOR} $NEW_PASSWD";
+
+					message warning "Password change received, wait for next message..." 120
+					request=$(jq -n --arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
+					'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}')
+					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 7 --max-time 15 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
+
+					exitcode=$?
+					[ $exitcode -ne 0 ] &&
+						message error "Error notifying hive about \"password_change_received\"" &&
+						return $exitcode #better exit because password will not be changed
+
+					error=$(echo $response | jq '.error' --raw-output)
+					[[ ! -z $error && $error != "null" ]] && echo -e "${RED}Server error:${NOCOLOR} `echo $response | jq '.error.message' -r`" && return 1
+
+					echo "$response" | jq '.'
+					#after this there will be new password on server, so all new request should use new one
+				fi
+
+				# Write new config and load it ---------------------------------------
+				echo "$config" > $RIG_CONF && sync
+				. $RIG_CONF
+
+				# Save wallet if given -----------------------------------------------
+				wallet=$(echo $body | jq '.wallet' --raw-output)
+				[[ ! -z $wallet && $wallet != "null" ]] &&
+					echo "$wallet" > $WALLET_CONF
+
+
+				# Overclocking if given in config --------------------------------------
+#				oc_if_changed
+
+
+				# Final actions ---------------------------------------------------------
+				if [[ "$justwrite" != 1 ]]; then
+					hostname-check
+					miner restart
+				fi
+
+				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
+#				[[ $WD_ENABLED=1 ]] && wd restart
+
+				message ok "Rig config changed" 120
+				#[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" 120 || message warn "Error restarting miner"
+			else
+				message error "No rig \"config\" given"
+			fi
+		;;
+		wallet)
+			wallet=$(echo $body | jq '.wallet' --raw-output)
+			if [[ ! -z $wallet && $wallet != "null" ]]; then
+				echo "$wallet" > $WALLET_CONF && sync
+
+				justwrite=
+				oc_if_changed
+
+				miner restart
+				[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" 120 || message warn "Error restarting miner"
+			else
+				message error "No \"wallet\" config given"
+			fi
+		;;
+	esac
+
+	#Flush buffers if any files changed
+	sync
+}
+
+
+
+########################################################################################################################
+
+echo -e "\n\n[`date`] Started" >> $LOG
+
+while true
+do
+	time_start=`date +%s`
+	loop
+	time_finish=`date +%s`
+
+	wasted=$(( $time_finish - $time_start ))
+
+	tosleep=$(( $INTERVAL - $wasted ))
+
+	#echo "Sleeping $tosleep"
+	echo ""
+
+	if [[ $tosleep > 0 ]]; then
+		sleep $INTERVAL
+	else
+		echo -e "${YELLOW}WARNING: Stats sending interval > $INTERVAL seconds, hanging driver?${NOCOLOR}"
+	fi
+done

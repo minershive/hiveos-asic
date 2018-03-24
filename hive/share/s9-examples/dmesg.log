@@ -1,0 +1,198 @@
+[    0.000000] Booting Linux on physical CPU 0x0
+[    0.000000] Linux version 3.14.0-xilinx-ge8a2f71-dirty (lzq@armdev2) (gcc version 4.8.3 20140320 (prerelease) (Sourcery CodeBench Lite 2014.05-23) ) #82 SMP PREEMPT Tue May 16 19:49:53 CST 2017
+[    0.000000] CPU: ARMv7 Processor [413fc090] revision 0 (ARMv7), cr=18c5387d
+[    0.000000] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+[    0.000000] Machine model: Xilinx Zynq
+[    0.000000] cma: CMA: reserved 128 MiB at 16800000
+[    0.000000] Memory policy: Data cache writealloc
+[    0.000000] On node 0 totalpages: 126976
+[    0.000000] free_area_init_node: node 0, pgdat c0740a40, node_mem_map debd8000
+[    0.000000]   Normal zone: 992 pages used for memmap
+[    0.000000]   Normal zone: 0 pages reserved
+[    0.000000]   Normal zone: 126976 pages, LIFO batch:31
+[    0.000000] PERCPU: Embedded 8 pages/cpu @debc1000 s9088 r8192 d15488 u32768
+[    0.000000] pcpu-alloc: s9088 r8192 d15488 u32768 alloc=8*4096
+[    0.000000] pcpu-alloc: [0] 0 [0] 1 
+[    0.000000] Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 125984
+[    0.000000] Kernel command line: noinitrd mem=496M console=ttyPS0,115200 root=ubi0:rootfs ubi.mtd=1 rootfstype=ubifs rw rootwait
+[    0.000000] PID hash table entries: 2048 (order: 1, 8192 bytes)
+[    0.000000] Dentry cache hash table entries: 65536 (order: 6, 262144 bytes)
+[    0.000000] Inode-cache hash table entries: 32768 (order: 5, 131072 bytes)
+[    0.000000] Memory: 364356K/507904K available (5032K kernel code, 283K rwdata, 1916K rodata, 204K init, 258K bss, 143548K reserved, 0K highmem)
+[    0.000000] Virtual kernel memory layout:
+[    0.000000]     vector  : 0xffff0000 - 0xffff1000   (   4 kB)
+[    0.000000]     fixmap  : 0xfff00000 - 0xfffe0000   ( 896 kB)
+[    0.000000]     vmalloc : 0xdf800000 - 0xff000000   ( 504 MB)
+[    0.000000]     lowmem  : 0xc0000000 - 0xdf000000   ( 496 MB)
+[    0.000000]     pkmap   : 0xbfe00000 - 0xc0000000   (   2 MB)
+[    0.000000]     modules : 0xbf000000 - 0xbfe00000   (  14 MB)
+[    0.000000]       .text : 0xc0008000 - 0xc06d1374   (6949 kB)
+[    0.000000]       .init : 0xc06d2000 - 0xc0705380   ( 205 kB)
+[    0.000000]       .data : 0xc0706000 - 0xc074cf78   ( 284 kB)
+[    0.000000]        .bss : 0xc074cf84 - 0xc078d9fc   ( 259 kB)
+[    0.000000] Preemptible hierarchical RCU implementation.
+[    0.000000] 	Dump stacks of tasks blocking RCU-preempt GP.
+[    0.000000] 	RCU restricting CPUs from NR_CPUS=4 to nr_cpu_ids=2.
+[    0.000000] RCU: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=2
+[    0.000000] NR_IRQS:16 nr_irqs:16 16
+[    0.000000] ps7-slcr mapped to df802000
+[    0.000000] zynq_clock_init: clkc starts at df802100
+[    0.000000] Zynq clock init
+[    0.000015] sched_clock: 64 bits at 333MHz, resolution 3ns, wraps every 3298534883328ns
+[    0.000312] ps7-ttc #0 at df804000, irq=43
+[    0.000621] Console: colour dummy device 80x30
+[    0.000654] Calibrating delay loop... 1325.46 BogoMIPS (lpj=6627328)
+[    0.040209] pid_max: default: 32768 minimum: 301
+[    0.040427] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes)
+[    0.040445] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes)
+[    0.042573] CPU: Testing write buffer coherency: ok
+[    0.042909] CPU0: thread -1, cpu 0, socket 0, mpidr 80000000
+[    0.042969] Setting up static identity map for 0x4c4b00 - 0x4c4b58
+[    0.043194] L310 cache controller enabled
+[    0.043214] l2x0: 8 ways, CACHE_ID 0x410000c8, AUX_CTRL 0x72760000, Cache size: 512 kB
+[    0.121037] CPU1: Booted secondary processor
+[    0.210230] CPU1: thread -1, cpu 1, socket 0, mpidr 80000001
+[    0.210361] Brought up 2 CPUs
+[    0.210380] SMP: Total of 2 processors activated.
+[    0.210388] CPU: All CPU(s) started in SVC mode.
+[    0.211049] devtmpfs: initialized
+[    0.213453] VFP support v0.3: implementor 41 architecture 3 part 30 variant 9 rev 4
+[    0.214664] regulator-dummy: no parameters
+[    0.222344] NET: Registered protocol family 16
+[    0.224632] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.226923] cpuidle: using governor ladder
+[    0.226936] cpuidle: using governor menu
+[    0.234370] syscon f8000000.ps7-slcr: regmap [mem 0xf8000000-0xf8000fff] registered
+[    0.235896] hw-breakpoint: found 5 (+1 reserved) breakpoint and 1 watchpoint registers.
+[    0.235911] hw-breakpoint: maximum watchpoint size is 4 bytes.
+[    0.236022] zynq-ocm f800c000.ps7-ocmc: ZYNQ OCM pool: 256 KiB @ 0xdf880000
+[    0.257608] bio: create slab <bio-0> at 0
+[    0.259042] vgaarb: loaded
+[    0.259758] SCSI subsystem initialized
+[    0.260808] usbcore: registered new interface driver usbfs
+[    0.260978] usbcore: registered new interface driver hub
+[    0.261331] usbcore: registered new device driver usb
+[    0.261851] media: Linux media interface: v0.10
+[    0.262008] Linux video capture interface: v2.00
+[    0.262246] pps_core: LinuxPPS API ver. 1 registered
+[    0.262257] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    0.262385] PTP clock support registered
+[    0.262746] EDAC MC: Ver: 3.0.0
+[    0.263794] Advanced Linux Sound Architecture Driver Initialized.
+[    0.266643] DMA-API: preallocated 4096 debug entries
+[    0.266657] DMA-API: debugging enabled by kernel config
+[    0.266732] Switched to clocksource arm_global_timer
+[    0.287429] NET: Registered protocol family 2
+[    0.288086] TCP established hash table entries: 4096 (order: 2, 16384 bytes)
+[    0.288143] TCP bind hash table entries: 4096 (order: 3, 32768 bytes)
+[    0.288228] TCP: Hash tables configured (established 4096 bind 4096)
+[    0.288272] TCP: reno registered
+[    0.288290] UDP hash table entries: 256 (order: 1, 8192 bytes)
+[    0.288322] UDP-Lite hash table entries: 256 (order: 1, 8192 bytes)
+[    0.288554] NET: Registered protocol family 1
+[    0.288896] RPC: Registered named UNIX socket transport module.
+[    0.288908] RPC: Registered udp transport module.
+[    0.288917] RPC: Registered tcp transport module.
+[    0.288925] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    0.288939] PCI: CLS 0 bytes, default 64
+[    0.289382] hw perfevents: enabled with ARMv7 Cortex-A9 PMU driver, 7 counters available
+[    0.291401] futex hash table entries: 512 (order: 3, 32768 bytes)
+[    0.293502] jffs2: version 2.2. (NAND) © 2001-2006 Red Hat, Inc.
+[    0.293703] msgmni has been set to 967
+[    0.294474] io scheduler noop registered
+[    0.294487] io scheduler deadline registered
+[    0.294532] io scheduler cfq registered (default)
+[    0.306450] dma-pl330 f8003000.ps7-dma: Loaded driver for PL330 DMAC-2364208
+[    0.306470] dma-pl330 f8003000.ps7-dma: 	DBUFF-128x8bytes Num_Chans-8 Num_Peri-4 Num_Events-16
+[    0.428923] e0001000.serial: ttyPS0 at MMIO 0xe0001000 (irq = 82, base_baud = 3124999) is a xuartps
+[    0.996683] console [ttyPS0] enabled
+[    1.000964] xdevcfg f8007000.ps7-dev-cfg: ioremap 0xf8007000 to df866000
+[    1.008590] [drm] Initialized drm 1.1.0 20060810
+[    1.025558] brd: module loaded
+[    1.034919] loop: module loaded
+[    1.044410] e1000e: Intel(R) PRO/1000 Network Driver - 2.3.2-k
+[    1.050396] e1000e: Copyright(c) 1999 - 2013 Intel Corporation.
+[    1.058540] libphy: XEMACPS mii bus: probed
+[    1.062914] ------------- phy_id = 0x3625e62
+[    1.067804] xemacps e000b000.ps7-ethernet: pdev->id -1, baseaddr 0xe000b000, irq 54
+[    1.076360] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+[    1.083039] ehci-pci: EHCI PCI platform driver
+[    1.090279] zynq-dr e0002000.ps7-usb: Unable to init USB phy, missing?
+[    1.097151] usbcore: registered new interface driver usb-storage
+[    1.104000] mousedev: PS/2 mouse device common for all mice
+[    1.110179] i2c /dev entries driver
+[    1.117111] zynq-edac f8006000.ps7-ddrc: ecc not enabled
+[    1.122597] cpufreq_cpu0: failed to get cpu0 regulator: -19
+[    1.128487] Xilinx Zynq CpuIdle Driver started
+[    1.133324] sdhci: Secure Digital Host Controller Interface driver
+[    1.139506] sdhci: Copyright(c) Pierre Ossman
+[    1.143775] sdhci-pltfm: SDHCI platform and OF driver helper
+[    1.150601] mmc0: no vqmmc regulator found
+[    1.154612] mmc0: no vmmc regulator found
+[    1.196751] mmc0: SDHCI controller on e0100000.ps7-sdio [e0100000.ps7-sdio] using ADMA
+[    1.205446] usbcore: registered new interface driver usbhid
+[    1.210961] usbhid: USB HID core driver
+[    1.215673] nand: device found, Manufacturer ID: 0x2c, Chip ID: 0xda
+[    1.221970] nand: Micron MT29F2G08ABAEAWP
+[    1.225934] nand: 256MiB, SLC, page size: 2048, OOB size: 64
+[    1.231871] Bad block table found at page 131008, version 0x01
+[    1.238097] Bad block table found at page 130944, version 0x01
+[    1.244144] 3 ofpart partitions found on MTD device pl353-nand
+[    1.249925] Creating 3 MTD partitions on "pl353-nand":
+[    1.255016] 0x000000000000-0x000002000000 : "BOOT.bin-env-dts-kernel"
+[    1.263063] 0x000002000000-0x00000b000000 : "angstram-rootfs"
+[    1.270384] 0x00000b000000-0x000010000000 : "upgrade-rootfs"
+[    1.279345] TCP: cubic registered
+[    1.282581] NET: Registered protocol family 17
+[    1.287293] Registering SWP/SWPB emulation handler
+[    1.293183] regulator-dummy: disabling
+[    1.297517] UBI: attaching mtd1 to ubi0
+[    1.827002] UBI: scanning is finished
+[    1.838657] UBI: attached mtd1 (name "angstram-rootfs", size 144 MiB) to ubi0
+[    1.845712] UBI: PEB size: 131072 bytes (128 KiB), LEB size: 126976 bytes
+[    1.852508] UBI: min./max. I/O unit sizes: 2048/2048, sub-page size 2048
+[    1.859185] UBI: VID header offset: 2048 (aligned 2048), data offset: 4096
+[    1.866022] UBI: good PEBs: 1152, bad PEBs: 0, corrupted PEBs: 0
+[    1.872033] UBI: user volume: 1, internal volumes: 1, max. volumes count: 128
+[    1.879143] UBI: max/mean erase counter: 6/3, WL threshold: 4096, image sequence number: 1134783803
+[    1.888173] UBI: available PEBs: 0, total reserved PEBs: 1152, PEBs reserved for bad PEB handling: 40
+[    1.897390] UBI: background thread "ubi_bgt0d" started, PID 1080
+[    1.897395] drivers/rtc/hctosys.c: unable to open rtc device (rtc0)
+[    1.901285] ALSA device list:
+[    1.901289]   No soundcards found.
+[    1.917773] UBIFS: background thread "ubifs_bgt0_0" started, PID 1082
+[    1.946812] UBIFS: recovery needed
+[    2.023546] UBIFS: recovery completed
+[    2.027235] UBIFS: mounted UBI device 0, volume 0, name "rootfs"
+[    2.033155] UBIFS: LEB size: 126976 bytes (124 KiB), min./max. I/O unit sizes: 2048 bytes/2048 bytes
+[    2.042288] UBIFS: FS size: 128626688 bytes (122 MiB, 1013 LEBs), journal size 9023488 bytes (8 MiB, 72 LEBs)
+[    2.052179] UBIFS: reserved for root: 0 bytes (0 KiB)
+[    2.057214] UBIFS: media format: w4/r0 (latest is w4/r0), UUID B079DD56-06BB-4E31-8F5E-A6604F480DB2, small LPT model
+[    2.068499] VFS: Mounted root (ubifs filesystem) on device 0:11.
+[    2.075907] devtmpfs: mounted
+[    2.079039] Freeing unused kernel memory: 204K (c06d2000 - c0705000)
+[    2.926564] random: dd urandom read with 0 bits of entropy available
+[    3.326751] 
+[    3.326751] bcm54xx_config_init
+[    3.936781] 
+[    3.936781] bcm54xx_config_init
+[    6.937347] xemacps e000b000.ps7-ethernet: Set clk to 24999999 Hz
+[    6.943433] xemacps e000b000.ps7-ethernet: link up (100/FULL)
+[   10.446921] In axi fpga driver!
+[   10.449988] request_mem_region OK!
+[   10.453379] AXI fpga dev virtual address is 0xdf9fc000
+[   10.458514] *base_vir_addr = 0x8c510
+[   10.473896] In fpga mem driver!
+[   10.477030] request_mem_region OK!
+[   10.480536] fpga mem virtual address is 0xe2000000
+[   11.276077] 
+[   11.276077] bcm54xx_config_init
+[   11.906025] 
+[   11.906025] bcm54xx_config_init
+[   14.906606] xemacps e000b000.ps7-ethernet: Set clk to 24999999 Hz
+[   14.912623] xemacps e000b000.ps7-ethernet: link up (100/FULL)
+[ 1135.626955] random: nonblocking pool is initialized
+[ 6877.538403] 
+[ 6877.538403] bcm54xx_config_init
+[ 6880.538961] xemacps e000b000.ps7-ethernet: Set clk to 24999999 Hz
+[ 6880.544988] xemacps e000b000.ps7-ethernet: link up (100/FULL)
