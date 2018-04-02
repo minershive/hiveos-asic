@@ -4,5 +4,5 @@
 while true
 do
 sleep 600
-/hive/bin/agent-screen dontatta
+/hive/bin/agent-screen dontattach
 done
