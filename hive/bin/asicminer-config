@@ -1,12 +1,13 @@
 #!/hive/sbin/bash
 
-THIS_MINER_NAME="bmminer"
+. asic-model
+
 [ -t 1 ] && . colors
 
 function config_gen() {
 	RIG_CONF="/hive-config/rig.conf"
 	WALLET_CONF="/hive-config/wallet.conf"
-	MINER_CONFIG="/config/bmminer.conf"
+	MINER_CONFIG="/config/$THIS_MINER_NAME.conf"
 
 	echo "Generating $MINER_CONFIG"
 
@@ -15,16 +16,16 @@ function config_gen() {
 	. $RIG_CONF
 	. $WALLET_CONF
 
-	[[ -z $BMMINER_TEMPLATE ]] && echo -e "${YELLOW}BMMINER_TEMPLATE is empty${NOCOLOR}" && return 1
-	[[ -z $BMMINER_URL ]] && echo -e "${YELLOW}BMMINER_URL is empty${NOCOLOR}" && return 1
+	[[ -z $ASICMINER_TEMPLATE ]] && echo -e "${YELLOW}ASICMINER__TEMPLATE is empty${NOCOLOR}" && return 1
+	[[ -z $ASICMINER_URL ]] && echo -e "${YELLOW}ASICMINER__URL is empty${NOCOLOR}" && return 1
 
 	pools='[]'
-	for url in $BMMINER_URL; do
+	for url in $ASICMINER_URL; do
 		pool='{}'
-		pool=`jq --null-input --argjson pool "$pool" --arg user "$BMMINER_TEMPLATE" '$pool + {$user}'`
+		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}'`
 		pool=`jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}'`
-		#[[ ! -z $BMMINER_PASS ]] &&
-		pool=`jq --null-input --argjson pool "$pool" --arg pass "$BMMINER_PASS" '$pool + {$pass}'`
+		#[[ ! -z $ASICMINER_PASS ]] &&
+		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}'`
 		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
 	done
 
@@ -32,6 +33,7 @@ function config_gen() {
 
 #	echo $pools | jq .
 
+if [[ $ASIC_MODEL == "Antminer S9" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-network" : true,
@@ -42,7 +44,34 @@ function config_gen() {
 "bitmain-voltage" : "0706",
 "multi-version" : "1"
 }'
-
+elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:0/0,W:*",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "0"
+}'
+elif [[ $ASIC_MODEL == "Antminer D3" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:0/0,W:*",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "512"
+}'
+elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:0/0,W:*",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "384"
+}'
+fi
 
 	conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$p * $g'`
 

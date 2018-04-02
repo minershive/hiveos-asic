@@ -8,6 +8,8 @@ RIG_CONF="/hive-config/rig.conf"
 WALLET_CONF="/hive-config/wallet.conf"
 #LOG="/var/log/hive-agent.log"
 LOG="/dev/null"
+ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+MINER="asicminer"
 
 API_TIMEOUT=15 #timeout to wait for miner API response, can take very long time on 13+ gpus
 
@@ -22,8 +24,9 @@ screen_count=`screen -ls | grep "\.agent" | grep -v $PPID | wc -l`
 	echo -e "${RED}Agent screen is already running${NOCOLOR}\nRun ${CYAN}agent-screen${NOCOLOR} to resume screen" &&
 	exit 1
 
+. asic-model
 
-
+echo $ASIC_MODEL
 ########################################################################################################################
 
 miner_stats () {
@@ -34,13 +37,13 @@ miner_stats () {
 	stats=
 	stats_raw=
 	max_fan_rpm=6000
-	case $miner in
-		bmminer)
-			stats_raw=`echo '{"command":"stats"}' | nc -w $API_TIMEOUT localhost 4028 | tr -d '\0'`
+	case $ASIC_MODEL in
+		"Antminer S9")
+			stats_raw=`echo '{"command":"stats"}' | nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
-				stats_raw=$(sed 's/"Antminer S9"}{"STATS"/"Antminer S9"},{"STATS"/' <<< "$stats_raw")
+				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
 				local STATS=$(jq '.STATS' <<< "$stats_raw")
 
 				#if [[ -z $algo || $algo == "null" ]]; then
@@ -74,6 +77,46 @@ miner_stats () {
 						'{$algo, $hs, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
+		"Antminer A3"|"Antminer D3"|"Antminer L3+")
+			stats_raw=`echo '{"command":"stats"}' | nc localhost 4028 | tr -d '\0'`
+			if [[ $? -ne 0 || -z $stats_raw ]]; then
+				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
+			else
+				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
+				local STATS=$(jq '.STATS' <<< "$stats_raw")
+
+				#if [[ -z $algo || $algo == "null" ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				local algo=$ASIC_ALGO
+				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
+				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
+				khs=$(awk '{print $1 * 1000000}' <<< "$khs")
+
+				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
+				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
+				#stats=$(jq -nc --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
+
+				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
+				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
+				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
+				local fan_rpm=$( (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
+				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("frequency")) )           | to_entries | [.[].value]') <<< "$STATS")
+				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+                                local freq_new='[ '${freq//[^0-9]/}', '${freq//[^0-9]/}', '${freq//[^0-9]/}', '${freq//[^0-9]/}' ]'
+
+				stats=$(jq -nc \
+						--arg algo "$algo" --argjson hs "$hs" \
+						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+						--argjson freq "$freq_new" --argjson acn "$acn" \
+						--argjson hw_errors "$hw_errors" --argjson status "$status" \
+						--arg uptime "$uptime" \
+						'{$algo, $hs, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
+			fi
+		;;
 		*)
 			miner="unknown"
 			#MINER=miner
@@ -102,8 +145,9 @@ loop () {
 	#each time read config again
 	. $RIG_CONF
 	. $WALLET_CONF
+	
 
-	[ -z $MINER ] && MINER="bmminer"
+	[ -z $MINER ] && MINER="asicminer"
 	HIVE_URL="$HIVE_HOST_URL/worker/api"
 
 	miner_stats $MINER #khs and stats are global
@@ -123,7 +167,7 @@ loop () {
 	--arg miner "$MINER" \
 	--argjson miner_stats "$stats" \
 	--arg total_khs "$khs" \
-	--arg df "`df -h / | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
+	--arg df "`df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
 	--argjson cpuavg "[`uptime | awk -F': ' '{print $2}'`]" \
 	'{
 		"method": "stats", "jsonrpc": "2.0", "id": 0,
@@ -142,7 +186,7 @@ loop () {
 	#echo "[`date`] > $request" >> $LOG
 
 	response=$(echo $request | curl --insecure -L --data @- \
-	--connect-timeout 7 --max-time 15 --silent \
+	--connect-timeout 15 --max-time 25 --silent \
 	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=stats"  -H "Content-Type: application/json")
 
 	exitcode=$?
@@ -235,7 +279,7 @@ do_command () {
 					message warning "Password change received, wait for next message..." 120
 					request=$(jq -n --arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 					'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}')
-					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 7 --max-time 15 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
+					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
 
 					exitcode=$?
 					[ $exitcode -ne 0 ] &&
@@ -265,7 +309,7 @@ do_command () {
 
 				# Final actions ---------------------------------------------------------
 				if [[ "$justwrite" != 1 ]]; then
-					hostname-check
+					#hostname-check
 					miner restart
 				fi
 

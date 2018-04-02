@@ -1,6 +1,10 @@
 #!/hive/sbin/bash
 
 MINER_LOGS_BASE_DIR=/var/log/miner
+ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+MINER="asicminer"
+
+. asic-model
 
 function usage() {
 	bname=`basename $0`
@@ -25,12 +29,13 @@ else
 	. $RIG_CONF
 fi
 
+
 [[ -e $WALLET_CONF ]] && . $WALLET_CONF
 
-[ -z $MINER ] && MINER="bmminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"bmminer\"${NOCOLOR}"
+[ -z $MINER ] && MINER="asicminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
 
 #sgminer-gm is deprecated...
-miners_avail=("bmminer")
+miners_avail=("asicminer")
 if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
 	echo -e "${RED}Unknown miner $MINER${NOCOLOR}"
 	message error "Unknown miner $MINER"
@@ -43,22 +48,22 @@ fi
 
 
 function config-gen() {
-	/hive/bin/bmminer-config
+	/hive/bin/asicminer-config
 }
 
 
 function start() {
-	echo -e "Starting ${CYAN}$MINER${NOCOLOR}"
+	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	config-gen
 	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
-	nohup /etc/init.d/bmminer.sh start > /dev/null 2>&1 &
+	nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
 	echo "";
 }
 
 
 function stop() {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
-	/etc/init.d/bmminer.sh stop
+	/etc/init.d/$THIS_MINER_NAME.sh stop
 }
 
 
@@ -66,17 +71,14 @@ function miner_log_basename() {
 	local miner=$1
 	[[ -z $miner ]] && echo "No miner given to miner_log_basename" && return 1
 
-	log_basename=""
-	case $miner in
-		"bmminer")
-			log_basename="/var/volatile/tmp/temp"
-			;;
-		*)
-			#log_basename="$MINER_LOGS_BASE_DIR/$miner/$miner"
-			echo "Unknown miner $miner to miner_log_basename"
-			return 1
-			;;
-	esac
+        if [ ! -z $LOG_PATH ]; then
+                log_basename="${LOG_PATH}"
+        else
+                log_basename=""
+                echo "Unknown asic $ASIC_MODEL to miner_log_basename"
+                return 1
+        fi
+
 	echo $log_basename
 	return 0
 }
@@ -120,16 +122,13 @@ function echo_config_file() {
 
 #Shows miner config
 function config() {
-	logname=""
-	case $MINER in
-		"bmminer")
-			echo_config_file "/config/bmminer.conf"
-			;;
-		*)
-			echo "Unknown miner $MINER"
-			return
-			;;
-	esac
+        logname=""
+        if [ ! -z $CONFIG_PATH ]; then
+                echo_config_file "${CONFIG_PATH}"
+        else
+                echo "Unknown model $ASIC_MODEL"
+                return
+        fi
 }
 
 
@@ -160,7 +159,7 @@ case $1 in
 		echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
 		stop
 		#need some time to finish it seems
-		sleep 1
+		sleep 5
 		start
 	;;
 	config)

@@ -23,6 +23,7 @@ mkdir -p "/hive-config"
 [[ -z $HIVE_HOST_URL ]] && echo "No HIVE_HOST_URL in config" && exit 1
 
 
+
 HIVE_URL="$HIVE_HOST_URL/worker/api"
 
 
@@ -45,7 +46,8 @@ ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1
 net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
 
 mb_manufacturer=
-mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
+#mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
+mb_product=`sed -n 2p /usr/bin/compile_time`
 
 cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*//g'`
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'`
@@ -59,8 +61,11 @@ hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
 asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
+#asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
+#asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
 
-asic_chain_count=`cat /tmp/search | grep "Find hashboard" | wc -l`
+#asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
+asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
 
 
 request=$(
@@ -91,7 +96,7 @@ jq -n \
 )
 echo "$request" | jq -c '.'
 
-response=$(echo $request | curl --insecure -L --data @- --connect-timeout 7 --max-time 15 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
+response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
 exitcode=$?
 [[ $exitcode -ne 0 ]] &&
 	echo -e "${RED}Error connecting to Hive server${NOCOLOR} $HIVE_HOST_URL" &&

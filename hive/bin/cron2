@@ -1,0 +1,8 @@
+#!/hive/sbin/bash
+
+# check agent is running...
+while true
+do
+sleep 600
+/hive/bin/agent-screen dontatta
+done
