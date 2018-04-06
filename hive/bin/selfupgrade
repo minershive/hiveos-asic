@@ -1,0 +1,107 @@
+#!/bin/sh
+
+asic_model=`sed -n 2p /usr/bin/compile_time`
+filename=master.tar.gz
+url=http://github.com/minershive/hiveos-asic/archive/$filename
+
+cd /tmp
+
+[ -e $filename ] && rm $filename
+
+echo "> Downloading $url"
+curl -L --insecure -O $url
+[ $? -ne 0 ] && echo "Error downloading $url" && exit 1
+
+sleep 2
+
+
+install_s9() {
+	echo ""
+	echo "> Extracting $filename"
+	tar -xzv -f $filename
+	cp -rf hiveos-asic-master/* /
+	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+
+	rm $filename
+
+	sleep 2
+
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
+
+	/hive/bin/hive
+
+	sleep 2
+
+	bash -c /hive/bin/firstrun
+}
+
+install_a3_d3() {
+	echo ""
+	echo "> Extracting $filename"
+	if [ ! -d /config/hive ]; then
+		mkdir /config/hive
+	fi
+        tar -xzv -f $filename
+        cp -rf hiveos-asic-master/* /config/hive/
+	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+
+	rm $filename
+
+	sleep 2
+
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
+	
+	ln -s /config/hive/hive/ /hive
+	ln -s /config/hive/hive-config/ /hive-config
+	ln -s /config/hive/home/root/.profile /home/root/.profile
+	
+	if grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
+		echo "/config/network.conf skip"
+	else
+		cat >> /config/network.conf <<FILEEOF
+
+if [ -d /config/hive ]; then
+ln -s /config/hive/hive/ /hive
+ln -s /config/hive/hive-config/ /hive-config
+ln -s /config/hive/home/root/.profile /home/root/.profile
+(sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Runing hive...") &
+(sleep 40; /hive/bin/hello) &
+(sleep 60; /hive/bin/cron1) &
+(sleep 60; /hive/bin/cron2) &
+fi
+
+FILEEOF
+	fi
+	
+	/hive/bin/hive
+	(sleep 60; /hive/bin/cron1) &
+        (sleep 60; /hive/bin/cron2) &
+
+
+	sleep 2
+
+	bash -c /hive/bin/firstrun
+}
+
+
+if [ "$asic_model" == "Antminer S9" ]; then
+    echo "Innstall Antminer S9"
+    install_s9
+elif [ "$asic_model" == "Antminer A3" ]; then
+    echo "Install Antminer A3"
+    install_a3_d3
+elif [ "$asic_model" == "Antminer D3" ]; then
+    echo "Install Antminer D3"
+    install_a3_d3
+elif [ "$asic_model" == "Antminer L3+" ]; then
+    echo "Install Antminer L3+"
+    install_a3_d3
+else
+    echo 'Not found ' $asic_model
+fi
+sync
+
+
+

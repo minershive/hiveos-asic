@@ -243,14 +243,14 @@ do_command () {
 		;;
 		upgrade)
 			message warn "Not implemented yet"
-#			nohup bash -c '
-#				payload=`selfupgrade 2>&1`
-#				upgrade_exitcode=$?
-#				echo "$payload"
-#				[[ $upgrade_exitcode -eq 0 ]] &&
-#					echo "$payload" | message ok "Selfupgrade successful" payload ||
-#					echo "$payload" | message error "Selfupgrade failed" payload
-#			' > /tmp/nohup.log 2>&1 &
+			nohup bash -c '
+				payload=`selfupgrade 2>&1`
+				upgrade_exitcode=$?
+				echo "$payload"
+				[[ $upgrade_exitcode -eq 0 ]] &&
+					echo "$payload" | message ok "Selfupgrade successful" payload ||
+					echo "$payload" | message error "Selfupgrade failed" payload
+			' > /tmp/nohup.log 2>&1 &
 		;;
 		exec)
 			exec=$(echo $body | jq '.exec' --raw-output)
