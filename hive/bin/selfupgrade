@@ -1,9 +1,11 @@
 #!/bin/sh
 
 ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-filename=master.tar.gz
+release=master
+filename=$release.tar.gz
 if [ $# != "0" ]; then
-    filename=$1.tar.gz
+	release=$1
+	filename=v$release.tar.gz
 fi
 url=http://github.com/minershive/hiveos-asic/archive/$filename
 
@@ -24,7 +26,7 @@ install_s9() {
 	echo ""
 	echo "> Extracting $filename"
 	tar -xzv -f $filename
-	cp -rf hiveos-asic-master/* /
+	cp -rf hiveos-asic-$release/* /
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm $filename
@@ -47,8 +49,8 @@ install_a3_d3() {
 	if [ ! -d /config/hive ]; then
 		mkdir /config/hive
 	fi
-        tar -xzv -f $filename
-        cp -rf hiveos-asic-master/* /config/hive/
+		tar -xzv -f $filename
+		cp -rf hiveos-asic-$release/* /config/hive/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm $filename
@@ -82,7 +84,7 @@ FILEEOF
 	
 	/hive/bin/hive
 	(sleep 60; /hive/bin/cron1) &
-        (sleep 60; /hive/bin/cron2) &
+	(sleep 60; /hive/bin/cron2) &
 
 
 	sleep 2
@@ -92,19 +94,19 @@ FILEEOF
 
 
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
-    echo "Innstall Antminer S9"
-    install_s9
+	echo "Innstall Antminer S9"
+	install_s9
 elif [ "$ASIC_MODEL" == "Antminer A3" ]; then
-    echo "Install Antminer A3"
-    install_a3_d3
+	echo "Install Antminer A3"
+	install_a3_d3
 elif [ "$ASIC_MODEL" == "Antminer D3" ]; then
-    echo "Install Antminer D3"
-    install_a3_d3
+	echo "Install Antminer D3"
+	install_a3_d3
 elif [ "$ASIC_MODEL" == "Antminer L3+" ]; then
-    echo "Install Antminer L3+"
-    install_a3_d3
+	echo "Install Antminer L3+"
+	install_a3_d3
 else
-    echo 'Not found ' $ASIC_MODEL
+	echo 'Not found ' $ASIC_MODEL
 fi
 sync
 
