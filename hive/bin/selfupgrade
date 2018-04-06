@@ -2,12 +2,16 @@
 
 ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 filename=master.tar.gz
-[ ! -z '$1' ] && filename='$1'.tar.gz
+if [ $# != "0" ]; then
+    filename=$1.tar.gz
+fi
 url=http://github.com/minershive/hiveos-asic/archive/$filename
 
 cd /tmp
 
 [ -e $filename ] && rm $filename
+
+echo $url
 
 echo "> Downloading $url"
 curl -L --insecure -O $url
