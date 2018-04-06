@@ -3,6 +3,6 @@
 # check agent is running...
 while true
 do
-sleep 600
-/hive/bin/agent-screen dontattach
+	sleep 600
+	/hive/bin/agent-screen dontattach
 done

@@ -1,3 +1,5 @@
+#!/hive/sbin/bash
+
 ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 
 if [[ $ASIC_MODEL == "Antminer S9" ]]; then

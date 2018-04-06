@@ -8,7 +8,6 @@ RIG_CONF="/hive-config/rig.conf"
 WALLET_CONF="/hive-config/wallet.conf"
 #LOG="/var/log/hive-agent.log"
 LOG="/dev/null"
-ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 MINER="asicminer"
 
 API_TIMEOUT=15 #timeout to wait for miner API response, can take very long time on 13+ gpus
@@ -25,8 +24,8 @@ screen_count=`screen -ls | grep "\.agent" | grep -v $PPID | wc -l`
 	exit 1
 
 . asic-model
+echo -e "Detected ASIC model: ${CYAN}$ASIC_MODEL${NOCOLOR}\n"
 
-echo $ASIC_MODEL
 ########################################################################################################################
 
 miner_stats () {
