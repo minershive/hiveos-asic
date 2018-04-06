@@ -1,8 +1,11 @@
 #!/bin/sh
 
-asic_model=`sed -n 2p /usr/bin/compile_time`
+ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 filename=master.tar.gz
 url=http://github.com/minershive/hiveos-asic/archive/$filename
+
+[ ! -z "$1" ] && filename=$1.tar.gz
+
 
 cd /tmp
 
@@ -86,20 +89,20 @@ FILEEOF
 }
 
 
-if [ "$asic_model" == "Antminer S9" ]; then
+if [ "$ASIC_MODEL" == "Antminer S9" ]; then
     echo "Innstall Antminer S9"
     install_s9
-elif [ "$asic_model" == "Antminer A3" ]; then
+elif [ "$ASIC_MODEL" == "Antminer A3" ]; then
     echo "Install Antminer A3"
     install_a3_d3
-elif [ "$asic_model" == "Antminer D3" ]; then
+elif [ "$ASIC_MODEL" == "Antminer D3" ]; then
     echo "Install Antminer D3"
     install_a3_d3
-elif [ "$asic_model" == "Antminer L3+" ]; then
+elif [ "$ASIC_MODEL" == "Antminer L3+" ]; then
     echo "Install Antminer L3+"
     install_a3_d3
 else
-    echo 'Not found ' $asic_model
+    echo 'Not found ' $ASIC_MODEL
 fi
 sync
 
