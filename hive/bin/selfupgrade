@@ -116,7 +116,19 @@ elif [ "$ASIC_MODEL" == "Antminer L3+" ]; then
 	install_a3_d3
 else
 	echo 'Not found ' $ASIC_MODEL
+        exit 1
 fi
+
+echo -e "> Saying hello to server again"
+hello restartminer
+
+#Restart agent
+echo -e "> Restarting agent"
+screen -S agent -X quit
+agent-screen
+
+echo -e "Upgrade complete. Have a happy mining."
+
 sync
 
 

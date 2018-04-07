@@ -241,7 +241,6 @@ do_command () {
 			/sbin/reboot
 		;;
 		upgrade)
-			message warn "Not implemented yet"
 			nohup bash -c '
 				payload=`selfupgrade 2>&1`
 				upgrade_exitcode=$?
