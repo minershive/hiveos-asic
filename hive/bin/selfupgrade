@@ -1,11 +1,15 @@
 #!/bin/sh
 
 ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-release=master
-filename=$release.tar.gz
+release=`curl -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
+filename=v$release.tar.gz
 if [ $# != "0" ]; then
 	release=$1
-	filename=v$release.tar.gz
+	if [ $release == "master" ]; then
+		filename=$release.tar.gz
+	else
+		filename=v$release.tar.gz
+	fi
 fi
 url=http://github.com/minershive/hiveos-asic/archive/$filename
 
