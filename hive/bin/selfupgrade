@@ -19,6 +19,7 @@ fi
 url=http://github.com/minershive/hiveos-asic/archive/$filename
 
 cd /tmp
+rm -rf /tmp/hive/*
 
 [ -e $filename ] && rm $filename
 
@@ -125,7 +126,7 @@ hello restartminer
 #Restart agent
 echo -e "> Restarting agent"
 screen -S agent -X quit
-agent-screen
+agent-screen dontattach
 
 echo -e "Upgrade complete. Have a happy mining."
 
