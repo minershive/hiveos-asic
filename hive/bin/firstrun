@@ -14,7 +14,7 @@ mkdir -p "/hive-config"
 [[ "$1" == "-f" ]] && echo "Forcing reconfig"
 
 
-eval `cat /hive-config/rig.conf | dos2unix | grep '^HIVE_HOST_URL='`
+#eval `cat /hive-config/rig.conf | dos2unix | grep '^HIVE_HOST_URL='`
 [[ -z $HIVE_HOST_URL ]] && HIVE_HOST_URL='http://api.hiveos.farm'
 
 

@@ -130,6 +130,7 @@ agent-screen
 echo -e "Upgrade complete. Have a happy mining."
 
 sync
+exit 0
 
 
 
