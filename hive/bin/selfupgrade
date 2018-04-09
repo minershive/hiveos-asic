@@ -79,15 +79,15 @@ install_a3_d3() {
 	else
 		cat >> /config/network.conf <<FILEEOF
 
-if [ -d /config/hive ]; then
-ln -s /config/hive/hive/ /hive
-ln -s /config/hive/hive-config/ /hive-config
-ln -s /config/hive/home/root/.profile /home/root/.profile
-(sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive...") &
-(sleep 40; /hive/bin/hello) &
-(sleep 60; /hive/bin/cron1) &
-(sleep 60; /hive/bin/cron2) &
-fi
+	if [ ! -e /config/hive ]; then
+		ln -s /config/hive/hive/ /hive
+		ln -s /config/hive/hive-config/ /hive-config
+		ln -s /config/hive/home/root/.profile /home/root/.profile
+		(sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive...") &
+		(sleep 40; /hive/bin/hello) &
+		(sleep 60; /hive/bin/cron1) &
+		(sleep 60; /hive/bin/cron2) &
+	fi
 
 FILEEOF
 	fi
