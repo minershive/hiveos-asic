@@ -113,8 +113,6 @@ FILEEOF
 }
 
 
-. /hive/bin/colors
-
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
 	echo "Install Antminer S9"
 	install_s9
@@ -131,6 +129,8 @@ else
 	echo "Not found $ASIC_MODEL"
 	exit 1
 fi
+
+. /hive/bin/colors
 
 #Don't restart it...
 #echo -e "> Saying hello to server again"
