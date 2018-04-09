@@ -81,7 +81,7 @@ install_a3_d3() {
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
 	
-	if [ ! -e /config/hive ]; then
+	if [ ! -e /hive ]; then
 		ln -s /config/hive/hive/ /hive
 		ln -s /config/hive/hive-config/ /hive-config
 		ln -s /config/hive/home/root/.profile /home/root/.profile
@@ -91,7 +91,7 @@ install_a3_d3() {
 		echo "/config/network.conf skip"
 	else
 		cat >> /config/network.conf <<FILEEOF
-if [ ! -e /config/hive ]; then
+if [ ! -e /hive ]; then
 	ln -s /config/hive/hive/ /hive
 	ln -s /config/hive/hive-config/ /hive-config
 	ln -s /config/hive/home/root/.profile /home/root/.profile
