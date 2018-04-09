@@ -241,14 +241,14 @@ do_command () {
 			/sbin/reboot
 		;;
 		upgrade)
-			nohup bash -c '
-				payload=`selfupgrade 2>&1`
-				upgrade_exitcode=$?
-				echo "$payload"
+			screen -dm -S selfupgrade bash -c '
+				selfupgrade 2>&1 | tee /tmp/nohup.log
+				upgrade_exitcode=${PIPESTATUS[0]}
+				payload=`cat /tmp/nohup.log`
 				[[ $upgrade_exitcode -eq 0 ]] &&
 					echo "$payload" | message ok "Selfupgrade successful" payload ||
 					echo "$payload" | message error "Selfupgrade failed" payload
-			' > /tmp/nohup.log 2>&1 &
+			'
 		;;
 		exec)
 			exec=$(echo $body | jq '.exec' --raw-output)

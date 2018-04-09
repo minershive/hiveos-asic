@@ -70,38 +70,41 @@ install_a3_d3() {
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
 	
-	ln -s /config/hive/hive/ /hive
-	ln -s /config/hive/hive-config/ /hive-config
-	ln -s /config/hive/home/root/.profile /home/root/.profile
-	
-	if grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
-		echo "/config/network.conf skip"
-	else
-		cat >> /config/network.conf <<FILEEOF
-
 	if [ ! -e /config/hive ]; then
 		ln -s /config/hive/hive/ /hive
 		ln -s /config/hive/hive-config/ /hive-config
 		ln -s /config/hive/home/root/.profile /home/root/.profile
-		(sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive...") &
-		(sleep 40; /hive/bin/hello) &
-		(sleep 60; /hive/bin/cron1) &
-		(sleep 60; /hive/bin/cron2) &
 	fi
 
+	if grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
+		echo "/config/network.conf skip"
+	else
+		cat >> /config/network.conf <<FILEEOF
+if [ ! -e /config/hive ]; then
+	ln -s /config/hive/hive/ /hive
+	ln -s /config/hive/hive-config/ /hive-config
+	ln -s /config/hive/home/root/.profile /home/root/.profile
+	(sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive...") &
+	(sleep 40; /hive/bin/hello) &
+	(sleep 60; /hive/bin/cron1) &
+	(sleep 60; /hive/bin/cron2) &
+fi
 FILEEOF
 	fi
 	
 	/hive/bin/hive
-	(sleep 60; /hive/bin/cron1) &
-	(sleep 60; /hive/bin/cron2) &
 
+	#on a3 d3 no cron daemon, run tasks in background
+	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
 	sleep 2
 
 	bash -c /hive/bin/firstrun
 }
 
+
+. /hive/bin/colors
 
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
 	echo "Install Antminer S9"
@@ -127,7 +130,6 @@ fi
 #Restart agent
 echo -e "> Restarting agent"
 screen -S agent -X quit
-sleep 2
 agent-screen dontattach
 
 echo -e "${GREEN}Upgrade complete. Have a happy mining.${NOCOLOR}"
