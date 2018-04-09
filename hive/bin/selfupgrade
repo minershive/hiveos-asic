@@ -5,6 +5,10 @@ release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/miners
 exitcode=$?
 version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
+
+cd /tmp
+rm -rf /tmp/hive/*
+
 if [ $release == $version ]; then
 	if [ "$1" != "master" ]; then
 		if [ "$2" != "-f" ]; then
@@ -26,9 +30,6 @@ if [ $# != "0" ]; then
 	fi
 fi
 url=http://github.com/minershive/hiveos-asic/archive/$filename
-
-cd /tmp
-rm -rf /tmp/hive/*
 
 [ -e $filename ] && rm $filename
 
