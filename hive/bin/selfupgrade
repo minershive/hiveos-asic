@@ -8,6 +8,7 @@ filename=v$release.tar.gz
 
 cd /tmp
 rm -rf /tmp/hive/*
+rm -rf /tmp/selfupgrade
 
 if [ $release == $version ]; then
 	if [ "$1" != "master" ]; then
