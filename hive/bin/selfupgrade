@@ -104,7 +104,7 @@ FILEEOF
 
 
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
-	echo "Innstall Antminer S9"
+	echo "Install Antminer S9"
 	install_s9
 elif [ "$ASIC_MODEL" == "Antminer A3" ]; then
 	echo "Install Antminer A3"
@@ -116,22 +116,21 @@ elif [ "$ASIC_MODEL" == "Antminer L3+" ]; then
 	echo "Install Antminer L3+"
 	install_a3_d3
 else
-	echo 'Not found ' $ASIC_MODEL
-        exit 1
+	echo "Not found $ASIC_MODEL"
+	exit 1
 fi
 
-echo -e "> Saying hello to server again"
-hello restartminer
+#Don't restart it...
+#echo -e "> Saying hello to server again"
+#hello restartminer
 
 #Restart agent
 echo -e "> Restarting agent"
 screen -S agent -X quit
+sleep 2
 agent-screen dontattach
 
-echo -e "Upgrade complete. Have a happy mining."
+echo -e "${GREEN}Upgrade complete. Have a happy mining.${NOCOLOR}"
 
 sync
 exit 0
-
-
-
