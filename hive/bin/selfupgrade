@@ -5,9 +5,13 @@ release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/miners
 exitcode=$?
 version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
-if [ $release == $version ] && [ $2 != '-f' ]; then
-	echo "The latest version is installed"
-	exit $exitcode
+if [ $release == $version ]; then
+	if [ "$1" != "master" ]; then
+		if [ "$2" != "-f" ]; then
+			echo "The latest version is installed"
+			exit $exitcode
+		fi
+	fi
 fi
 if [ $exitcode -ne 0 ] || [ -z $release ]; then
 	echo "Can't get current version from repository"
