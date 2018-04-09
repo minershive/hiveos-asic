@@ -3,7 +3,12 @@
 ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 exitcode=$?
+version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
+if [ $release == $version ] && [ $2 != '-f' ]; then
+	echo "The latest version is installed"
+	exit $exitcode
+fi
 if [ $exitcode -ne 0 ] || [ -z $release ]; then
 	echo "Can't get current version from repository"
 	exit $exitcode
