@@ -19,3 +19,9 @@ If you want to install specific version or downgrade please append version as an
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade 0.1-02
 ```
+
+
+Locally on ASIC you can run ```selfupgrade``` command. 
+To install specific version you should run ```selfupgrade 0.1-02```.
+If you want reinstall version please ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
+To install current development version from repository please run ```selfupgrade master```.
