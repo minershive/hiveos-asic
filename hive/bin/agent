@@ -77,12 +77,12 @@ miner_stats () {
 			fi
 		;;
 		"Antminer A3"|"Antminer D3"|"Antminer L3+")
-			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
+			stats_raw=`timeout -t 7 cgminer-api -o stats | sed 's/\=/\":"/g' | sed 's/\,/\","/g' | awk -F '|' '{print "[{\""$2,"\"},{\"",$3,"\"}]"}' | sed 's/ "},{" /"},{"/'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
-				local STATS=$(jq '.STATS' <<< "$stats_raw")
+				local STATS=$(jq '.' <<< "$stats_raw")
 
 				#if [[ -z $algo || $algo == "null" ]]; then
 				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
@@ -99,7 +99,7 @@ miner_stats () {
 
 				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
 				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
+				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value|tonumber / '$max_fan_rpm' * 100 ]') <<< "$STATS")
 				local fan_rpm=$( (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
 				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("frequency")) )           | to_entries | [.[].value]') <<< "$STATS")
 				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
