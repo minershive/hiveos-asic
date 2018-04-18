@@ -87,22 +87,16 @@ install_a3_d3() {
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 
-	if grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
+	if grep "### HIVE AUTORUN ###" /config/network.conf || grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
 		echo "/config/network.conf skip"
 	else
 		cat >> /config/network.conf <<FILEEOF
-if [ ! -e /hive ]; then
-	ln -s /config/hive/hive/ /hive
-	ln -s /config/hive/hive-config/ /hive-config
-	ln -s /config/hive/home/root/.profile /home/root/.profile
-	(sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive...") &
-	(sleep 40; /hive/bin/hello) &
-	(sleep 60; /hive/bin/cron1) &
-	(sleep 60; /hive/bin/cron2) &
-fi
+
+### HIVE AUTORUN ###
+[ -e /config/hive_autorun ] && nohup bash -c '/config/hive_autorun' > /dev/null 2>&1 &
 FILEEOF
 	fi
-	
+	cp -rf /hive/bin/hive_autorun /config/hive_autorun
 	/hive/bin/hive
 
 	#on a3 d3 no cron daemon, run tasks in background

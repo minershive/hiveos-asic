@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ ! -e /hive ]; then
+	ln -s /config/hive/hive/ /hive
+	ln -s /config/hive/hive-config/ /hive-config
+	ln -s /config/hive/home/root/.profile /home/root/.profile
+	nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive..."' > /dev/null 2>&1 &
+	nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
+	nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+	nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+fi
