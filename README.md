@@ -25,3 +25,11 @@ Locally on ASIC you can run ```selfupgrade``` command.
 To install specific version you should run ```selfupgrade 0.1-02```.
 If you want reinstall version please ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
 To install current development version from repository please run ```selfupgrade master```.
+
+## Uninstall
+``` sh
+rm -rf /hive
+rm -rf /hive-config
+reboot
+```
+Maybe cron jobs have to removed manually with `crontab -e` even if they are left there the would do nothing.
