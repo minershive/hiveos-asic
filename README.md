@@ -15,11 +15,12 @@ Login with SSH to your miner and run the following command
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
 ```
 
+## Downgrade and Version changing
+
 If you want to install specific version or downgrade please append version as an argument to selfupgrade. E.g. 0.1-02
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade 0.1-02
 ```
-
 
 Locally on ASIC you can run ```selfupgrade``` command. 
 To install specific version you should run ```selfupgrade 0.1-02```.
