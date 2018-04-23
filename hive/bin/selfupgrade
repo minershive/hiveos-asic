@@ -93,7 +93,7 @@ install_a3_d3() {
 		cat >> /config/network.conf <<FILEEOF
 
 ### HIVE AUTORUN ###
-[ -e /config/hive_autorun ] && nohup bash -c '/config/hive_autorun' > /dev/null 2>&1 &
+[ -e /config/hive_autorun ] && nohup /bin/sh -c '/config/hive_autorun' > /dev/null 2>&1 &
 FILEEOF
 	fi
 	cp -rf /hive/bin/hive_autorun /config/hive_autorun
