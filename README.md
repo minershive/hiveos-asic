@@ -6,6 +6,8 @@ Supported ASICs:
 * Antminer L3+
 * Antminer D3
 * Antminer A3
+* Antminer T9+
+
 
 
 
