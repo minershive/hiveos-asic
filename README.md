@@ -16,6 +16,10 @@ Login with SSH to your miner and run the following command
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
 ```
+For Antminer D3 Blissz, before installation run:
+```
+ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
+```
 
 ## Downgrade and Version changing
 

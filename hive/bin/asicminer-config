@@ -62,6 +62,25 @@ elif [[ $ASIC_MODEL == "Antminer D3" ]]; then
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
+elif [[ $ASIC_MODEL == "Antminer D3 Blissz" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:0/0,W:*",
+"bitmain-reboot" : true,
+"bitmain-fan-mode" : "0",
+"bitmain-fan-pwm" : "100",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "400",
+"bitmain-voltage" : "155",
+"bitmain-freq1" : "0",
+"bitmain-voltage1" : "0",
+"bitmain-freq2" : "0",
+"bitmain-voltage2" : "0",
+"bitmain-freq3" : "0",
+"bitmain-voltage3" : "0"
+}'
 elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
 	config_global='{
 "api-listen" : true,
