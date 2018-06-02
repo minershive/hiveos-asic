@@ -90,6 +90,15 @@ elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
+elif [[ $ASIC_MODEL == "Antminer L3++" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "450"
+}'
 elif [[ $ASIC_MODEL == "Antminer T9+" ]]; then
 	config_global='{
 "api-listen" : true,

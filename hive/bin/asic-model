@@ -23,7 +23,7 @@ elif [[ $ASIC_MODEL == "Antminer D3" ]] || [[ $ASIC_MODEL == "Antminer D3 Blissz
 	LOG_PATH="/var/volatile/log/messages"
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="M"
-elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
+elif [[ $ASIC_MODEL == "Antminer L3+" ]] || [[ $ASIC_MODEL == "Antminer L3++" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Scrypt"
 	THIS_MINER_NAME="cgminer"
