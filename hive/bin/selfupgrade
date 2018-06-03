@@ -113,6 +113,9 @@ FILEEOF
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
 	echo "Install Antminer S9"
 	install_s9
+elif [ "$ASIC_MODEL" == "Antminer S9i" ]; then
+	echo "Install Antminer S9i"
+	install_s9
 elif [ "$ASIC_MODEL" == "Antminer A3" ]; then
 	echo "Install Antminer A3"
 	install_a3_d3

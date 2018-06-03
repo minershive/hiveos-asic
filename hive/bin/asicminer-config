@@ -33,7 +33,7 @@ function config_gen() {
 
 #	echo $pools | jq .
 
-if [[ $ASIC_MODEL == "Antminer S9" ]]; then
+if [[ $ASIC_MODEL == "Antminer S9" ]] || [[ $ASIC_MODEL == "Antminer S9i" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-network" : true,
@@ -88,7 +88,7 @@ elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
 "api-groups" : "A:stats:pools:devs:summary:version",
 "api-allow" : "A:127.0.0.1,W:127.0.0.1",
 "bitmain-use-vil" : true,
-"bitmain-freq" : "0"
+"bitmain-freq" : "384"
 }'
 elif [[ $ASIC_MODEL == "Antminer L3++" ]]; then
 	config_global='{
