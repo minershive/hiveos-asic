@@ -3,6 +3,7 @@ Hive OS client for ASICs
 
 Supported ASICs:
 * Antminer S9
+* Antminer S9i
 * Antminer L3+
 * Antminer L3++
 * Antminer D3
