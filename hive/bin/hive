@@ -64,7 +64,7 @@ echo2 "$msg"
 #openvpn-install
 #will wait for interface
 
-if [[ $ASIC_MODEL == "Antminer S9" ]] || [[ $ASIC_MODEL == "Antminer T9+" ]] || [[ $ASIC_MODEL == "Antminer S9i" ]]; then
+if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer T9+" || $ASIC_MODEL == "Antminer S9i" ]]; then
     echo2 "> Applying crontab"
     [[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
     crontab /hive/etc/crontab.root

@@ -2,7 +2,7 @@
 
 ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 
-if [[ $ASIC_MODEL == "Antminer S9" ]] || [[ $ASIC_MODEL == "Antminer S9i" ]]; then
+if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="bmminer"
@@ -16,14 +16,14 @@ elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
 	LOG_PATH="/var/volatile/log/messages"
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="G"
-elif [[ $ASIC_MODEL == "Antminer D3" ]] || [[ $ASIC_MODEL == "Antminer D3 Blissz" ]]; then
+elif [[ $ASIC_MODEL == "Antminer D3" || $ASIC_MODEL == "Antminer D3 Blissz" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="X11"
 	THIS_MINER_NAME="cgminer"
 	LOG_PATH="/var/volatile/log/messages"
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="M"
-elif [[ $ASIC_MODEL == "Antminer L3+" ]] || [[ $ASIC_MODEL == "Antminer L3++" ]]; then
+elif [[ $ASIC_MODEL == "Antminer L3+" || $ASIC_MODEL == "Antminer L3++" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Scrypt"
 	THIS_MINER_NAME="cgminer"
