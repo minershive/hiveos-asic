@@ -11,22 +11,34 @@ mkdir -p "/hive-config"
 [ -t 1 ] && . colors
 
 
-[[ "$1" == "-f" ]] && echo "Forcing reconfig"
+PROJECT_HASH=
+if [[ "$1" == "-f" ]]; then
+	echo "Forcing reconfig"
+elif [[ ! -z "$1" ]]; then
+	PROJECT_HASH="$1"
+fi
 
 
 #eval `cat /hive-config/rig.conf | dos2unix | grep '^HIVE_HOST_URL='`
 [[ -z $HIVE_HOST_URL ]] && HIVE_HOST_URL='http://api.hiveos.farm'
 
 
-if [[ ! -f "$RIG_CONF" ]] || [[ "$1" == "-f" ]]; then
-#	selfupgrade
-	msg=$(cat <<EOF
-$BYELLOW
-_______ _______ ___ ___ _______
+
+BRANDING_LOGO="
+ _______ _______ ___ ___ _______
 |   |   |_     _|   |   |    ___|
 |       |_|   |_|   |   |    ___|
 |___|___|_______|\_____/|_______|
 
+"
+BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
+
+if [[ ! -f "$RIG_CONF" ]] || [[ "$1" == "-f" ]]; then
+#	selfupgrade
+
+	if [[ -z $PROJECT_HASH ]]; then
+		msg=$(cat <<EOF
+${BRANDING_LOGO}
 $CYAN
 Welcome to Miners Hive.
 This is your first boot, no config found at "$RIG_CONF".
@@ -36,15 +48,22 @@ Then get rig id and give it to me.
 $NOCOLOR
 EOF
 )
+	else
+		msg=$(cat <<EOF
+${BRANDING_LOGO}
+$CYAN
+Adding worker to your farm ${YELLOW}$PROJECT_HASH
+
+$NOCOLOR
+EOF
+)
+	fi
+
+
 	echo -e "$msg"
 elif [[ ! -f "$HELLO_OK" ]]; then
 	msg=$(cat <<EOF
-$BYELLOW
-_______ _______ ___ ___ _______
-|   |   |_     _|   |   |    ___|
-|       |_|   |_|   |   |    ___|
-|___|___|_______|\_____/|_______|
-
+${BRANDING_LOGO}
 $YELLOW
 Config "$RIG_CONF" exists but during boot the connection to hive server failed.
 Either the server or your network is temporary down.
@@ -76,15 +95,15 @@ id=
 passwd=
 
 read_url () {
-    while true; do
-        read url
-        [[ -z $url ]] && break
-        [[ $url =~ ^(http|https)://.+$ ]] &&
-            HIVE_HOST_URL=$url &&
-            echo -e "New server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}" &&
-            break
-        echo "Invalid URL"
-    done
+	while true; do
+		read url
+		[[ -z $url ]] && break
+		[[ $url =~ ^(http|https)://.+$ ]] &&
+			HIVE_HOST_URL=$url &&
+			echo -e "New server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}" &&
+			break
+		echo "Invalid URL"
+	done
 }
 
 read_id () {
@@ -111,19 +130,27 @@ read_passwd () {
 
 
 while true; do
-        echo -e "Server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
-        echo "Press ENTER to continue with this URL or type a new one"
-        read_url
-	read_id
-	read_passwd
+	if [[ -z $PROJECT_HASH ]]; then
+		echo -e "Server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
+		echo "Press ENTER to continue with this URL or type a new one"
+		read_url
 
-	cat > $RIG_CONF <<FILEEOF
+		read_id
+		read_passwd
+
+		cat > $RIG_CONF <<FILEEOF
 HIVE_HOST_URL="$HIVE_HOST_URL"
 RIG_ID="$id"
 RIG_PASSWD="$passwd"
 FILEEOF
+	else #$PROJECT_HASH is set
+		cat > $RIG_CONF <<FILEEOF
+HIVE_HOST_URL="$HIVE_HOST_URL"
+PROJECT_HASH="$PROJECT_HASH"
+FILEEOF
+	fi
 
-        sync
+	sync
 	echo ""
 	echo "Config written to \"$RIG_CONF\"."
 
@@ -136,8 +163,8 @@ FILEEOF
 		#[[ -f $AMD_OC_CONF ]] && amd-oc-safe
 		#[[ -f $NVIDIA_OC_CONF ]] && nvidia-oc-log
 
-	 	echo -e "\n${BGREEN}Login OK. Happy mining!${NOCOLOR}\n"
-	 	exit 0
+		echo -e "\n${BGREEN}Login OK. Happy mining!${NOCOLOR}\n"
+		exit 0
 	fi
 
 	echo -e "${RED}Sorry, id and password did not work, check and try again${NOCOLOR}\n"

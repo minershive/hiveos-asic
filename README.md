@@ -32,7 +32,7 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 
 Locally on ASIC you can run ```selfupgrade``` command. 
 To install specific version you should run ```selfupgrade 0.1-02```.
-If you want reinstall version please ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
+If you want to reinstall version please add ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
 To install current development version from repository please run ```selfupgrade master```.
 
 ## Uninstall
