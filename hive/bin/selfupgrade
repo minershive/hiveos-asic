@@ -63,7 +63,7 @@ install_s9() {
 	sleep 2
 
 	#$PROJECT_HASH can be defined externally
-	bash -c /hive/bin/firstrun $PROJECT_HASH
+	bash -c "/hive/bin/firstrun $PROJECT_HASH"
 }
 
 install_a3_d3() {
@@ -108,7 +108,7 @@ FILEEOF
 	sleep 2
 
 	#$PROJECT_HASH can be defined externally
-	bash -c /hive/bin/firstrun $PROJECT_HASH
+	bash -c "/hive/bin/firstrun $PROJECT_HASH"
 }
 
 
