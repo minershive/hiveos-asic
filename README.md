@@ -23,6 +23,13 @@ For Antminer D3 Blissz, before installation run:
 ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 ```
 
+## Promptless installation
+You can use PROJECT_HASH to add ASIC automatically without entering rig id and password. Get your hash and put it on the commandline.
+``` sh
+cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && PROJECT_HASH=your_hash_from_web sh selfupgrade
+```
+
+
 ## Downgrade and Version changing
 
 If you want to install specific version or downgrade please append version as an argument to selfupgrade. E.g. 0.1-02

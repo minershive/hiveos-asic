@@ -168,6 +168,12 @@ FILEEOF
 	fi
 
 	echo -e "${RED}Sorry, id and password did not work, check and try again${NOCOLOR}\n"
+
+	if [[ ! -z $PROJECT_HASH ]]; then
+		#break while loop
+		exit 1
+	fi
+
 done
 
 
