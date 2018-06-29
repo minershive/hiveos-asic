@@ -115,8 +115,8 @@ fi
 	if [[ ! -z $ASICMINER_USER_CONFIG ]]; then
 		while read -r line; do
 			[[ -z $line ]] && continue
-			varkey=$(echo $line | awk '{print $1}' | sed 's/\"//g; s/\://g')
-			varval=$(echo $line | awk '{print $2}' | sed 's/\"//g')
+			varkey=$(echo $line | awk -F':' '{print $1}' | jq -r '')
+			varval=$(echo $line | awk -F':' '{print $2}' | jq -r '')
 			config_global=$(echo $config_global | jq '."'$varkey'"="'$varval'"')
 		done <<< "$ASICMINER_USER_CONFIG"
 	fi
