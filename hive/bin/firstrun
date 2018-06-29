@@ -11,11 +11,11 @@ mkdir -p "/hive-config"
 [ -t 1 ] && . colors
 
 
-PROJECT_HASH=
+FARM_HASH=
 if [[ "$1" == "-f" ]]; then
 	echo "Forcing reconfig"
 elif [[ ! -z "$1" ]]; then
-	PROJECT_HASH="$1"
+	FARM_HASH="$1"
 fi
 
 
@@ -36,7 +36,7 @@ BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
 if [[ ! -f "$RIG_CONF" ]] || [[ "$1" == "-f" ]]; then
 #	selfupgrade
 
-	if [[ -z $PROJECT_HASH ]]; then
+	if [[ -z $FARM_HASH ]]; then
 		msg=$(cat <<EOF
 ${BRANDING_LOGO}
 $CYAN
@@ -52,7 +52,7 @@ EOF
 		msg=$(cat <<EOF
 ${BRANDING_LOGO}
 $CYAN
-Adding worker to your farm ${YELLOW}$PROJECT_HASH
+Adding worker to your farm ${YELLOW}$FARM_HASH
 
 $NOCOLOR
 EOF
@@ -130,7 +130,7 @@ read_passwd () {
 
 
 while true; do
-	if [[ -z $PROJECT_HASH ]]; then
+	if [[ -z $FARM_HASH ]]; then
 		echo -e "Server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
 		echo "Press ENTER to continue with this URL or type a new one"
 		read_url
@@ -143,10 +143,10 @@ HIVE_HOST_URL="$HIVE_HOST_URL"
 RIG_ID="$id"
 RIG_PASSWD="$passwd"
 FILEEOF
-	else #$PROJECT_HASH is set
+	else #$FARM_HASH is set
 		cat > $RIG_CONF <<FILEEOF
 HIVE_HOST_URL="$HIVE_HOST_URL"
-PROJECT_HASH="$PROJECT_HASH"
+FARM_HASH="$FARM_HASH"
 FILEEOF
 	fi
 
@@ -169,7 +169,7 @@ FILEEOF
 
 	echo -e "${RED}Sorry, id and password did not work, check and try again${NOCOLOR}\n"
 
-	if [[ ! -z $PROJECT_HASH ]]; then
+	if [[ ! -z $FARM_HASH ]]; then
 		#break while loop
 		exit 1
 	fi

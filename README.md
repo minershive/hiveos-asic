@@ -24,9 +24,9 @@ ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 ```
 
 ## Promptless installation
-You can use PROJECT_HASH to add ASIC automatically without entering rig id and password. Get your hash and put it on the commandline.
+You can use FARM_HASH to add ASIC automatically without entering rig id and password. Get your hash and put it on the commandline.
 ``` sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && PROJECT_HASH=your_hash_from_web sh selfupgrade
+cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web sh selfupgrade
 ```
 
 
