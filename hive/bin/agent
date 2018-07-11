@@ -150,7 +150,7 @@ loop () {
 	. $WALLET_CONF
 	
 
-	[ -z $MINER ] && MINER="asicminer"
+	[[ -z $MINER ]] && MINER="asicminer"
 	HIVE_URL="$HIVE_HOST_URL/worker/api"
 
 	miner_stats $MINER #khs and stats are global
@@ -168,6 +168,7 @@ loop () {
 	--arg rig_id "$RIG_ID" \
 	--arg passwd "$RIG_PASSWD" \
 	--arg miner "$MINER" \
+	--arg coin "$COIN" \
 	--argjson miner_stats "$stats" \
 	--arg total_khs "$khs" \
 	--arg df "`df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
@@ -175,7 +176,7 @@ loop () {
 	'{
 		"method": "stats", "jsonrpc": "2.0", "id": 0,
 		"params": {
-			$rig_id, $passwd, $miner,
+			$rig_id, $passwd, $miner, $coin,
 			$miner_stats, $total_khs,
 			$df, $cpuavg
 		}
