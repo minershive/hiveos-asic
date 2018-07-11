@@ -109,6 +109,15 @@ elif [[ $ASIC_MODEL == "Antminer T9+" ]]; then
 "bitmain-freq" : "550",
 "multi-version" : "1"
 }'
+elif [[ $ASIC_MODEL == "Antminer Z9-Mini" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "500"
+}'
 fi
 
 	#merge user config options into main config
