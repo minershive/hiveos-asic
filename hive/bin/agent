@@ -239,12 +239,16 @@ do_command () {
 	#body=$1
 	[[ -z "$command" ]] && command=`echo $body | jq -r '.command'` #get command for batch
 
+	#Optional command identifier
+	cmd_id=$(echo "$body" | jq -r '.id')
+	[[ $cmd_id == "null" ]] && cmd_id=
+
 	case $command in
 		OK)
 			echo -e "${BGREEN}$command${NOCOLOR}"
 		;;
 		reboot)
-			message ok "Rebooting" 120
+			message ok "Rebooting" --id=$cmd_id
 			echo -e "${BRED}Rebooting${NOCOLOR}"
 			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
 			/sbin/reboot
@@ -255,8 +259,8 @@ do_command () {
 				upgrade_exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 				[[ $upgrade_exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Selfupgrade successful" payload ||
-					echo "$payload" | message error "Selfupgrade failed" payload
+					echo "$payload" | message ok "Selfupgrade successful" payload --id='$cmd_id' ||
+					echo "$payload" | message error "Selfupgrade failed" payload --id='$cmd_id'
 			'
 		;;
 		exec)
@@ -265,8 +269,8 @@ do_command () {
 			exitcode=$?
 			echo "$payload"
 			[[ $exitcode -eq 0 ]] &&
-				echo "$payload" | message info "$exec" payload ||
-				echo "$payload" | message error "Exec failed, exitcode=$exitcode" payload
+				echo "$payload" | message info "$exec" payload --id=$cmd_id ||
+				echo "$payload" | message error "Exec failed, exitcode=$exitcode" payload --id=$cmd_id
 		;;
 		config)
 			config=$(echo $body | jq '.config' --raw-output)
@@ -283,14 +287,14 @@ do_command () {
 				if [[ $RIG_PASSWD != $NEW_PASSWD ]]; then
 					echo -e "${RED}New password:${NOCOLOR} $NEW_PASSWD";
 
-					message warning "Password change received, wait for next message..." 120
+					message warning "Password change received, wait for next message..." --id=$cmd_id
 					request=$(jq -n --arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 					'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}')
 					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
 
 					exitcode=$?
 					[ $exitcode -ne 0 ] &&
-						message error "Error notifying hive about \"password_change_received\"" &&
+						message error "Error notifying hive about \"password_change_received\"" --id=$cmd_id &&
 						return $exitcode #better exit because password will not be changed
 
 					error=$(echo $response | jq '.error' --raw-output)
@@ -323,10 +327,10 @@ do_command () {
 				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
 #				[[ $WD_ENABLED=1 ]] && wd restart
 
-				message ok "Rig config changed" 120
-				#[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" 120 || message warn "Error restarting miner"
+				message ok "Rig config changed" --id=$cmd_id
+				#[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
 			else
-				message error "No rig \"config\" given"
+				message error "No rig \"config\" given" --id=$cmd_id
 			fi
 		;;
 		wallet)
@@ -338,9 +342,9 @@ do_command () {
 				oc_if_changed
 
 				miner restart
-				[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" 120 || message warn "Error restarting miner"
+				[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
 			else
-				message error "No \"wallet\" config given"
+				message error "No \"wallet\" config given" --id=$cmd_id
 			fi
 		;;
 	esac
