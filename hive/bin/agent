@@ -165,12 +165,13 @@ loop () {
 	#echo $stats
 	#uptime: load averages for the past 1, 5, and 15 minutes
 
+	[[ ! -z $META ]] && meta="$META" || meta='null'
 	request=$(
 	jq -n \
 	--arg rig_id "$RIG_ID" \
 	--arg passwd "$RIG_PASSWD" \
 	--arg miner "$MINER" \
-	--arg coin "$COIN" \
+	--argjson meta "$meta" \
 	--argjson miner_stats "$stats" \
 	--arg total_khs "$khs" \
 	--arg df "`df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
@@ -178,7 +179,7 @@ loop () {
 	'{
 		"method": "stats", "jsonrpc": "2.0", "id": 0,
 		"params": {
-			$rig_id, $passwd, $miner, $coin,
+			$rig_id, $passwd, $miner, $meta,
 			$miner_stats, $total_khs,
 			$df, $cpuavg
 		}
