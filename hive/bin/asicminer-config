@@ -62,7 +62,7 @@ elif [[ $ASIC_MODEL == "Antminer D3" ]]; then
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
-elif [[ $ASIC_MODEL == "Antminer D3 Blissz" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-network" : true,

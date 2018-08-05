@@ -124,7 +124,7 @@ elif [ "$ASIC_MODEL" == "Antminer A3" ]; then
 elif [ "$ASIC_MODEL" == "Antminer D3" ]; then
 	echo "Install Antminer D3"
 	install_a3_d3
-elif [ "$ASIC_MODEL" == "Antminer D3 Blissz" ]; then
+elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer D3 Blissz"; then
 	echo "Install Antminer D3 Blissz"
 	install_a3_d3
 elif [ "$ASIC_MODEL" == "Antminer L3+" ]; then
