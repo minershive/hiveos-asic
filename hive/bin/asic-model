@@ -2,6 +2,7 @@
 
 [ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 [ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
+[ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" ]]; then
 	MOUNT=""
@@ -60,6 +61,13 @@ elif [[ $ASIC_MODEL == "ebit" ]]; then
 	CONFIG_PATH=""
 	HASH="G"
 	LOCALIP=`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`
+elif [[ $ASIC_MODEL == "b29+.g19" ]]; then
+	MOUNT=""
+	ASIC_ALGO="Equihash"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH=""
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH=""
 else
 	MOUNT=""
 	ASIC_ALGO="unknown"

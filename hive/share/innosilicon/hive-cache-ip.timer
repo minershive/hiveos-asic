@@ -1,0 +1,12 @@
+[Unit]
+Description=Execute cache-hive-ip every 1 min
+Requires=network-online.target
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+#OnCalendar=*-*-* *:*:00
+Unit=hive-cache-ip.service
+
+[Install]
+WantedBy=multi-user.target

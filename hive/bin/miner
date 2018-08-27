@@ -56,14 +56,22 @@ function start() {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	config-gen
 	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
-	nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
+	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
+		systemctl start cgminer.service
+	else
+		nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
+	fi
 	echo "";
 }
 
 
 function stop() {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
-	/etc/init.d/$THIS_MINER_NAME.sh stop
+	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
+		systemctl stop cgminer.service
+	else
+		/etc/init.d/$THIS_MINER_NAME.sh stop
+	fi
 }
 
 
@@ -87,30 +95,34 @@ function log_tail() {
 	local TAIL_LINE=80
 
 	log_basename=`miner_log_basename $MINER`
-	if [[ $? > 0 ]]; then
-		echo $log_basename #show error message
-		return
+	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
+		journalctl -n 50 $TAIL_LINE
+	else
+		if [[ $? > 0 ]]; then
+			echo $log_basename #show error message
+			return
+		fi
+
+		#logname="${log_basename}.log"
+		logname="${log_basename}"
+
+		if [[ ! -e $logname ]]; then
+			echo "Log $logname does not exist yet"
+			return
+		fi
+
+		if [[ `ls -l $logname | awk '{print $5}'` -le 1 ]]; then #can be 1, empty line
+			echo "Log $logname is empty"
+			return
+		fi
+
+
+		echo -e "${YELLOW}=== $logname last $TAIL_LINE lines =================================================${NOCOLOR}"
+		echo "Last modified `stat -c %y $logname`"
+		echo ""
+		#tail -n $TAIL_LINE $logname | sed "s,$(printf '\033')\\[[0-9;]*[a-zA-Z],,g" #sed removes colors
+		tail -n $TAIL_LINE $1 $logname
 	fi
-
-	#logname="${log_basename}.log"
-	logname="${log_basename}"
-
-	if [[ ! -e $logname ]]; then
-		echo "Log $logname does not exist yet"
-		return
-	fi
-
-	if [[ `ls -l $logname | awk '{print $5}'` -le 1 ]]; then #can be 1, empty line
-		echo "Log $logname is empty"
-		return
-	fi
-
-
-	echo -e "${YELLOW}=== $logname last $TAIL_LINE lines =================================================${NOCOLOR}"
-	echo "Last modified `stat -c %y $logname`"
-	echo ""
-	#tail -n $TAIL_LINE $logname | sed "s,$(printf '\033')\\[[0-9;]*[a-zA-Z],,g" #sed removes colors
-	tail -n $TAIL_LINE $1 $logname
 }
 
 

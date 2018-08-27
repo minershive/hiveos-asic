@@ -1,0 +1,12 @@
+[Unit]
+Description=Hive
+After=network-online.target multi-user.target
+Requires=network-online.target
+
+[Service]
+Type=forking
+#TimeoutStartSec=infinity
+ExecStart=/hive/bin/hive
+
+[Install]
+WantedBy=multi-user.target

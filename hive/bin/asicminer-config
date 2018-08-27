@@ -128,6 +128,13 @@ elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 "bitmain-freq" : "0"
 }'
 fi
+elif [[ $ASIC_MODEL == "b29+.g19" ]]; then
+	config_global='{
+"api-listen": true,
+"api-port": "4028",
+"api-allow": "R:0/0,W:127.0.0.1",
+}'
+fi
 
 	#merge user config options into main config
 	if [[ ! -z $ASICMINER_USER_CONFIG ]]; then

@@ -1,0 +1,10 @@
+[Unit]
+Description=agent-screen
+Requires=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/hive/bin/agent-screen dontattach
+
+[Install]
+WantedBy=multi-user.target

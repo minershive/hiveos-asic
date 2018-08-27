@@ -47,7 +47,11 @@ net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{
 
 mb_manufacturer=
 #mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
-mb_product=`sed -n 2p /usr/bin/compile_time`
+[ -e "/usr/bin/compile_time" ] && mb_product=`sed -n 2p /usr/bin/compile_time`
+[ -e "/opt/system/bank.conf" ] && mb_product="ebit"
+[ -e "/etc/hwrevision" ] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
+
+
 
 cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*//g'`
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'`
@@ -60,7 +64,9 @@ kernel=`uname --kernel-release`
 hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
-asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
+[ -e "/usr/bin/compile_time" ] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
+[ -e "/etc/hwrevision" ] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon A9", "logic_version": .[0]}'`
+
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
 
