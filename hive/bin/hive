@@ -9,7 +9,8 @@
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
-ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+#ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+. asic-model
 
 date
 

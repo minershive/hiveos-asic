@@ -131,7 +131,7 @@ elif [[ $ASIC_MODEL == "b29+.g19" ]]; then
 	config_global='{
 "api-listen": true,
 "api-port": "4028",
-"api-allow": "R:0/0,W:127.0.0.1",
+"api-allow": "R:0/0,W:127.0.0.1"
 }'
 fi
 

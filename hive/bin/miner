@@ -1,7 +1,7 @@
 #!/hive/sbin/bash
 
 MINER_LOGS_BASE_DIR=/var/log/miner
-ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+#ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 MINER="asicminer"
 
 . asic-model

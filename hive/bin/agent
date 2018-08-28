@@ -122,6 +122,46 @@ miner_stats () {
 						'{$algo, $hs, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
+		"b29+.g19")
+			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
+			if [[ $? -ne 0 || -z $stats_raw ]]; then
+				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
+			else
+				#stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
+				local STATS=$(jq '.STATS' <<< "$stats_raw")
+
+				#if [[ -z $algo || $algo == "null" ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				local algo=$ASIC_ALGO
+				local uptime=$(jq -r '.[0].Elapsed' <<< "$STATS")
+				khs=$(cat /tmp/stats.json | jq -r '.[-1] | .[] | add')
+				if [[ $HASH == "M" ]]; then
+					khs=$(awk '{print $1 * 1000}' <<< "$khs")
+				elif [[ $HASH == "K" ]]; then
+					khs=$(awk '{print $1}' <<< "$khs")
+				else
+					khs=$(awk '{print $1 / 1000}' <<< "$khs")
+				fi
+
+				local hs=$(cat /tmp/stats.json | jq -r '[.[-1] | .[] | .[]]')
+				local temp=$(	 (jq '[.[] | with_entries( select(.key | test("^Temp$")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local fan=$(	 (jq '[.[] | with_entries( select(.key | test("^Fan duty$")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local freq=$(	 (jq '[.[] | with_entries( select(.key | test("^PLL")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local acn=$(	 (jq '[.[] | with_entries( select(.key | test("Num chips")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local status=$(	 (jq '[.[] | with_entries( select(.key | test("Num active chips")) ) 	| to_entries | .[].value]') <<< "$STATS")
+				local hw_errors=$( (jq '[.[] | with_entries( select(.key | test("HW errors")) ) 	| to_entries | [.[].value] | add | select(.!=null)]') <<< "$STATS")
+
+				stats=$(jq -nc \
+						--arg algo "$algo" --argjson hs "$hs" \
+						--argjson temp "$temp" --argjson fan "$fan" \
+						--argjson freq "$freq" --argjson acn "$acn" \
+						--argjson hw_errors "$hw_errors" --argjson status "$status" \
+						--arg uptime "$uptime" \
+						'{$algo, $hs, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}')
+			fi
+		;;
 		*)
 			miner="unknown"
 			#MINER=miner

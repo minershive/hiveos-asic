@@ -1,6 +1,8 @@
 #!/bin/sh
 
-ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+[ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
+[ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
 release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 exitcode=$?
 version=0
@@ -116,7 +118,7 @@ install_innosilicon() {
 	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
 	echo "> Extracting $filename"
 	if [ ! -d /config/hive ]; then
-		mkdir -p /config/hive/hive
+		mkdir -p /config/hive
 		mkdir /hive
 	fi
 	tar -xzv -f $filename
@@ -136,13 +138,13 @@ install_innosilicon() {
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
 	
-	[ -L /hive/bin ] && [ -e /hive/bin ] && ln -s /config/hive/hive/bin/ /hive/bin
-	[ -L /hive/etc ] && [ -e /hive/etc ] && ln -s /config/hive/hive/etc/ /hive/etc
-	[ -L /hive-config ] && [ -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
-	[ -L /hive-config ] && [ -e /hive-config ] && ln -s /config/hive/home/root/.profile /etc/profile.d/hive.sh
-	[ -L /hive/sbin/nc ] && [ -e /hive/sbin/nc ] && ln -s /hive/sbin/busybox.nosuid /hive/sbin/nc
+	[ ! -L /hive/bin ] && [ ! -e /hive/bin ] && ln -s /config/hive/bin /hive/bin
+	[ ! -L /hive/etc ] && [ ! -e /hive/etc ] && ln -s /config/hive/etc /hive/etc
+	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+	[ ! -L /hive/sbin/nc ] && [ ! -e /hive/sbin/nc ] && ln -s /hive/sbin/busybox.nosuid /hive/sbin/nc
 
 	#systemd autorun and cron
+	systemctl daemon-reload
 	systemctl is-enabled hive.service > /dev/null
 	[[ $? == 1 ]] && systemctl enable hive.service
 	systemctl start hive.service
@@ -194,7 +196,7 @@ elif [ "$ASIC_MODEL" == "Antminer T9+" ]; then
 	echo "Install Antminer T9+"
 	install_s9
 elif [ "$ASIC_MODEL" == "b29+.g19" ]; then
-	echo "Install Antminer A9"
+	echo "Install Innosilicon A9"
 	install_innosilicon
 else
 	echo "Not found $ASIC_MODEL"

@@ -5,6 +5,7 @@ Requires=network-online.target
 [Service]
 Type=simple
 ExecStart=/hive/bin/agent-screen dontattach
+Environment="LD_LIBRARY_PATH=/hive/lib"
 
 [Install]
 WantedBy=multi-user.target
