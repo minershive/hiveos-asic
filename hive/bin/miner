@@ -55,6 +55,7 @@ function config-gen() {
 function start() {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	config-gen
+	screen -d > /dev/null
 	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
 	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
 		systemctl start cgminer.service

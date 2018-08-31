@@ -11,7 +11,7 @@ Supported ASICs:
 * Antminer T9+
 * Antminer Z9-Mini
 * Antminer X3
-
+* Innosilicon A9 ZMaster
 
 
 

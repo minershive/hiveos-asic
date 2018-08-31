@@ -1,0 +1,9 @@
+[Unit]
+Description=restart-cgminer-cron
+
+[Service]
+Type=simple
+ExecStart=/bin/systemctl restart cgminer.service
+
+[Install]
+WantedBy=multi-user.target
