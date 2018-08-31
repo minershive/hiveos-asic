@@ -97,7 +97,7 @@ function log_tail() {
 
 	log_basename=`miner_log_basename $MINER`
 	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
-		journalctl -n 50 $TAIL_LINE
+		journalctl -n $TAIL_LINE
 	else
 		if [[ $? > 0 ]]; then
 			echo $log_basename #show error message
