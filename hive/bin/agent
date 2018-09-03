@@ -37,7 +37,7 @@ miner_stats () {
 	stats_raw=
 	max_fan_rpm=6000
 	case $ASIC_MODEL in
-		"Antminer S9"|"Antminer T9+"|"Antminer S9i")
+		"Antminer S9"|"Antminer T9+"|"Antminer S9i"|"Antminer E3")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
