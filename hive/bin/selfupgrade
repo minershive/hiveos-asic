@@ -9,7 +9,10 @@ version=0
 version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
 
-cd /tmp
+t=`df -h | grep  '/tmp' | awk '{print $NF}'`
+[ -z $t ] && t='/tmp'
+
+cd $t
 rm -rf /tmp/hive/*
 rm -rf /tmp/selfupgrade
 
