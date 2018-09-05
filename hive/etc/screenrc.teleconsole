@@ -12,4 +12,4 @@ logtstamp off
 
 
 screen -t killidle		telec killidle
-screen -t teleconsole bash -i -c 'teleconsole; telec stop'
+screen -t teleconsole bash -i -c 'teleconsole -insecure; telec stop'
