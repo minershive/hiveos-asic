@@ -59,7 +59,7 @@ elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 	THIS_MINER_NAME="bmminer"
 	LOG_PATH="/var/volatile/tmp/temp"
 	CONFIG_PATH="/config/bmminer.conf"
-	HASH="K"
+	HASH="M"
 elif [[ $ASIC_MODEL == "ebit" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"

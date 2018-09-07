@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#reboots or shutdowns the system using sysrq.
+#Usage: sreboot [shutdown]
+
+#Why should I do this at all????
+#screen -S agent -X quit
+#miner stop
+
+
+[[ $1 == "shutdown" ]] &&
+	echo "Shutting down" &&
+	halt -p &&
+	exit 0
+
+
+echo "Rebooting"
+reboot

@@ -52,7 +52,14 @@ miner_stats () {
 				local algo=$ASIC_ALGO
 				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
 				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
-				khs=$(awk '{print $1 * 1000000}' <<< "$khs")
+				if [[ $HASH == "M" ]]; then
+					khs=$(awk '{print $1 * 1000}' <<< "$khs")
+				elif [[ $HASH == "K" ]]; then
+					khs=$(awk '{print $1}' <<< "$khs")
+				else
+					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
+				fi
+
 
 				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
 				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
