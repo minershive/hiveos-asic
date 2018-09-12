@@ -1,0 +1,6 @@
+# Put the required values here
+
+FARM_HASH=
+
+LOGIN=root
+PASS=admin
