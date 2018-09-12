@@ -74,9 +74,17 @@ hive_version=`cat /hive/etc/VERSION`
 #asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
 asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
 
+uid=$(echo ${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g') | tr '[:upper:]' '[:lower:]')
+if which sha1sum > /dev/null; then
+	uid=$(echo $uid | sha1sum | awk '{print $1}')
+elif which md5sum > /dev/null; then
+	uid=$(echo $uid | md5sum | awk '{print $1}')
+fi
+
 
 request=$(
 jq -n \
+--arg uid "$uid" \
 --arg rig_id "$RIG_ID" \
 --arg passwd "$RIG_PASSWD" \
 --arg farm_hash "$FARM_HASH" \
@@ -93,7 +101,7 @@ jq -n \
 '{
 	"method": "hello", "jsonrpc": "2.0", "id": 0,
 	"params": {
-		$rig_id, $passwd, $farm_hash,
+		$rig_id, $passwd, $farm_hash, $uid,
 		$boot_time, $boot_event, $ip, $net_interfaces,
 		"mb": {$manufacturer, $product},
 		"cpu": {$model, $cores, $aes},

@@ -19,7 +19,8 @@ rm -rf /tmp/selfupgrade
 if [ $release == $version ]; then
 	if [ "$1" != "master" ]; then
 		if [ "$2" != "-f" ]; then
-			echo "The latest version is installed"
+			[ -e /hive/bin/colors ] && source /hive/bin/colors
+			echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
 			exit $exitcode
 		fi
 	fi
