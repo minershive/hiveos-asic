@@ -24,7 +24,7 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 install_cmd="cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=$FARM_HASH sh selfupgrade"
 #install_cmd="pwd; ls" #for testing
-install_cmd="[ -d /hive ] && (echo 'Already installed') || ($install_cmd)"
+install_cmd="[ -e /hive ] && (echo 'Already installed') || ($install_cmd)"
 
 for ip in $IPS; do
 	echo
