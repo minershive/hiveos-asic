@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#z9-mini
+[[ -e /config/hive/hive ]] && rm -rf /config/hive/hive/
+[[ -e /config/hive/hive-config ]] && rm -rf /config/hive/hive-config/
+
+rm -rf /hive
+rm -rf /hive-config
+
+echo "Rebooting in 5 seconds"
+sleep 5
+
+reboot
+

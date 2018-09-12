@@ -32,6 +32,20 @@ You can use FARM_HASH to add ASIC automatically without entering rig id and pass
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web sh selfupgrade
 ```
 
+## Bulk installation
+You can install Hive on all the ASICs you have on your local network.
+For this you need to have running Linux computer (maybe Hive OS on GPU rig), download files from 
+https://github.com/minershive/hiveos-asic/tree/master/hive/hive-asic-net-installer
+```sh
+cd /tmp
+wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/config.txt
+wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ips.txt
+wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/install.sh
+chmod +x install.sh
+```
+Edit `config.txt` to set your FARM_HASH, edit `ips.txt` to set IPs list of your new ASICs.
+Then run just run `install.sh`. If IP was connected then it will become commented in file.  
+
 
 ## Downgrade and Version changing
 
@@ -47,8 +61,6 @@ To install current development version from repository please run ```selfupgrade
 
 ## Uninstall
 ``` sh
-rm -rf /hive
-rm -rf /hive-config
-reboot
+hive-uninstall
 ```
 Maybe cron jobs have to removed manually with `crontab -e` even if they are left there the would do nothing.

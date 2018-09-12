@@ -6,7 +6,7 @@
 release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 exitcode=$?
 version=0
-version=`cat /hive/etc/VERSION`
+[ -e /hive/etc/VERSION ] && version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
 
 t=`df -h | grep  '/tmp' | awk '{print $NF}'`
