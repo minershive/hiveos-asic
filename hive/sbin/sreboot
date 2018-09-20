@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 #reboots or shutdowns the system using sysrq.
 #Usage: sreboot [shutdown]
 
