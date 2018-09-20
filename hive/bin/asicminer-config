@@ -156,6 +156,7 @@ fi
 		done <<< "$ASICMINER_USER_CONFIG"
 	fi
 
+	config_global=$(echo "$config_global" | sed s/\"true\"/true/g | sed s/\"false\"/false/g)
 	conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$p * $g'`
 
 	#replace tpl values in whole file
