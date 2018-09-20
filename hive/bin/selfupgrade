@@ -6,7 +6,7 @@
 release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 exitcode=$?
 version=0
-version=`cat /hive/etc/VERSION`
+[ -e /hive/etc/VERSION ] && version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
 
 t=`df -h | grep  '/tmp' | awk '{print $NF}'`
@@ -19,7 +19,8 @@ rm -rf /tmp/selfupgrade
 if [ $release == $version ]; then
 	if [ "$1" != "master" ]; then
 		if [ "$2" != "-f" ]; then
-			echo "The latest version is installed"
+			[ -e /hive/bin/colors ] && source /hive/bin/colors
+			echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
 			exit $exitcode
 		fi
 	fi
