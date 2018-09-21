@@ -120,7 +120,7 @@ elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 "bitmain-voltage" : "0706",
 "multi-version" : "1"
 }'
-elif [[ $ASIC_MODEL == "Antminer Z9-Mini" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer Z9" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-network" : true,

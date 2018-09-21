@@ -18,7 +18,7 @@ elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
 	LOG_PATH="/var/volatile/log/messages"
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="G"
-elif [[ $ASIC_MODEL == "Antminer Z9-Mini" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer Z9" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Equihash"
 	THIS_MINER_NAME="cgminer"
