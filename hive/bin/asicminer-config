@@ -138,7 +138,7 @@ elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
-elif [[ $ASIC_MODEL == "b29+.g19" ]]; then
+elif [[ $ASIC_MODEL == "b29+.g19" || $ASIC_MODEL == "d9.g19" ]]; then
 	config_global='{
 "api-listen": true,
 "api-port": "4028",

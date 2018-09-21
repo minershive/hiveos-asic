@@ -206,6 +206,9 @@ elif [ "$ASIC_MODEL" == "Antminer E3" ]; then
 elif [ "$ASIC_MODEL" == "b29+.g19" ]; then
 	echo "Install Innosilicon A9"
 	install_innosilicon
+elif [ "$ASIC_MODEL" == "d9.g19" ]; then
+	echo "Install Innosilicon D9"
+	install_innosilicon
 else
 	echo "Not found $ASIC_MODEL"
 	exit 1
