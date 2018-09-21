@@ -14,6 +14,7 @@ Supported ASICs:
 * Antminer E3
 * Innosilicon A9 ZMaster
 * Innosilicon D9 DecredMaster
+* Innosilicon S11 SiaMaster
 
 
 
