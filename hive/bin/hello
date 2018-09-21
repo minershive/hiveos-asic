@@ -68,6 +68,7 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product =~ "Antminer D3 Blissz" ]] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 [[ $mb_product == "b29+.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon A9", "logic_version": .[0]}'`
 [[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
+[[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
 
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`

@@ -57,7 +57,7 @@ function start() {
 	config-gen
 	screen -d > /dev/null
 	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
-	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
+	if [[ $ASIC_MODEL =~ ".g19" ]]; then
 		systemctl start cgminer.service
 	else
 		nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
@@ -68,7 +68,7 @@ function start() {
 
 function stop() {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
-	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
+	if [[ $ASIC_MODEL =~ ".g19" ]]; then
 		systemctl stop cgminer.service
 	else
 		/etc/init.d/$THIS_MINER_NAME.sh stop
@@ -96,7 +96,7 @@ function log_tail() {
 	local TAIL_LINE=80
 
 	log_basename=`miner_log_basename $MINER`
-	if [[ $ASIC_MODEL == "b29+.g19" ]]; then
+	if [[ $ASIC_MODEL =~ ".g19" ]]; then
 		journalctl -n $TAIL_LINE
 	else
 		if [[ $? > 0 ]]; then
