@@ -50,7 +50,7 @@ curl -L --insecure -O $url
 sleep 2
 
 
-install_antminer_bmminer() {
+install_antminer_bmminer() { # bmminer, / - rw, cron
 	echo ""
 	echo "> Extracting $filename"
 	tar -xzv -f $filename
@@ -72,7 +72,7 @@ install_antminer_bmminer() {
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
-install_antminer_cgminer() {
+install_antminer_cgminer() { # cgminer, / - ro, no cron
 	echo ""
 	echo "> Extracting $filename"
 	if [ ! -d /config/hive ]; then
@@ -107,7 +107,7 @@ FILEEOF
 	cp -rf /hive/bin/hive_autorun /config/hive_autorun
 	/hive/bin/hive
 
-	#on a3 d3 no cron daemon, run tasks in background
+	#on cgminer's antminer no cron daemon, run tasks in background
 	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
 	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
@@ -116,6 +116,34 @@ FILEEOF
 	#$FARM_HASH can be defined externally
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
+
+install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
+	echo ""
+	echo "> Extracting $filename"
+	tar -xzv -f $filename
+	cp -rf hiveos-asic-$release/* /
+	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+
+	rm $filename
+
+	sleep 2
+
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
+	
+	cp -rf /hive/share/z9/hive_autorun /etc/rcS.d/S69hive
+	/hive/bin/hive
+
+	#on cgminer's antminer no cron daemon, run tasks in background
+	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+
+	sleep 2
+
+	#$FARM_HASH can be defined externally
+	bash -c "/hive/bin/firstrun $FARM_HASH"
+}
+
 
 install_innosilicon() {
 	echo ""
@@ -193,10 +221,10 @@ elif [ "$ASIC_MODEL" == "Antminer L3++" ]; then
 	install_antminer_cgminer
 elif [ "$ASIC_MODEL" == "Antminer Z9-Mini" ]; then
 	echo "Install Antminer Z9-Mini"
-	install_antminer_cgminer
+	install_antminer_Z9_cgminer
 elif [ "$ASIC_MODEL" == "Antminer Z9" ]; then
 	echo "Install Antminer Z9"
-	install_antminer_cgminer
+	install_antminer_Z9_cgminer
 elif [ "$ASIC_MODEL" == "Antminer X3" ]; then
 	echo "Install Antminer X3"
 	install_antminer_cgminer
