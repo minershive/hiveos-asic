@@ -14,7 +14,10 @@ t=`df -h | grep  '/tmp' | awk '{print $NF}'`
 
 cd $t
 rm -rf /tmp/hive/*
+rm -rf /tmp/hiveos-asic*
 rm -rf /tmp/selfupgrade
+rm -rf /tmp/master.tar.gz
+rm -rf /tmp/v*.tar.gz
 
 if [ $release == $version ]; then
 	if [ "$1" != "master" ]; then
