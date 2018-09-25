@@ -1,9 +1,14 @@
 #!/bin/sh
 
-#z9-mini
+#cgminer
 [[ -e /config/hive/hive ]] && rm -rf /config/hive/hive/
 [[ -e /config/hive/hive-config ]] && rm -rf /config/hive/hive-config/
+[[ -e /config/hive_autorun ]] && rm -rf /config/hive_autorun
 
+#bmminer + z9-mini
+[[ -e /etc/rcS.d/S69hive ]] && rm -rf /etc/rcS.d/S69hive
+
+#all
 rm -rf /hive
 rm -rf /hive-config
 

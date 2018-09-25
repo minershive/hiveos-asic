@@ -74,7 +74,7 @@ elif [[ $ASIC_MODEL == "b29+.g19" ]]; then
 	THIS_MINER_NAME="cgminer"
 	LOG_PATH=""
 	CONFIG_PATH="/config/cgminer.conf"
-	HASH=""
+	HASH="K"
 elif [[ $ASIC_MODEL == "d9.g19" ]]; then
 	MOUNT=""
 	ASIC_ALGO="Blake256R14"

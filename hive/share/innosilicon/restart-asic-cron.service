@@ -1,0 +1,9 @@
+[Unit]
+Description=restart-asic-cron
+
+[Service]
+Type=simple
+ExecStart=/sbin/reboot
+
+[Install]
+WantedBy=multi-user.target

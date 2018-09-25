@@ -50,6 +50,7 @@ miner_stats () {
 				#fi
 
 				local algo=$ASIC_ALGO
+				local hs_units=$HASH
 				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
 				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
 				if [[ $HASH == "M" ]]; then
@@ -75,7 +76,7 @@ miner_stats () {
 				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 
 				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" \
+						--arg algo "$algo" --argjson hs "$hs" --argjson hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 						--argjson freq "$freq" --argjson acn "$acn" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
@@ -96,6 +97,7 @@ miner_stats () {
 				#fi
 
 				local algo=$ASIC_ALGO
+				local hs_units=$HASH
 				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
 				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
 				if [[ $HASH == "M" ]]; then
@@ -121,7 +123,7 @@ miner_stats () {
                                 local freq_new='[ '${freq//[^0-9]/}', '${freq//[^0-9]/}', '${freq//[^0-9]/}', '${freq//[^0-9]/}' ]'
 
 				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" \
+						--arg algo "$algo" --argjson hs "$hs" --argjson hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 						--argjson freq "$freq_new" --argjson acn "$acn" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
@@ -142,6 +144,7 @@ miner_stats () {
 				#fi
 
 				local algo=$ASIC_ALGO
+				local hs_units=$HASH
 				local uptime=$(jq -r '.[0].Elapsed' <<< "$STATS")
 				khs=$(cat /tmp/stats.json | jq -r '.[-1] | .[] | add')
 				if [[ $HASH == "M" ]]; then
@@ -161,7 +164,7 @@ miner_stats () {
 				local hw_errors=$( (jq '[.[] | with_entries( select(.key | test("HW errors")) ) 	| to_entries | [.[].value] | add | select(.!=null)]') <<< "$STATS")
 
 				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" \
+						--arg algo "$algo" --argjson hs "$hs" --argjson hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson fan "$fan" \
 						--argjson freq "$freq" --argjson acn "$acn" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
