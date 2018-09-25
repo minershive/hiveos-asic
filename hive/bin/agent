@@ -81,7 +81,7 @@ miner_stats () {
 						--argjson freq "$freq" --argjson acn "$acn" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
 						--arg uptime "$uptime" \
-						'{$algo, $hs, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
+						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
 		"Antminer A3"|"Antminer D3"|"Antminer L3+"|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"|"Antminer Z9-Mini"|"Antminer X3")
@@ -128,7 +128,7 @@ miner_stats () {
 						--argjson freq "$freq_new" --argjson acn "$acn" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
 						--arg uptime "$uptime" \
-						'{$algo, $hs, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
+						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
 		"b29+.g19"|"d9.g19"|"s11.g19")
@@ -169,7 +169,7 @@ miner_stats () {
 						--argjson freq "$freq" --argjson acn "$acn" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
 						--arg uptime "$uptime" \
-						'{$algo, $hs, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}')
+						'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
 		*)

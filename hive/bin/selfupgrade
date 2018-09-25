@@ -188,7 +188,7 @@ install_innosilicon() {
 	systemctl start hive-cache-ip.timer
 
 	sleep 2
-	mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
+	nohup sync && sleep 600 && mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs / &
 
 	#$FARM_HASH can be defined externally
 	bash -c "/hive/bin/firstrun $FARM_HASH"
