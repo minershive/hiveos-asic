@@ -121,6 +121,12 @@ FILEEOF
 }
 
 install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
+	if [ -L /hive ]; then
+		mv -f /config/hive/hive /
+		mv -f /config/hive/hive-config /
+		rm -rf /config/hive
+		rm -rf /config/hive_autorun
+	fi
 	echo ""
 	echo "> Extracting $filename"
 	tar -xzv -f $filename
