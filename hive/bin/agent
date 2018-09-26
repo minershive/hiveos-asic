@@ -317,6 +317,16 @@ do_command () {
 					echo "$payload" | message error "Selfupgrade failed" payload --id='$cmd_id'
 			'
 		;;
+		"upgrade beta")
+			screen -dm -S selfupgrade bash -c '
+				cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade 2>&1 | tee /tmp/nohup.log
+				upgrade_exitcode=${PIPESTATUS[0]}
+				payload=`cat /tmp/nohup.log`
+				[[ $upgrade_exitcode -eq 0 ]] &&
+					echo "$payload" | message ok "Selfupgrade successful" payload --id='$cmd_id' ||
+					echo "$payload" | message error "Selfupgrade failed" payload --id='$cmd_id'
+			'
+		;;
 		exec)
 			exec=$(echo $body | jq '.exec' --raw-output)
 			payload=`timeout -t 360 bash -c "$exec" 2>&1`
