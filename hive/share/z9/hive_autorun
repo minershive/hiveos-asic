@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ ! -e /hive ]; then
+if [ -e /hive ]; then
 	nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive..."' > /dev/null 2>&1 &
 	nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
 	nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
