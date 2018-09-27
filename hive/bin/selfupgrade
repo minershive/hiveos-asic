@@ -121,16 +121,24 @@ FILEEOF
 }
 
 install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
-	if [ -L /hive ]; then
-		mv -f /config/hive/hive /
-		mv -f /config/hive/hive-config /
-		rm -rf /config/hive
-		rm -rf /config/hive_autorun
+	rm -rf /hive/sbin/teleconsole
+	if [[ -e /hive && ! -L /hive ]]; then
+		mkdir -p /config/hive
+		mv -f /hive /config/hive/
+		mv -f /hive-config /config/hive/
+		mv -f /home/root/.profile /config/hive/home/root/
+		ln -s /config/hive/hive/ /hive
+		ln -s /config/hive/hive-config/ /hive-config
+		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 	echo ""
 	echo "> Extracting $filename"
+	if [ ! -d /config/hive ]; then
+		mkdir /config/hive
+	fi
 	tar -xzv -f $filename
-	cp -rf hiveos-asic-$release/* /
+	rm -rf hiveos-asic-$release/hive/sbin/teleconsole
+	cp -rf hiveos-asic-$release/* /config/hive/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm $filename
@@ -139,8 +147,23 @@ install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
+
+	if [ ! -e /hive ]; then
+		ln -s /config/hive/hive/ /hive
+		ln -s /config/hive/hive-config/ /hive-config
+		ln -s /config/hive/home/root/.profile /home/root/.profile
+	fi
 	
-	cp -rf /hive/share/z9/hive_autorun /etc/rcS.d/S69hive
+	if grep "### HIVE AUTORUN ###" /config/network.conf || grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
+		echo "/config/network.conf skip"
+	else
+		cat >> /config/network.conf <<FILEEOF
+
+### HIVE AUTORUN ###
+[ -e /config/hive_autorun ] && nohup /bin/sh -c '/config/hive_autorun' > /dev/null 2>&1 &
+FILEEOF
+	fi
+	cp -rf /hive/bin/hive_autorun /config/hive_autorun
 	/hive/bin/hive
 
 	#on cgminer's antminer no cron daemon, run tasks in background
