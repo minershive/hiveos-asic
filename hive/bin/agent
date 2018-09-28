@@ -25,6 +25,7 @@ screen_count=`screen -ls | grep "\.agent" | grep -v $PPID | wc -l`
 
 . asic-model
 echo -e "Detected ASIC model: ${CYAN}$ASIC_MODEL${NOCOLOR}\n"
+[[ $WD_ENABLED=1 ]] && nohup wd stop && nohup sleep 5; wd start &
 
 ########################################################################################################################
 
