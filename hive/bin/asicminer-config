@@ -81,6 +81,32 @@ elif [[ $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; then
 "bitmain-freq3" : "0",
 "bitmain-voltage3" : "0"
 }'
+elif [[ $ASIC_MODEL =~ "Antminer S9 (vnish" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "W:0/0",
+"bitmain-use-vil" : true,
+"bitmain-autodownscale-watchtimer" : true,
+"bitmain-autodownscale-timer" : "24",
+"bitmain-autodownscale-after" : "60",
+"bitmain-autodownscale-step" : "2",
+"bitmain-autodownscale-min" : "400",
+"bitmain-autodownscale-prec" : "80",
+"bitmain-autodownscale-profile" : "0",
+"bitmain-freq" : "650",
+"bitmain-freq1" : "0",
+"bitmain-freq2" : "0",
+"bitmain-freq3" : "0",
+"bitmain-voltage" : "880",
+"bitmain-voltage1" : "0",
+"bitmain-voltage2" : "0",
+"bitmain-voltage3" : "0",
+"bitmain-chip-freq" : "0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0",
+"bitmain-fan-rpm-off" : "0",
+"multi-version" : "1"
+}'
 elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
 	config_global='{
 "api-listen" : true,
