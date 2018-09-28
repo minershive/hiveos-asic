@@ -37,7 +37,7 @@ miner_stats () {
 	stats_raw=
 	max_fan_rpm=$MAX_FAN_RPM
 	case $ASIC_MODEL in
-		"Antminer S9"|"Antminer T9+"|"Antminer S9i"|"Antminer E3"|"Antminer S9 Hydro")
+		"Antminer S9"|"Antminer T9+"|"Antminer S9i"|"Antminer E3"|"Antminer S9 Hydro"|"Antminer")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
@@ -57,6 +57,8 @@ miner_stats () {
 					khs=$(awk '{print $1 * 1000}' <<< "$khs")
 				elif [[ $HASH == "khs" ]]; then
 					khs=$(awk '{print $1}' <<< "$khs")
+				elif [[ $HASH == "hs" ]]; then
+					khs=$(awk '{print $1 / 1000}' <<< "$khs")
 				else
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi

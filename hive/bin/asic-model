@@ -68,6 +68,14 @@ elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 	CONFIG_PATH="/config/bmminer.conf"
 	HASH="mhs"
 	MAX_FAN_RPM="6000"
+elif [[ $ASIC_MODEL == "Antminer" ]]; then
+	MOUNT=""
+	ASIC_ALGO="Tensority"
+	THIS_MINER_NAME="bmminer"
+	LOG_PATH="/var/volatile/tmp/temp"
+	CONFIG_PATH="/config/bmminer.conf"
+	HASH="hs"
+	MAX_FAN_RPM="6000"
 elif [[ $ASIC_MODEL == "ebit" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
