@@ -1,0 +1,62 @@
+#!/hive/sbin/bash
+
+
+function cron_enable() {
+	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
+	systemctl is-enabled $1.timer > /dev/null
+	[[ $? == 1 ]] && systemctl enable $1.timer
+	systemctl start $1.timer
+	nohup sync && sleep 600 && mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs / &
+	echo "$1 enabled"
+}
+
+function cron_disable() {
+	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
+	systemctl disable $1.timer
+	systemctl stop $1.timer
+	nohup sync && sleep 600 && mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs / &
+	echo "$1 disabled"
+}
+
+function echo_error() {
+	echo "Use: 'inno-reboot miner enable/disable' or 'inno-reboot asic enable/disable' or 'inno-reboot status'"
+}
+
+
+
+case $1 in
+	miner)
+		case $2 in
+			enable)
+				cron_enable "restart-cgminer-cron"
+			;;
+			disable)
+				cron_disable "restart-cgminer-cron"
+			;;
+			*)
+				echo_error
+			;;
+		esac
+	;;
+	asic)
+		case $2 in
+			enable)
+				cron_enable "restart-asic-cron"
+			;;
+			disable)
+				cron_disable "restart-asic-cron"
+			;;
+			*)
+				echo_error
+			;;
+		esac
+	;;
+	status)
+		status_cgminer=$(systemctl is-enabled restart-cgminer-cron.timer)
+		status_asic=$(systemctl is-enabled restart-asic-cron.timer)
+		echo "miner restart $status_cgminer; asic restart $status_asic"
+	;;
+	*)
+		echo_error
+	;;
+esac
