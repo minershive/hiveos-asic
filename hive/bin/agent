@@ -87,7 +87,7 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
-		"Antminer A3"|"Antminer D3"|"Antminer L3+"|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"|"Antminer Z9-Mini"|"Antminer X3")
+		"Antminer A3"|"Antminer D3"|"Antminer L3+"|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"|"Antminer Z9-Mini"|"Antminer X3"|"Antminer S7")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
