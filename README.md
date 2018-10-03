@@ -17,11 +17,13 @@ Supported ASICs:
 
 
 ## Installation
+[Video tutorial](https://asciinema.org/a/OZpbFSomhjvOkXlctEVIh7RQZ)
+
 Login with SSH to your miner and run the following command
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
 ```
-For Antminer D3 Blissz, before installation run:
+For Antminer D3 **Blissz**, before installation run:
 ```
 ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 ```
@@ -44,7 +46,7 @@ wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-a
 chmod +x install.sh
 ```
 Edit `config.txt` to set your FARM_HASH, edit `ips.txt` to set IPs list of your new ASICs.
-Then run just run `install.sh`. If IP was connected then it will become commented in file.  
+Then run just run `install.sh`. If IP was connected then it will become commented in file.
 
 
 ## Downgrade and Version changing
@@ -59,8 +61,21 @@ To install specific version you should run ```selfupgrade 0.1-02```.
 If you want to reinstall version please add ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
 To install current development version from repository please run ```selfupgrade master```.
 
+**To display data in monitoring, be sure to create a flight sheet.**
+
 ## Uninstall
 ``` sh
 hive-uninstall
 ```
 Maybe cron jobs have to removed manually with `crontab -e` even if they are left there the would do nothing.
+
+## Innosilicon
+Some innosilicon factory firmware have a memory leak, and asic freezes every few days. To solve this problem, you can enable the miner or asic reboot every 24 hours.
+Run the following commands:
+``` sh
+inno-reboot miner enable/disable
+inno-reboot asic enable/disable
+inno-reboot status
+```
+
+
