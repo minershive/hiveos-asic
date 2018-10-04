@@ -5,13 +5,13 @@
 function value() {
 	echo out > /sys/class/gpio/gpio$GPIO_LED_RED/direction
 	nohup /hive/sbin/bash -c "timeout -t $1 /hive/sbin/bash -c \
-		'while true; do echo 1 > /sys/class/gpio/gpio${GPIO_LED_RED}/value; read -t 0.2; echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value; read -t 0.2; done'; \
+		'while true; do echo 1 > /sys/class/gpio/gpio${GPIO_LED_RED}/value; sleep 1; echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value; done'; \
 		echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value" &
 }
 
 function direction() {
 	nohup /hive/sbin/bash -c "timeout -t $1 /hive/sbin/bash -c \
-		'while true; do echo high > /sys/class/gpio/gpio${GPIO_LED_RED}/direction; read -t 0.2; echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction; read -t 0.2; done'; \
+		'while true; do echo high > /sys/class/gpio/gpio${GPIO_LED_RED}/direction; sleep 1; echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction; done'; \
 		echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction" &
 }
 
