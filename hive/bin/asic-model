@@ -12,6 +12,9 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MOD
 	CONFIG_PATH="/config/bmminer.conf"
 	HASH="ghs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="70"
+#	GPIO_LED_RED="23"
+	GPIO_PATH="direction"
 elif [[ $ASIC_MODEL == "Antminer S7" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
@@ -20,6 +23,9 @@ elif [[ $ASIC_MODEL == "Antminer S7" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="ghs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="70"
+#	GPIO_LED_RED="23"
+	GPIO_PATH="direction"
 elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Blake(2b)"
@@ -28,6 +34,8 @@ elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="ghs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="45"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer Z9" || $ASIC_MODEL == "Antminer Z9-Mini" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Equihash"
@@ -36,6 +44,8 @@ elif [[ $ASIC_MODEL == "Antminer Z9" || $ASIC_MODEL == "Antminer Z9-Mini" ]]; th
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="khs"
 	MAX_FAN_RPM="8000"
+	GPIO_LED_RED="941"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="CryptoNight"
@@ -44,6 +54,8 @@ elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="khs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="45"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer D3" || $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="X11"
@@ -52,6 +64,8 @@ elif [[ $ASIC_MODEL == "Antminer D3" || $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; 
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="mhs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="45"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer L3+" || $ASIC_MODEL == "Antminer L3++" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Scrypt"
@@ -60,6 +74,8 @@ elif [[ $ASIC_MODEL == "Antminer L3+" || $ASIC_MODEL == "Antminer L3++" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="mhs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="45"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer T9+" || $ASIC_MODEL == "Antminer T9"  ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
@@ -68,6 +84,8 @@ elif [[ $ASIC_MODEL == "Antminer T9+" || $ASIC_MODEL == "Antminer T9"  ]]; then
 	CONFIG_PATH="/config/bmminer.conf"
 	HASH="ghs"
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="70"
+	GPIO_PATH="direction"
 elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 	MOUNT=""
 	ASIC_ALGO="Ethash"
@@ -125,4 +143,5 @@ else
 	CONFIG_PATH=""
 	HASH=""
 	MAX_FAN_RPM="6000"
+	GPIO_LED_RED=""
 fi

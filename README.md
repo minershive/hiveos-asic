@@ -18,7 +18,9 @@ Supported ASICs:
 
 ## Installation
 [Video tutorial](https://asciinema.org/a/OZpbFSomhjvOkXlctEVIh7RQZ)
-
+Default SSH login and password:
+Antminer: **root:admin**
+Innosilicon: **root:blacksheepwall**
 Login with SSH to your miner and run the following command
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
