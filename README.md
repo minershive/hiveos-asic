@@ -2,14 +2,16 @@
 Hive OS client for ASICs
 
 Supported ASICs:
-* Antminer S9/S9i
+* Antminer S9/S9i/S9j/S9-Hydro/S9(VNISH)
 * Antminer L3+/L3++
-* Antminer D3
+* Antminer D3/D3(Blissz)
 * Antminer A3
-* Antminer T9+
+* Antminer T9/T9+
 * Antminer Z9/Z9-Mini
 * Antminer X3
 * Antminer E3
+* Antminer B3
+* Antminer S7
 * Innosilicon A9 ZMaster
 * Innosilicon D9 DecredMaster
 * Innosilicon S11 SiaMaster
@@ -18,9 +20,13 @@ Supported ASICs:
 
 ## Installation
 [Video tutorial](https://asciinema.org/a/OZpbFSomhjvOkXlctEVIh7RQZ)
+
 Default SSH login and password:
-Antminer: **root:admin**
-Innosilicon: **root:blacksheepwall**
+
+Antminer - default user:**root**  default password:**admin**
+
+Innosilicon - default user:**root**  default password:**blacksheepwall** or **innot1t2** or **t1t2t3a5**
+
 Login with SSH to your miner and run the following command
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
@@ -79,5 +85,12 @@ inno-reboot miner enable/disable
 inno-reboot asic enable/disable
 inno-reboot status
 ```
+
+## asic-find (Antminer)
+To search for an Antminer ASIC among a large number of ASICs, you can flash a red LED on it. To do this, execute the command via the web interface or via SSH:
+``` sh
+asic-find 5
+```
+Example: 'asic-find 15' the red LED will blinking for 15 minutes
 
 
