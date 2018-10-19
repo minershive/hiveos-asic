@@ -90,7 +90,7 @@ elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 	MOUNT=""
 	ASIC_ALGO="Ethash"
 	THIS_MINER_NAME="bmminer"
-	LOG_PATH="/var/volatile/tmp/temp"
+	LOG_PATH="/mnt/tmp/bmminer.log"
 	CONFIG_PATH="/config/bmminer.conf"
 	HASH="mhs"
 	MAX_FAN_RPM="6000"

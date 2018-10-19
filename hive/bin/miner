@@ -59,6 +59,8 @@ function start() {
 	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
 	if [[ $ASIC_MODEL =~ ".g19" ]]; then
 		systemctl start cgminer.service
+	elif [[ $ASIC_MODEL =~ "Antminer E3" ]]; then
+		sleep 1
 	else
 		nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
 	fi

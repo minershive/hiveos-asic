@@ -260,6 +260,7 @@ loop () {
 	if [[ "$exitcode" -ne 0 || -z "$response" ]]; then
 		echo -e "${RED}Error sending stats${NOCOLOR} $HIVE_HOST_URL" && human-curl-error $exitcode
 		echo "[`date`] < ERROR SENDING STATS TO $HIVE_HOST_URL (curl code=$exitcode) \"$response\"" >> $LOG
+		/hive/bin/cache-hive-ip
 		return $exitcode
 	fi
 
