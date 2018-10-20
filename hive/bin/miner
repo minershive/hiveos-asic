@@ -54,16 +54,20 @@ function config-gen() {
 
 function start() {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
-	config-gen
-	screen -d > /dev/null
-	#nohup bmminer --version-file /usr/bin/compile_time --api-listen --default-config /config/bmminer.conf > /dev/null 2>&1 &
-	if [[ $ASIC_MODEL =~ ".g19" ]]; then
-		systemctl start cgminer.service
-	elif [[ $ASIC_MODEL =~ "Antminer E3" ]]; then
+	for i in {1..15}; do
+		test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep')"
+		if [ -z "$test_miner" ] ; then
+			config-gen
+			screen -d > /dev/null
+			if [[ $ASIC_MODEL =~ ".g19" ]]; then
+				systemctl start cgminer.service
+			else
+				nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
+			fi
+			break
+		fi
 		sleep 1
-	else
-		nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
-	fi
+	done
 	echo "";
 }
 
@@ -174,7 +178,7 @@ case $1 in
 		echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
 		stop
 		#need some time to finish it seems
-		sleep 5
+		#sleep 5
 		start
 	;;
 	config)
