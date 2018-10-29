@@ -276,6 +276,9 @@ elif [ "$ASIC_MODEL" == "Antminer X3" ]; then
 elif [ "$ASIC_MODEL" == "Antminer S7" ]; then
 	echo "Install Antminer S7"
 	install_antminer_cgminer
+elif [ "$ASIC_MODEL" == "Antminer DR3" ]; then
+	echo "Install Antminer DR3"
+	install_antminer_cgminer
 elif [ "$ASIC_MODEL" == "Antminer T9+" ]; then
 	echo "Install Antminer T9+"
 	install_antminer_bmminer

@@ -56,6 +56,16 @@ elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="45"
 	GPIO_PATH="value"
+elif [[ $ASIC_MODEL == "Antminer DR3" ]]; then
+	MOUNT="config"
+	ASIC_ALGO="Blake256R14"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/var/volatile/log/messages"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="ghs"
+	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="941"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer D3" || $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="X11"
