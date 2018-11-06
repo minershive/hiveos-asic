@@ -77,6 +77,8 @@ hive_version=`cat /hive/etc/VERSION`
 
 #asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
 asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
+[[ $mb_product == "Zig Z1+" ]] && asic_chain_count=4
+
 
 uid=$(echo ${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g') | tr '[:upper:]' '[:lower:]')
 if which sha1sum > /dev/null; then

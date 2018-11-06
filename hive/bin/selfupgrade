@@ -258,6 +258,7 @@ install_zig() {
 	/etc/init.d/cron restart
 	apt update
 	apt install -y curl screen jq
+	sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' /hive/bin/selfupgrade
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
 
