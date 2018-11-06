@@ -3,7 +3,13 @@
 [ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 [ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
 [ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
-release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
+
+if [ "$ASIC_MODEL" == "Zig Z1+" ]; then
+    release=`wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
+else
+    release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
+fi
+
 exitcode=$?
 version=0
 [ -e /hive/etc/VERSION ] && version=`cat /hive/etc/VERSION`
@@ -47,7 +53,12 @@ url=http://github.com/minershive/hiveos-asic/archive/$filename
 echo $url
 
 echo "> Downloading $url"
-curl -L --insecure -O $url
+if [ "$ASIC_MODEL" == "Zig Z1+" ]; then
+    wget $url
+else
+    curl -L --insecure -O $url
+fi
+
 [ $? -ne 0 ] && echo "Error downloading $url" && exit 1
 
 sleep 2
