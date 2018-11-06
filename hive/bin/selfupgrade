@@ -3,11 +3,13 @@
 [ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 [ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
 [ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
+echo $ASIC_MODEL
 
 if [ "$ASIC_MODEL" == "Zig Z1+" ]; then
-    release=`wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
+	release=`wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 else
-    release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
+	release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 fi
 
 exitcode=$?
@@ -54,9 +56,9 @@ echo $url
 
 echo "> Downloading $url"
 if [ "$ASIC_MODEL" == "Zig Z1+" ]; then
-    wget $url
+	wget $url
 else
-    curl -L --insecure -O $url
+	curl -L --insecure -O $url
 fi
 
 [ $? -ne 0 ] && echo "Error downloading $url" && exit 1
@@ -254,6 +256,8 @@ install_zig() {
 	ln -s /bin/busybox /bin/nc
 	cp -rf /hive/etc/crontab.root /etc/cron.d/hive
 	/etc/init.d/cron restart
+	apt update
+	apt install -y curl screen jq
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
 

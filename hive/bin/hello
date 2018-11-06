@@ -50,6 +50,7 @@ mb_manufacturer=
 [ -e "/usr/bin/compile_time" ] && mb_product=`sed -n 2p /usr/bin/compile_time`
 [ -e "/opt/system/bank.conf" ] && mb_product="ebit"
 [ -e "/etc/hwrevision" ] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && mb_product=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
 
 
 
@@ -69,6 +70,7 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product == "b29+.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon A9", "logic_version": .[0]}'`
 [[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
 [[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
+[[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
 
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
@@ -161,7 +163,7 @@ fi
 # Post actions =================================================================
 #restartminer - restart miner on success
 if [[ $arg_restartminer == 1 ]]; then
-	miner restart
+	/hive/bin/miner restart
 #	[[ $WD_ENABLED == 1 ]] &&
 #		wd restart
 fi

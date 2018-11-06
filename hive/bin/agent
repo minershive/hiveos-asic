@@ -137,7 +137,7 @@ miner_stats () {
 			fi
 		;;
 		"Zig Z1+")
-			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
+			stats_raw=`echo '{"command":"stats"}' | timeout 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
@@ -156,7 +156,7 @@ miner_stats () {
 
 				local hs=$( 	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) 		| to_entries | [.[].value | ."MHS 30S"]') <<< "$STATS" )
 				local temp=$(	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) 		| to_entries | [.[].value | ."Temperature"]') <<< "$STATS")
-				local fan=$(	 (jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) ) 	| to_entries | [.[].value ] / '$max_fan_rpm' * 100 ]') <<< "$STATS")
+				local fan=$(	 (jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) ) 	| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
 				local fan_rpm=$( (jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) ) 	| to_entries | [.[].value ]') <<< "$STATS")
 				local freq=$(	 (jq '.[0].Frequency as $freq | .[0] | with_entries( select(.key | test("CH\\d+") ) ) | to_entries | [.[].value | $freq ]') <<< "$STATS")
 				local acn=$(	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) 		| to_entries | [.[].value | .status | length ]') <<< "$STATS")
@@ -167,7 +167,7 @@ miner_stats () {
 						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 						--argjson freq "$freq" --argjson acn "$acn" \
-						--argjson --argjson status "$status" \
+						--argjson status "$status" \
 						--arg uptime "$uptime" \
 						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}')
 			fi
@@ -371,7 +371,11 @@ do_command () {
 		;;
 		exec)
 			exec=$(echo $body | jq '.exec' --raw-output)
-			payload=`timeout -t 360 bash -c "$exec" 2>&1`
+			if [[ $ASIC_MODEL == "Zig Z1+" ]]; then
+				payload=`timeout 360 bash -c "$exec" 2>&1`
+			else
+				payload=`timeout -t 360 bash -c "$exec" 2>&1`
+			fi
 			exitcode=$?
 			echo "$payload"
 			[[ $exitcode -eq 0 ]] &&
@@ -427,7 +431,7 @@ do_command () {
 				# Final actions ---------------------------------------------------------
 				if [[ "$justwrite" != 1 ]]; then
 					#hostname-check
-					miner restart
+					/hive/bin/miner restart
 				fi
 
 				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
@@ -447,7 +451,7 @@ do_command () {
 				justwrite=
 				oc_if_changed
 
-				miner restart
+				/hive/bin/miner restart
 				[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
 			else
 				message error "No \"wallet\" config given" --id=$cmd_id

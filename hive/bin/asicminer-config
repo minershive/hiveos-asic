@@ -7,7 +7,7 @@
 function config_gen() {
 	RIG_CONF="/hive-config/rig.conf"
 	WALLET_CONF="/hive-config/wallet.conf"
-	MINER_CONFIG="/config/$THIS_MINER_NAME.conf"
+	MINER_CONFIG=$CONFIG_PATH
 
 	echo "Generating $MINER_CONFIG"
 

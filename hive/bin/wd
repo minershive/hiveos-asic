@@ -100,7 +100,7 @@ function loop() {
 			echo -e "${YELLOW}Restarting ${CYAN}$MINER${NOCOLOR} ${YELLOW}after $WD_MINER minutes${NOCOLOR}"
 			echo -e "---"
 			miner_restart_count=1
-			miner restart
+			/hive/bin/miner restart
 		fi
 	fi
 }
