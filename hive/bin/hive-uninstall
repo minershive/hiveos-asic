@@ -8,6 +8,9 @@
 #bmminer + z9-mini
 [[ -e /etc/rcS.d/S69hive ]] && rm -rf /etc/rcS.d/S69hive
 
+#Zig
+[[ -e /etc/cron.d/hive ]] && rm -rf /etc/cron.d/hive
+
 #all
 rm -rf /hive
 rm -rf /hive-config

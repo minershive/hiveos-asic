@@ -211,6 +211,39 @@ elif [[ $ASIC_MODEL == "b29+.g19" || $ASIC_MODEL == "d9.g19" || $ASIC_MODEL == "
 "api-port": "4028",
 "api-allow": "R:0/0,W:127.0.0.1"
 }'
+elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
+	config_global='{
+"api-allow": "W:0\/0",
+"api-description": "cgminer 4.11.1",
+"api-listen": true,
+"api-mcast-addr": "224.0.0.75",
+"api-mcast-code": "FTW",
+"api-mcast-des": "",
+"api-mcast-port": "4028",
+"api-network": true,
+"api-port": "4028",
+"expiry": "120",
+"failover-switch-delay": "300",
+"log": "5",
+"queue": "9999",
+"scan-time": "60",
+"shares": "0",
+"lyra2rev2-clk": "1000",
+"lyra2rev2-asic-x": "4",
+"lyra2rev2-asic-y": "24",
+"lyra2rev2-asic-num": "50",
+"lyra2rev2-cutofftemperature": "50",
+"lyra2rev2-cutofffanspeedin": "100",
+"lyra2rev2-cutofffanspeedout": "100",
+"lyra2rev2-restarthashrate": "7",
+"lyra2rev2-restartfailedcount": "100",
+"lyra2rev2-check-testnonce": true,
+"lyra2rev2-machine-type": "1",
+"lyra2rev2-scan-serial": "\/dev\/ttyS3",
+"lyra2rev2-restartenable": false,
+"lyra2rev2-cutoffenable": false,
+"lyra2rev2-dynamic-frequency": true
+}'
 fi
 
 	#merge user config options into main config

@@ -3,6 +3,7 @@
 [ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
 [ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
 [ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9 (vnish" ]]; then
 	MOUNT=""
@@ -145,6 +146,14 @@ elif [[ $ASIC_MODEL == "s11.g19" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="mhs"
 	MAX_FAN_RPM="6000"
+elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
+	MOUNT=""
+	ASIC_ALGO="lyra2v2"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH=""
+	CONFIG_PATH="/var/www/html/resources/cgminer.config"
+	HASH="mhs"
+	MAX_FAN_RPM="4000"
 else
 	MOUNT=""
 	ASIC_ALGO="unknown"

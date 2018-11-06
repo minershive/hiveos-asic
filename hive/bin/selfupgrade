@@ -228,6 +228,31 @@ install_innosilicon() {
 }
 
 
+install_zig() {
+	echo ""
+	echo "> Extracting $filename"
+	tar -xzv -f $filename
+#	rm -rf hiveos-asic-$release/hive/sbin/teleconsole
+	cp -rf hiveos-asic-$release/* /
+	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+
+	rm $filename
+
+	sleep 2
+
+	ln -s /bin/busybox /bin/nc
+	cp -rf /hive/etc/crontab.root /etc/cron.d/hive
+	/etc/init.d/cron restart
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
+
+	/hive/bin/hive
+
+	sleep 2
+
+	#$FARM_HASH can be defined externally
+	bash -c "/hive/bin/firstrun $FARM_HASH"
+}
 
 
 
@@ -297,6 +322,9 @@ elif [ "$ASIC_MODEL" == "d9.g19" ]; then
 elif [ "$ASIC_MODEL" == "s11.g19" ]; then
 	echo "Install Innosilicon S11"
 	install_innosilicon
+elif [ "$ASIC_MODEL" == "Zig Z1+" ]; then
+	echo "Install Zig Z1+"
+	install_zig
 else
 	echo "Not found $ASIC_MODEL"
 	exit 1
