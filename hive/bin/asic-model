@@ -5,7 +5,7 @@
 [ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
 
-if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9 (vnish" ]]; then
+if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9pro" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="bmminer"
