@@ -93,4 +93,5 @@ asic-find 5
 ```
 Example: 'asic-find 15' the red LED will blinking for 15 minutes
 
-
+## Zig Z1+
+[Zig Z1+ ssh manual](hive/share/zig/README.md)
