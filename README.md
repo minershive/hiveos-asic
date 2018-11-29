@@ -95,3 +95,11 @@ Example: 'asic-find 15' the red LED will blinking for 15 minutes
 
 ## Zig Z1+
 [Zig Z1+ ssh manual](hive/share/zig/README.md)
+
+``` sh
+cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade
+```
+or
+``` sh
+cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web bash selfupgrade
+```

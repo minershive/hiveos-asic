@@ -4,6 +4,7 @@
 [ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
 [ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
+[ -e "/tmp/type" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver`
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9pro" ]]; then
 	MOUNT=""
@@ -144,6 +145,14 @@ elif [[ $ASIC_MODEL == "s11.g19" ]]; then
 	THIS_MINER_NAME="cgminer"
 	LOG_PATH=""
 	CONFIG_PATH="/config/cgminer.conf"
+	HASH="mhs"
+	MAX_FAN_RPM="6000"
+elif [[ $ASIC_MODEL == "T4.G19" ]]; then
+	MOUNT=""
+	ASIC_ALGO="CryptoNight"
+	THIS_MINER_NAME="innominer"
+	LOG_PATH="/tmp/log/innominer.log"
+	CONFIG_PATH="/home/www/conf/miner.conf"
 	HASH="mhs"
 	MAX_FAN_RPM="6000"
 elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
