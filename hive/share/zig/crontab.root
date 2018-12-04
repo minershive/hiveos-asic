@@ -1,0 +1,13 @@
+# ROOT CRON
+# applied on every startup
+
+
+# update DNS cache, just in case IP changes once in a lifetime
+*/30 * * * * root /hive/bin/cache-hive-ip
+
+
+#check agent is running...
+*/10 * * * * root /hive/bin/agent-screen dontattach
+# || echo "[`date`] STARTED BY CRON" >> /var/log/hive-agent.log
+
+@reboot root /hive/bin/hive &

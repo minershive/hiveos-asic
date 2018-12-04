@@ -313,7 +313,8 @@ install_zig() {
 	sleep 2
 
 	ln -s /bin/busybox /bin/nc
-	cp -rf /hive/etc/crontab.root /etc/cron.d/hive
+	cp -rf /hive/share/zig/crontab.root /etc/cron.d/hive
+	cp -rf /home/root/.profile /etc/profile.d/hive.sh
 	/etc/init.d/cron restart
 	apt update
 	apt install -y curl screen jq
