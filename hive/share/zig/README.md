@@ -1,4 +1,10 @@
 # Zig Z1+ ssh manual
+Default ssh login credentials for the different firmware versions=username:password
+Firmware 20180914=fa:fa
+Firmware 20180930=pi:pi
+
+If credentials is incorrect, use this manual:
+
 by Dakota at Minery.Tech
 
 1. Pull the flash drive from the front of the unit and put in a computer you have root access on

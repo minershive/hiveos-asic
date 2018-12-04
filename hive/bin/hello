@@ -51,7 +51,7 @@ mb_manufacturer=
 [ -e "/opt/system/bank.conf" ] && mb_product="ebit"
 [ -e "/etc/hwrevision" ] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && mb_product=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
-
+[ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && mb_product=`cat /tmp/type`.`cat /tmp/hwver`
 
 
 cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*//g'`
@@ -71,6 +71,7 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
 [[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
 [[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
+[[ $mb_product == "T4.G19" ]] && asic=`cat /tmp/type| jq -R . | jq -s '{"firmware": .[0], "model": "Innosilicon A5/A8", "logic_version": .[0]}'`
 
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`

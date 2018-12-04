@@ -25,7 +25,7 @@ Default SSH login and password:
 
 Antminer - default user:**root**  default password:**admin**
 
-Innosilicon - default user:**root**  default password:**blacksheepwall** or **innot1t2** or **t1t2t3a5**
+Innosilicon - default (ssh/telnet) user:**root**  default password:**blacksheepwall** or **innot1t2** or **t1t2t3a5**
 
 Login with SSH to your miner and run the following command
 ``` sh

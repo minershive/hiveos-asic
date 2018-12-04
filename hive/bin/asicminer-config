@@ -31,6 +31,38 @@ function config_gen() {
 
 	pools=`jq --null-input --argjson pools "$pools" '{$pools}'`
 
+
+#innosilicon A5/A8
+	if [[ $ASIC_MODEL == "T4.G19" ]]; then
+		pools='{
+"Voltage": 175,
+"PoolNum": "1",
+"UserName1": null,
+"UserName2": null,
+"UserName3": null,
+"Pool3": null,
+"Pool2": null,
+"Pool1": null,
+"Frequency": 1100,
+"perflevel": "2",
+"vidmode": "1",
+"fanmode": "1",
+"fanspeed": "1",
+"Password2": null,
+"Password3": null,
+"Password1": null
+}'
+		i=1
+		for url in $ASICMINER_URL; do
+			pools=`jq --null-input --argjson pools "$pools" --arg UserName$i "$ASICMINER_TEMPLATE" '$pools + {$UserName'$i'}'`
+			pools=`jq --null-input --argjson pools "$pools" --arg Pool$i "$url" '$pools + {$Pool'$i'}'`
+			pools=`jq --null-input --argjson pools "$pools" --arg Password$i "$ASICMINER_PASS" '$pools + {$Password'$i'}'`
+			pools=`jq --null-input --argjson pools "$pools" --arg PoolNum "$i" '$pools + {$PoolNum}'`
+			(( i++ ))
+		done
+	fi
+#innosilicon A5/A8 end
+
 #	echo $pools | jq .
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9pro" ]]; then
@@ -211,6 +243,8 @@ elif [[ $ASIC_MODEL == "b29+.g19" || $ASIC_MODEL == "d9.g19" || $ASIC_MODEL == "
 "api-port": "4028",
 "api-allow": "R:0/0,W:127.0.0.1"
 }'
+elif [[ $ASIC_MODEL == "T4.G19" ]]; then
+	config_global='{}'
 elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 	config_global='{
 "api-allow": "W:0\/0",

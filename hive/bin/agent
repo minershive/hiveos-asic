@@ -213,6 +213,45 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
+		"T4.G19")
+			stats_raw=`echo '{"command":"devs"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
+			if [[ $? -ne 0 || -z $stats_raw ]]; then
+				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
+			else
+				local STATS=$(jq '.DEVS' <<< "$stats_raw")
+
+				#if [[ -z $algo || $algo == "null" ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				local algo=$ASIC_ALGO
+				local hs_units=$HASH
+				local uptime=$(jq -r '.[0]["Device Elapsed"]' <<< "$STATS")
+				khs=$(jq -r '[.[]["MHS av"]] | add' <<< "$STATS")
+				if [[ $HASH == "mhs" ]]; then
+					khs=$(awk '{print $1 * 1000}' <<< "$khs")
+				elif [[ $HASH == "khs" ]]; then
+					khs=$(awk '{print $1}' <<< "$khs")
+				else
+					khs=$(awk '{print $1 / 1000}' <<< "$khs")
+				fi
+
+				local hs=$(	 (jq '[.[] | with_entries( select(.key | test("MHS 5s")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local temp=$(	 (jq '[.[] | with_entries( select(.key | test("TempAVG")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local freq=$(	 (jq '[.[] | with_entries( select(.key | test("CORE")) ) 		| to_entries | .[].value]') <<< "$STATS")
+				local acn=$(	 (jq '[.[] | with_entries( select(.key | test("DUTY")) ) 		| to_entries | .[].value]') <<< "$STATS")
+#				local status=$(	 (jq '[.[] | with_entries( select(.key | test("Num active chips")) ) 	| to_entries | .[].value]') <<< "$STATS")
+				local hw_errors=$( (jq '[.[] | with_entries( select(.key | test("Hardware Errors")) ) 	| to_entries | .[].value]') <<< "$STATS")
+
+				stats=$(jq -nc \
+						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+						--argjson temp "$temp" \
+						--argjson freq "$freq" --argjson acn "$acn" \
+						--argjson hw_errors "$hw_errors" \
+						--arg uptime "$uptime" \
+						'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}')
+			fi
+		;;
 		*)
 			miner="unknown"
 			#MINER=miner

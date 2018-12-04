@@ -244,6 +244,62 @@ install_innosilicon() {
 }
 
 
+
+install_innosilicon_innominer() {
+	echo ""
+	mount -o remount,rw,relatime -t jffs2 /dev/root /
+
+	echo "> Extracting $filename"
+	[ ! -d /hive ] && mkdir /hive
+	tar -xzv -f $filename
+	cp -rf hiveos-asic-$release/hive-config /innocfg/
+	cp -rf hiveos-asic-$release/hive /
+#	cp -rf hiveos-asic-$release/home/root/.profile /etc/profile.d/hive.sh
+	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+	rm $filename
+
+	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /innocfg/hive-config/ /hive-config
+
+	#autorun
+	if grep "### HIVE AUTORUN ###" /etc/init.d/rcS; then
+		echo "/etc/init.d/rcS skip"
+	else
+		cat >> /etc/init.d/rcS <<FILEEOF
+
+### HIVE AUTORUN ###
+[ -e /hive/bin/hive ] && nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive..."' > /dev/null 2>&1 &
+[ -e /hive/bin/hello ] && nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
+[ -e /hive/bin/cron1 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+[ -e /hive/bin/cron2 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+FILEEOF
+	fi
+
+	#PATH
+	if grep "### HIVE PROFILE ###" /etc/profile; then
+		echo "/etc/profile skip"
+	else
+		cat >> /etc/profile <<FILEEOF
+
+### HIVE PROFILE ###
+export PATH=$PATH:/hive/bin:/hive/sbin
+export LD_LIBRARY_PATH=/hive/lib
+FILEEOF
+	fi
+
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
+
+	sync
+	sleep 5
+	mount -o remount,ro,relatime -t jffs2 /dev/root /
+
+	/hive/bin/hive
+	#$FARM_HASH can be defined externally
+	bash -c "/hive/bin/firstrun $FARM_HASH"
+}
+
+
+
 install_zig() {
 	echo ""
 	echo "> Extracting $filename"

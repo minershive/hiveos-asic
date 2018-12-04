@@ -153,7 +153,7 @@ elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 	THIS_MINER_NAME="innominer"
 	LOG_PATH="/tmp/log/innominer.log"
 	CONFIG_PATH="/home/www/conf/miner.conf"
-	HASH="mhs"
+	HASH="khs"
 	MAX_FAN_RPM="6000"
 elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 	MOUNT=""
