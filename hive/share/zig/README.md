@@ -1,7 +1,14 @@
 # Zig Z1+ ssh manual
 Default ssh login credentials for the different firmware versions=username:password
+
 Firmware 20180914=fa:fa
+
 Firmware 20180930=pi:pi
+
+Before installation run:
+```sh
+sudo su
+```
 
 If credentials is incorrect, use this manual:
 
