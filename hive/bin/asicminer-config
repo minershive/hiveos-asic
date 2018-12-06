@@ -262,7 +262,7 @@ elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 "queue": "9999",
 "scan-time": "60",
 "shares": "0",
-"lyra2rev2-clk": "1000",
+"lyra2rev2-clk": "925",
 "lyra2rev2-asic-x": "4",
 "lyra2rev2-asic-y": "24",
 "lyra2rev2-asic-num": "50",
@@ -274,7 +274,7 @@ elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 "lyra2rev2-check-testnonce": true,
 "lyra2rev2-machine-type": "1",
 "lyra2rev2-scan-serial": "\/dev\/ttyS3",
-"lyra2rev2-restartenable": false,
+"lyra2rev2-restartenable": true,
 "lyra2rev2-cutoffenable": false,
 "lyra2rev2-dynamic-frequency": true
 }'
