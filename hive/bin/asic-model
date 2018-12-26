@@ -28,6 +28,17 @@ elif [[ $ASIC_MODEL == "Antminer S7" ]]; then
 	GPIO_LED_RED="70"
 #	GPIO_LED_RED="23"
 	GPIO_PATH="direction"
+elif [[ $ASIC_MODEL == "Antminer S11" ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="bmminer"
+	LOG_PATH="/var/volatile/tmp/freq"
+	CONFIG_PATH="/config/bmminer.conf"
+	HASH="ghs"
+	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="70"
+#	GPIO_LED_RED="71"
+	GPIO_PATH="direction"
 elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Blake(2b)"
