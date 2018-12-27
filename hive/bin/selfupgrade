@@ -70,9 +70,12 @@ sleep 2
 install_antminer_bmminer() { # bmminer, / - rw, cron
 	echo ""
 	echo "> Extracting $filename"
+	if [ ! -d /config/hive ]; then
+		mkdir /config/hive
+	fi
 	tar -xzv -f $filename
 	rm -rf hiveos-asic-$release/hive/sbin/teleconsole
-	cp -rf hiveos-asic-$release/* /
+	cp -rf hiveos-asic-$release/* /config/hive/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm $filename
@@ -81,6 +84,13 @@ install_antminer_bmminer() { # bmminer, / - rw, cron
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
+
+	if [ ! -e /hive ]; then
+		ln -s /config/hive/hive/ /hive
+		ln -s /config/hive/hive-config/ /hive-config
+		cp -rf /hive/share/S9/S69hive /etc/rcS.d/
+		cp -rf /hive/share/S9/.profile /home/root/
+	fi
 
 	/hive/bin/hive
 

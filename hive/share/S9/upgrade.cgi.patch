@@ -1,0 +1,24 @@
+--- update.cgi
++++ update.cgi
+@@ -59,7 +59,21 @@
+ then
+     mkdir /mnt/config/home/usr_config
+ fi
++cat >> /config/network.conf <<FILEEOF
++
++### HIVE HECK ###
++[ ! -L /hive ] && [ ! -e /hive ] && [ -d /config/hive ] && ln -s /config/hive/hive /hive
++if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
++  ln -s /config/hive/hive-config /hive-config
++  export PATH=$PATH:/hive/bin:/hive/sbin
++  export LD_LIBRARY_PATH=/hive/lib
++  cp -rf /hive/share/S9/S69hive /etc/rcS.d/
++  cp -rf /hive/share/S9/.profile /home/root/
++  /hive/bin/hive
++fi
++FILEEOF
+ cp -r /config/* /mnt/config/home/usr_config/
++
+ #umount /dev/mtdblock2
+ umount /mnt/config
+ ubidetach -d 1 /dev/ubi_ctrl
