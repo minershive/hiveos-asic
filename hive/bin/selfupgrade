@@ -1,13 +1,14 @@
 #!/bin/sh
 
-[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-[ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
-[ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
-[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
-[ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver`
+[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time` #Antminer
+[ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit" #Ebit
+[ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision` #Innosilicon
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//` #Zig old firmware
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo $ASIC_MODEL | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
+[ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver` #Innosilicon A5/8
 echo $ASIC_MODEL
 
-if [ "$ASIC_MODEL" == "Zig Z1+" ]; then
+if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
 	release=`wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 else
 	release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
@@ -56,7 +57,7 @@ url=http://github.com/minershive/hiveos-asic/archive/$filename
 echo $url
 
 echo "> Downloading $url"
-if [ "$ASIC_MODEL" == "Zig Z1+" ]; then
+if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
 	wget $url
 else
 	curl -L --insecure -O $url
@@ -419,6 +420,9 @@ elif [ "$ASIC_MODEL" == "s11.g19" ]; then
 	install_innosilicon_innominer
 elif [ "$ASIC_MODEL" == "Zig Z1+" ]; then
 	echo "Install Zig Z1+"
+	install_zig
+elif [ "$ASIC_MODEL" == "Zig Z1" ]; then
+	echo "Install Zig Z1"
 	install_zig
 else
 	echo "Not found $ASIC_MODEL"

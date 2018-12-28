@@ -1,10 +1,11 @@
 #!/hive/sbin/bash
 
-[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-[ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit"
-[ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision`
-[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
-[ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver`
+[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time` #Antminer
+[ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit" #Ebit
+[ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision` #Innosilicon
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//` #Zig old firmware
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo $ASIC_MODEL | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
+[ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver` #Innosilicon A5/8
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9pro" ]]; then
 	MOUNT=""
@@ -166,7 +167,7 @@ elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 	CONFIG_PATH="/home/www/conf/miner.conf"
 	HASH="khs"
 	MAX_FAN_RPM="6000"
-elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
+elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 	MOUNT=""
 	ASIC_ALGO="lyra2v2"
 	THIS_MINER_NAME="cgminer"

@@ -71,6 +71,7 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
 [[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
 [[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
+[[ $mb_product == "Zig Z1" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1", "logic_version": "Zig Z1"}'`
 [[ $mb_product == "T4.G19" ]] && asic=`cat /tmp/type| jq -R . | jq -s '{"firmware": .[0], "model": "Innosilicon A5/A8", "logic_version": .[0]}'`
 
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
@@ -78,7 +79,7 @@ hive_version=`cat /hive/etc/VERSION`
 
 #asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
 asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
-[[ $mb_product == "Zig Z1+" ]] && asic_chain_count=4
+[[ $mb_product =~ "Zig Z1" ]] && asic_chain_count=4
 
 
 uid=$(echo ${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g') | tr '[:upper:]' '[:lower:]')

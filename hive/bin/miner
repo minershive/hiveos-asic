@@ -61,7 +61,7 @@ function start() {
 			screen -d > /dev/null
 			if [[ $ASIC_MODEL =~ ".g19" ]]; then
 				systemctl start cgminer.service
-			elif [[ $ASIC_MODEL =~ "Zig Z1+" ]]; then
+			elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 				break
 			elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 				python3.4 /home/inno_tools/start_miner.py &
@@ -80,7 +80,7 @@ function stop() {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
 	if [[ $ASIC_MODEL =~ ".g19" ]]; then
 		systemctl stop cgminer.service
-	elif [[ $ASIC_MODEL =~ "Zig Z1+" ]]; then
+	elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 		pidof miner | xargs kill -9
 	elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 		killall innominer_T4
