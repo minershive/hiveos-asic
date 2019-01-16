@@ -53,9 +53,12 @@ cd /tmp
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/config.txt
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ips.txt
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/install.sh
+wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ipscan.sh
 chmod +x install.sh
+chmod +x ipscan.sh
 ```
 Edit `config.txt` to set your FARM_HASH, edit `ips.txt` to set IPs list of your new ASICs.
+Or you can scan the local network to search for antminer. Example: `ipscan.sh 192.168.0.1/24 > ips.txt`
 Then run just run `install.sh`. If IP was connected then it will become commented in file.
 
 
