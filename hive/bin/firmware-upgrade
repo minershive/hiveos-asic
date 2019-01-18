@@ -5,7 +5,7 @@
 file=/tmp/$$
 mkdir $file
 cd $file
-curl -O "http://download.hiveos.farm/asic/s9/$1"
+curl -O "$1"
 #curl -O "http://download.hiveos.farm/asic/s9/Antminer-S9-S9i_v004x(beta10).tar.gz"
 
 trap atexit 0
