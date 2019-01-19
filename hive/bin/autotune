@@ -4,4 +4,4 @@ echo $1 > /config/autoTune.conf
 killall auto-tune
 sleep 1
 /usr/bin/auto-tune
-if grep "enable_auto_chip=1" /config/autoTune.conf; then /usr/bin/auto-chip-tune; fi
+if grep "enable_auto_chip=1" /config/autoTune.conf; then /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &; fi
