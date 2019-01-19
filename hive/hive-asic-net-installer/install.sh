@@ -29,7 +29,11 @@ install_cmd="[ -e /hive ] && (echo Already_installed) || ($install_cmd)"
 for ip in $IPS; do
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
-	sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" || sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
+	if [[ -e "/usr/bin/compile_time" ]]; then
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
+	else
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
+	fi
 
 
 	if [[ $? -ne 0 ]]; then

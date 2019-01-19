@@ -7,6 +7,7 @@ mkdir $file
 cd $file
 curl -O "$1"
 #curl -O "http://download.hiveos.farm/asic/s9/Antminer-S9-S9i_v004x(beta10).tar.gz"
+filename=$(echo $1 | awk -F \/ '{print $NF}')
 
 trap atexit 0
 
@@ -16,17 +17,18 @@ atexit() {
         rmdir $file.boot 2>/dev/null || true
         sync
         if [ ! $ok ]; then
-            echo "System upgrade failed"
+            echo -e "System upgrade failed"
         fi
 }
 
 exec 2>/tmp/upgrade_result
 
 #tar zxf -
-tar -xvf "$1"
+tar -xvf "$filename"
 if [ ! -f ubi_info ]; then
-    echo "Incorrect firmware!!!"
+    echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
     rm /tmp/*
+    exit 1
 else
 
 if [ ! -d /mnt/config ];
@@ -61,9 +63,10 @@ ubidetach -d 1 /dev/ubi_ctrl
 
 if [ -f runme.sh ]; then
         sh runme.sh
-        echo "Upgrade done. Rebooting..."
+        echo -e "${GREEN}Firmware upgrade complete. Rebooting...${NOCOLOR}"
 else
-    echo "Incorrect firmware!!!"
+    echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
+    exit 1
 fi
 fi
 
