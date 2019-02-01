@@ -63,11 +63,9 @@ miner_stats () {
 				else
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi
+				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
+				local active_pool=$(echo $stats_pool | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
 
-
-				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
-				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
-				#stats=$(jq -nc --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
 
 				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
 				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
@@ -79,14 +77,15 @@ miner_stats () {
 				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
 
 				stats=$(jq -nc \
 						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 						--argjson freq "$freq" --argjson acn "$acn" --argjson power "$power" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
-						--arg uptime "$uptime" \
-						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime}')
+						--arg uptime "$uptime" --argjson ar "$ar"\
+						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar}')
 			fi
 		;;
 		"Antminer A3"|"Antminer D3"|"Antminer L3+"|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"*|"Antminer X3"|"Antminer S7"|"Antminer DR3")

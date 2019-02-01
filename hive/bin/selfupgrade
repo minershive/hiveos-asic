@@ -85,6 +85,9 @@ install_antminer_bmminer() { # bmminer, / - rw, cron
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
+	[[ -d /hive && ! -L /hive ]] && mv -f /hive /config/hive/
+	[[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
+
 
 	if [ ! -e /hive ]; then
 		ln -s /config/hive/hive/ /hive

@@ -1,0 +1,11 @@
+#!/hive/sbin/bash
+
+echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
+
+killall auto-tune
+sleep 1
+/usr/bin/auto-tune
+if grep "enable_auto_chip=1" /config/autoTune.conf; then /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &; fi
+echo -e "Autotune config applied"
+
+exit 0
