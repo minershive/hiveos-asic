@@ -421,6 +421,17 @@ do_command () {
 				echo "$payload" | message info "$exec" payload --id=$cmd_id ||
 				echo "$payload" | message error "Exec failed, exitcode=$exitcode" payload --id=$cmd_id
 		;;
+		asic_oc)
+			export asic_oc=`echo $body | jq '.asic_oc' --raw-output`
+			screen -dm -S autotune bash -c '
+				asic_oc $asic_oc 2>&1 | tee /tmp/nohup.log
+				exitcode=${PIPESTATUS[0]}
+				payload=`cat /tmp/nohup.log`
+					[[ $exitcode -eq 0 ]] &&
+					echo "$payload" | message ok "Overclock config successful" payload --id='$cmd_id' ||
+					echo "$payload" | message error "Overclock config failed" payload --id='$cmd_id'
+			'
+		;;
 		config)
 			config=$(echo $body | jq '.config' --raw-output)
 			justwrite=$(echo $body | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
