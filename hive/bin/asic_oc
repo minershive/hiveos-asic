@@ -3,6 +3,7 @@
 echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
 #echo $1
 
+sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
 killall auto-tune > /dev/null 2>&1
 killall auto-chip-tune > /dev/null 2>&1
 sleep 1
