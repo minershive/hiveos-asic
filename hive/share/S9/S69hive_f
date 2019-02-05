@@ -1,0 +1,37 @@
+#!/bin/sh
+
+if [ ! -e /hive ]; then
+    cd /tmp
+    curl -L --insecure http://download.hiveos.farm/asic/repo/s9/latest -o latest.tar.gz
+    echo "> Extracting latest.tar.gz"
+    if [ ! -d /config/hive ]; then
+        mkdir -p /config/hive/hive-config
+    fi
+    tar -xzv -f latest.tar.gz
+    [ -L /hive ] && rm /hive
+    rm -rf hiveos-asic-*/hive/sbin/teleconsole
+    cp -rf hiveos-asic-*/hive /
+    [ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
+
+    rm latest.tar.gz
+    rm -rf hiveos-asic*
+
+    sleep 2
+
+    export PATH=$PATH:/hive/bin:/hive/sbin
+    export LD_LIBRARY_PATH=/hive/lib
+    [[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
+    ln -s /config/hive/hive-config/ /hive-config
+    #cp -rf /hive/share/S9/S69hive /etc/rcS.d/
+    cp -rf /hive/share/S9/.profile /home/root/
+
+    #/hive/bin/hive
+
+    #sleep 2
+
+    #$FARM_HASH can be defined externally
+    #bash -c "/hive/bin/firstrun $FARM_HASH"
+fi
+
+
+/hive/bin/hive > /tmp/hive-boot.log
