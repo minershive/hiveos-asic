@@ -22,17 +22,17 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 #sleep 1
 
-install_cmd="export PATH=$PATH:/hive/bin:/hive/sbin; export LD_LIBRARY_PATH=/hive/lib; nohup /hive/bin/firmware-upgrade $URL &"
-#install_cmd="pwd; ls" #for testing
-#install_cmd="[ -e /hive ] && (echo Already_installed) || ($install_cmd)"
+install_cmd="chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
 
 for ip in $IPS; do
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if [[ -e "/usr/bin/compile_time" ]]; then
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
+		sshpass -p$PASS scp -P 4444 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 4444 -y 'sh -s' < ./firmware-upgrade
 	else
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
+		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
 	fi
 
 

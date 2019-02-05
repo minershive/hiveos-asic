@@ -4,3 +4,8 @@ FARM_HASH=
 
 LOGIN=root
 PASS=admin
+
+URL=
+
+# Antminer S9/S9i/S9j:
+#URL=http://download.hiveos.farm/asic/s9/Antminer-S9-all-Hiveon.tar.gz
