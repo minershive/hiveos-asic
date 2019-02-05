@@ -46,7 +46,7 @@ fi
 cat >> /config/network.conf <<FILEEOF
 
 ### HIVE HECK ###
-[ ! -L /hive ] && [ ! -e /hive ] && [ -d /config/hive ] && ln -s /config/hive/hive /hive
+#[ ! -L /hive ] && [ ! -e /hive ] && [ -d /config/hive ] && ln -s /config/hive/hive /hive
 if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
   ln -s /config/hive/hive-config /hive-config
   export PATH=$PATH:/hive/bin:/hive/sbin
