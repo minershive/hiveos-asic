@@ -2,6 +2,8 @@
 
 #!/bin/sh -e
 
+rm -rf /config/hive/hive
+
 file=/tmp/$$
 mkdir $file
 cd $file
