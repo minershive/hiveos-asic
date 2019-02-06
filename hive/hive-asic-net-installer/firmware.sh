@@ -28,11 +28,11 @@ for ip in $IPS; do
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if [[ -e "/usr/bin/compile_time" ]]; then
-		sshpass -p$PASS scp -P 4444 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 4444 -y 'sh -s' < ./firmware-upgrade
+		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y 'sh -s' < ./firmware-upgrade
 	else
-		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
+		sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
 	fi
 
 
