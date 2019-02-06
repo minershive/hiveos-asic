@@ -438,6 +438,8 @@ fi
 #echo -e "> Saying hello to server again"
 #hello restartminer
 
+rm -rf /tmp/hiveos-asic*
+
 #Restart agent
 echo -e "> Restarting agent"
 screen -S agent -X quit
