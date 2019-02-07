@@ -50,7 +50,7 @@ for ip in $IPS; do
 		echo -e "${GREEN}OK${NOCOLOR}"
 
 		#Comment it in file
-#		sed -i "s/^$ip$/\#$ip/g" ips.txt
+		sed -i "s/^$ip$/\#$ip/g" ips.txt
 	fi
 
 done
