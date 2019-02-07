@@ -22,17 +22,25 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 #sleep 1
 
-install_cmd="chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
+install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
+#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -L -dm -S upgrade /tmp/firmware-upgrade"
+#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; chmod +x /tmp/firmware-start; nohup /tmp/firmware-start"
 
 for ip in $IPS; do
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if [[ -e "/usr/bin/compile_time" ]]; then
+#		cp -rf firmware-upgrade firmware-upgrade-hash
+#		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
 		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y 'sh -s' < ./firmware-upgrade
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
 	else
-		sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
+#		cp -rf firmware-upgrade firmware-upgrade-hash
+#		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
+		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+#		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-start $LOGIN@$ip:/tmp/firmware-start
+		sleep 1
+		sshpass -p$PASS ssh $LOGIN@$ip -p 4444 -oConnectTimeout=25 -oStrictHostKeyChecking=no "$install_cmd"
 	fi
 
 
@@ -42,7 +50,7 @@ for ip in $IPS; do
 		echo -e "${GREEN}OK${NOCOLOR}"
 
 		#Comment it in file
-		sed -i "s/^$ip$/\#$ip/g" ips.txt
+#		sed -i "s/^$ip$/\#$ip/g" ips.txt
 	fi
 
 done

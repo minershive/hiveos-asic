@@ -30,7 +30,11 @@ if [ ! -e /hive ]; then
     #sleep 2
 
     #$FARM_HASH can be defined externally
-    #bash -c "/hive/bin/firstrun $FARM_HASH"
+    if [ -e /config/FARM_HASH ]; then
+        FARM_HASH=$(cat /config/FARM_HASH)
+        bash -c "/hive/bin/firstrun $FARM_HASH"
+        rm /config/FARM_HASH
+    fi
 fi
 
 

@@ -1,15 +1,17 @@
-#!/bin/sh
-
 #!/bin/sh -e
 
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
+#set -e
 rm -rf /config/hive/hive
+rm -rf /hive
 
 file=/tmp/$$
 mkdir $file
 cd $file
-curl -O "$1"
-#curl -O "http://download.hiveos.farm/asic/s9/Antminer-S9-S9i_v004x(beta10).tar.gz"
-filename=$(echo $1 | awk -F \/ '{print $NF}')
+URL="$1"
+curl -O "$URL"
+filename=$(echo $URL | awk -F \/ '{print $NF}')
+FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
 
 trap atexit 0
 
@@ -53,11 +55,15 @@ if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
   ln -s /config/hive/hive-config /hive-config
   export PATH=$PATH:/hive/bin:/hive/sbin
   export LD_LIBRARY_PATH=/hive/lib
-  cp -rf /hive/share/S9/S69hive_f /etc/rcS.d/S69hive
+  cp -rf /hive/share/S9/S69hive /etc/rcS.d/
   cp -rf /hive/share/S9/.profile /home/root/
-  /etc/rcS.d/S69hive
+  /hive/bin/hive
 fi
 FILEEOF
+
+if [ $(echo $FARM_HASH | wc -c) -eq 41 ]; then
+        echo $FARM_HASH > /config/FARM_HASH
+fi
 
 cp -r /config/* /mnt/config/home/usr_config/
 umount /mnt/config
