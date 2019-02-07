@@ -79,7 +79,7 @@ else
 fi
 fi
 
-cat /tmp/upgrade_result
+#cat /tmp/upgrade_result
 
 sleep 1; /sbin/reboot -f
 
