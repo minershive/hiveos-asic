@@ -9,7 +9,7 @@ file=/tmp/$$
 mkdir $file
 cd $file
 URL="$1"
-curl -O "$URL"
+#curl "$URL" | tar xvz
 filename=$(echo $URL | awk -F \/ '{print $NF}')
 FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
 
@@ -25,10 +25,11 @@ atexit() {
         fi
 }
 
-exec 2>/tmp/upgrade_result
+#exec 2>/tmp/upgrade_result
 
 #tar zxf -
-tar -xvf "$filename"
+#tar -xvf "$filename"
+curl "$URL" | tar xvz
 if [ ! -f ubi_info ]; then
     echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
     rm /tmp/*
@@ -77,6 +78,8 @@ else
     exit 1
 fi
 fi
+
+cat /tmp/upgrade_result
 
 sleep 1; /sbin/reboot -f
 
