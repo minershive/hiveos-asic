@@ -90,7 +90,7 @@ install_antminer_bmminer() { # bmminer, / - rw, cron
 	[[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
 
 
-	if [ ! -e /hive ]; then
+	if [ ! -e /hive-config ]; then
 		#ln -s /config/hive/hive/ /hive
 		ln -s /config/hive/hive-config/ /hive-config
 	fi
