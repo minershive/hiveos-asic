@@ -11,11 +11,16 @@ mkdir -p "/hive-config"
 [ -t 1 ] && . colors
 
 
-FARM_HASH=
+#FARM_HASH=
+FORCE=0
 if [[ "$1" == "-f" ]]; then
 	echo "Forcing reconfig"
+	FORCE=1
 elif [[ ! -z "$1" ]]; then
 	FARM_HASH="$1"
+	if [[ "$2" == "-f" ]]; then
+		FORCE=1
+	fi
 fi
 
 
@@ -38,7 +43,7 @@ BRANDING_LOGO="
 "
 BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
 
-if [[ ! -f "$RIG_CONF" ]] || [[ "$1" == "-f" ]]; then
+if [[ ! -f "$RIG_CONF" ]] || [[ "$FORCE" -eq 1 ]]; then
 #	selfupgrade
 
 	if [[ -z $FARM_HASH ]]; then
