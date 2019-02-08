@@ -22,6 +22,11 @@ fi
 #eval `cat /hive-config/rig.conf | dos2unix | grep '^HIVE_HOST_URL='`
 [[ -z $HIVE_HOST_URL ]] && HIVE_HOST_URL='http://api.hiveos.farm'
 
+if [ -e /config/HIVE_HOST_URL ]; then
+	HIVE_HOST_URL=$(cat /config/HIVE_HOST_URL)
+	rm /config/HIVE_HOST_URL
+fi
+
 
 
 BRANDING_LOGO="
