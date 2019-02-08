@@ -38,8 +38,9 @@ For Antminer D3 **Blissz**, before installation run:
 ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 ```
 Force setup FARM_HASH or RIG ID and password, change api url:
-```firstrun``` or ```firstrun FARM_HASH``` - set when there is no config
-```firstrun -f``` or ```firstrun FARM_HASH -f``` - force set to replace the config
+
+   ```firstrun``` or ```firstrun FARM_HASH``` - set when there is no config  
+   ```firstrun -f``` or ```firstrun FARM_HASH -f``` - force set to replace the config  
 
 
 ## Promptless installation
