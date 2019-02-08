@@ -49,6 +49,7 @@ You can install Hive on all the ASICs you have on your local network.
 For this you need to have running Linux computer (maybe Hive OS on GPU rig), download files from 
 https://github.com/minershive/hiveos-asic/tree/master/hive/hive-asic-net-installer
 ```sh
+apt-get install -y sshpass
 cd /tmp
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/config.txt
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ips.txt
