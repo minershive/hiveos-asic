@@ -2,7 +2,7 @@
 
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
 #set -e
-/hive/bin/wd stop > /dev/null 2>&1
+
 rm -rf /config/hive/hive
 rm -rf /hive
 
