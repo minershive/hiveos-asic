@@ -13,7 +13,7 @@ URL="$1"
 #curl "$URL" | tar xvz
 filename=$(echo $URL | awk -F \/ '{print $NF}')
 FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
-HIVE_HOST_URL=$(echo $filename | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic\/ '{print $(NF-1)}' | sed s/'http:\/\/download'/'http:\/\/api'/)
+HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 
 trap atexit 0
 
@@ -70,6 +70,8 @@ fi
 if [ ! -z $HIVE_HOST_URL ]; then
         echo $HIVE_HOST_URL > /config/HIVE_HOST_URL
 fi
+
+sync
 
 cp -r /config/* /mnt/config/home/usr_config/
 umount /mnt/config
