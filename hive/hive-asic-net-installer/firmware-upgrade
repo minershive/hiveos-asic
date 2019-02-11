@@ -13,8 +13,7 @@ URL="$1"
 #curl "$URL" | tar xvz
 filename=$(echo $URL | awk -F \/ '{print $NF}')
 FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
-HIVE_HOST_URL=$(echo $filename | awk -F \.hiveos.farm '{print $(NF-1)}')
-[ $HIVE_HOST_URL == "http://download" ] && HIVE_HOST_URL=""
+HIVE_HOST_URL=$(echo $filename | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic\/ '{print $(NF-1)}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 
 trap atexit 0
 
