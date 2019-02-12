@@ -2,7 +2,11 @@
 
 if [ ! -e /hive ]; then
     cd /tmp
-    curl -L --insecure http://download.hiveos.farm/asic/repo/s9/latest -o latest.tar.gz
+    URL="hiveos.farm"
+    if [ -e /config/HIVE_HOST_URL ]; then
+        URL=$(cat /config/HIVE_HOST_URL | sed s%'http://api.'%%)
+    fi
+    curl -L --insecure http://download.$URL/asic/repo/s9/latest -o latest.tar.gz
     echo "> Extracting latest.tar.gz"
     if [ ! -d /config/hive ]; then
         mkdir -p /config/hive/hive-config
