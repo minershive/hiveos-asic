@@ -50,7 +50,7 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 ```
 
 ## Bulk installation
-You can install Hive on all the ASICs you have on your local network.
+You can install Hive on all the ASICs you have on your local network. Or you can install firmware on Antminer S9/i/j.
 For this you need to have running Linux computer (maybe Hive OS on GPU rig), download files from 
 https://github.com/minershive/hiveos-asic/tree/master/hive/hive-asic-net-installer
 ```sh
@@ -60,12 +60,17 @@ wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-a
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ips.txt
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/install.sh
 wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ipscan.sh
+wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/firmware.sh
+wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/firmware-upgrade
 chmod +x install.sh
 chmod +x ipscan.sh
+chmod +x firmware.sh
 ```
-Edit `config.txt` to set your FARM_HASH, edit `ips.txt` to set IPs list of your new ASICs.
-Or you can scan the local network to search for antminer. Example: `ipscan.sh 192.168.0.1/24 > ips.txt`
-Then run just run `install.sh`. If IP was connected then it will become commented in file.
+Edit `config.txt` to set your FARM_HASH or firmware URL, edit `ips.txt` to set IPs list of your new ASICs.
+Or you can scan the local network to search for Antminer. Example: `ipscan.sh 192.168.0.1/24 > ips.txt`  
+   To install hive just run `install.sh`.  
+   To install firmware on Antminer S9/i/j just run `firmware.sh`.  
+   If IP was connected then it will become commented in file.  
 
 
 ## Downgrade and Version changing
