@@ -22,7 +22,7 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 #sleep 1
 
-install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
+install_cmd="cd /tmp; chmod +x ./firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
 #install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -L -dm -S upgrade /tmp/firmware-upgrade"
 #install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; chmod +x /tmp/firmware-start; nohup /tmp/firmware-start"
 
