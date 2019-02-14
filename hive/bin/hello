@@ -31,11 +31,13 @@ HIVE_URL="$HIVE_HOST_URL/worker/api"
 arg_restartminer=0
 #send boot flag with hello message
 arg_boot=0
+arg_hostname=
 
 #check for arguments
 for var in "$@"; do
     [[ $var == "restartminer" ]] && arg_restartminer=1
     [[ $var == "boot" ]] && arg_boot=1
+    [[ $var == "hostname" ]] && arg_hostname=`hostname`
 done
 
 # Make hello request ================================================================
@@ -118,6 +120,11 @@ jq -n \
 	}
 }'
 )
+
+if [[ ! -z $arg_hostname ]]; then
+	request=`echo "$request" | jq --arg worker_name "$arg_hostname" '. * {"params": {$worker_name}}'`
+fi
+
 echo "$request" | jq -c '.'
 
 response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
