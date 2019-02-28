@@ -323,6 +323,17 @@ elif [[ $ASIC_MODEL == "Zig Z1" ]]; then
 "lyra2rev2-cutoffenable": false,
 "lyra2rev2-fan-check": true
 }'
+elif [[ $ASIC_MODEL == "WhatsMiner M10" ]]; then
+config_global='
+config pools 'default'
+	option ntp_enable 'global''
+	i=1
+	for url in $ASICMINER_URL; do
+		[ ! -z $url ] && config_global="$config_global\n\toption pool$i \burl '$url'"
+		[ ! -z $ASICMINER_TEMPLATE ] && config_global="$config_global\n\toption pool$i \buser '$ASICMINER_TEMPLATE'"
+		[ ! -z $ASICMINER_PASS ] && config_global="$config_global\n\toption pool$i \bpw '$ASICMINER_PASS'"
+		(( i++ ))
+	done
 fi
 
 	#merge user config options into main config
@@ -336,7 +347,11 @@ fi
 	fi
 
 	config_global=$(echo "$config_global" | sed s/\"true\"/true/g | sed s/\"false\"/false/g)
-	conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$p * $g'`
+	if [[ $ASIC_MODEL == "WhatsMiner M10" ]]; then
+		conf=$config_global
+	else
+		conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$p * $g'`
+	fi
 
 	#replace tpl values in whole file
 	[[ -z $EWAL && -z $ZWAL && -z $DWAL ]] && echo -e "${RED}No WAL address is set${NOCOLOR}"
@@ -347,7 +362,11 @@ fi
 	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< "$conf")
 
 #	echo "$conf" | jq .
-	echo "$conf" | jq . > $MINER_CONFIG
+	if [[ $ASIC_MODEL == "WhatsMiner M10" ]]; then
+		echo -e "$conf" > $MINER_CONFIG
+	else
+		echo "$conf" | jq . > $MINER_CONFIG
+	fi
 
 }
 

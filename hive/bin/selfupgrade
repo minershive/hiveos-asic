@@ -6,18 +6,23 @@
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//` #Zig old firmware
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo $ASIC_MODEL | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
 [ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver` #Innosilicon A5/8
+[ -e "/tmp/miner-info" ] && ASIC_MODEL=`cat /tmp/miner-info` #WhatsMiner
 echo $ASIC_MODEL
 
-if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
+if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ] || echo "$ASIC_MODEL" | grep -q -s -F "WhatsMiner"; then
 	release=`wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 else
 	release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 fi
 
+#DEL!!!
+release=whatsminer
+
 exitcode=$?
 version=0
 [ -e /hive/etc/VERSION ] && version=`cat /hive/etc/VERSION`
-filename=v$release.tar.gz
+#filename=v$release.tar.gz #RESTORE!!!
+filename=$release.tar.gz
 
 t=`df -h | grep  '/tmp' | awk '{print $NF}'`
 [ -z $t ] && t='/tmp'
@@ -57,8 +62,8 @@ url=http://github.com/minershive/hiveos-asic/archive/$filename
 echo $url
 
 echo "> Downloading $url"
-if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
-	wget $url
+if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ] || echo "$ASIC_MODEL" | grep -q -s -F "WhatsMiner"; then
+	wget $url -O $filename
 else
 	curl -L --insecure -O $url
 fi
@@ -345,6 +350,39 @@ install_zig() {
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
+install_whatsminer() { # whatsminer, / - ro
+	echo ""
+	mount -o remount,rw,noatime,nodiratime,nodelalloc,data=journal -t ext4 /
+	echo "> Extracting $filename"
+	if [ ! -d /data/hive ]; then
+		mkdir -p /data/hive/hive-config
+	fi
+	tar -xzv -f $filename
+	rm -rf hiveos-asic-$release/hive/sbin/teleconsole
+	cp -rf hiveos-asic-$release/hive /
+        mv -f /hive/share/whatsminer/sbin/* /hive/sbin/
+	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+
+	rm $filename
+	sync
+
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
+
+	if [ ! -e /hive-config ]; then
+		ln -s /data/hive/hive-config/ /hive-config
+	fi
+	cp -rf /hive/share/whatsminer/S99hive /etc/rc.d/
+	cp -rf /hive/share/S9/.profile /root/
+	sync
+	mount -o remount,ro,noatime,nodiratime,nodelalloc,data=journal -t ext4 /
+
+	/hive/bin/hive
+
+	#$FARM_HASH can be defined externally
+	bash -c "/hive/bin/firstrun $FARM_HASH"
+}
+
 
 
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
@@ -368,6 +406,9 @@ elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9 (vnish"; then
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9"; then
 	echo "Install Antminer S9"
 	install_antminer_bmminer
+elif echo "$ASIC_MODEL" | grep -q -s -F "WhatsMiner"; then
+	echo "Install WhatsMiner"
+	install_whatsminer
 elif [ "$ASIC_MODEL" == "Antminer " ]; then
 	echo "Install Antminer B3"
 	install_antminer_bmminer

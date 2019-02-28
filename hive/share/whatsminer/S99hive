@@ -1,0 +1,3 @@
+#!/hive/sbin/bash
+
+/hive/bin/hive > /tmp/hive-boot.log

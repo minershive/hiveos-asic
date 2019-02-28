@@ -65,6 +65,8 @@ function start() {
 				break
 			elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 				python3.4 /home/inno_tools/start_miner.py &
+			elif [[ $ASIC_MODEL == "WhatsMiner M10" ]]; then
+				/etc/init.d/$THIS_MINER_NAME start
 			else
 				nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
 			fi
@@ -84,6 +86,8 @@ function stop() {
 		pidof miner | xargs kill -9
 	elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 		killall innominer_T4
+	elif [[ $ASIC_MODEL == "WhatsMiner M10" ]]; then
+		/etc/init.d/$THIS_MINER_NAME stop
 	else
 		/etc/init.d/$THIS_MINER_NAME.sh stop
 	fi

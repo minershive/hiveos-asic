@@ -8,6 +8,12 @@ RIG_CONF="/hive-config/rig.conf"
 
 [ -t 1 ] && . /hive/bin/colors
 
+	if [ -d /run/ ]; then
+		statfile="/run/hive/khs"
+	else
+		statfile="/tmp/khs"
+	fi
+
 
 function loadconf() {
 	WD_ENABLED=
@@ -36,8 +42,8 @@ function loadconf() {
 
 function set_lastgood() {
 	#lastgood=`date +%s`
-	[[ -e /run/hive/khs ]] &&
-		lastgood=`stat -c %Y /run/hive/khs` ||
+	[[ -e $statfile ]] &&
+		lastgood=`stat -c %Y $statfile` ||
 		#lastgood=0 can't set it to 0, in case of boot agent may be late
 		lastgood=`date +%s` #let's count from now
 
@@ -53,7 +59,7 @@ function loop() {
 	loadconf
 
 	khs=
-	[[ -e /run/hive/khs ]] && khs=`cat /run/hive/khs`
+	[[ -e $statfile ]] && khs=`cat $statfile`
 	[[ -z $khs ]] && khs=0
 
 

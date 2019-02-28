@@ -1,0 +1,13 @@
+# ROOT CRON
+# applied on every startup
+*/15   *  *   *   *     /usr/bin/cgminer-monitor
+0    */6  *   *   *     has_data_bak=`mount | grep data_bak` && if [ "$has_data_bak" != "" ]; then rsync -ar --delete /data/etc /data_bak; fi
+
+
+# update DNS cache, just in case IP changes once in a lifetime
+*/30 * * * * /hive/bin/cache-hive-ip
+
+
+#check agent is running...
+*/10 * * * * /hive/bin/agent-screen dontattach
+# || echo "[`date`] STARTED BY CRON" >> /var/log/hive-agent.log

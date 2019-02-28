@@ -25,7 +25,7 @@ screen_count=`screen -ls | grep "\.agent" | grep -v $PPID | wc -l`
 
 . asic-model
 echo -e "Detected ASIC model: ${CYAN}$ASIC_MODEL${NOCOLOR}\n"
-[[ $WD_ENABLED=1 ]] && nohup wd stop && nohup sleep 5; wd start &
+[[ $WD_ENABLED=1 ]] && nohup wd stop > /tmp/nohup.out && nohup sleep 5 > /tmp/nohup.out; wd start &
 
 ########################################################################################################################
 
@@ -144,6 +144,48 @@ miner_stats () {
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
 						--arg uptime "$uptime" \
 						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
+			fi
+		;;
+		"WhatsMiner M10")
+			stats_raw=`echo '{"command":"edevs"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
+			if [[ $? -ne 0 || -z $stats_raw ]]; then
+				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
+			else
+				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
+				local STATS=$(jq '.DEVS' <<< "$stats_raw")
+
+				local algo=$ASIC_ALGO
+				local hs_units=$HASH
+				local uptime=$(jq -r '.[0]."Device Elapsed"' <<< "$STATS")
+				khs=$(jq -r '[.[] | with_entries( select(.key == "MHS 5s") ) | to_entries | [.[].value] | add] | add' <<< "$STATS")
+				if [[ $HASH == "mhs" ]]; then
+					khs=$(awk '{print $1 * 1000}' <<< "$khs")
+				elif [[ $HASH == "khs" ]]; then
+					khs=$(awk '{print $1 * 1}' <<< "$khs")
+				else
+					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
+				fi
+
+				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
+				local active_pool=$(echo $stats_pool | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true ) as $pool | select($object[$pool]."Getworks")] | .[0]')
+
+				local hs=$( 	 (jq '[.[] | with_entries( select(.key == "MHS 5s") ) 			| to_entries | .[].value]') <<< "$STATS" )
+				local temp=$(	 (jq '[.[] | with_entries( select(.key == "Temperature") ) | to_entries | .[].value]') <<< "$STATS")
+				local fan=$(	 (jq '[.[0] | with_entries( select(.key == "Fan Speed In" or .key == "Fan Speed Out") ) | to_entries | .[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
+				local fan_rpm=$( (jq '[.[0] | with_entries( select(.key == "Fan Speed In" or .key == "Fan Speed Out") ) | to_entries | .[].value]') <<< "$STATS")
+				local freq=$(	 (jq '[.[] | with_entries( select(.key == "Chip Frequency") ) | to_entries | .[].value]') <<< "$STATS")
+				local acn=$(	 (jq '[.[] | with_entries( select(.key == "Effective Chips") ) | to_entries | .[].value]') <<< "$STATS")
+				local status=$(	 (jq '[.[] | with_entries( select(.key == "Effective Chips") ) | to_entries | .[].value]') <<< "$STATS")
+				local hw_errors=$( (jq '[.[] | with_entries( select(.key == "Hardware Errors") ) | to_entries | .[].value]') <<< "$STATS")
+				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key == "Accepted" or .key == "Rejected" or .key == "Get Failures") ) | to_entries | [.[].value]') <<< "$stats_pool")
+
+				stats=$(jq -nc \
+						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+						--argjson freq "$freq" --argjson acn "$acn" \
+						--argjson hw_errors "$hw_errors" --argjson status "$status" \
+						--arg uptime "$uptime" --argjson ar "$ar"\
+						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime, $ar}')
 			fi
 		;;
 		"Zig Z1+"|"Zig Z1")
@@ -299,8 +341,11 @@ loop () {
 
 	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs > 0 ]] && echo -e ${YELLOW} || echo -e ${RED}`$khs${NOCOLOR} kH/s"
 	echo -en "\n"
-	echo $khs > /run/hive/khs
-
+	if [ -d /run/ ]; then
+		echo $khs > /run/hive/khs
+	else
+		echo $khs > /tmp/khs
+	fi
 
 	#echo $stats
 	#uptime: load averages for the past 1, 5, and 15 minutes
@@ -506,7 +551,7 @@ do_command () {
 				fi
 
 				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
-				[[ $WD_ENABLED=1 ]] && nohup wd stop && nohup sleep 5; wd start &
+				[[ $WD_ENABLED=1 ]] && nohup wd stop > /tmp/nohup.out && nohup sleep 5> /tmp/nohup.out ; wd start &
 
 				message ok "Rig config changed" --id=$cmd_id
 				#[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id

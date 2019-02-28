@@ -6,6 +6,7 @@
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//` #Zig old firmware
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo $ASIC_MODEL | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
 [ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver` #Innosilicon A5/8
+[ -e "/tmp/miner-info" ] && ASIC_MODEL=`cat /tmp/miner-info | awk -F\- '{print $1, $2}'` #WhatsMiner
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" ]]; then
 	MOUNT=""
@@ -175,6 +176,14 @@ elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 	CONFIG_PATH="/var/www/html/resources/cgminer.config"
 	HASH="mhs"
 	MAX_FAN_RPM="4000"
+elif [[ $ASIC_MODEL =~ "WhatsMiner M10" ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/tmp/miner-state.log"
+	CONFIG_PATH="/etc/config/pools"
+	HASH="mhs"
+	MAX_FAN_RPM="5800"
 else
 	MOUNT=""
 	ASIC_ALGO="unknown"

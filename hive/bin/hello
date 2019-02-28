@@ -45,7 +45,7 @@ done
 boot_time=$(( `date +%s` - `cat /proc/uptime | awk '{printf "%d", $1}'` ))
 
 ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
-net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
+net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT|NONE' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
 
 mb_manufacturer=
 #mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
@@ -54,13 +54,17 @@ mb_manufacturer=
 [ -e "/etc/hwrevision" ] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && mb_product=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
 [ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && mb_product=`cat /tmp/type`.`cat /tmp/hwver`
-
+[ -e "/tmp/miner-info" ] && mb_product=`cat /tmp/miner-info | awk -F\- '{print $1, $2}'` #WhatsMiner
 
 cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*//g'`
+[ -z $cpu_model ] && cpu_model=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'`
+
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'`
 #[[ ! -z "$cpu_hardware" ]] && cpu_model="$cpu_model ($cpu_hardware)"
 cpu_cores=`cat /proc/cpuinfo | grep "^model name" | wc -l`
+[ -z $cpu_cores ] && cpu_cores=`cat /proc/cpuinfo | grep "^processor" | wc -l`
 aes=`cat /proc/cpuinfo | grep "^Features .*aes" | wc -l`
+[ -z $aes ] && aes=`cat /proc/cpuinfo | grep "^Features" | grep "aes" | wc -l`
 
 kernel=`uname --kernel-release`
 
@@ -75,6 +79,7 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
 [[ $mb_product == "Zig Z1" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1", "logic_version": "Zig Z1"}'`
 [[ $mb_product == "T4.G19" ]] && asic=`cat /tmp/type| jq -R . | jq -s '{"firmware": .[0], "model": "Innosilicon A5/A8", "logic_version": .[0]}'`
+[[ $mb_product =~ "WhatsMiner" ]] && asic=`cat /tmp/miner-info | awk -F\- '{print $7 "\n" $1, $2 "\n" $3, $4, $5, $6}' | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
 
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
@@ -82,6 +87,7 @@ hive_version=`cat /hive/etc/VERSION`
 #asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
 asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
 [[ $mb_product =~ "Zig Z1" ]] && asic_chain_count=4
+[[ $mb_product =~ "WhatsMiner" ]] && asic_chain_count=3
 
 
 uid=$(echo ${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g') | tr '[:upper:]' '[:lower:]')

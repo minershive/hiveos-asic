@@ -77,6 +77,16 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer T9+" || $ASIC_MOD
     sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
 fi
 
+
+if [[ $ASIC_MODEL =~ "WhatsMiner M10" ]]; then
+    echo2 "> Applying crontab"
+    #[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
+    crontab /hive/share/whatsminer/crontab.root
+    [[ `ps aux | grep "crond" | grep -v grep | wc -l` = 0 ]] &&
+            /usr/sbin/crond
+fi
+
+
 echo2 "> Caching host resolve"
 cache-hive-ip
 
