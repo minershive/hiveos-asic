@@ -54,6 +54,7 @@ for ip_worker in $IPS; do
 
 		#Comment it in file
 		sed -i "s/^$ip$/\#$ip/g" ips.txt
+		[ ! -z $worker ] && sed -i "s/^$ip.*$worker$/\#$ip $worker/g" ips.txt
 	fi
 
 done
