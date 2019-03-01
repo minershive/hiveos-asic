@@ -37,10 +37,10 @@ for ip in $IPS; do
 	else
 #		cp -rf firmware-upgrade firmware-upgrade-hash
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
-		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
 #		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-start $LOGIN@$ip:/tmp/firmware-start
 		sleep 1
-		sshpass -p$PASS ssh $LOGIN@$ip -p 4444 -oConnectTimeout=25 -oStrictHostKeyChecking=no "$install_cmd"
+		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -oConnectTimeout=25 -oStrictHostKeyChecking=no "$install_cmd"
 	fi
 
 

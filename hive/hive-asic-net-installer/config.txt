@@ -9,4 +9,4 @@ URL=
 
 # Antminer S9/S9i/S9j:
 #URL=http://download.hiveos.farm/asic/s9/Antminer-S9-all-Hiveon.tar.gz
-#URL=download.hiveos.farm/asic/s9/Antminer-S9-all-Hiveon.tar.gz?farm_hash=$FARM_HASH
+#URL=http://download.hiveos.farm/asic/s9/Antminer-S9-all-Hiveon-2b8cf91c1296140ada8c56b5a5ceeeb286397156.tar.gz
