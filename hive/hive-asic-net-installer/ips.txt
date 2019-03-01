@@ -1,5 +1,6 @@
-# List of IPs where you want to install Hive
+# List of "IPs" or "IPs WORKER_NAME" where you want to install Hive
 # Comments and empty lines are allowed
 
 192.168.0.188
 192.168.0.189
+192.168.0.190 name_s9_001

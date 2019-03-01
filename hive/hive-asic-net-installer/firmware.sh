@@ -22,11 +22,14 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 #sleep 1
 
-install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
-#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -L -dm -S upgrade /tmp/firmware-upgrade"
-#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; chmod +x /tmp/firmware-start; nohup /tmp/firmware-start"
+#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
 
-for ip in $IPS; do
+IFS=$'\n'
+for ip_worker in $IPS; do
+	install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
+	ip=$(echo $ip_worker | awk {'print $1'})
+	worker=$(echo $ip_worker | awk {'print $2'})
+	[ ! -z $worker ] && install_cmd="$install_cmd $worker"
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if [[ -e "/usr/bin/compile_time" ]]; then

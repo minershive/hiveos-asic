@@ -121,6 +121,11 @@ jq -n \
 }'
 )
 
+if [ -e /config/HIVE_WORKER_NAME ]; then
+	arg_hostname=$(cat /config/HIVE_WORKER_NAME)
+	rm /config/HIVE_WORKER_NAME
+fi
+
 if [[ ! -z $arg_hostname ]]; then
 	request=`echo "$request" | jq --arg worker_name "$arg_hostname" '. * {"params": {$worker_name}}'`
 fi

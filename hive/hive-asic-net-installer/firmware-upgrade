@@ -10,6 +10,7 @@ file=/tmp/$$
 mkdir $file
 cd $file
 URL="$1"
+WORKER_NAME="$2"
 #curl "$URL" | tar xvz
 filename=$(echo $URL | awk -F \/ '{print $NF}')
 FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
@@ -71,6 +72,9 @@ if [ $(echo $FARM_HASH | wc -c) -eq 41 ]; then
 fi
 if [ ! -z $HIVE_HOST_URL ]; then
         echo $HIVE_HOST_URL > /config/HIVE_HOST_URL
+fi
+if [ ! -z $WORKER_NAME ]; then
+        echo $WORKER_NAME > /config/HIVE_WORKER_NAME
 fi
 
 sync
