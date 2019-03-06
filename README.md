@@ -59,6 +59,7 @@ cd /tmp/hive-bulk-install
 ```
 Edit `config.txt` to set your FARM_HASH or firmware URL, edit `ips.txt` to set IPs list of your new ASICs.
 Or you can scan the local network to search for Antminer. Example: `ipscan.sh 192.168.0.1/24 > ips.txt`  
+Optionally, you can add WORKER_NAME to `ips.txt` (e.g. `192.168.1.100 asic_01`)  
    To install hive just run `install.sh`.  
    To install firmware on Antminer S9/i/j just run `firmware.sh`.  
    If IP was connected then it will become commented in file.  
