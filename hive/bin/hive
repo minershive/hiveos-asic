@@ -75,6 +75,10 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer T9+" || $ASIC_MOD
     cd /www/pages/cgi-bin/
     patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch
     sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
+    if [[ -d /hive-config && ! -L /hive-config ]]; then
+        mv -f /hive-config /config/hive/
+        ln -s /config/hive/hive-config/ /hive-config
+    fi
 fi
 
 echo2 "> Caching host resolve"
