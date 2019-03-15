@@ -4,7 +4,7 @@ echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.v
 #echo $1
 
 sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
-echo > /config/manual_freqs.txt
+rm -f /config/manual_freqs.txt
 killall auto-tune > /dev/null 2>&1
 killall auto-chip-tune > /dev/null 2>&1
 sleep 1
