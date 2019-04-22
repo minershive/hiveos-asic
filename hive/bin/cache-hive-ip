@@ -2,10 +2,16 @@
 ##!/usr/bin/env ash
 #export PATH="./:/hive/bin:/hive/sbin:$PATH"
 
+. asic-model
+
+if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer T9+" || $ASIC_MODEL == "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
+    hostfile="/tmp/hosts"
+else
+    hostfile="/etc/hosts"
+fi
 
 #Recreate. Because of shitty picky bugs
-echo "127.0.0.1	localhost.localdomain		localhost" > /etc/hosts
-echo "127.0.0.1	localhost.localdomain		localhost" > /tmp/hosts
+echo "127.0.0.1	localhost.localdomain		localhost" > $hostfile
 
 #adds host ip
 #/hive/bin/hostname-check
@@ -34,8 +40,7 @@ for i in {1..30}; do
 done
 [[ -z "$ent" ]] && echo "Unable to lookup $HOST" || ent="$ent $HOST"
 
-echo -e "\n$SEPARATOR" >> /etc/hosts
-echo -e "\n$SEPARATOR" >> /tmp/hosts
+echo -e "\n$SEPARATOR" >> $hostfile
 if [[ -z "$ent" ]]; then
     echo "Unable to resolve $HOST"
     ent="#Unable to resolve $HOST" #to place this in file
@@ -43,7 +48,6 @@ else
     echo "Writing DNS resolve \"$ent\" to /etc/hosts"
 fi
 
-echo "$ent" >> /etc/hosts
-echo "$ent" >> /tmp/hosts
+echo "$ent" >> $hostfile
 
 sync
