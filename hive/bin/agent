@@ -77,7 +77,7 @@ miner_stats () {
 				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local hw_errors=$((jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local asicboost=$((jq '.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | [.[].value | test("AB") | if . == true then 1 else 0 end ]') <<< "$STATS")
+				local asicboost=$((jq '.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ') <<< "$STATS")
 				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
 
 				stats=$(jq -nc \
