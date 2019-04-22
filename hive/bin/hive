@@ -71,6 +71,9 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer T9+" || $ASIC_MOD
     crontab /hive/etc/crontab.root
     [[ `ps aux | grep "crond" | grep -v grep | wc -l` = 0 ]] &&
             /usr/sbin/crond
+    touch /tmp/hosts
+    cp /lib/libnss_files.so.2 /hive/lib/libnss_files.so.2
+    sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/lib/libnss_files.so.2
     echo2 "> Patching upgrade"
     cd /www/pages/cgi-bin/
     patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch

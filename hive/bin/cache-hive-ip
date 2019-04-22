@@ -5,6 +5,7 @@
 
 #Recreate. Because of shitty picky bugs
 echo "127.0.0.1	localhost.localdomain		localhost" > /etc/hosts
+echo "127.0.0.1	localhost.localdomain		localhost" > /tmp/hosts
 
 #adds host ip
 #/hive/bin/hostname-check
@@ -34,6 +35,7 @@ done
 [[ -z "$ent" ]] && echo "Unable to lookup $HOST" || ent="$ent $HOST"
 
 echo -e "\n$SEPARATOR" >> /etc/hosts
+echo -e "\n$SEPARATOR" >> /tmp/hosts
 if [[ -z "$ent" ]]; then
     echo "Unable to resolve $HOST"
     ent="#Unable to resolve $HOST" #to place this in file
@@ -42,5 +44,6 @@ else
 fi
 
 echo "$ent" >> /etc/hosts
+echo "$ent" >> /tmp/hosts
 
 sync
