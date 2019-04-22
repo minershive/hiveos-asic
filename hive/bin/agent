@@ -75,8 +75,9 @@ miner_stats () {
 				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("freq_avg\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local hw_errors=$((jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local asicboost=$((jq '.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | [.[].value | test("AB") | if . == true then 1 else 0 end ]') <<< "$STATS")
 				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
 
 				stats=$(jq -nc \
@@ -84,8 +85,8 @@ miner_stats () {
 						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 						--argjson freq "$freq" --argjson acn "$acn" --argjson power "$power" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
-						--arg uptime "$uptime" --argjson ar "$ar"\
-						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar}')
+						--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
+						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
 			fi
 		;;
 		"Antminer A3"|"Antminer D3"|"Antminer L3+"|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"*|"Antminer X3"|"Antminer S7"|"Antminer DR3")
