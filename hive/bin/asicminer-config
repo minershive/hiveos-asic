@@ -253,6 +253,51 @@ elif [[ $ASIC_MODEL == "b29+.g19" || $ASIC_MODEL == "d9.g19" || $ASIC_MODEL == "
 "api-port": "4028",
 "api-allow": "R:0/0,W:127.0.0.1"
 }'
+elif [[ $ASIC_MODEL == "t3.soc" ]]; then
+	config_global='{
+"api-allow" : "R:0/0,W:127.0.0.1",
+"api-description" : "cgminer 4.10.0",
+"api-listen" : true,
+"api-mcast-addr" : "224.0.0.75",
+"api-mcast-code" : "FTW",
+"api-mcast-des" : "",
+"api-mcast-port" : "4028",
+"api-network" : true,
+"api-port" : "4028",
+"api-host" : "0.0.0.0",
+"T1efficient" : true,
+"T1adjust" : "2",
+"T1Pll1" : "822",
+"T1Pll2" : "822",
+"T1Pll3" : "822",
+"T1Pll4" : "1332",
+"T1Pll5" : "1332",
+"T1Pll6" : "1332",
+"T1Pll7" : "1332",
+"T1Pll8" : "1332",
+"T1Volt1" : "319",
+"T1Volt2" : "319",
+"T1Volt3" : "319",
+"T1Volt4" : "404",
+"T1Volt5" : "404",
+"T1Volt6" : "404",
+"T1Volt7" : "404",
+"T1Volt8" : "404",
+"T1VID1" : "29",
+"T1VID2" : "29",
+"T1VID3" : "29",
+"T1VID4" : "0",
+"T1VID5" : "0",
+"T1VID6" : "0",
+"T1VID7" : "0",
+"T1VID8" : "0",
+"fallback-time" : "120",
+"log" : "5",
+"shares" : "0",
+"suggest-diff" : "0",
+"syslog" : true,
+"text-only" : true
+}'
 elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 	config_global='{}'
 elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then

@@ -422,7 +422,10 @@ elif [ "$ASIC_MODEL" == "d9.g19" ]; then
 elif [ "$ASIC_MODEL" == "s11.g19" ]; then
 	echo "Install Innosilicon S11"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "s11.g19" ]; then
+elif [ "$ASIC_MODEL" == "t3.soc" ]; then
+	echo "Install Innosilicon T3"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "T4.G19" ]; then
 	echo "Install Innosilicon A8"
 	install_innosilicon_innominer
 elif [ "$ASIC_MODEL" == "Zig Z1+" ]; then

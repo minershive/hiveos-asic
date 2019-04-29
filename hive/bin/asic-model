@@ -167,6 +167,14 @@ elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 	CONFIG_PATH="/home/www/conf/miner.conf"
 	HASH="khs"
 	MAX_FAN_RPM="6000"
+elif [[ $ASIC_MODEL == "t3.soc" ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/tmp/log/cgminer.log"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="khs"
+	MAX_FAN_RPM="6000"
 elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 	MOUNT=""
 	ASIC_ALGO="lyra2v2"
