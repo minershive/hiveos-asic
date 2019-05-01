@@ -338,7 +338,7 @@ loop () {
 	echo "[`date`] > `echo $request | jq '.' -c`" >> $LOG
 	#echo "[`date`] > $request" >> $LOG
 
-	response=$(echo $request | curl --insecure -L --data @- \
+	response=$(echo $request | jq '.' -c | curl --insecure -L --data @- \
 	--connect-timeout 15 --max-time 25 --silent \
 	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=stats"  -H "Content-Type: application/json")
 
