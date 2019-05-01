@@ -16,6 +16,8 @@ Supported ASICs:
 * Innosilicon A9 ZMaster
 * Innosilicon D9 DecredMaster
 * Innosilicon S11 SiaMaster
+* Innosilicon T3 BTCMiner
+* Innosilicon A5/A8 (need test)
 * Zig Z1/Z1+
 
 
@@ -100,6 +102,12 @@ To search for an Antminer ASIC among a large number of ASICs, you can flash a re
 asic-find 5
 ```
 Example: 'asic-find 15' the red LED will blinking for 15 minutes
+
+## rename asics
+To rename the workers in the Hive web interface as the hostname, run the command from the web interface:
+``` sh
+hello hostname
+```
 
 ## Zig Z1+
 [Zig Z1+ ssh manual](hive/share/zig/README.md)
