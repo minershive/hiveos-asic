@@ -71,7 +71,7 @@ sleep 2
 install_antminer_bmminer() { # bmminer, / - rw, cron
 	echo ""
 	echo "> Extracting $filename"
-	if [ ! -d /config/hive ]; then
+	if [ ! -d /config/hive/hive-config ]; then
 		mkdir -p /config/hive/hive-config
 	fi
 	tar -xzv -f $filename
