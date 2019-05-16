@@ -1,6 +1,7 @@
 #!/hive/sbin/bash
 
 echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
+conftune=`cat /config/autoTune.conf`
 if [[ -e "/usr/bin/compile_ver" ]]; then
     sed -i 's/profile=1\&/profile=1\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' /config/autoTune.conf
     sed -i 's/profile=2\&/profile=2\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' /config/autoTune.conf
@@ -15,6 +16,52 @@ if [[ -e "/usr/bin/compile_ver" ]]; then
     sed -i 's/profile=11\&/profile=11\&slow_freq_start=650\&slow_freq_step=50\&slow_volt_max=930\&/' /config/autoTune.conf
     sed -i 's/profile=12\&/profile=12\&slow_freq_start=700\&slow_freq_step=50\&slow_volt_max=940\&/' /config/autoTune.conf
     sed -i 's/profile=13\&/profile=13\&slow_freq_start=750\&slow_freq_step=50\&slow_volt_max=950\&/' /config/autoTune.conf
+
+    sleep 1
+    sed -i 's/wait_after_restart_chip=[0-9]*\&/wait_after_restart_chip=7\&/' /config/autoTune.conf
+    sleep 1
+
+    case $conftune in
+        *"profile=1"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' /config/autoTune.conf
+        ;;
+        *"profile=2"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' /config/autoTune.conf
+        ;;
+        *"profile=3"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' /config/autoTune.conf
+        ;;
+        *"profile=4"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' /config/autoTune.conf
+        ;;
+        *"profile=5"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=810\&/' /config/autoTune.conf
+        ;;
+        *"profile=6"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=820\&/' /config/autoTune.conf
+        ;;
+        *"profile=7"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=820\&/' /config/autoTune.conf
+        ;;
+        *"profile=8"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=830\&/' /config/autoTune.conf
+        ;;
+        *"profile=9"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=830\&/' /config/autoTune.conf
+        ;;
+        *"profile=10"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=840\&/' /config/autoTune.conf
+        ;;
+        *"profile=11"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=850\&/' /config/autoTune.conf
+        ;;
+        *"profile=12"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=860\&/' /config/autoTune.conf
+        ;;
+        *"profile=13"\&*)
+             sed -i 's/voltage_from=[0-9]*\&/voltage_from=870\&/' /config/autoTune.conf
+        ;;
+    esac
 fi
 #echo $1
 
