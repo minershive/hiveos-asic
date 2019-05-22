@@ -35,7 +35,8 @@ for ip_worker in $IPS; do
 	if [[ -e "/usr/bin/compile_time" ]]; then
 #		cp -rf firmware-upgrade firmware-upgrade-hash
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
-		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+#		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade #scp don't save fingerprint
+		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y sh -c 'cat > /tmp/firmware-upgrade' < firmware-upgrade
 		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y "$install_cmd"
 	else
 #		cp -rf firmware-upgrade firmware-upgrade-hash

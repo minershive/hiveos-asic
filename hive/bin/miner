@@ -37,8 +37,8 @@ fi
 #sgminer-gm is deprecated...
 miners_avail=("asicminer")
 if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
-	echo -e "${RED}Create Flight Sheet with asicminer ${NOCOLOR}"
-	message warn "Create Flight Sheet with asicminer"
+	echo -e "${RED}Please apply Flight Sheet to start mining ${NOCOLOR}"
+	message warn "Please apply Flight Sheet to start mining"
 	exit 1
 fi
 

@@ -70,7 +70,7 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MOD
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "550",
 "bitmain-voltage" : "0706",
@@ -81,7 +81,7 @@ elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
@@ -90,7 +90,7 @@ elif [[ $ASIC_MODEL == "Antminer D3" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
@@ -144,7 +144,7 @@ elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "384"
 }'
@@ -153,7 +153,7 @@ elif [[ $ASIC_MODEL == "Antminer L3++" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "450"
 }'
@@ -162,7 +162,7 @@ elif [[ $ASIC_MODEL =~ "Antminer T9+" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version:noncenum",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "550",
 "multi-version" : "1"
@@ -172,7 +172,7 @@ elif [[ $ASIC_MODEL == "Antminer T9" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version:noncenum",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "",
 "bitmain-voltage" : "0706",
@@ -183,7 +183,7 @@ elif [[ $ASIC_MODEL == "Antminer " ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "_ant_voltage=0706",
 "bitmain-voltage" : "0706",
@@ -194,7 +194,7 @@ elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "350",
 "bitmain-voltage" : "0706",
@@ -205,7 +205,7 @@ elif [[ $ASIC_MODEL =~ "Antminer Z9" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "500"
 }'
@@ -214,7 +214,7 @@ elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "0"
 }'
@@ -223,7 +223,7 @@ elif [[ $ASIC_MODEL == "Antminer S7" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "737",
 "bitmain-voltage" : "0706"
@@ -243,7 +243,7 @@ elif [[ $ASIC_MODEL == "Antminer DR3" ]]; then
 "api-listen" : true,
 "api-network" : true,
 "api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:127.0.0.1,W:127.0.0.1",
+"api-allow" : "A:0/0,W:*",
 "bitmain-use-vil" : true,
 "bitmain-freq" : "410"
 }'
