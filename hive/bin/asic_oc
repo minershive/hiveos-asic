@@ -9,10 +9,10 @@ if [[ -e "/usr/bin/compile_ver" ]]; then
     sed -i 's/profile=4\&/profile=4\&slow_freq_start=400\&slow_freq_step=50\&slow_volt_max=870\&/' /config/autoTune.conf
     sed -i 's/profile=5\&/profile=5\&slow_freq_start=450\&slow_freq_step=50\&slow_volt_max=880\&/' /config/autoTune.conf
     sed -i 's/profile=6\&/profile=6\&slow_freq_start=450\&slow_freq_step=50\&slow_volt_max=880\&/' /config/autoTune.conf
-    sed -i 's/profile=7\&/profile=7\&slow_freq_start=500\&slow_freq_step=50\&slow_volt_max=900\&/' /config/autoTune.conf
-    sed -i 's/profile=8\&/profile=8\&slow_freq_start=600\&slow_freq_step=50\&slow_volt_max=900\&/' /config/autoTune.conf
-    sed -i 's/profile=9\&/profile=9\&slow_freq_start=600\&slow_freq_step=50\&slow_volt_max=910\&/' /config/autoTune.conf
-    sed -i 's/profile=10\&/profile=10\&slow_freq_start=650\&slow_freq_step=50\&slow_volt_max=930\&/' /config/autoTune.conf
+    sed -i 's/profile=7\&/profile=7\&slow_freq_start=500\&slow_freq_step=50\&slow_volt_max=890\&/' /config/autoTune.conf
+    sed -i 's/profile=8\&/profile=8\&slow_freq_start=600\&slow_freq_step=50\&slow_volt_max=890\&/' /config/autoTune.conf
+    sed -i 's/profile=9\&/profile=9\&slow_freq_start=600\&slow_freq_step=50\&slow_volt_max=900\&/' /config/autoTune.conf
+    sed -i 's/profile=10\&/profile=10\&slow_freq_start=650\&slow_freq_step=50\&slow_volt_max=910\&/' /config/autoTune.conf
     sed -i 's/profile=11\&/profile=11\&slow_freq_start=650\&slow_freq_step=50\&slow_volt_max=930\&/' /config/autoTune.conf
     sed -i 's/profile=12\&/profile=12\&slow_freq_start=700\&slow_freq_step=50\&slow_volt_max=940\&/' /config/autoTune.conf
     sed -i 's/profile=13\&/profile=13\&slow_freq_start=750\&slow_freq_step=50\&slow_volt_max=950\&/' /config/autoTune.conf
