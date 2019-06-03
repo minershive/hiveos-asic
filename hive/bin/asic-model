@@ -110,6 +110,16 @@ elif [[ $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL == "Antminer T9"  ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="70"
 	GPIO_PATH="direction"
+elif [[ $ASIC_MODEL == "Antminer T17"  ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/var/log/log"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="ghs"
+	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="941"
+	GPIO_PATH="direction"
 elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 	MOUNT=""
 	ASIC_ALGO="Ethash"
