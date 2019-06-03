@@ -65,10 +65,9 @@ for ip in $@; do
     echo > /dev/shm/ips
     for i in $(eval echo $ips | tr ' ' '\012'); do curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i & sleep 0.1; done
     wait
-    eval ls /dev/shm/ip/ | tr ' ' '\012' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4
-
 done
 
+eval ls /dev/shm/ip/ | tr ' ' '\012' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4
 
 rm -rf /dev/shm/ip/*
 [[ -z $1 ]] && usage
