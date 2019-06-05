@@ -90,7 +90,7 @@ elif [[ $ASIC_MODEL == "Antminer D3" || $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; 
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="45"
 	GPIO_PATH="value"
-elif [[ $ASIC_MODEL == "Antminer L3+" || $ASIC_MODEL == "Antminer L3++" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer L3+" || $ASIC_MODEL == "Antminer L3++" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="Scrypt"
 	THIS_MINER_NAME="cgminer"
