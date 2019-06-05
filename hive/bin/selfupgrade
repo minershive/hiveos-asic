@@ -413,6 +413,9 @@ elif [ "$ASIC_MODEL" == "Antminer T9" ]; then
 elif [ "$ASIC_MODEL" == "Antminer T17" ]; then
 	echo "Install Antminer T17"
 	install_antminer_bmminer
+elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S17"; then
+	echo "Install Antminer S17"
+	install_antminer_bmminer
 elif [ "$ASIC_MODEL" == "Antminer E3" ]; then
 	echo "Install Antminer E3"
 	install_antminer_bmminer

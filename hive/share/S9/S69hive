@@ -1,5 +1,8 @@
 #!/bin/sh
 
+sleep 10
+rm -rf /tmp/*.log
+
 if [ ! -e /hive ]; then
     cd /tmp
     URL="hiveos.farm"

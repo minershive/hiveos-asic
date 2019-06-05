@@ -5,6 +5,7 @@ export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/b
 
 rm -rf /config/hive/hive
 rm -rf /hive
+rm -rf /tmp/*.log
 
 file=/tmp/$$
 mkdir $file
