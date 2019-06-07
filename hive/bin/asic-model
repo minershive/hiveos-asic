@@ -60,6 +60,16 @@ elif [[ $ASIC_MODEL =~ "Antminer Z9" ]]; then
 	MAX_FAN_RPM="8000"
 	GPIO_LED_RED="941"
 	GPIO_PATH="value"
+elif [[ $ASIC_MODEL == "Antminer Z11" ]]; then
+	MOUNT="config"
+	ASIC_ALGO="Equihash"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/var/volatile/log/messages"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="khs"
+	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="941"
+	GPIO_PATH="value"
 elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
 	MOUNT="config"
 	ASIC_ALGO="CryptoNight"

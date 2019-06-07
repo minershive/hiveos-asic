@@ -269,6 +269,24 @@ elif [[ $ASIC_MODEL == "Antminer S11" ]]; then
 "bitmain-freq" : "550",
 "bitmain-voltage" : "0706"
 }'
+elif [[ $ASIC_MODEL == "Antminer Z11" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "W:0/0",
+"bitmain-fan-ctrl" : true,
+"bitmain-fan-pwm" : "100",
+"bitmain-use-vil" : true,
+"bitmain-freq1" : "0",
+"bitmain-freq2" : "0",
+"bitmain-freq3" : "0",
+"bitmain-freq" : "500",
+"bitmain-voltage1" : "0",
+"bitmain-voltage2" : "0",
+"bitmain-voltage3" : "0",
+"bitmain-voltage" : "870"
+}'
 elif [[ $ASIC_MODEL == "Antminer DR3" ]]; then
 	config_global='{
 "api-listen" : true,
