@@ -3,6 +3,10 @@
 sleep 10
 rm -rf /tmp/*.log
 
+if [ ! -d /config/hive/hive-config ]; then
+    mkdir -p /config/hive/hive-config
+fi
+
 if [ ! -e /hive ]; then
     cd /tmp
     URL="hiveos.farm"
@@ -11,9 +15,9 @@ if [ ! -e /hive ]; then
     fi
     curl -L --insecure http://download.$URL/asic/repo/s9/latest -o latest.tar.gz
     echo "> Extracting latest.tar.gz"
-    if [ ! -d /config/hive/hive-config ]; then
-        mkdir -p /config/hive/hive-config
-    fi
+#    if [ ! -d /config/hive/hive-config ]; then
+#        mkdir -p /config/hive/hive-config
+#    fi
     tar -xzv -f latest.tar.gz
     [ -L /hive ] && rm /hive
     rm -rf hiveos-asic-*/hive/sbin/teleconsole

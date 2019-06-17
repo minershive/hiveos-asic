@@ -1,6 +1,7 @@
 # Put the required values here
 
 FARM_HASH=
+HIVE_HOST_URL='http://api.hiveos.farm'
 
 LOGIN=root
 PASS=admin
