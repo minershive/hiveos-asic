@@ -22,7 +22,7 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 #sleep 1
 
-install_cmd="export PATH=$PATH:/hive/bin:/hive/sbin; export LD_LIBRARY_PATH=/hive/lib; firstrun $FARM_HASH"
+install_cmd="export PATH=$PATH:/hive/bin:/hive/sbin; export LD_LIBRARY_PATH=/hive/lib; HIVE_HOST_URL=$HIVE_HOST_URL firstrun $FARM_HASH -f"
 #install_cmd="pwd; ls" #for testing
 #install_cmd="[ -e /hive ] && (echo Already_installed) || ($install_cmd)"
 
@@ -32,7 +32,8 @@ for ip in $IPS; do
 	if [[ -e "/usr/bin/compile_time" ]]; then
 		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
 	else
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
+		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &
+		sleep 1
 	fi
 
 
