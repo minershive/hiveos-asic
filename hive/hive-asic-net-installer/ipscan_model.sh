@@ -3,6 +3,8 @@
 
 cd `dirname $0`
 
+which jq > /dev/null || (echo -e "${RED}jq${NOCOLOR} is required, try apt-get install jq" && exit 1
+
 IPS=`cat ips.txt | grep -v '#' | grep -v '^$'`
 [[ -z $IPS ]] && echo -e "${YELLOW}No IPs in the list${NOCOLOR}" && exit 1
 

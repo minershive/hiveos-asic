@@ -16,9 +16,10 @@ curl -L --insecure -O https://raw.githubusercontent.com/minershive/hiveos-asic/m
 curl -L --insecure -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/firmware.sh
 curl -L --insecure -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/setup.sh
 curl -L --insecure -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/firmware-upgrade
+curl -L --insecure -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/ipscan_model.sh
 chmod +x install.sh
 chmod +x ipscan.sh
 chmod +x firmware.sh
 chmod +x setup.sh
 chmod +x firmware-upgrade
-
+chmod +x ipscan_model.sh
