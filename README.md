@@ -2,7 +2,9 @@
 Hive OS client for ASICs
 
 Supported ASICs:
-* Antminer S9/S9i/S9j/S9-Hydro/S9(VNISH)/S9(mskminer)/S11
+* Antminer S9*/S9i/S9j/S9-Hydro/S9(VNISH)/S9(mskminer)/S11
+* Antminer S17/S17 Pro **
+* Antminer T17 **
 * Antminer L3+/L3++
 * Antminer D3/D3(Blissz)
 * Antminer DR3
@@ -13,6 +15,7 @@ Supported ASICs:
 * Antminer E3
 * Antminer B3
 * Antminer S7
+* Antminer Z11
 * Innosilicon A9 ZMaster
 * Innosilicon D9 DecredMaster
 * Innosilicon S11 SiaMaster
@@ -119,3 +122,11 @@ or
 ``` sh
 cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web bash selfupgrade
 ```
+
+## Antminer S9 signed
+[Manual](https://forum.hiveos.farm/t/antminer-s9-signed/12466)
+
+## Antminer S17/S17 Pro/T17
+[Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
+[Support](mailto:bee@hiveos.farm)
+
