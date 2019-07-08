@@ -389,6 +389,7 @@ elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 "lyra2rev2-scan-serial": "\/dev\/ttyS3",
 "lyra2rev2-restartenable": true,
 "lyra2rev2-cutoffenable": false,
+"lyra2rev2-fan": "LV1",
 "lyra2rev2-dynamic-frequency": true
 }'
 elif [[ $ASIC_MODEL == "Zig Z1" ]]; then
