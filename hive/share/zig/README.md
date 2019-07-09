@@ -1,4 +1,4 @@
-# Zig Z1+ ssh manual
+# Zig Z1/Z1+ ssh manual
 Default ssh login credentials for the different firmware versions=username:password
 
 Firmware 20180914=fa:fa
@@ -9,6 +9,8 @@ Before installation run:
 ```sh
 sudo su
 ```
+Firmware 20180926 install cmd:
+``` cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade```
 
 If credentials is incorrect, use this manual:
 
