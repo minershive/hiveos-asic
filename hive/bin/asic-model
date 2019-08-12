@@ -130,7 +130,7 @@ elif [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL == "Antminer T15" ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="941"
 	GPIO_PATH="direction"
-elif [[ $ASIC_MODEL =~ "Antminer S17" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL == "Antminer S15" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="cgminer"

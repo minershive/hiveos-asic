@@ -89,7 +89,7 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MOD
     fi
 fi
 
-if [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" ]]; then
+if [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" ]]; then
     echo2 "> Applying crontab"
 #    [[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
 #    crontab /hive/etc/crontab.root

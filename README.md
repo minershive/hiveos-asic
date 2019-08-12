@@ -5,6 +5,8 @@ Supported ASICs:
 * Antminer S9*/S9i/S9j/S9-Hydro/S9(VNISH)/S9(mskminer)/S11
 * Antminer S17/S17 Pro **
 * Antminer T17 **
+* Antminer S15 **
+* Antminer T15 **
 * Antminer L3+/L3++
 * Antminer D3/D3(Blissz)
 * Antminer DR3
