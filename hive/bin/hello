@@ -125,7 +125,7 @@ jq -n \
 		"mb": {$manufacturer, $product},
 		"cpu": {$model, $cores, $aes},
 		$asic, $asic_chain_count,
-		$kernel, $version, fans_count
+		$kernel, $version, $fans_count
 	}
 }'
 )
