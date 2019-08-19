@@ -17,6 +17,7 @@ mkdir -p "/hive-config"
 [ ! -f $RIG_CONF ] && echo -e "No config $RIG_CONF" && exit 1
 
 . $RIG_CONF
+. asic-model
 
 [[ -z $FARM_HASH && -z $RIG_ID ]] && echo "Please use FARM_HASH or RIG_ID in config" && exit 1
 [[ ! -z $RIG_ID  && -z $RIG_PASSWD ]] && echo "No RIG_PASSWD in config" && exit 1
@@ -93,6 +94,11 @@ elif which md5sum > /dev/null; then
 	uid=$(echo $uid | md5sum | awk '{print $1}')
 fi
 
+if [ ! -z $FANS_COUNT_DEFAULT ]; then
+	fans_count=$FANS_COUNT_DEFAULT
+else
+	fans_count=2
+fi
 
 request=$(
 jq -n \
@@ -110,6 +116,7 @@ jq -n \
 --arg asic_chain_count "$asic_chain_count" \
 --arg kernel "$kernel" \
 --arg version "$hive_version" \
+--arg fans_count "$fans_count" \
 '{
 	"method": "hello", "jsonrpc": "2.0", "id": 0,
 	"params": {
@@ -118,7 +125,7 @@ jq -n \
 		"mb": {$manufacturer, $product},
 		"cpu": {$model, $cores, $aes},
 		$asic, $asic_chain_count,
-		$kernel, $version
+		$kernel, $version, fans_count
 	}
 }'
 )

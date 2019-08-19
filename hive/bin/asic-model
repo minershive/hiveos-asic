@@ -18,6 +18,7 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MOD
 	GPIO_LED_RED="70"
 #	GPIO_LED_RED="23"
 	GPIO_PATH="direction"
+	FANS_COUNT_DEFAULT="2"
 elif [[ $ASIC_MODEL == "Antminer S7" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
@@ -110,7 +111,7 @@ elif [[ $ASIC_MODEL =~ "Antminer L3+" || $ASIC_MODEL == "Antminer L3++" ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="45"
 	GPIO_PATH="value"
-elif [[ $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL == "Antminer T9" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="bmminer"
@@ -120,7 +121,8 @@ elif [[ $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL == "Antminer T9" ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="70"
 	GPIO_PATH="direction"
-elif [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL == "Antminer T15" ]]; then
+	FANS_COUNT_DEFAULT="2"
+elif [[ $ASIC_MODEL == "Antminer T17" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="cgminer"
@@ -130,7 +132,8 @@ elif [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL == "Antminer T15" ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="941"
 	GPIO_PATH="direction"
-elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL == "Antminer S15" ]]; then
+	FANS_COUNT_DEFAULT="4"
+elif [[ $ASIC_MODEL == "Antminer T15" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="cgminer"
@@ -140,6 +143,29 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL == "Antminer S15" ]]; then
 	MAX_FAN_RPM="6000"
 	GPIO_LED_RED="941"
 	GPIO_PATH="direction"
+	FANS_COUNT_DEFAULT="2"
+elif [[ $ASIC_MODEL =~ "Antminer S17" ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/var/log/log"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="ghs"
+	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="941"
+	GPIO_PATH="direction"
+	FANS_COUNT_DEFAULT="4"
+elif [[ $ASIC_MODEL == "Antminer S15" ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="/var/log/log"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="ghs"
+	MAX_FAN_RPM="6000"
+	GPIO_LED_RED="941"
+	GPIO_PATH="direction"
+	FANS_COUNT_DEFAULT="2"
 elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
 	MOUNT=""
 	ASIC_ALGO="Ethash"
