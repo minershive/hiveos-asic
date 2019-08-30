@@ -38,13 +38,14 @@ You can install via firmware file or via ssh.
   Client for Antminers 3/7/9 series before 10.06.2019 firmware:  
   [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz)  
   
-  Stock bitmain firmware + intergated Hiveos client:  
+  Stock bitmain firmware + intergated Hiveos client + hiveos tab on web interface for farm_hash:  
   [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)  
   [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)  
   [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)  
   [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)  
   [Antminer S17pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)  
   [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)  
+  A
 
 ## SSH:  
 Default SSH login and password:
