@@ -69,10 +69,15 @@ Force setup FARM_HASH or RIG ID and password, change api url:
 
 
 ## Promptless installation
-You can use FARM_HASH to add ASIC automatically without entering rig id and password. Get your hash and put it on the commandline.
+You can use FARM_HASH to add ASIC automatically without entering rig id and password. Get your hash and put it on the commandline. (FARM_HASH=$FARM_HASH)
 ``` sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web sh selfupgrade
 ```
+Change api server. (HIVE_HOST_URL=$HIVE_HOST_URL)
+``` sh
+cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web HIVE_HOST_URL=http://api.exaple.com sh selfupgrade
+```
+
 
 ## Bulk installation
 You can install Hive on all the ASICs you have on your local network. Or you can install firmware on Antminer S9/i/j.
