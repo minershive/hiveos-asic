@@ -28,8 +28,25 @@ Supported ASICs:
 
 
 ## Installation
-[Video tutorial](https://asciinema.org/a/OZpbFSomhjvOkXlctEVIh7RQZ)
+You can install via firmware file or via ssh. 
+ 
+ ```diff
+- Don't upgrade your Antmiers to firmware older 10.06.2019. This firmware is protected against changes.
+```
 
+##  Web intarface or btc-tools  
+  Client for Antminers 3/7/9 series before 10.06.2019 firmware:  
+  [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz)  
+  
+  Stock bitmain firmware + intergated Hiveos client:  
+  [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)  
+  [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)  
+  [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)  
+  [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)  
+  [Antminer S17pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)  
+  [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)  
+
+## SSH:  
 Default SSH login and password:
 
 Antminer - default user:**root**  default password:**admin**
@@ -125,10 +142,17 @@ or
 cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web bash selfupgrade
 ```
 
-## Antminer S9 signed
+## Antminer S9 signed (deprecated)
 [Manual](https://forum.hiveos.farm/t/antminer-s9-signed/12466)
 
-## Antminer S17/S17 Pro/T17
+## Antminer S17/S17 Pro/T17 (deprecated)
 [Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 [Support](mailto:bee@hiveos.farm)
+
+## Recovery Antminer
+S17/S17pro/T17  
+  Download [Recovery image](http://download.hiveos.farm/asic/repo/t17-s17/recovery_sd/t17_rec.zip), unzip to SD card. Boot ASIC with SD card. Flash tar.gz firmware via web interface.
+  
+  
+
 
