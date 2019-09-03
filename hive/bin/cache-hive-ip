@@ -2,7 +2,7 @@
 ##!/usr/bin/env ash
 #export PATH="./:/hive/bin:/hive/sbin:$PATH"
 
-. asic-model
+. /hive/bin/asic-model
 
 if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
     hostfile="/tmp/hosts"
