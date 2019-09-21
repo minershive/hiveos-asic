@@ -65,7 +65,12 @@ echo2 "$msg"
 #openvpn-install
 #will wait for interface
 
-if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
+
+if [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL == "Antminer S9 SE" || $ASIC_MODEL == "Antminer S9k" ]]; then
+    echo2 "> Applying crontab"
+    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
     echo2 "> Applying crontab"
     [[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
     crontab /hive/etc/crontab.root
@@ -89,15 +94,6 @@ if [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MOD
     fi
 fi
 
-if [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" ]]; then
-    echo2 "> Applying crontab"
-#    [[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
-#    crontab /hive/etc/crontab.root
-#    [[ `ps aux | grep "crond" | grep -v grep | wc -l` = 0 ]] &&
-#            /usr/sbin/crond
-    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
-fi
 
 echo2 "> Caching host resolve"
 cache-hive-ip

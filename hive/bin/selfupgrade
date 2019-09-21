@@ -353,6 +353,12 @@ if [ "$ASIC_MODEL" == "Antminer S9" ]; then
 elif [ "$ASIC_MODEL" == "Antminer S9i" ]; then
 	echo "Install Antminer S9i"
 	install_antminer_bmminer
+elif [ "$ASIC_MODEL" == "Antminer S9 SE" ]; then
+	echo "Install Antminer S9 SE"
+	install_antminer_bmminer
+elif [ "$ASIC_MODEL" == "Antminer S9k" ]; then
+	echo "Install Antminer S9k"
+	install_antminer_bmminer
 elif [ "$ASIC_MODEL" == "Minecenter S9" ]; then
 	echo "Install Minecenter S9"
 	install_antminer_bmminer

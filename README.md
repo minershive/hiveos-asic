@@ -2,7 +2,7 @@
 Hive OS client for ASICs
 
 Supported ASICs:
-* Antminer S9*/S9i/S9j/S9-Hydro/S9(VNISH)/S9(mskminer)/S11
+* Antminer S9*/S9i/S9j/S9k/S9SE/S9-Hydro/S9(VNISH)/S9(mskminer)/S11
 * Antminer S17/S17 Pro **
 * Antminer T17 **
 * Antminer S15 **
@@ -45,7 +45,7 @@ You can install via firmware file or via ssh.
   [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)  
   [Antminer S17pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)  
   [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)  
-  A
+
 
 ## SSH:  
 Default SSH login and password:
