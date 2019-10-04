@@ -242,6 +242,17 @@ elif [[ $ASIC_MODEL == "t3.soc" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="khs"
 	MAX_FAN_RPM="6000"
+elif [[ $ASIC_MODEL == "t2thm.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t3h+.soc" ]]; then
+	MOUNT=""
+	ASIC_ALGO="sha256"
+	THIS_MINER_NAME="cgminer"
+	LOG_PATH="journalctl"
+	CONFIG_PATH="/config/cgminer.conf"
+	HASH="khs"
+	MAX_FAN_RPM="6000"
+	STAT_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ"
+	TEMP_TOKEN=$(echo -n $STAT_TOKEN.$(echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $(cat /tmp/jwtK) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$//))
+	FANS_COUNT_DEFAULT="3"
 elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 	MOUNT=""
 	ASIC_ALGO="lyra2v2"

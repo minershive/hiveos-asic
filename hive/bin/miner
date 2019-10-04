@@ -55,12 +55,17 @@ function config-gen() {
 function start() {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	for i in {1..15}; do
-		test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep')"
+		test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep' | grep -v 'systemctl')"
 		if [ -z "$test_miner" ] ; then
 			config-gen
 			screen -d > /dev/null
 			if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" ]]; then
 				systemctl start cgminer.service
+			elif [[ $ASIC_MODEL == "t2thm.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t3h+.soc" ]]; then
+				systemctl start cgminer.service
+#				timeout -t 600 /hive/bin/inno_api updatePools
+				timeout -t 600 /hive/bin/inno_api updateFanspeed
+				timeout -t 600 /hive/bin/inno_api setAutoTune
 			elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 				break
 			elif [[ $ASIC_MODEL == "T4.G19" ]]; then
@@ -78,7 +83,7 @@ function start() {
 
 function stop() {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
-	if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" ]]; then
+	if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" || $ASIC_MODEL == "t2thm.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t3h+.soc" ]]; then
 		systemctl stop cgminer.service
 	elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 		pidof miner | xargs kill -9

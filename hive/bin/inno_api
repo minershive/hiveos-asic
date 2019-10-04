@@ -1,0 +1,75 @@
+#!/hive/sbin/bash
+
+. asic-model
+
+RIG_CONF="/hive-config/rig.conf"
+WALLET_CONF="/hive-config/wallet.conf"
+
+echo "Generating MINER_CONFIG"
+
+[ ! -f $WALLET_CONF ] && echo -e "${RED}No wallet config $WALLET_CONF${NOCOLOR}" && return 1
+
+. $RIG_CONF
+. $WALLET_CONF
+
+[[ -z $ASICMINER_TEMPLATE ]] && echo -e "${YELLOW}ASICMINER__TEMPLATE is empty${NOCOLOR}" && return 1
+[[ -z $ASICMINER_URL ]] && echo -e "${YELLOW}ASICMINER__URL is empty${NOCOLOR}" && return 1
+
+
+#merge user config options
+if [[ ! -z $ASICMINER_USER_CONFIG ]]; then
+	config_global='{}'
+	while read -r line; do
+		[[ -z $line ]] && continue
+		varkey=$(echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .key')
+		varval=$(echo $line | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .value')
+		config_global=$(echo $config_global | jq '."'$varkey'"="'$varval'"')
+	done <<< "$ASICMINER_USER_CONFIG"
+fi
+
+
+case $1 in
+    "updatePools")
+	pools='{}'
+	i=1
+	for url in $ASICMINER_URL; do
+		pools=`jq --null-input --argjson pools "$pools" --arg UserName$i "$ASICMINER_TEMPLATE" '$pools + {$UserName'$i'}'`
+		pools=`jq --null-input --argjson pools "$pools" --arg Pool$i "$url" '$pools + {$Pool'$i'}'`
+		pools=`jq --null-input --argjson pools "$pools" --arg Password$i "$ASICMINER_PASS" '$pools + {$Password'$i'}'`
+		pools=`jq --null-input --argjson pools "$pools" --arg PoolNum "$i" '$pools + {$PoolNum}'`
+		(( i++ ))
+	done
+	param=$(echo $pools | jq -r 'keys[] as $k | "\($k)=\(.[$k] | @uri)"' | sed ':a;N;$!ba;s/\n/\&/g')
+	while [[ $(curl -s 'http://localhost/api/updatePools' -H 'Accept: application/json, text/plain, */*' -H 'Authorization: Bearer '$TEMP_TOKEN'' --data $param | jq -r '. | {success} | .[]') != true ]]; do
+		sleep 5
+	done
+#	curl -s 'http://localhost/api/updatePools' -H 'Accept: application/json, text/plain, */*' -H 'Authorization: Bearer $TEMP_TOKEN' \
+#--data '$param'
+    ;;
+    "updateFanspeed")
+	if [[ $(echo $config_global | jq -r '. | select(.automatic != null) | select(.fanspeed != null)') ]]; then 
+		param=$(echo $config_global | jq -r '{automatic, fanspeed} | keys[] as $k | "\($k)=\(.[$k] | @uri)"' | sed ':a;N;$!ba;s/\n/\&/g';)
+		while [[ $(curl -s 'http://localhost/api/updateFanspeed' -H 'Accept: application/json, text/plain, */*' -H 'Authorization: Bearer '$TEMP_TOKEN'' --data $param | jq -r '. | {success} | .[]') != true ]]; do
+			sleep 5
+		done
+#	curl -s 'http://localhost/api/updateFanspeed' -H 'Accept: application/json, text/plain, */*' -H 'Authorization: Bearer $TEMP_TOKEN' \
+#--data '$param'
+	fi
+    ;;
+    "setAutoTune")
+	if [[ $(echo $config_global | jq -r '. | select(.autotune != null) | select(.level != null)') ]]; then 
+		param=$(echo $config_global | jq -r '{autotune, level} | keys[] as $k | "\($k)=\(.[$k] | @uri)"' | sed ':a;N;$!ba;s/\n/\&/g';)
+		while [[ $(curl -s 'http://localhost/api/setAutoTune' -H 'Accept: application/json, text/plain, */*' -H 'Authorization: Bearer '$TEMP_TOKEN'' --data $param | jq -r '. | {success} | .[]') != true ]]; do
+			sleep 5
+		done
+#	curl -s 'http://localhost/api/setAutoTune' -H 'Accept: application/json, text/plain, */*' -H 'Authorization: Bearer $TEMP_TOKEN' \
+#--data '$param'
+	fi
+    ;;
+    *)
+	echo "API error"
+	exit 0
+    ;;
+esac
+
+

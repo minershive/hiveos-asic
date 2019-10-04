@@ -389,6 +389,14 @@ elif [[ $ASIC_MODEL == "t3.soc" ]]; then
 "syslog" : true,
 "text-only" : true
 }'
+elif [[ $ASIC_MODEL == "t2thm.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t3h+.soc" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-port" : "4028",
+"api-allow" : "R:0/0,W:127.0.0.1",
+"T1factory" : true
+}'
+#	exit 0
 elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 	config_global='{}'
 elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
