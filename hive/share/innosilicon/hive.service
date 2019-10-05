@@ -8,6 +8,7 @@ Type=forking
 #TimeoutStartSec=infinity
 ExecStart=/hive/bin/hive
 Environment="LD_LIBRARY_PATH=/hive/lib"
+ExecStartPre=/bin/sleep 30
 
 [Install]
 WantedBy=multi-user.target
