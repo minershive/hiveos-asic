@@ -453,8 +453,35 @@ elif [ "$ASIC_MODEL" == "t3.soc" ]; then
 elif [ "$ASIC_MODEL" == "t2thm.soc" ]; then
 	echo "Install Innosilicon T2Thm"
 	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2thf.soc" ]; then
+	echo "Install Innosilicon T2Thf"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2th.soc" ]; then
+	echo "Install Innosilicon T2Th"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2tz.soc" ]; then
+	echo "Install Innosilicon T2Tz-30T"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2t.soc" ]; then
+	echo "Install Innosilicon T2T-24T"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2t+.soc" ]; then
+	echo "Install Innosilicon T2T+(32T)"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2th+.soc" ]; then
+	echo "Install Innosilicon T2TH+"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2thf+.soc" ]; then
+	echo "Install Innosilicon T2THf+"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2thl+.soc" ]; then
+	echo "Install Innosilicon T2THl+"
+	install_innosilicon
 elif [ "$ASIC_MODEL" == "t2ts.soc" ]; then
-	echo "Install Innosilicon T2Ts"
+	echo "Install Innosilicon T2Ts-26T"
+	install_innosilicon
+elif [ "$ASIC_MODEL" == "t2ti.soc" ]; then
+	echo "Install Innosilicon T2Ti-25T"
 	install_innosilicon
 elif [ "$ASIC_MODEL" == "t3h+.soc" ]; then
 	echo "Install Innosilicon T3H+"

@@ -76,7 +76,16 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
 [[ $mb_product == "t3.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3", "logic_version": .[0]}'`
 [[ $mb_product == "t2thm.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Thm", "logic_version": .[0]}'`
-[[ $mb_product == "t2ts.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Ts", "logic_version": .[0]}'`
+[[ $mb_product == "t2thf.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Th", "logic_version": .[0]}'`
+[[ $mb_product == "t2th.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Thf", "logic_version": .[0]}'`
+[[ $mb_product == "t2tz.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Tz-30T", "logic_version": .[0]}'`
+[[ $mb_product == "t2th+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2TH+", "logic_version": .[0]}'`
+[[ $mb_product == "t2t.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2T-24T", "logic_version": .[0]}'`
+[[ $mb_product == "t2thf.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2THf+", "logic_version": .[0]}'`
+[[ $mb_product == "t2t+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2T+(32T)", "logic_version": .[0]}'`
+[[ $mb_product == "t2thl+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2THl+", "logic_version": .[0]}'`
+[[ $mb_product == "t2ts.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Ts-26T", "logic_version": .[0]}'`
+[[ $mb_product == "t2ti.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Ti-25T", "logic_version": .[0]}'`
 [[ $mb_product == "t3h+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3H+", "logic_version": .[0]}'`
 [[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
 [[ $mb_product == "Zig Z1" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1", "logic_version": "Zig Z1"}'`
