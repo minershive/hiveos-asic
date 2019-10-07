@@ -18,9 +18,9 @@ if [[ "$1" == "-f" ]]; then
 	FORCE=1
 elif [[ ! -z "$1" ]]; then
 	FARM_HASH="$1"
-	if [[ "$2" == "-f" ]]; then
-		FORCE=1
-	fi
+#	if [[ "$2" == "-f" ]]; then
+	FORCE=1
+#	fi
 fi
 
 
