@@ -96,6 +96,18 @@ Optionally, you can add WORKER_NAME to `ips.txt` (e.g. `192.168.1.100 asic_01`)
    If IP was connected then it will become commented in file.  
 
 
+
+## Innosilicon new models
+1. Download this zip-archive 1 and unpack to any directory, which contains only Latin symbols in the name.
+2. Open file config.txt with a 3rd-party text editor (recommended Notepad++).
+Put FARM_HASH.
+If the password has been changed by ASIC web interface, then it must also be specified.
+3. Open file ips.txt with a 3rd-party text editor (recommended Notepad++)
+Put list of IP addresses. The file must be end with an IP address, not with an empty line.
+4. Run Innosilicon.cmd.
+The Hive OS client will be installed on the ASIC. Devices will be added to the farm.
+
+
 ## Downgrade and Version changing
 
 If you want to install specific version or downgrade please append version as an argument to selfupgrade. E.g. 0.1-02
@@ -116,7 +128,8 @@ hive-uninstall
 ```
 Maybe cron jobs have to removed manually with `crontab -e` even if they are left there the would do nothing.
 
-## Innosilicon
+
+## Innosilicon old models
 Some innosilicon factory firmware have a memory leak, and asic freezes every few days. To solve this problem, you can enable the miner or asic reboot every 24 hours.
 Run the following commands:
 ``` sh
