@@ -98,14 +98,7 @@ Optionally, you can add WORKER_NAME to `ips.txt` (e.g. `192.168.1.100 asic_01`)
 
 
 ## Innosilicon new models
-1. Download this zip-archive 1 and unpack to any directory, which contains only Latin symbols in the name.
-2. Open file config.txt with a 3rd-party text editor (recommended Notepad++).
-Put FARM_HASH.
-If the password has been changed by ASIC web interface, then it must also be specified.
-3. Open file ips.txt with a 3rd-party text editor (recommended Notepad++)
-Put list of IP addresses. The file must be end with an IP address, not with an empty line.
-4. Run Innosilicon.cmd.
-The Hive OS client will be installed on the ASIC. Devices will be added to the farm.
+Manual: https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610
 
 
 ## Downgrade and Version changing
