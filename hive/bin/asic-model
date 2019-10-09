@@ -248,7 +248,7 @@ elif [[ "$ASIC_MODEL" == "t3h+.soc" || "$ASIC_MODEL" == "t2th+.soc" || "$ASIC_MO
 	THIS_MINER_NAME="cgminer"
 	LOG_PATH="journalctl"
 	CONFIG_PATH="/config/cgminer.conf"
-	HASH="khs"
+	HASH="mhs"
 	MAX_FAN_RPM="6000"
 	STAT_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ"
 	TEMP_TOKEN=$(echo -n $STAT_TOKEN.$(echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $(cat /tmp/jwtK) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$//))
