@@ -8,7 +8,8 @@ export LD_LIBRARY_PATH=/hive/lib
 screen -ls agent | grep -q agent && running=1 || running=0
 
 [[ $1 != "dontattach" ]] &&
-	screen -x -S agent #attach to screen
+	TERM="vt102" screen -x -S agent #attach to screen
+
 
 [ $running -ne 1 ] &&
 	echo "Starting new agent screen session" &&
