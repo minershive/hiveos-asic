@@ -75,6 +75,7 @@ hive_version=`cat /hive/etc/VERSION`
 [[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
 [[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
 [[ $mb_product == "t3.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3", "logic_version": .[0]}'`
+[[ $mb_product == "t3+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3+", "logic_version": .[0]}'`
 [[ $mb_product == "t2thm.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Thm", "logic_version": .[0]}'`
 [[ $mb_product == "t2thf.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Th", "logic_version": .[0]}'`
 [[ $mb_product == "t2th.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Thf", "logic_version": .[0]}'`

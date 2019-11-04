@@ -450,6 +450,9 @@ elif [ "$ASIC_MODEL" == "s11.g19" ]; then
 elif [ "$ASIC_MODEL" == "t3.soc" ]; then
 	echo "Install Innosilicon T3"
 	install_innosilicon
+elif [ "$ASIC_MODEL" == "t3+.soc" ]; then
+	echo "Install Innosilicon T3+"
+	install_innosilicon
 elif [ "$ASIC_MODEL" == "t2thm.soc" ]; then
 	echo "Install Innosilicon T2Thm"
 	install_innosilicon

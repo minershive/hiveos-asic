@@ -242,7 +242,7 @@ elif [[ $ASIC_MODEL == "t3.soc" ]]; then
 	CONFIG_PATH="/config/cgminer.conf"
 	HASH="khs"
 	MAX_FAN_RPM="6000"
-elif [[ "$ASIC_MODEL" == "t3h+.soc" || "$ASIC_MODEL" == "t2th+.soc" || "$ASIC_MODEL" == "t2thf+.soc" || "$ASIC_MODEL" == "t2thl+.soc" || "$ASIC_MODEL" == "t2th.soc" || "$ASIC_MODEL" == "t2tz.soc" || "$ASIC_MODEL" == "t2thm.soc" || "$ASIC_MODEL" == "t2thf.soc" || "$ASIC_MODEL" == "t2t+.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t2ti.soc" || "$ASIC_MODEL" == "t2t.soc" ]]; then
+elif [[ "$ASIC_MODEL" == "t3h+.soc" || "$ASIC_MODEL" == "t3+.soc" || "$ASIC_MODEL" == "t2th+.soc" || "$ASIC_MODEL" == "t2thf+.soc" || "$ASIC_MODEL" == "t2thl+.soc" || "$ASIC_MODEL" == "t2th.soc" || "$ASIC_MODEL" == "t2tz.soc" || "$ASIC_MODEL" == "t2thm.soc" || "$ASIC_MODEL" == "t2thf.soc" || "$ASIC_MODEL" == "t2t+.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t2ti.soc" || "$ASIC_MODEL" == "t2t.soc" ]]; then
 	MOUNT=""
 	ASIC_ALGO="sha256"
 	THIS_MINER_NAME="cgminer"

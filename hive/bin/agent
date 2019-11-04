@@ -194,7 +194,7 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}')
 			fi
 		;;
-		"b29+.g19"|"d9.g19"|"s11.g19"|"t3.soc"|"t3h+.soc"|"t2th+.soc"|"t2thf+.soc"|"t2thl+.soc"|"t2th.soc"|"t2tz.soc"|"t2thm.soc"|"t2thf.soc"|"t2t+.soc"|"t2ts.soc"|"t2ti.soc"|"t2t.soc")
+		"b29+.g19"|"d9.g19"|"s11.g19"|"t3.soc"|"t3+.soc"|"t3h+.soc"|"t2th+.soc"|"t2thf+.soc"|"t2thl+.soc"|"t2th.soc"|"t2tz.soc"|"t2thm.soc"|"t2thf.soc"|"t2t+.soc"|"t2ts.soc"|"t2ti.soc"|"t2t.soc")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
