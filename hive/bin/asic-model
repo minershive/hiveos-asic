@@ -6,6 +6,7 @@
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep Zig || cat /var/www/html/src/Template/Users/login.twig | grep Zig | grep "title\|<a><b>" | sed 's/<[^>]*>//g' | sed s/\ *//` #Zig old firmware
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo $ASIC_MODEL | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
 [ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver` #Innosilicon A5/8
+[ -e "/usr/bin/compile_ver" ] && HIVEON_VER=`sed -n 3p /usr/bin/compile_ver | awk -F\@ '{print $1}'` #Hiveon version
 
 if [[ $ASIC_MODEL == "Antminer S9k" || $ASIC_MODEL == "Antminer S9 SE" ]]; then
 	MOUNT=""
