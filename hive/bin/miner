@@ -104,6 +104,7 @@ function stop() {
 function restart() {
 	echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
 	if [[ $HIVEON_VER == "1.02" ]]; then
+		rm -f /tmp/norespawn
 		echo "ok" > /config/restart
 	else
 		stop
