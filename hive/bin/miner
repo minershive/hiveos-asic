@@ -55,6 +55,7 @@ function config-gen() {
 function start() {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ $HIVEON_VER == "1.02" ]]; then
+		config-gen
 		rm -f /tmp/norespawn
 	else
 	for i in {1..15}; do

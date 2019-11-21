@@ -13,7 +13,7 @@ if [[ $HIVEON_VER == "1.02" ]]; then
 	if grep "enable_auto_chip=1" /config/autoTune.conf; then
 		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
 	fi
-	echo -e "Autotune config applied"
+	echo -e "Autotune config applied!"
 else
     conftune=`cat /config/autoTune.conf`
     if [[ -e "/usr/bin/compile_ver" && "$ASIC_MODEL" =~ "Antminer S9" ]]; then
