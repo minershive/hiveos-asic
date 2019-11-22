@@ -6,7 +6,7 @@
 
 if [[ $ASIC_MODEL == "Antminer S9k" || $ASIC_MODEL == "Antminer S9 SE" ]]; then
     hostfile="/etc/hosts"
-elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
+elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
     hostfile="/tmp/hosts"
 else
     hostfile="/etc/hosts"

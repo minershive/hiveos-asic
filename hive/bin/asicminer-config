@@ -86,7 +86,7 @@ elif [[ $ASIC_MODEL == "Antminer S9 SE" ]]; then
 "bitmain-freq" : "O",
 "bitmain-voltage" : "950"
 }'
-elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL == "Minecenter S9" ]]; then
+elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL == "Minecenter S9" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-network" : true,
