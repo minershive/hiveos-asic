@@ -32,11 +32,11 @@ Supported ASICs:
 You can install via firmware file or via ssh. 
  
  ```diff
-- Don't upgrade your Antmiers to firmware older 10.06.2019. This firmware is protected against changes.
+- DO NOT upgrade your Antminer to firmware newer than 10.06.2019. This firmware is protected by Bitmain against changes.
 ```
 
-##  Web intarface or btc-tools  
-  Client for Antminers 3/7/9 series before 10.06.2019 firmware:  
+##  Web interface or btc-tools  
+  Client for Antminer 3/7/9 series before 10.06.2019 firmware:  
   [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz)  
   
   Stock bitmain firmware + intergated Hiveos client + hiveos tab on web interface for farm_hash:  
@@ -101,7 +101,7 @@ Optionally, you can add WORKER_NAME to `ips.txt` (e.g. `192.168.1.100 asic_01`)
 Manual: https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610
 
 
-## Downgrade and Version changing
+## Downgrade and Version change
 
 If you want to install specific version or downgrade please append version as an argument to selfupgrade. E.g. 0.1-02
 ``` sh
@@ -119,7 +119,7 @@ To install current development version from repository please run ```selfupgrade
 ``` sh
 hive-uninstall
 ```
-Maybe cron jobs have to removed manually with `crontab -e` even if they are left there the would do nothing.
+A cron jobs might have to be removed manually with `crontab -e` even if they are left there the would do nothing.
 
 
 ## Innosilicon old models
@@ -165,7 +165,3 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 ## Recovery Antminer
 S17/S17pro/T17  
   Download [Recovery image](http://download.hiveos.farm/asic/repo/t17-s17/recovery_sd/t17_rec.zip), unzip to SD card. Boot ASIC with SD card. Flash tar.gz firmware via web interface.
-  
-  
-
-
