@@ -2,8 +2,8 @@
 
 . asic-model
 
-echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
 if [[ $HIVEON_VER == "1.02" ]]; then
+	echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
 	sleep 1
@@ -14,7 +14,12 @@ if [[ $HIVEON_VER == "1.02" ]]; then
 		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
 	fi
 	echo -e "Autotune config applied!"
+elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" == "Antminer T17" ]]; then
+	echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/profile.txt
+	killall bmminer
+	echo -e "Autotune config applied!"
 else
+    echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
     conftune=`cat /config/autoTune.conf`
     if [[ -e "/usr/bin/compile_ver" && "$ASIC_MODEL" =~ "Antminer S9" ]]; then
         sed -i 's/profile=1\&/profile=1\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' /config/autoTune.conf
