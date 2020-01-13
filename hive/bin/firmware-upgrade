@@ -1,23 +1,23 @@
 #!/bin/sh -e
 
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
-#set -e
+. asic-model
 
-rm -rf /config/hive/hive
-rm -rf /hive
+upgrade_s9() {
+    rm -rf /config/hive/hive
+    rm -rf /hive
 
-file=/tmp/$$
-mkdir $file
-cd $file
-URL="$1"
-#curl "$URL" | tar xvz
-filename=$(echo $URL | awk -F \/ '{print $NF}')
-FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
-HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
+    file=/tmp/$$
+    mkdir $file
+    cd $file
+    URL="$1"
+    #curl "$URL" | tar xvz
+    filename=$(echo $URL | awk -F \/ '{print $NF}')
+    FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
+    HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 
-trap atexit 0
-
-atexit() {
+    trap atexit 0
+    atexit() {
         rm -rf $file
         umount $file.boot 2>/dev/null || true
         rmdir $file.boot 2>/dev/null || true
@@ -25,36 +25,28 @@ atexit() {
         if [ ! $ok ]; then
             echo -e "System upgrade failed"
         fi
-}
+    }
 
-#exec 2>/tmp/upgrade_result
+    #exec 2>/tmp/upgrade_result
+    #tar zxf -
+    #tar -xvf "$filename"
+    curl "$URL" | tar xvz
+    if [ ! -f ubi_info ]; then
+        echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
+        rm /tmp/*
+        exit 1
+    else
+        if [ ! -d /mnt/config ]; then
+            mkdir /mnt/config
+        fi
+        ubiattach /dev/ubi_ctrl -m 2
+        mount -t ubifs ubi1:rootfs /mnt/config
+        if [ ! -d /mnt/config/home/usr_config ]; then
+            mkdir /mnt/config/home/usr_config
+        fi
 
-#tar zxf -
-#tar -xvf "$filename"
-curl "$URL" | tar xvz
-if [ ! -f ubi_info ]; then
-    echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
-    rm /tmp/*
-    exit 1
-else
-
-if [ ! -d /mnt/config ];
-then
-    mkdir /mnt/config
-fi
-
-ubiattach /dev/ubi_ctrl -m 2
-mount -t ubifs ubi1:rootfs /mnt/config
-
-if [ ! -d /mnt/config/home/usr_config ]
-then
-    mkdir /mnt/config/home/usr_config
-fi
-
-sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
-
-cat >> /config/network.conf <<FILEEOF
-
+        sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
+        cat >> /config/network.conf <<FILEEOF
 ### HIVE HECK ###
 if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
   ln -s /config/hive/hive-config /hive-config
@@ -66,29 +58,78 @@ if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
 fi
 FILEEOF
 
-if [ $(echo $FARM_HASH | wc -c) -eq 41 ]; then
+        if [ $(echo $FARM_HASH | wc -c) -eq 41 ]; then
+            echo $FARM_HASH > /config/FARM_HASH
+        fi
+        if [ ! -z $HIVE_HOST_URL ]; then
+            echo $HIVE_HOST_URL > /config/HIVE_HOST_URL
+        fi
+        sync
+        cp -r /config/* /mnt/config/home/usr_config/
+        umount /mnt/config
+        ubidetach -d 1 /dev/ubi_ctrl
+        if [ -f runme.sh ]; then
+            sh runme.sh
+            echo -e "${GREEN}Firmware upgrade complete. Rebooting...${NOCOLOR}"
+        else
+            echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
+            exit 1
+        fi
+    fi
+    #cat /tmp/upgrade_result
+    sleep 1; /sbin/reboot -f
+}
+
+upgrade_st17() {
+    file=/dev/$$
+    trap atexit 0
+    atexit() {
+        rm -rf $file
+        umount $file.boot 2>/dev/null || true
+        rmdir $file.boot 2>/dev/null || true
+        sync
+        if [ ! $ok ]; then
+            echo "<h1>System upgrade failed</h1>"
+        fi
+    }
+
+    exec 2>/tmp/upgrade_result
+    mkdir $file
+    cd $file
+
+    URL="$1"
+    #curl "$URL" | tar xvz
+    filename=$(echo $URL | awk -F \/ '{print $NF}')
+    FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
+    HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
+
+    if [ $(echo $FARM_HASH | wc -c) -eq 41 ]; then
         echo $FARM_HASH > /config/FARM_HASH
-fi
-if [ ! -z $HIVE_HOST_URL ]; then
+    fi
+    if [ ! -z $HIVE_HOST_URL ]; then
         echo $HIVE_HOST_URL > /config/HIVE_HOST_URL
+    fi
+    sync
+
+    curl "$URL" | tar xvz
+    sh runme.sh
+
+    ant_result=`cat /tmp/upgrade_result`
+    if [ "${ant_result}" == "" ]; then
+        echo -e "Upgrade done! Rebooting System ..."
+        sleep 3; sh /www/pages/cgi-bin/reboot.cgi || sleep 10; /sbin/reboot -f
+    else
+        echo -e "$ant_result"
+    fi
+
+    cat /tmp/upgrade_result
+}
+
+if echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9"; then
+    upgrade_s9
+elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S17"; then
+    upgrade_st17
+elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer T17"; then
+    upgrade_st17
 fi
-
-sync
-
-cp -r /config/* /mnt/config/home/usr_config/
-umount /mnt/config
-ubidetach -d 1 /dev/ubi_ctrl
-
-if [ -f runme.sh ]; then
-        sh runme.sh
-        echo -e "${GREEN}Firmware upgrade complete. Rebooting...${NOCOLOR}"
-else
-    echo -e "${RED}Incorrect firmware!!!${NOCOLOR}"
-    exit 1
-fi
-fi
-
-#cat /tmp/upgrade_result
-
-sleep 1; /sbin/reboot -f
 
