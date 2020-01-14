@@ -66,7 +66,7 @@ echo2 "$msg"
 #will wait for interface
 
 
-if [[ $ASIC_MODEL == "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL == "Antminer S9 SE" || $ASIC_MODEL == "Antminer S9k" ]]; then
+if [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL == "Antminer S9 SE" || $ASIC_MODEL == "Antminer S9k" ]]; then
     echo2 "> Applying crontab"
     nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
     nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &

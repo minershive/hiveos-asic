@@ -14,7 +14,7 @@ if [[ $HIVEON_VER == "1.02" ]]; then
 		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
 	fi
 	echo -e "Autotune config applied!"
-elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" == "Antminer T17" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" =~ "Antminer T17" ]]; then
 	echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a \\tune_status=0' > /config/profile.txt
 	killall bmminer
 	echo -e "Autotune config applied!"

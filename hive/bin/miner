@@ -133,7 +133,7 @@ function miner_log_basename() {
 function log_tail() {
 	local TAIL_LINE=80
 
-	if [[ $HIVEON_VER == "1.02" ]]; then
+	if [[ ! -z $HIVEON_VER ]]; then
 		sh /www/pages/cgi-bin/get_kernel_log.cgi | tail -n $TAIL_LINE
 	else
 		log_basename=`miner_log_basename $MINER`

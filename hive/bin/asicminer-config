@@ -219,6 +219,17 @@ elif [[ $ASIC_MODEL == "Antminer T17" ]]; then
 "bitmain-freq" : "O",
 "bitmain-voltage" : "1700"
 }'
+elif [[ $ASIC_MODEL == "Antminer T17 Hiveon" ]]; then
+	config_global='{
+"api-listen": true,
+"api-network": true,
+"api-groups": "A:stats:pools:devs:summary:version",
+"api-allow": "A:0/0,W:*",
+"bitmain-use-vil": true,
+"bitmain-work-mode": "0",
+"bitmain-freq": "750",
+"bitmain-voltage": "1800"
+}'
 elif [[ $ASIC_MODEL == "Antminer S15" ]]; then
 	config_global='{
 "api-listen" : true,

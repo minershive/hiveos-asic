@@ -1,7 +1,15 @@
 #!/bin/sh -e
 
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
-. asic-model
+[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time` #Antminer
+
+
+URL="$1"
+#curl "$URL" | tar xvz
+filename=$(echo $URL | awk -F \/ '{print $NF}')
+FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
+HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
+
 
 upgrade_s9() {
     rm -rf /config/hive/hive
@@ -10,11 +18,6 @@ upgrade_s9() {
     file=/tmp/$$
     mkdir $file
     cd $file
-    URL="$1"
-    #curl "$URL" | tar xvz
-    filename=$(echo $URL | awk -F \/ '{print $NF}')
-    FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
-    HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 
     trap atexit 0
     atexit() {
@@ -89,19 +92,13 @@ upgrade_st17() {
         rmdir $file.boot 2>/dev/null || true
         sync
         if [ ! $ok ]; then
-            echo "<h1>System upgrade failed</h1>"
+            echo -e "System upgrade failed"
         fi
     }
 
     exec 2>/tmp/upgrade_result
     mkdir $file
     cd $file
-
-    URL="$1"
-    #curl "$URL" | tar xvz
-    filename=$(echo $URL | awk -F \/ '{print $NF}')
-    FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
-    HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 
     if [ $(echo $FARM_HASH | wc -c) -eq 41 ]; then
         echo $FARM_HASH > /config/FARM_HASH
