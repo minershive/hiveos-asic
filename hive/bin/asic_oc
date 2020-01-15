@@ -17,7 +17,13 @@ if [[ $HIVEON_VER == "1.02" ]]; then
 elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" =~ "Antminer T17" ]]; then
 	echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a \\tune_status=0' > /config/profile.txt
 	killall bmminer
-	echo -e "Autotune config applied!"
+	while true; do
+		sleep 30
+		if [[ $(cat /config/profile.txt | grep tune_status | awk -F\= '{print $2}') -eq 2 ]]; then
+			miner tuning
+			exit 0
+		fi
+	done
 else
     echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
     conftune=`cat /config/autoTune.conf`

@@ -456,7 +456,7 @@ do_command () {
 		;;
 		firmware-upgrade)
 			export firmware_url=`echo $body | jq '.firmware_url' --raw-output`
-			screen -dm -S upgade bash -c '
+			screen -dm -S upgrade bash -c '
 				firmware-upgrade $firmware_url 2>&1 | tee /tmp/nohup.log
 				exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`

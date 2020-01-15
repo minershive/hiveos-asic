@@ -92,7 +92,7 @@ upgrade_st17() {
         rmdir $file.boot 2>/dev/null || true
         sync
         if [ ! $ok ]; then
-            echo -e "System upgrade failed"
+            echo -e "System upgrade stoped"
         fi
     }
 
@@ -108,18 +108,18 @@ upgrade_st17() {
     fi
     sync
 
-    curl "$URL" | tar xvz
+    curl -s "$URL" | tar xvz
     sh runme.sh
 
     ant_result=`cat /tmp/upgrade_result`
     if [ "${ant_result}" == "" ]; then
         echo -e "Upgrade done! Rebooting System ..."
-        sleep 3; sh /www/pages/cgi-bin/reboot.cgi || sleep 10; /sbin/reboot -f
+        sleep 10; sh /www/pages/cgi-bin/reboot.cgi || sleep 5; /sbin/reboot -f
     else
         echo -e "$ant_result"
     fi
 
-    cat /tmp/upgrade_result
+    #cat /tmp/upgrade_result
 }
 
 if echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9"; then

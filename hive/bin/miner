@@ -8,7 +8,7 @@ MINER="asicminer"
 
 function usage() {
 	bname=`basename $0`
-	echo -e "Usage: ${CYAN}$bname start|stop|restart|log|config|config-gen${NOCOLOR}"
+	echo -e "Usage: ${CYAN}$bname start|stop|restart|log|tuning|config|config-gen${NOCOLOR}"
 	echo -e "If you run ${CYAN}$bname${NOCOLOR} without parameters miner screen will be tried to resume."
 }
 
@@ -222,7 +222,7 @@ case $1 in
 		log_tail $2 $3 $4
 	;;
 	tuning)
-		sh /www/pages/cgi-bin/get_auto_tune_log.cgi
+		sh /www/pages/cgi-bin/get_auto_tune_log.cgi || sh /www/pages/cgi-bin/get_tune_log.cgi
 	;;
 	*)
 		screen -x -S miner
