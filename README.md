@@ -196,7 +196,7 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 * [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
 * S17, S17 Pro, T17: download [Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip), unzip to SD card. Boot ASIC with SD card. Flash `.tar.gz` firmware via web interface.
-
+* [Antminer official repository](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image)
 &nbsp;
 
 ## Useful commands
