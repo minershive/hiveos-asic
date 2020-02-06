@@ -1,6 +1,15 @@
 # hiveos-asic
 Hive OS monitoring client for ASICs.
 
+>To link ASIC to your farm you could use these options, sorted by ease:
+>1. *Hive OS* tab in the ASIC web interface (simpliest!)
+>1. ```firstrun``` command via ```ssh```
+>1. download a special *.tar.gz* file via BTC Tools (mass deployment)
+>
+>In all cases, you'll need the *FARM_HASH* string. You will find it in Hive OS dashboard, right in the farm's *Settings* tab.
+
+> To start mining, be sure to create a *Flight Sheet* first.
+
 &nbsp;
 
 ## Table of contents
@@ -49,10 +58,10 @@ You can install via firmware file download or via SSH.
 
 &nbsp;
 
-### Basic types of install
+### Three basic install options
 ---
 
-#### ASIC web interface
+#### 1. ASIC web interface
 
 Client for Antminer 3/7/9 series, firmware before 10.06.2019: [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz)  
 
@@ -64,11 +73,11 @@ Stock Bitmain firmware + integrated Hive OS client + Hive OS tab on ASIC web int
   [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)\
   [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
 
-#### BTC Tools
+#### 2. BTC Tools
 
 All things you do with an ASIC web interface you could do better with BTC Tools utility. It's the best choice in case you have ASICs in numbers.
 
-#### SSH
+#### 3. SSH
 
 Login with SSH to your miner and run the following command:
 
@@ -136,8 +145,6 @@ Locally on ASIC you can run ```selfupgrade``` command.
 To install specific version you should run ```selfupgrade 0.1-02```.
 If you want to reinstall version please add ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
 To install current development version from repository please run ```selfupgrade master```.
-
-> To display data in monitoring, be sure to create a Flight Sheet first.
 
 &nbsp;
 
