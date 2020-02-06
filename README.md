@@ -46,14 +46,16 @@ Hive OS monitoring client for ASICs.
   - S11 SiaMaster
   - T3 BTCMiner
   - T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T
-- Zig Z1, Z1+
+- Zig
+  - Z1, Z1+
 
 &nbsp;
 
 ## Installation
 You can install via firmware file download or via SSH.
 ```diff
-- DO NOT upgrade your Antminer to firmware newer than 10.06.2019. This firmware is protected by Bitmain against changes.
+- DO NOT upgrade your Antminer to firmware newer than 10.06.2019.
+- This firmware is protected by Bitmain against changes.
 ```
 
 &nbsp;
