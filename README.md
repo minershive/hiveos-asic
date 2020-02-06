@@ -54,8 +54,8 @@ Hive OS monitoring client for ASICs.
 ## Installation
 You can install via firmware file download or via SSH.
 ```diff
-- DO NOT upgrade your Antminer to firmware newer than 10.06.2019.
-- This firmware is protected by Bitmain against changes.
+- DO NOT upgrade your Antminer to firmware newer than 10.06.2019
+- This firmware is protected by Bitmain against changes
 ```
 
 &nbsp;
@@ -67,13 +67,14 @@ You can install via firmware file download or via SSH.
 
 Client for Antminer 3/7/9 series, firmware before 10.06.2019: [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz)  
 
-Stock Bitmain firmware + integrated Hive OS client + Hive OS tab on ASIC web interface (you need to enter your *FARM_HASH* there):\
-  [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)\
-  [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)\
-  [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)\
-  [Antminer S17 Pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)\
-  [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)\
-  [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
+Stock Bitmain firmware + integrated Hive OS client + Hive OS tab on ASIC web interface (you need to enter your *FARM_HASH* there):
+
+[Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)\
+[Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)\
+[Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)\
+[Antminer S17 Pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)\
+[Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)\
+[Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
 
 #### 2. BTC Tools
 
@@ -94,6 +95,7 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 >```
 
 Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
+
    ```firstrun``` or ```firstrun YOUR_FARM_HASH``` - set when there is no config  
    ```firstrun -f``` or ```firstrun YOUR_FARM_HASH -f``` - force set to replace the config  
 
