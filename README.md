@@ -17,7 +17,7 @@ Hive OS monitoring client for ASICs.
 1. [Installation](#installation)
 1. [Other models](#other-models)
 1. [Recovery images](#recovery-images)
-1. [Miscellaneous commands](#miscellaneous-commands)
+1. [Useful commands](#useful-commands)
 
 &nbsp;
 
@@ -199,7 +199,7 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 &nbsp;
 
-## Miscellaneous commands
+## Useful commands
 
 ### Antminer ```asic-find```
 
