@@ -31,11 +31,11 @@ Hive OS monitoring client for ASICs.
   - L3+, L3++
   - S7
   - S9, S9i, S9j, S9k, S9SE, S9-Hydro, S9 (VNISH), S9 (mskminer), S11
-  - S15 \*\*
-  - S17, S17 Pro \*\*
+  - S15 (deprecated)
+  - S17, S17 Pro (deprecated in favor of Hiveon firmware)
   - T9, T9+
-  - T15 \*\*
-  - T17 \*\*
+  - T15 (deprecated in favor of Hiveon firmware)
+  - T17 (deprecated in favor of Hiveon firmware)
   - X3
   - Z9, Z9-Mini
   - Z11
@@ -162,9 +162,9 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 &nbsp;
 
 ## Other models
-### Antminer S9 signed (deprecated)
+### Antminer S9 signed (deprecated in favor of Hiveon firmware)
 [Manual](https://forum.hiveos.farm/t/antminer-s9-signed/12466)
-### Antminer S17, S17 Pro, T17 (deprecated)
+### Antminer S17, S17 Pro, T17 (deprecated in favor of Hiveon firmware)
 [Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 
 ### Innosilicon new models
@@ -190,13 +190,28 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 &nbsp;
 
-## Recovery images
+## Recovery boot images
 
-  ### Antminer
+### Antminer
+
+You can find recovery boot images at [Bitmain's official repository](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
+
+> Pease note the two different file formats of images.
+> * `.img` file, must be written to SD with a special imaging software
+> * `.zip` file containing files like `u-boot.img` and `uImage.bin` inside, must be unzipped to SD card formatted with **FAT32**
 
 * [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
-* S17, S17 Pro, T17: download [Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip), unzip to SD card. Boot ASIC with SD card. Flash `.tar.gz` firmware via web interface.
-* [Antminer official repository](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image)
+* S17, S17 Pro, T17
+  * Download [recovery boot image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip)
+  * Use SD card <16 Gb
+  * Format SD card with FAT32
+  * Unzip it to SD card
+  * Boot ASIC with SD card
+  * ASIC booted in recovery mode
+  * Flash any suitable [old stock Bitmain firmware](https://download.hiveos.farm/asic/) (`.tar.gz` format) via web interface.
+
+In case of issues, please read Bitmain's [control board program recovery manual](https://support.bitmain.com/hc/en-us/articles/360033757513-S17-S17Pro-S9-SE-S9k-Z11-control-board-program-recovery-SD-card-flashing-with-customized-PW-).
+
 &nbsp;
 
 ## Useful commands
