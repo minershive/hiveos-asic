@@ -63,16 +63,19 @@ You can install via firmware file download or via SSH.
 
 #### 1. ASIC web interface
 
-Client for Antminer 3/7/9 series, firmware before 10.06.2019: [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz)  
+##### Antminer Series 15, Series 17 and models S9k, S9se
+These models are special. They loading OS right to the RAM in read-only mode. Hive Client installation is possible only by flashing a special firmware. It contains Stock Bitmain firmware + integrated Hive OS client:
+- [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)
+- [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)
+- [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)
+- [Antminer S17 Pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)
+- [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)
+- [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
 
-Stock Bitmain firmware + integrated Hive OS client + Hive OS tab on ASIC web interface (you need to enter your *FARM_HASH* there):
+>After successful flashing, you have to open ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button.
 
-[Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)\
-[Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)\
-[Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)\
-[Antminer S17 Pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)\
-[Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)\
-[Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
+##### All other Antminer 3/7/9 series
+Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
 
 #### 2. BTC Tools
 
@@ -107,7 +110,7 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 ---
 #### Promptless installation
 
-You could add ASIC without entering *RIG_ID*, password and API Server URL.
+You could add ASIC without entering *RIG_ID*, password and *API Server URL*.
 
 ##### To add ASIC without entering *RIG_ID* and password, you should fill *FARM_HASH* variable.
 Get your *FARM_HASH* from Hive OS dashboard. Replace '**your_farm_hash**' string you see below with your *FARM_HASH*.  Transform the text below and then run as a single command:
@@ -116,13 +119,13 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 ```
 
 ##### To use another *API Server*, you should fill *HIVE_HOST_URL* variable.
-Replace '**http://your_api_server**' string you see below with your *API Server*. Transform the text below and then run as a single command:
+Replace '**http://your_api_server**' string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && HIVE_HOST_URL='http://your_api_server' sh selfupgrade
 ```
 
 ##### Of course you could set *FARM_HASH* and *API Server* simultaneously.
-Replace '**your_farm_hash**' string you see below with your *FARM_HASH*. Replace '**http://your_api_server**' string you see below with your *API Server*. Transform the text below and then run as a single command:
+Replace '**your_farm_hash**' string you see below with your *FARM_HASH*. Replace '**http://your_api_server**' string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' HIVE_HOST_URL='http://your_api_server' sh selfupgrade
 ```
@@ -207,19 +210,19 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 You can find recovery boot images at [Bitmain's official repository](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
 
-> Pease note the two different file formats of images.
-> * `.img` file, must be written to SD with a special imaging software
-> * `.zip` file containing files like `u-boot.img` and `uImage.bin` inside, must be unzipped to SD card formatted with **FAT32**
+>Pease note the two different file formats of images.
+>-`.img` file, must be written to SD with a special imaging software
+>-`.zip` file containing files like `u-boot.img` and `uImage.bin` inside, must be unzipped to SD card formatted with **FAT32**
 
-* [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
-* S17, S17 Pro, T17
-  * Download [recovery boot image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip)
-  * Use SD card <16 Gb
-  * Format SD card with FAT32
-  * Unzip it to SD card
-  * Boot ASIC with SD card
-  * ASIC booted in recovery mode
-  * Flash any suitable [old stock Bitmain firmware](https://download.hiveos.farm/asic/) (`.tar.gz` format) via web interface.
+- [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
+- S17, S17 Pro, T17
+  - Download [recovery boot image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip)
+  - Use SD card <16 Gb
+  - Format SD card with FAT32
+  - Unzip it to SD card
+  - Boot ASIC with SD card
+  - ASIC booted in recovery mode
+  - Flash any suitable [old stock Bitmain firmware](https://download.hiveos.farm/asic/) (`.tar.gz` format) via web interface.
 
 In case of issues, please read Bitmain's [control board program recovery manual](https://support.bitmain.com/hc/en-us/articles/360033757513-S17-S17Pro-S9-SE-S9k-Z11-control-board-program-recovery-SD-card-flashing-with-customized-PW-).
 
