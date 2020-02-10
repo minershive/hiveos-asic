@@ -4,7 +4,7 @@ Hive OS monitoring client for ASICs.
 >To link ASIC to your farm you could use these options, sorted by ease:
 >1. *Hive OS* tab in the ASIC web interface (simpliest!)
 >1. ```firstrun``` command via ```ssh```
->1. download a special *.tar.gz* file via BTC Tools (mass deployment)
+>1. Download a special *.tar.gz* file via BTC Tools (mass deployment)
 >
 >In all cases, you'll need the *FARM_HASH* string. You will find it in Hive OS dashboard, right in the farm's *Settings* tab.
 
@@ -107,13 +107,24 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 ---
 #### Promptless installation
 
-You can use *FARM_HASH* to add ASIC automatically without entering *RIG_ID* and password. Get your *FARM_HASH* and put it on the command line: ```FARM_HASH=$FARM_HASH```:
-```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web sh selfupgrade
+You could add ASIC without entering *RIG_ID*, password and API Server URL.
+
+##### To add ASIC without entering *RIG_ID* and password, you should fill *FARM_HASH* variable.
+Get your *FARM_HASH* from Hive OS dashboard. Replace '**your_farm_hash**' string you see below with your *FARM_HASH*.  Transform the text below and then run as a single command:
+ ```sh
+cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' sh selfupgrade
 ```
-Change API server, ```HIVE_HOST_URL=$HIVE_HOST_URL```:
+
+##### To use another *API Server*, you should fill *HIVE_HOST_URL* variable.
+Replace '**http://your_api_server**' string you see below with your *API Server*. Transform the text below and then run as a single command:
 ```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web HIVE_HOST_URL=http://api.exaple.com sh selfupgrade
+cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && HIVE_HOST_URL='http://your_api_server' sh selfupgrade
+```
+
+##### Of course you could set *FARM_HASH* and *API Server* simultaneously.
+Replace '**your_farm_hash**' string you see below with your *FARM_HASH*. Replace '**http://your_api_server**' string you see below with your *API Server*. Transform the text below and then run as a single command:
+```sh
+cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' HIVE_HOST_URL='http://your_api_server' sh selfupgrade
 ```
 
 #### Bulk installation
