@@ -118,15 +118,15 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 
 #### Bulk installation
 
-You can install Hive Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive Client. Download files with this commands:
+You can install Hive Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive Client. You could do it with just three commands.
 
-```sh
-apt-get install -y sshpass curl
+Install ```sshpass``` and ```curl```:
+```apt-get install -y sshpass curl```
+Download script:
+```cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh```
+Execute it:
+```cd /tmp/hive-bulk-install```
 
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh
-
-cd /tmp/hive-bulk-install
-```
 Edit `config.txt` to set your *FARM_HASH* or firmware URL, edit `ips.txt` to set IPs list of your new ASICs.
 Or you can scan the local network to search for Antminer. Example: ```ipscan.sh 192.168.0.1/24 > ips.txt```  
 
