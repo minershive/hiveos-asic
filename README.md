@@ -31,11 +31,9 @@ Hive OS monitoring client for ASICs.
   - L3+, L3++
   - S7
   - S9, S9i, S9j, S9k, S9SE, S9-Hydro, S9 (VNISH), S9 (mskminer), S11
-  - S15 (deprecated)
-  - S17, S17 Pro (deprecated in favor of Hiveon firmware)
+  - S15, S17, S17 Pro *(deprecated in favor of Hiveon firmware)*
   - T9, T9+
-  - T15 (deprecated in favor of Hiveon firmware)
-  - T17 (deprecated in favor of Hiveon firmware)
+  - T15, T17 *(deprecated in favor of Hiveon firmware)*
   - X3
   - Z9, Z9-Mini
   - Z11
@@ -109,7 +107,7 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 ---
 #### Promptless installation
 
-You can use *FARM_HASH* to add ASIC automatically without entering *RIG_ID* and password. Get your *FARM_HASH* and put it on the command line, ```FARM_HASH=$FARM_HASH```:
+You can use *FARM_HASH* to add ASIC automatically without entering *RIG_ID* and password. Get your *FARM_HASH* and put it on the command line: ```FARM_HASH=$FARM_HASH```:
 ```sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=your_hash_from_web sh selfupgrade
 ```
@@ -120,11 +118,13 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 
 #### Bulk installation
 
-You can install Hive Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive Client. Download files with this command:
+You can install Hive Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive Client. Download files with this commands:
 
 ```sh
 apt-get install -y sshpass curl
+
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh
+
 cd /tmp/hive-bulk-install
 ```
 Edit `config.txt` to set your *FARM_HASH* or firmware URL, edit `ips.txt` to set IPs list of your new ASICs.
@@ -162,9 +162,9 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 &nbsp;
 
 ## Other models
-### Antminer S9 signed (deprecated in favor of Hiveon firmware)
+### Antminer S9 signed *(deprecated in favor of Hiveon firmware)*
 [Manual](https://forum.hiveos.farm/t/antminer-s9-signed/12466)
-### Antminer S17, S17 Pro, T17 (deprecated in favor of Hiveon firmware)
+### Antminer S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
 [Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 
 ### Innosilicon new models
