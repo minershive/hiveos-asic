@@ -16,7 +16,7 @@ Hive OS monitoring client for ASICs.
 1. [Supported models](#supported-models)
 1. [Installation](#installation)
 1. [Other models](#other-models)
-1. [Recovery images](#recovery-images)
+1. [Recovery boot images](#recovery-boot-images)
 1. [Useful commands](#useful-commands)
 
 &nbsp;
@@ -120,11 +120,11 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 
 You can install Hive Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive Client. You could do it with just three commands.
 
-Install ```sshpass``` and ```curl```:
+1. **Skip this step if you're on the ASIC with Hive Client.** Install *sshpass* and *curl*:\
 ```apt-get install -y sshpass curl```
-Download script:
+1. Download script:\
 ```cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh```
-Execute it:
+1. Execute it:\
 ```cd /tmp/hive-bulk-install```
 
 Edit `config.txt` to set your *FARM_HASH* or firmware URL, edit `ips.txt` to set IPs list of your new ASICs.
@@ -134,7 +134,7 @@ To install Hive just run ```install.sh```.\
 To install firmware on Antminer S9/i/j just run ```firmware.sh```.
 
 >- Optionally, you can add *WORKER_NAME* to `ips.txt` (e.g. `192.168.1.100 asic_01`)
->- When IP was being processed then it will become `#commented`.
+>- When IP was being processed then it will become *#commented*
 
 &nbsp;
 
