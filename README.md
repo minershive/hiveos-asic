@@ -1,5 +1,5 @@
 # Hiveon ASIC Client
-Hive OS monitoring client for ASICs
+Hive OS monitoring client for ASICs.
 
 &nbsp;
 
@@ -63,7 +63,7 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
 ```diff
 - Never upgrade your Antminer to firmware newer than 10.06.2019
 ```
-Recent official firmware is protected by Bitmain against changes and remote tampering, so you won't be able to install Hive Client or Hiveon ASIC Firmware.
+All newer versions of official firmware have defensive countermeasures against remote tampering, so you won't be able to install Hive Client or Hiveon ASIC Firmware.
 
 #### Get FARM_HASH
 To link ASIC to your Hive Farm you could use these options, sorted by ease:
@@ -203,20 +203,24 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 ## Other models
 ### Antminer S9 signed *(deprecated in favor of Hiveon firmware)*
 [Hiveon ASIC installation - Antminer S9 Cannot Find Signature Fix](https://forum.hiveos.farm/t/hiveon-asic-installation-antminer-s9-cannot-find-signature-fix/12466)
+
 [Hiveon ASIC Firmware 1.02 for S9 Installation Manual](https://forum.hiveos.farm/t/hiveon-asic-s9-firmware-v1-02/13944)
+
 ### Antminer S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
-[Hive Client Installation Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
+[Hive Client Installation Manual for S17/T17](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 
 ### Innosilicon new models
-[Manual](https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610)
+[Hive Client Installation Manual for Innosilicon](https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610)
+
 ### Innosilicon old models
-Some Innosilicon factory firmware have a memory leak, and ASIC freezes every few days. To solve this problem, you can enable the miner or ASIC reboot for every 24 hours. Run the following commands:
+Note: some Innosilicon factory firmware have a memory leak, and ASIC freezes every few days. To solve this problem, you can enable the miner or ASIC reboot for every 24 hours. Run the following commands:
 
 ```sh
 inno-reboot miner enable/disable
 inno-reboot asic enable/disable
 inno-reboot status
 ```
+
 ### Zig Z1+
 [Zig Z1+ ssh manual](hive/share/zig/README.md)
 
