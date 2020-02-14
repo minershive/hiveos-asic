@@ -1,25 +1,29 @@
-# hiveos-asic
-Hive OS monitoring client for ASICs.
-
->To link ASIC to your farm you could use these options, sorted by ease:
->1. *Hive OS* tab in the ASIC web interface (simpliest!)
->1. ```firstrun``` command via ```ssh```
->1. Download a special *.tar.gz* file via BTC Tools (mass deployment)
->
->In all cases, you'll need the *FARM_HASH* string. You will find it in Hive OS dashboard, right in the farm's *Settings* tab.
-
-> To start mining, be sure to create a *Flight Sheet* first.
-
-&nbsp;
+# Hiveon ASIC Client
+Hive OS monitoring client for ASICs
 
 ## Table of contents
+1. [Introduction](#introduction)
 1. [Supported models](#supported-models)
+1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
 1. [Other models](#other-models)
 1. [Recovery boot images](#recovery-boot-images)
 1. [Useful commands](#useful-commands)
 
 &nbsp;
+
+## Introduction
+Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
+
+- Hiveon ASIC Client (you are here) supports most of the ASIC models in the world
+  - A convinient monitoring agent brought to you by the Hive Team
+  - All your ASICs gathered in the same good old Hive dashboard
+- Hiveon ASIC Firmware is a custom ASIC firmware from the Hive Team
+  - It does exist only for selected models: Antminer S17, S17 Pro, S9, S9i, S9j and T9+
+  - It has overclocking, undervolting and other cool features
+  - Other ASIC models (like S9k/T17) coming soon, so stay tuned
+  - Find out more: [Download](https://hiveos.farm/asic) and [FAQ](https://hiveos.farm/hiveon_asic_faq-general-asic_faq)
+  - [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
 ## Supported models
 - Antminer
@@ -49,12 +53,28 @@ Hive OS monitoring client for ASICs.
 
 &nbsp;
 
-## Installation
-You can install via firmware file download or via SSH.
+## Prerequisites
+>To link ASIC to your Hive Farm you could use these options, sorted by ease:
+>1. *Hive OS* tab in the ASIC web interface (simpliest!)
+>1. ```firstrun``` command via ```ssh```
+>1. Download a special *.tar.gz* file via BTC Tools (mass deployment)
+>
+>In all cases, you'll need the *FARM_HASH* string. You will find it in Hive OS dashboard, right in the farm's *Settings* tab.
+
+> To start mining, be sure to create a *Flight Sheet* first.
+
+&nbsp;
+
+### Recent Bitmain firmware
 ```diff
-- DO NOT upgrade your Antminer to firmware newer than 10.06.2019
-- This firmware is protected by Bitmain against changes
+- Never upgrade your Antminer to firmware newer than 10.06.2019
 ```
+Recent official firmware is protected by Bitmain against changes and remote tampering, so you won't be able to install Hive Client or Hiveon ASIC Firmware.
+
+&nbsp;
+
+## Installation
+You can install Hive Client via firmware file download or via SSH.
 
 &nbsp;
 
@@ -79,7 +99,7 @@ Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC wi
 
 #### 2. BTC Tools
 
-All things you do with an ASIC web interface you could do better with BTC Tools utility. It's the best choice in case you have ASICs in numbers.
+All things you do with an ASIC web interface you could do better with [BTC Tools](https://url.btc.com/btc-tools-download) utility. It's the best choice in case you have ASICs in numbers. Scan your network, select ASICs to update and then click "Firmware Upgrade".
 
 #### 3. SSH
 
@@ -177,9 +197,10 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 
 ## Other models
 ### Antminer S9 signed *(deprecated in favor of Hiveon firmware)*
-[Manual](https://forum.hiveos.farm/t/antminer-s9-signed/12466)
+[Hiveon ASIC installation - Antminer S9 Cannot Find Signature Fix](https://forum.hiveos.farm/t/hiveon-asic-installation-antminer-s9-cannot-find-signature-fix/12466)
+[Hiveon ASIC Firmware 1.02 for S9 Installation Manual](https://forum.hiveos.farm/t/hiveon-asic-s9-firmware-v1-02/13944)
 ### Antminer S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
-[Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
+[Hive Client Installation Manual](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 
 ### Innosilicon new models
 [Manual](https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610)
