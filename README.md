@@ -222,7 +222,7 @@ inno-reboot status
 ```
 
 ### Zig Z1+
-[Zig Z1+ ssh manual](hive/share/zig/README.md)
+[Hive Client Installation Manual for Zig Z1+](hive/share/zig/README.md)
 
 ```sh
 cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade
