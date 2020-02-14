@@ -1,6 +1,8 @@
 # Hiveon ASIC Client
 Hive OS monitoring client for ASICs
 
+&nbsp;
+
 ## Table of contents
 1. [Introduction](#introduction)
 1. [Supported models](#supported-models)
@@ -24,6 +26,8 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
   - Other ASIC models (like S9k/T17) coming soon, so stay tuned
   - Find out more: [Download](https://hiveos.farm/asic) and [FAQ](https://hiveos.farm/hiveon_asic_faq-general-asic_faq)
   - [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
+
+&nbsp;
 
 ## Supported models
 - Antminer
@@ -54,22 +58,23 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
 &nbsp;
 
 ## Prerequisites
->To link ASIC to your Hive Farm you could use these options, sorted by ease:
->1. *Hive OS* tab in the ASIC web interface (simpliest!)
->1. ```firstrun``` command via ```ssh```
->1. Download a special *.tar.gz* file via BTC Tools (mass deployment)
->
->In all cases, you'll need the *FARM_HASH* string. You will find it in Hive OS dashboard, right in the farm's *Settings* tab.
 
-> To start mining, be sure to create a *Flight Sheet* first.
-
-&nbsp;
-
-### Recent Bitmain firmware
+#### Beware of recent Bitmain firmware
 ```diff
 - Never upgrade your Antminer to firmware newer than 10.06.2019
 ```
 Recent official firmware is protected by Bitmain against changes and remote tampering, so you won't be able to install Hive Client or Hiveon ASIC Firmware.
+
+#### Get FARM_HASH
+To link ASIC to your Hive Farm you could use these options, sorted by ease:
+1. *Hive OS* tab in the ASIC web interface (simpliest!)
+1. ```firstrun``` command via ```ssh```
+1. Download a special *.tar.gz* file via BTC Tools (mass deployment)
+
+In all cases, you'll need the *FARM_HASH* string. You will find it in Hive OS dashboard, right in the farm's *Settings* tab.
+
+#### Create and Apply the Flight Sheet
+To start mining, be sure to create a *Flight Sheet* first. Apply it to start hashing.
 
 &nbsp;
 
