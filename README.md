@@ -6,8 +6,8 @@ Hive OS monitoring client for ASICs.
 ## Table of contents
 1. [Introduction](#introduction)
 1. [Supported models](#supported-models)
-1. [Prerequisites](#prerequisites)
-1. [Installation](#installation)
+1. [Preparation](#preparation)
+1. [Install](#install)
 1. [Other models](#other-models)
 1. [Recovery boot images](#recovery-boot-images)
 1. [Useful commands](#useful-commands)
@@ -21,9 +21,9 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
   - A convinient monitoring agent brought to you by the Hive Team
   - All your ASICs gathered in the same good old Hive dashboard
 - Hiveon ASIC Firmware is a custom ASIC firmware from the Hive Team
-  - It does exist only for selected models: Antminer S17, S17 Pro, S9, S9i, S9j and T9+
+  - It supports only selected models: Antminer S17, S17 Pro, S9, S9i, S9j and T9+
   - It has overclocking, undervolting and other cool features
-  - Other ASIC models (like S9k/T17) coming soon, so stay tuned
+  - Firmware for other ASIC models (like S9k/S9SE/T17) are coming soon, so stay tuned
   - Find out more: [Download](https://hiveos.farm/asic) and [FAQ](https://hiveos.farm/hiveon_asic_faq-general-asic_faq)
   - [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
@@ -57,7 +57,7 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
 
 &nbsp;
 
-## Prerequisites
+## Preparation
 
 #### Beware of recent Bitmain firmware
 ```diff
@@ -78,7 +78,7 @@ To start mining, be sure to create a *Flight Sheet* first. Apply it to start has
 
 &nbsp;
 
-## Installation
+## Install
 You can install Hive Client via firmware file download or via SSH.
 
 &nbsp;
