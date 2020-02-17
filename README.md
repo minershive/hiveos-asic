@@ -6,7 +6,7 @@ Hive OS monitoring client for ASICs.
 ## Table of contents
 1. [Introduction](#introduction)
 1. [Supported models](#supported-models)
-1. [Preparation](#preparation)
+1. [Prepare](#prepare)
 1. [Install](#install)
 1. [Other models](#other-models)
 1. [Recovery boot images](#recovery-boot-images)
@@ -57,7 +57,7 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
 
 &nbsp;
 
-## Preparation
+## Prepare
 
 #### Beware of recent Bitmain firmware
 ```diff
