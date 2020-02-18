@@ -1,4 +1,4 @@
-# Hiveon ASIC Client
+# Hive OS Client
 Hive OS monitoring client for ASICs.
 
 &nbsp;
@@ -15,9 +15,9 @@ Hive OS monitoring client for ASICs.
 &nbsp;
 
 ## Introduction
-Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
+Hive OS *Client* and Hiveon ASIC *Firmware* is a two different products:
 
-- Hiveon ASIC Client (you are here) supports most of the ASIC models in the world
+- Hive OS Client (you are here) supports most of the ASIC models in the world
   - A convinient monitoring agent brought to you by the Hive Team
   - All your ASICs gathered in the same good old Hive dashboard
 - Hiveon ASIC Firmware is a custom ASIC firmware from the Hive Team
@@ -63,7 +63,7 @@ Hiveon ASIC *Client* and Hiveon ASIC *Firmware* is a two different products:
 ```diff
 - Never upgrade your Antminer to firmware newer than 10.06.2019
 ```
-All newer versions of official firmware have defensive countermeasures against remote tampering, so you won't be able to install Hive Client or Hiveon ASIC Firmware.
+All newer versions of official firmware have defensive countermeasures against remote tampering, so you won't be able to install Hive OS Client or Hiveon ASIC Firmware.
 
 #### Get FARM_HASH
 To link ASIC to your Hive Farm you could use these options, sorted by ease:
@@ -79,7 +79,7 @@ To start mining, be sure to create a *Flight Sheet* first. Apply it to start has
 &nbsp;
 
 ## Install
-You can install Hive Client via firmware file download or via SSH.
+You can install Hive OS Client via firmware file download or via SSH.
 
 &nbsp;
 
@@ -89,7 +89,7 @@ You can install Hive Client via firmware file download or via SSH.
 #### 1. ASIC web interface
 
 ##### Antminer Series 15, Series 17 and models S9k, S9se
-These models are special. They loading OS right to the RAM in read-only mode. Hive Client installation is possible only by flashing a special firmware. It contains Stock Bitmain firmware + integrated Hive OS client:
+These models are special. They loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by flashing a special firmware. It contains Stock Bitmain firmware + integrated Hive OS client:
 - [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)
 - [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)
 - [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)
@@ -157,9 +157,9 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 
 #### Bulk installation
 
-You can install Hive Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive Client. You could do it with just three commands.
+You can install Hive OS Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive OS Client. You could do it with just three commands.
 
-1. **Skip this step if you're on the ASIC with Hive Client.** Install *sshpass* and *curl*:\
+1. **Skip this step if you're on the ASIC with Hive OS Client.** Install *sshpass* and *curl*:\
 ```apt-get install -y sshpass curl```
 1. Download script:\
 ```cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh```
@@ -207,10 +207,10 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 [Hiveon ASIC Firmware 1.02 for S9 Installation Manual](https://forum.hiveos.farm/t/hiveon-asic-s9-firmware-v1-02/13944)
 
 ### Antminer S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
-[Hive Client Installation Manual for S17/T17](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
+[Hive OS Client Installation Manual for S17/T17](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 
 ### Innosilicon new models
-[Hive Client Installation Manual for Innosilicon](https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610)
+[Hive OS Client Installation Manual for Innosilicon](https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610)
 
 ### Innosilicon old models
 Note: some Innosilicon factory firmware have a memory leak, and ASIC freezes every few days. To solve this problem, you can enable the miner or ASIC reboot for every 24 hours. Run the following commands:
@@ -222,7 +222,7 @@ inno-reboot status
 ```
 
 ### Zig Z1+
-[Hive Client Installation Manual for Zig Z1+](hive/share/zig/README.md)
+[Hive OS Client Installation Manual for Zig Z1+](hive/share/zig/README.md)
 
 ```sh
 cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade
