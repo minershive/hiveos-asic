@@ -1,5 +1,5 @@
-# Hive OS Client
-Hive OS monitoring client for ASICs.
+# Hive OS Client for ASICs
+Hive OS monitoring client.
 
 &nbsp;
 
