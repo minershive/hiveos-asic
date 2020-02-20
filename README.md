@@ -240,9 +240,9 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 You can find recovery boot images at [Bitmain's official repository](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
 
->Pease note the two different file formats of images.
->-`.img` file, must be written to SD with a special imaging software
->-`.zip` file containing files like `u-boot.img` and `uImage.bin` inside, must be unzipped to SD card formatted with **FAT32**
+>Please note the two different file formats of recovery images:
+>- `.img` file. It's a raw disk image. Should be written to SD with a special imaging software.
+>- `.zip` file. A ZIP archive containing files like `u-boot.img` and `uImage.bin` inside. Unzip that file to SD card formatted with **FAT32**.
 
 - [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
 - S17, S17 Pro, T17
