@@ -238,7 +238,7 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 ### Antminer
 
-You can find recovery boot images at [Bitmain's official repository](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
+You can find recovery boot images at [our repository](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/) (highly recommended) or [Bitmain's official site](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
 
 >Please note the two different file formats of recovery images:
 >- `.img` file. It's a raw disk image. Should be written to SD with a special imaging software.
