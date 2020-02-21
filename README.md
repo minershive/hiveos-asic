@@ -24,7 +24,7 @@ Hive OS *Client* and Hiveon ASIC *Firmware* is a two different products:
   - It supports only selected models: Antminer S17, S17 Pro, S9, S9i, S9j and T9+
   - It has overclocking, undervolting and other cool features
   - Firmware for other ASIC models (like S9k/S9SE/T17) are coming soon, so stay tuned
-  - Find out more: [Download](https://hiveos.farm/asic) and [FAQ](https://hiveos.farm/hiveon_asic_faq-general-asic_faq)
+  - Find out more: [Download](https://hiveos.farm/asic) and [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq)
   - [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
 &nbsp;
