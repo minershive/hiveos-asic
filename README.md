@@ -1,11 +1,11 @@
 # Hive OS Client for ASICs
-Hive OS monitoring client.
+Simple yet powerful monitoring agent.
 
 &nbsp;
 
 ## Table of contents
 1. [Introduction](#introduction)
-1. [Supported models](#supported-models)
+1. [Supported models](#hive-os-client-supported-models)
 1. [Prepare](#prepare)
 1. [Install](#install)
 1. [Other models](#other-models)
@@ -15,21 +15,26 @@ Hive OS monitoring client.
 &nbsp;
 
 ## Introduction
-Hive OS *Client* and Hiveon ASIC *Firmware* is a two different products:
+**Hive OS Client for ASICs** and **Hiveon ASIC Firmware** are two different products:
 
-- Hive OS Client (you are here) supports most of the ASIC models in the world
-  - A convinient monitoring agent brought to you by the Hive Team
-  - All your ASICs gathered in the same good old Hive dashboard
-- Hiveon ASIC Firmware is a custom ASIC firmware from the Hive Team
-  - It supports only selected models: Antminer S17, S17 Pro, S9, S9i, S9j and T9+
-  - It has overclocking, undervolting and other cool features
-  - Firmware for other ASIC models (like S9k/S9SE/T17) are coming soon, so stay tuned
-  - Find out more: [Download](https://hiveos.farm/asic) and [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq)
-  - [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
+#### Hive OS Client for ASICs (you are here)
+- Allows you to see the miner in Hive, to control Wallets, Pools, restart and reboot the miner.
+- Supports a broad range of ASIC models: Antminer, Innosilicon, Zig and ever some FPGA miners.
+- It's a lightweight application running on the stock ASIC firmware.
+
+#### Hiveon ASIC Firmware ([follow the link](https://hiveos.farm/asic/))
+All the features above plus:
+- Overclocking, undervolting the miner, thus offering increased performance and/or lower consumption and heat.
+- More control of overclocking and adjustment to voltage.
+- Auto-tune to optimize overclocking almost automagically.
+
+It's a *custom firmware* that does replace the stock one. Supports only selected models: **Antminer S17, S17 Pro, S9, S9i, S9j and T9+**. Hiveon Firmware for other ASIC models like S9k/S9SE/T17 are coming soon, so stay tuned!
+
+Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq), [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
 &nbsp;
 
-## Supported models
+## Hive OS Client supported models
 - Antminer
   - A3
   - B3
