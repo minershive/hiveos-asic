@@ -54,21 +54,22 @@ url=http://github.com/minershive/hiveos-asic/archive/$filename
 
 [ -e $filename ] && rm $filename
 
-echo $url
+download_url() { #download from github
+	echo $url
+	echo "> Downloading $url"
+	if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
+		wget $url
+	else
+		curl -L --insecure -O $url
+	fi
 
-echo "> Downloading $url"
-if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
-	wget $url
-else
-	curl -L --insecure -O $url
-fi
-
-[ $? -ne 0 ] && echo "Error downloading $url" && exit 1
-
-sleep 2
+	[ $? -ne 0 ] && echo "Error downloading $url" && exit 1
+	sleep 2
+}
 
 
 install_antminer_bmminer() { # bmminer, / - rw, cron
+	download_url
 	echo ""
 	echo "> Extracting $filename"
 	if [ ! -d /config/hive/hive-config ]; then
@@ -106,6 +107,7 @@ install_antminer_bmminer() { # bmminer, / - rw, cron
 }
 
 install_antminer_cgminer() { # cgminer, / - ro, no cron
+	download_url
 	echo ""
 	echo "> Extracting $filename"
 	if [ ! -d /config/hive ]; then
@@ -121,7 +123,7 @@ install_antminer_cgminer() { # cgminer, / - ro, no cron
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
-	
+
 	if [ ! -e /hive ]; then
 		ln -s /config/hive/hive/ /hive
 		ln -s /config/hive/hive-config/ /hive-config
@@ -151,6 +153,7 @@ FILEEOF
 }
 
 install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
+	download_url
 	rm -rf /hive/sbin/teleconsole
 	if [[ -e /hive && ! -L /hive ]]; then
 		mkdir -p /config/hive
@@ -183,7 +186,7 @@ install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
 		ln -s /config/hive/hive-config/ /hive-config
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
-	
+
 	if grep "### HIVE AUTORUN ###" /config/network.conf || grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
 		echo "/config/network.conf skip"
 	else
@@ -206,8 +209,8 @@ FILEEOF
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
-
 install_innosilicon() {
+	download_url
 	echo ""
 	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
 	echo "> Extracting $filename"
@@ -233,7 +236,7 @@ install_innosilicon() {
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
-	
+
 	[ ! -L /hive/bin ] && [ ! -e /hive/bin ] && ln -s /config/hive/bin /hive/bin
 	[ ! -L /hive/etc ] && [ ! -e /hive/etc ] && ln -s /config/hive/etc /hive/etc
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
@@ -259,9 +262,8 @@ install_innosilicon() {
 	systemctl start hive.service
 }
 
-
-
 install_innosilicon_innominer() {
+	download_url
 	echo ""
 	mount -o remount,rw,relatime -t jffs2 /dev/root /
 
@@ -314,9 +316,8 @@ FILEEOF
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
-
-
 install_zig() {
+	download_url
 	echo ""
 	echo "> Extracting $filename"
 	tar -xzv -f $filename
@@ -346,13 +347,12 @@ install_zig() {
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
-
 install_antminer_bmminer_ro() {
 	[ -e "/nvdata/latest.tar.gz" ] && rm /nvdata/latest.tar.gz
 	[ -e "/hive" ] && rm -rf /hive
+	sync
 	/etc/rcS.d/S69hive
 }
-
 
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then
 	echo "Install Antminer S9"
