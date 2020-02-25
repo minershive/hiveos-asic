@@ -15,9 +15,9 @@ Simple yet powerful monitoring agent.
 &nbsp;
 
 ## Introduction
-*Hive OS Client for ASICs* and *Hiveon ASIC Firmware* are two different products:
+*Hive OS Client* and *Hiveon ASIC Firmware* are two different products:
 
-#### Hive OS Client for ASICs (you are here)
+#### Hive OS Client (you are here)
 - Allows you to see the miner in Hive, to control Wallets, Pools, restart and reboot the miner.
 - Supports a broad range of ASIC models: Antminer, Innosilicon, Zig and ever some FPGA miners.
 - It's a lightweight application running on the stock ASIC firmware.
@@ -32,7 +32,7 @@ It's a *custom firmware* that does replace the stock one. Supports only selected
 
 Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq), [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
-### Hive Client / Hiveon Firmware comparison
+### *Hive OS Client* and *Hiveon ASIC Firmware* comparison
 
 |Model / Feature|See miner in Hive OS|Control wallets & pools|Restart miner|Reboot miner|Anti-virus (Hiveon FW only)|Over clocking (Hiveon FW only)|Under volting (Hiveon FW only)|Voltage adjustment (Hiveon FW only)|Auto-tuning (Hiveon FW only)|
 |-|-|-|-|-|-|-|-|-|-|
@@ -141,7 +141,7 @@ These models are special. They loading OS right to the RAM in read-only mode. Hi
 >After successful flashing, you have to open ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button.
 
 ##### All other Antminer 3/7/9 series
-Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
+Hive OS Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
 
 #### 2. BTC Tools
 
