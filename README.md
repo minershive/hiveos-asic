@@ -5,6 +5,7 @@ Simple yet powerful monitoring agent.
 
 ## Table of contents
 1. [Introduction](#introduction)
+1. [Hive OS Client and Hiveon ASIC Firmware comparison](#hive-os-client-and-hiveon-asic-firmware-comparison)
 1. [Supported models](#hive-os-client-supported-models)
 1. [Prepare](#prepare)
 1. [Install](#install)
@@ -32,7 +33,9 @@ It's a *custom firmware* that does replace the stock one. Supports only selected
 
 Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq), [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
-### *Hive OS Client* and *Hiveon ASIC Firmware* comparison
+&nbsp;
+
+## *Hive OS Client* and *Hiveon ASIC Firmware* comparison
 
 |Model / Feature|See miner in Hive OS|Control wallets & pools|Restart miner|Reboot miner|Anti-virus (Hiveon FW only)|Over clocking (Hiveon FW only)|Under volting (Hiveon FW only)|Voltage adjustment (Hiveon FW only)|Auto-tuning (Hiveon FW only)|
 |-|-|-|-|-|-|-|-|-|-|
