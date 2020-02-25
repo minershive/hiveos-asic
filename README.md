@@ -56,7 +56,7 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |T9|•|•|•|•|
 |T9+|•|•|•|•|•|•|•|•|•|
 |T15|•|•|•|•|
-|T17|x|x|x|x|beta|beta|beta|beta|beta|
+|T17|•|•|•|•|beta|beta|beta|beta|beta|
 |T17+|•|•|•|•|soon|soon|soon|soon|soon|
 |X3|•|•|•|•|
 |Z9, Z9-Mini|•|•|•|•|
