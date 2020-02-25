@@ -32,9 +32,9 @@ It's a *custom firmware* that does replace the stock one. Supports only selected
 
 Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq), [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
-#### Hive Client / Hiveon Firmware comparison
+### Hive Client / Hiveon Firmware comparison
 
-|Model / Feature|See miner in Hive OS|Control wallets & pools|Restart miner|Reboot miner|Anti-virus (Hiveon FW only)|Overclocking (Hiveon FW only)|Undervolting (Hiveon FW only)|Voltage adjustment (Hiveon FW only)|Auto-tuning (Hiveon FW only)|
+|Model / Feature|See miner in Hive OS|Control wallets & pools|Restart miner|Reboot miner|Anti-virus (Hiveon FW only)|Over clocking (Hiveon FW only)|Under volting (Hiveon FW only)|Voltage adjustment (Hiveon FW only)|Auto-tuning (Hiveon FW only)|
 |-|-|-|-|-|-|-|-|-|-|
 **Antminer**
 |A3|•|•|•|•|
