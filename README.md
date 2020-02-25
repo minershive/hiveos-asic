@@ -5,6 +5,7 @@ Simple yet powerful monitoring agent.
 
 ## Table of contents
 1. [Introduction](#introduction)
+1. [Hive OS Client and Hiveon ASIC Firmware comparison](#hive-os-client-and-hiveon-asic-firmware-comparison)
 1. [Supported models](#hive-os-client-supported-models)
 1. [Prepare](#prepare)
 1. [Install](#install)
@@ -15,9 +16,9 @@ Simple yet powerful monitoring agent.
 &nbsp;
 
 ## Introduction
-**Hive OS Client for ASICs** and **Hiveon ASIC Firmware** are two different products:
+*Hive OS Client* and *Hiveon ASIC Firmware* are two different products:
 
-#### Hive OS Client for ASICs (you are here)
+#### Hive OS Client (you are here)
 - Allows you to see the miner in Hive, to control Wallets, Pools, restart and reboot the miner.
 - Supports a broad range of ASIC models: Antminer, Innosilicon, Zig and ever some FPGA miners.
 - It's a lightweight application running on the stock ASIC firmware.
@@ -31,6 +32,44 @@ All the features above plus:
 It's a *custom firmware* that does replace the stock one. Supports only selected models: **Antminer S17, S17 Pro, S9, S9i, S9j and T9+**. Hiveon Firmware for other ASIC models like S9k/S9SE/T17 are coming soon, so stay tuned!
 
 Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq), [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
+
+&nbsp;
+
+## *Hive OS Client* and *Hiveon ASIC Firmware* comparison
+
+|Model / Feature|See miner in Hive OS|Control wallets & pools|Restart miner|Reboot miner|Anti-virus (Hiveon FW only)|Over clocking (Hiveon FW only)|Under volting (Hiveon FW only)|Voltage adjustment (Hiveon FW only)|Auto-tuning (Hiveon FW only)|
+|-|-|-|-|-|-|-|-|-|-|
+**Antminer**
+|A3|•|•|•|•|
+|B3|•|•|•|•|
+|D3, D3 (Blissz)|•|•|•|•|
+|DR3|•|•|•|•|
+|E3|•|•|•|•|
+|L3+, L3++|•|•|•|•|
+|S7|•|•|•|•|
+|S9, S9i, S9j|•|•|•|•|•|•|•|•|•|
+|S9k, S9SE, S9-Hydro|•|•|•|•|soon|soon|soon|soon|soon|
+|S11|•|•|•|•|
+|S15|•|•|•|•|
+|S17, S17 Pro|•|•|•|•|•|•|•|•|•|
+|S17+|•|•|•|•|soon|soon|soon|soon|soon|
+|T9|•|•|•|•|
+|T9+|•|•|•|•|•|•|•|•|•|
+|T15|•|•|•|•|
+|T17|x|x|x|x|beta|beta|beta|beta|beta|
+|T17+|•|•|•|•|soon|soon|soon|soon|soon|
+|X3|•|•|•|•|
+|Z9, Z9-Mini|•|•|•|•|
+|Z11|•|•|•|•|
+**Innosilicon**
+|A5/A8 (need test)|•|•|•|•|
+|A9 ZMaster|•|•|•|•|
+|D9 DecredMaster|•|•|•|•|
+|S11 SiaMaster|•|•|•|•|
+|T3 BTCMiner|•|•|•|•|
+|T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T|•|•|•|•|
+**Zig**
+|Z1, Z1+|•|•|•|•|
 
 &nbsp;
 
@@ -105,7 +144,7 @@ These models are special. They loading OS right to the RAM in read-only mode. Hi
 >After successful flashing, you have to open ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button.
 
 ##### All other Antminer 3/7/9 series
-Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
+Hive OS Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
 
 #### 2. BTC Tools
 
