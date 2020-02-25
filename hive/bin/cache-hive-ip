@@ -12,8 +12,6 @@ else
     hostfile="/etc/hosts"
 fi
 
-#Recreate. Because of shitty picky bugs
-echo "127.0.0.1	localhost.localdomain		localhost" > $hostfile
 
 #adds host ip
 #/hive/bin/hostname-check
@@ -33,23 +31,32 @@ HOST=`echo $HIVE_HOST_URL | awk -F'://' '{print $2}'`
 [[ -z "$HOST" ]] && echo "Unable to parse hostname from $HIVE_HOST_URL" && exit 1
 
 #ent=`getent ahosts $HOST | grep -m 1 STREAM | sed -E 's/(\w+)\s+STREAM\s+(.*)/\1 \2/'`
-ent=`nslookup $HOST | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
+ent=`nslookup $HOST | grep -A 4 Name | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
 for i in {1..30}; do
     [[ $ent != "127.0.0.1" ]] && break
     echo "Waiting for nslookup... $i"
     sleep 2
-    ent=`nslookup $HOST | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
+    ent=`nslookup $HOST | grep -A 4 Name | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
 done
-[[ -z "$ent" ]] && echo "Unable to lookup $HOST" || ent="$ent $HOST"
 
-echo -e "\n$SEPARATOR" >> $hostfile
 if [[ -z "$ent" ]]; then
     echo "Unable to resolve $HOST"
-    ent="#Unable to resolve $HOST" #to place this in file
+    [ -e "/hive-config/hosts" ] && cp -rf /hive-config/hosts $hostfile
+#    message warn "Unable to resolve $HOST"
+    exit 0
 else
     echo "Writing DNS resolve \"$ent\" to /etc/hosts"
+    ent="$ent $HOST"
 fi
 
+#Recreate. Because of shitty picky bugs
+echo "127.0.0.1	localhost.localdomain		localhost" > $hostfile
+
+echo -e "\n$SEPARATOR" >> $hostfile
 echo "$ent" >> $hostfile
+
+if ! cmp -s $hostfile /hive-config/hosts; then
+    cp -rf $hostfile /hive-config/hosts
+fi
 
 sync
