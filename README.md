@@ -20,8 +20,9 @@ Simple yet powerful monitoring agent.
 
 #### Hive OS Client (you are here)
 - Allows you to see the miner in Hive, to control Wallets, Pools, restart and reboot the miner.
-- Supports a broad range of ASIC models: Antminer, Innosilicon, Zig and ever some FPGA miners.
-- It's a lightweight application running on the stock ASIC firmware.
+- Supports a broad range of ASIC models: Antminer, Innosilicon, Zig and even some FPGA miners.
+
+It's a lightweight application running on the stock (or custom fw of your choice) ASIC firmware.
 
 #### Hiveon ASIC Firmware ([follow the link](https://hiveos.farm/asic/))
 All the features above plus:
