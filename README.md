@@ -137,7 +137,7 @@ You can install Hive OS Client via firmware file download or via SSH.
 #### 1. ASIC web interface
 
 ##### Antminer Series 15, Series 17 and models S9k, S9se
-These models are special. They loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by flashing a special firmware. It contains Stock Bitmain firmware + integrated Hive OS client:
+These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by flashing a special firmware. It contains stock Bitmain firmware + integrated Hive OS client:
 - [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)
 - [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)
 - [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)
@@ -147,8 +147,8 @@ These models are special. They loading OS right to the RAM in read-only mode. Hi
 
 >After successful flashing, you have to open ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button.
 
-##### All other Antminer 3/7/9 series
-Hive OS Client for Antminer 3/7/9 series, firmware before 10.06.2019. Just flash ASIC with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
+##### All other Antminer Series 3/7/9
+Hive OS Client for Antminer Series 3/7/9, firmware date before 10.06.2019. Just upgrade ASIC firmware with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
 
 #### 2. BTC Tools
 
@@ -186,26 +186,26 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 You could add ASIC without entering *RIG_ID*, password and *API Server URL*.
 
 ##### To add ASIC without entering *RIG_ID* and password, you should fill *FARM_HASH* variable.
-Get your *FARM_HASH* from Hive OS dashboard. Replace '**your_farm_hash**' string you see below with your *FARM_HASH*.  Transform the text below and then run as a single command:
+Get your *FARM_HASH* from Hive OS dashboard. Replace `your_farm_hash` string you see below with your *FARM_HASH*.  Transform the text below and then run as a single command:
  ```sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' sh selfupgrade
 ```
 
 ##### To use another *API Server*, you should fill *HIVE_HOST_URL* variable.
-Replace '**http://your_api_server**' string you see below with your *API Server URL*. Transform the text below and then run as a single command:
+Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && HIVE_HOST_URL='http://your_api_server' sh selfupgrade
 ```
 
 ##### Of course you could set *FARM_HASH* and *API Server* simultaneously.
-Replace '**your_farm_hash**' string you see below with your *FARM_HASH*. Replace '**http://your_api_server**' string you see below with your *API Server URL*. Transform the text below and then run as a single command:
+Replace `your_farm_hash` string you see below with your *FARM_HASH*. Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
 cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' HIVE_HOST_URL='http://your_api_server' sh selfupgrade
 ```
 
 #### Bulk installation
 
-You can install Hive OS Client on all the ASICs you have on your local network. Or you can install firmware on Antminer S9, S9i, S9j. For this you need to have a running Linux box (like Hive OS on the GPU rig) or Antminer ASIC with Hive OS Client. You could do it with just three commands.
+You can install Hive OS Client on all the ASICs you have on your local network. For this you need to have a running Linux box (like Hive OS GPU rig) or Antminer ASIC with Hive OS Client. You could do it with just three commands.
 
 1. **Skip this step if you're on the ASIC with Hive OS Client.** Install *sshpass* and *curl*:\
 ```apt-get install -y sshpass curl```
@@ -217,7 +217,7 @@ You can install Hive OS Client on all the ASICs you have on your local network. 
 Edit `config.txt` to set your *FARM_HASH* or firmware URL, edit `ips.txt` to set IPs list of your new ASICs.
 Or you can scan the local network to search for Antminer. Example: ```ipscan.sh 192.168.0.1/24 > ips.txt```  
 
-To install Hive just run ```install.sh```.\
+To install Hive OS Client just run ```install.sh```.\
 To install firmware on Antminer S9/i/j just run ```firmware.sh```.
 
 >- Optionally, you can add *WORKER_NAME* to `ips.txt` (e.g. `192.168.1.100 asic_01`)
@@ -256,8 +256,6 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 
 ### Antminer S9 (mskminer), S10 (mskminer)
 You don't need to unlock SSH or do anything complicated. For any ASIC with mskminer custom firmware, you have to download [Hive OS Client Installer for mskminer firmware](http://download.hiveos.farm/asic/repo/s9/hive-msk-installer.tar.gz) and then flash the ASIC with it. That's all.
-
-
 
 ### Antminer S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
 [Hive OS Client Installation Manual for S17/T17](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
@@ -300,8 +298,8 @@ You can find recovery boot images at [our repository](https://download.hiveos.fa
 - [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
 - S17, S17 Pro, T17
   - Download [recovery boot image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip)
-  - Use SD card <16 Gb
-  - Format SD card with FAT32
+  - Use SD card size less than **16 Gb**
+  - Format SD card with **FAT32**
   - Unzip it to SD card
   - Boot ASIC with SD card
   - ASIC booted in recovery mode
