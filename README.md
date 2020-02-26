@@ -251,7 +251,6 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 ## Other models
 ### Antminer S9 signed *(deprecated in favor of Hiveon firmware)*
 [Hiveon ASIC installation - Antminer S9 Cannot Find Signature Fix](https://forum.hiveos.farm/t/hiveon-asic-installation-antminer-s9-cannot-find-signature-fix/12466)
-
 [Hiveon ASIC Firmware 1.02 for S9 Installation Manual](https://forum.hiveos.farm/t/hiveon-asic-s9-firmware-v1-02/13944)
 
 ### Antminer S9 (mskminer), S10 (mskminer)
