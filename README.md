@@ -136,16 +136,17 @@ You can install Hive OS Client via firmware file download or via SSH.
 
 #### 1. ASIC web interface
 
-##### Antminer Series 15, Series 17 and models S9k, S9se
-These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by flashing a special firmware. It contains stock Bitmain firmware + integrated Hive OS client:
+##### Antminer Series 15, Series 17 and Series 9 models S9k and S9se
+These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by upgrading ASIC with a special firmware file. That file contains stock Bitmain firmware with built-in Hive OS client:
+
+- [Antminer S9k](http://download.hiveos.farm/asic/repo/unsig/S9k-hive.tar.gz)
+- [Antminer S9se](http://download.hiveos.farm/asic/repo/unsig/S9se-hive.tar.gz)
 - [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)
 - [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)
-- [Antminer S17](http://download.hiveos.farm/asic/repo/unsig/S17-hive.tar.gz)
-- [Antminer S17 Pro](http://download.hiveos.farm/asic/repo/unsig/S17pro-hive.tar.gz)
 - [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)
 - [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
 
->After successful flashing, you have to open ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button.
+>After successful flashing, you have to open up ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button. The page will refresh itself. Wait a minute and worker will appear in the Hive dashboard.
 
 ##### All other Antminer Series 3/7/9
 Hive OS Client for Antminer Series 3/7/9, firmware date before 10.06.2019. Just upgrade ASIC firmware with [hive_install_unsig_antminers.tar.gz](http://download.hiveos.farm/asic/repo/unsig/hive_install_unsig_antminers.tar.gz).
