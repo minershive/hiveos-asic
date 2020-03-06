@@ -6,7 +6,6 @@
 #pool checks
 #DNS checks
 #wd
-#cron
 #check read only nvdata and config
 
 export PATH=$PATH:/hive/bin:/hive/sbin
@@ -29,6 +28,15 @@ mem_clean () {
 	du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm
 }
 
+log_clean () {
+	for file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
+		if [ -e $file ] && [ $(wc -l $file | cut -d' ' -f1) -gt 1000 ]; then
+			echo -e "\n$(date +"%F %T") [INFO] - Clear log: $file"
+			echo "$(tail -n 1000 $file)" > $file
+		fi
+	done
+}
+
 mem_check () {
 	free_mem=$(cat /proc/meminfo | grep -i memfree | sed 's/[^0-9]//g')
 	if [ $free_mem -lt 3000 ]; then
@@ -37,13 +45,17 @@ mem_check () {
 		echo -e $print_top
 		echo $print_top | message warn "Memory leak! Trying to clean a logs" payload
 		mem_clean
+		log_clean
 	fi
 }
 
+count=0
 while true; do
 	time_check #check and sync date
 	mem_check #free mem and log rotation
 	sleep 60
-	#cron1
-	#cron2
+	[[ $(($count % 10)) = 0 ]] && /hive/bin/agent-screen dontattach #cron agent
+	[[ $count -eq 59 ]] && /hive/bin/cache-hive-ip > /dev/null #cron cache-hive-ip
+	[[ $count -gt 60 ]] && count=0
+	((count++))
 done

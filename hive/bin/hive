@@ -68,8 +68,8 @@ echo2 "$msg"
 
 if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL == "Antminer S9 SE" || $ASIC_MODEL == "Antminer S9k" ]]; then
     echo2 "> Applying crontab"
-    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
     echo2 "> Applying crontab"
     [[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
@@ -94,8 +94,8 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
     fi
 elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" ]]; then
     echo2 "> Applying crontab"
-    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-    nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
     #hosts patch
     touch /tmp/hosts
@@ -122,7 +122,7 @@ echo2 "> Starting agent screen"
 agent-screen dontattach
 
 echo2 "> Starting controller"
-nohup /hive/sbin/bash -c '/hive/bin/controller > /tmp/hive-controller.log' > /dev/null 2>&1 &
+nohup /hive/sbin/bash -c '/hive/bin/controller > /config/hive-controller.log' > /dev/null 2>&1 &
 
 #bmminer is autostarted after in /etc/rcS.d
 #echo2 "> Starting miner"
