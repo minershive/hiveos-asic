@@ -52,9 +52,10 @@ mem_check () {
 version_check () {
 	if ! cmp -s /hive/etc/build /hive-config/build; then
 		vers=$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)
+		vers_old=$(cat /hive/etc/build)
 		cp -rf /hive/etc/build /hive-config/build
-		echo -e "\n$(date +"%F %T") [INFO] - New version agent installed: $vers"
-		message info "New version agent installed - $vers"
+		echo -e "\n$(date +"%F %T") [INFO] - Agent updated from ($vers_old) to ($vers)"
+		message info "Agent updated from ($vers_old) to ($vers)"
 	fi
 }
 
