@@ -120,7 +120,7 @@ case $1 in
 		done
 	;;
 	stop)
-		ps ax | grep 'wd' | grep -v grep | awk '{print $1}' | xargs kill
+		ps w | grep 'wd' | grep -v grep | awk '{print $1}' | xargs kill
 	;;
 	start)
 		/hive/bin/wd run

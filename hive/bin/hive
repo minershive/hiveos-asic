@@ -102,6 +102,9 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" ]]; then
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
     cp /lib/libnss_files.so.2 /hive/share/S9/lib/libnss_files.so.2
     sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
+
+    #enable dmesg timestaps
+    echo Y > /sys/module/printk/parameters/time
 fi
 
 
@@ -118,6 +121,8 @@ hello boot
 echo2 "> Starting agent screen"
 agent-screen dontattach
 
+echo2 "> Starting controller"
+/hive/bin/controller > /tmp/hive-controller.log &
 
 #bmminer is autostarted after in /etc/rcS.d
 #echo2 "> Starting miner"

@@ -1,0 +1,47 @@
+#!/hive/sbin/bash
+
+#TODO:
+#logs problem
+#watchdog alert
+#pool checks
+#DNS checks
+#wd
+#cron
+#check read only nvdata and config
+
+export PATH=$PATH:/hive/bin:/hive/sbin
+export LD_LIBRARY_PATH=/hive/lib
+
+#. colors
+. asic-model
+
+time_check () {
+	if [ $(date +"%Y") -eq 1970 ]; then
+		echo -e "\n$(date +"%F %T") [INFO] - New date: "
+		date -s "@$(curl -I hiveos.farm 2>&1 | grep Date: | cut -d' ' -f3-6 | timetran)"
+	fi
+}
+
+mem_clean () {
+	du -h /tmp/* /var/log/ | grep M | awk '{print $2}'
+	du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm
+}
+
+mem_check () {
+	free_mem=$(cat /proc/meminfo | grep -i memfree | sed 's/[^0-9]//g')
+	if [ $free_mem -lt 3000 ]; then
+		echo -e "\n$(date +"%F %T") [ERROR] - Memory leak!"
+		print_top=$(top -b -n1 | head -n 8)
+		echo -e $print_top
+		echo $print_top | message warn "Memory leak! Trying to clean a logs" payload
+		mem_clean
+	fi
+}
+
+while true; do
+	time_check #check and sync date
+	mem_check #free mem and log rotation
+	sleep 60
+	#cron1
+	#cron2
+done
