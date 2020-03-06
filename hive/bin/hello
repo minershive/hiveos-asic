@@ -63,7 +63,11 @@ cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*
 cpu_cores=`cat /proc/cpuinfo | grep "^model name" | wc -l`
 aes=`cat /proc/cpuinfo | grep "^Features .*aes" | wc -l`
 
-kernel=`uname --kernel-release`
+if [ -e /hive/etc/build ] && [ -e /hive/etc/VERSION ]; then
+	kernel=$(uname --kernel-release)" ("$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)")"
+else
+	kernel=`uname --kernel-release`
+fi
 
 hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`

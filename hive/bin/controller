@@ -49,10 +49,20 @@ mem_check () {
 	fi
 }
 
+version_check () {
+	if ! cmp -s /hive/etc/build /hive-config/build; then
+		vers=$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)
+		cp -rf /hive/etc/build /hive-config/build
+		echo -e "\n$(date +"%F %T") [INFO] - New version agent installed: $vers"
+		message info "New version agent installed - $vers"
+	fi
+}
+
 count=0
 while true; do
 	time_check #check and sync date
 	mem_check #free mem and log rotation
+	version_check #check dev build after upgrade client
 	sleep 60
 	[[ $(($count % 10)) = 0 ]] && /hive/bin/agent-screen dontattach #cron agent
 	[[ $count -eq 59 ]] && /hive/bin/cache-hive-ip > /dev/null #cron cache-hive-ip
