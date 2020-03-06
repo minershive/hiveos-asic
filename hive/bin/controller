@@ -15,6 +15,8 @@ export LD_LIBRARY_PATH=/hive/lib
 #. colors
 . asic-model
 
+echo -e "\n$(date +"%F %T") [START]"
+
 time_check () {
 	if [ $(date +"%Y") -eq 1970 ]; then
 		echo -e "\n$(date +"%F %T") [INFO] - New date: "
