@@ -1,0 +1,16 @@
+[ -e /hive/bin/asic-model ] && . /hive/bin/asic-model
+[ -e /hive-config/rig.conf ] && . /hive-config/rig.conf
+
+#echo $ASIC_MODEL
+if [ -e "/usr/bin/compile_ver" ]; then
+    cat /usr/bin/compile_ver
+elif [ -e "/usr/bin/compile_ver" ]; then
+    cat /usr/bin/compile_time
+fi
+echo "IP: "$(ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
+echo "MAC: "$(ifconfig eth0 | grep 'HWaddr' | awk '{ print $5}')
+echo "FARM_ID: "$FARM_ID
+echo "RIG_ID: "$RIG_ID
+echo "HIVE_HOST_URL: "$HIVE_HOST_URL
+echo "HIVE_HOST_URL: "$HIVE_HOST_URL
+echo "AGENT: "$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)
