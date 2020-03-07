@@ -73,8 +73,11 @@ hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
 [ -e "/usr/bin/compile_ver" ] && [ -e "/var/log/log" ] && MODELH=$(cat /var/log/log | grep "Project type" | awk -F\:\  '{print $NF}')
+[[ ! -z "$MODELH" ]] && [ "$MODELH" != $(cat /hive-config/model) ] && echo "$MODELH" > /hive-config/model
+[ -e /hive-config/model ] && MODELH=$(cat /hive-config/model)
 [[ ! -z "$MODELH" ]] && sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
 [[ ! -z "$MODELH" ]] && sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
+
 
 [ -e "/usr/bin/compile_time" ] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
 [ -e "/usr/bin/compile_ver" ] && asic=`cat /usr/bin/compile_ver | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
