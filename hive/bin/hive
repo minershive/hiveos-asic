@@ -123,7 +123,7 @@ agent-screen dontattach
 
 echo2 "> Starting controller"
 killall controller > /dev/null 2>&1
-nohup /hive/sbin/bash -c '/hive/bin/controller > /config/hive-controller.log' > /dev/null 2>&1 &
+nohup /hive/sbin/bash -c '/hive/bin/controller >> /config/hive-controller.log' > /dev/null 2>&1 &
 
 #bmminer is autostarted after in /etc/rcS.d
 #echo2 "> Starting miner"

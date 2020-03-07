@@ -13,13 +13,17 @@ export LD_LIBRARY_PATH=/hive/lib
 
 #. colors
 . asic-model
+if [ -e /hive-config/rig.conf ]; then
+	. /hive-config/rig.conf
+fi
 
 echo -e "\n$(date +"%F %T") [START]"
 
 time_check () {
 	if [ $(date +"%Y") -eq 1970 ]; then
+		[ -z $HIVE_HOST_URL ] && HIVE_HOST_URL=http://api.hiveos.farm
 		echo -e "\n$(date +"%F %T") [INFO] - New date: "
-		date -s "@$(curl -I hiveos.farm 2>&1 | grep Date: | cut -d' ' -f3-6 | timetran)"
+		date -s "@$(curl -I $HIVE_HOST_URL 2>&1 | grep Date: | cut -d' ' -f3-6 | timetran)"
 	fi
 }
 
