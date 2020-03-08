@@ -302,7 +302,7 @@ loop () {
 	#each time read config again
 	. $RIG_CONF
 	. $WALLET_CONF
-	
+
 
 	[[ -z $MINER ]] && MINER="asicminer"
 	HIVE_URL="$HIVE_HOST_URL/worker/api"
@@ -390,7 +390,13 @@ loop () {
 
 
 ########################################################################################################################
-
+backslash() {
+  local var="${1//\\/\\\\}"
+  var="${var//\"/\\\"}"
+  var="${var//\`/\\\`}"
+  var="${var//\$/\\\$}"
+  echo "$var"
+}
 
 do_command () {
 	#body=$1
@@ -422,7 +428,7 @@ do_command () {
 		;;
 		"upgrade beta")
 			screen -dm -S selfupgrade bash -c '
-				cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade 2>&1 | tee /tmp/nohup.log
+				selfupgrade master 2>&1 | tee /tmp/nohup.log
 				upgrade_exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 				[[ $upgrade_exitcode -eq 0 ]] &&
@@ -433,15 +439,19 @@ do_command () {
 		exec)
 			exec=$(echo $body | jq '.exec' --raw-output)
 			if [[ $ASIC_MODEL == "Zig Z1+" ]]; then
-				payload=`timeout 360 bash -c "$exec" 2>&1`
+				exectimeout='nohup timeout 360 bash -c'
 			else
-				payload=`timeout -t 360 bash -c "$exec" 2>&1`
+				exectimeout='nohup timeout -t 360 bash -c'
 			fi
+			$exectimeout '
+			log_name="/tmp/exec_"'$cmd_id'".log"
+			('"$exec"') > $log_name 2>&1
 			exitcode=$?
-			echo "$payload"
 			[[ $exitcode -eq 0 ]] &&
-				echo "$payload" | message info "$exec" payload --id=$cmd_id ||
-				echo "$payload" | message error "Exec failed, exitcode=$exitcode" payload --id=$cmd_id
+				cat $log_name | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
+				cat $log_name | message error "'"$(backslash "$exec")"' (Exec failed, exitcode=$exitcode)" payload --id='$cmd_id'
+			rm $log_name > /dev/null 2>&1
+			' > /tmp/nohup.log 2>&1 &
 		;;
 		asic_oc)
 			export asic_oc=`echo $body | jq '.asic_oc' --raw-output`
