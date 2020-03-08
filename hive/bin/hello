@@ -73,7 +73,16 @@ hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
 [ -e "/usr/bin/compile_ver" ] && [ -e "/var/log/log" ] && MODELH=$(cat /var/log/log | grep "Project type" | awk -F\:\  '{print $NF}')
-[[ ! -z "$MODELH" ]] && [ "$MODELH" != $(cat /hive-config/model) ] && echo "$MODELH" > /hive-config/model
+if [[ ! -z "$MODELH" ]]; then
+	if [ ! -e /hive-config/model ]; then
+		echo "$MODELH" > /hive-config/model
+	else
+		if [ "$MODELH" != $(cat /hive-config/model) ]; then
+			echo "$MODELH" > /hive-config/model
+		fi
+	fi
+fi
+
 [ -e /hive-config/model ] && MODELH=$(cat /hive-config/model)
 [[ ! -z "$MODELH" ]] && sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
 [[ ! -z "$MODELH" ]] && sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
