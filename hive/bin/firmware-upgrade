@@ -9,7 +9,7 @@ URL="$1"
 filename=$(echo $URL | awk -F \/ '{print $NF}')
 FARM_HASH=$(echo $filename | awk -F \- '{print $NF}' | sed s/.tar.gz//)
 HIVE_HOST_URL=$(echo $URL | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
-
+du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm -rf
 
 upgrade_s9() {
     rm -rf /config/hive/hive
@@ -129,4 +129,3 @@ elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S17"; then
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer T17"; then
     upgrade_st17
 fi
-
