@@ -77,7 +77,7 @@ if [[ ! -z "$MODELH" ]]; then
 	if [ ! -e /hive-config/model ]; then
 		echo "$MODELH" > /hive-config/model
 	else
-		if [ "$MODELH" != $(cat /hive-config/model) ]; then
+		if [ "$MODELH" != "$(cat /hive-config/model)" ]; then
 			echo "$MODELH" > /hive-config/model
 		fi
 	fi
