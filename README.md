@@ -86,9 +86,9 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
   - S7
   - S9, S9i, S9j, S9k, S9SE, S9-Hydro, S9 (VNISH), [S9 (mskminer)](#antminer-s9-mskminer-s10-mskminer), S11
   - [S10 (mskminer)](#antminer-s9-mskminer-s10-mskminer)
-  - S15, S17, S17 Pro *(deprecated in favor of Hiveon firmware)*
+  - S15, T15
+  - S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
   - T9, T9+
-  - T15, T17 *(deprecated in favor of Hiveon firmware)*
   - X3
   - Z9, Z9-Mini
   - Z11
