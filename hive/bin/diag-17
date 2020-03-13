@@ -1,0 +1,184 @@
+#!/hive/sbin/bash
+
+
+readonly mission='Antminer Series 15/17 Error Report'
+readonly version='1.1'
+
+
+# consts
+
+. colors
+readonly log='/nvdata/miner_status.log'
+#readonly log='miner_status.log'
+readonly days_to_look_back=14
+readonly data_column_template='%4.4s'
+readonly first_column_template='%-20.20s'
+readonly zero_symbol='-'
+
+# arrays
+
+declare -a log_events=()
+declare -a calendar_dates=()
+declare -A accumulator=()
+declare -A events_data=()
+
+
+# functions
+
+intro() {
+	printf '%s\n\n' "$mission"
+	printf '%(%F %T)T Report for the last %d days:\n\n' -1 "$days_to_look_back"
+}
+
+create_calendar() {
+	local -i current_day_in_seconds=0
+	local current_day_in_yymmdd=''
+
+	printf -v current_day_in_seconds '%(%s)T' # unix time of now
+
+	for (( i=0; i < days_to_look_back; i++ )); do
+		printf -v current_day_in_yymmdd '%(%F)T' "$current_day_in_seconds" # convert unix time to yy-mm-dd
+		calendar_dates+=( "$current_day_in_yymmdd" ) # add date to array
+		(( current_day_in_seconds -= 24 * 60 * 60 )) # get back for 24hrs
+	done
+}
+
+check_log() {
+	if [[ ! -e "$log" ]]; then
+		echo "$log not found. All files around:"; ls -al $( dirname "$log" )
+		exit 100
+	fi
+}
+
+get_unique_events_from_log() {
+	local unique_events=''
+
+	unique_events="$( grep '\S' "$log" | cut -d ' ' -f 3 | sort -u )"  # remove empty lines and then get unique events list
+	log_events=( $( echo "$unique_events" | grep -F ':' ) ) # errors first
+	log_events+=( $( echo "$unique_events" | grep -Fv ':' ) )
+}
+
+print_table_header() {
+	printf -v current_date '%(%F)T'
+	
+	for entity in year month day; do
+		if [[ $entity == 'month' ]]; then
+			printf "${first_column_template}" 'Events by date'
+		else
+			printf "${first_column_template}" ''
+		fi
+		for (( idx=0 ; idx < days_to_look_back ; idx++ )); do
+			date="${calendar_dates[idx]}"
+			year=${date:2:2}	# 2020-01-01
+			month=${date:5:2}	#   ^^ ^^ ^^
+			day=${date:8:2}		# 0123456789
+			declare -n date_entity="$entity"
+			if [[ $date == $current_date ]]; then # highlight current date
+				printf "${WHITE}${data_column_template}${NOCOLOR}" "${date_entity}"
+			else
+				printf "${data_column_template}" "${date_entity}"
+			fi
+		done
+		echo
+	done
+}
+
+calculate_data() {
+	local event
+	local date_to_process
+	local RE
+	local -i day
+	local -i event_counter
+	local -i this_event_total
+	local -i problem_days_count
+	local -i all_events_total
+
+	for event in ${log_events[@]}; do
+		for (( day=0 ; day < days_to_look_back ; day++ )); do
+			date_to_process="${calendar_dates[day]}"
+			RE="${date_to_process}.*${event}"
+			event_counter="$( grep -c "$RE" "$log" )" # aahhhh grep
+
+			events_data["$event"."$day"]="$event_counter"
+
+			(( this_event_total += event_counter ))
+			if (( event_counter > 0 )); then
+				(( problem_days_count++ ))
+			fi
+		done
+
+		events_data["$event".total]=$(( this_event_total ))
+		events_data["$event".avg.per_day.x100]=$(( (this_event_total*100) / (days_to_look_back) )) # x100 for fixed point
+		events_data["$event".avg.per_problem_day.x100]=$(( problem_days_count > 0 ? (this_event_total*100) / (problem_days_count) : 0 )) # x100 for fixed point
+
+		(( all_events_total += this_event_total ))
+
+		this_event_total=0
+		problem_days_count=0
+	done
+
+	events_data[#all.total]=$(( all_events_total ))
+}
+
+print_table_body() {
+	local event
+	local -i day
+	local -i event_counter
+	local color
+
+	for event in ${log_events[@]}; do
+		avg_per_day_x100="${events_data["$event".avg.per_day.x100]}"
+		avg_per_problem_day_x100="${events_data["$event".avg.per_problem_day.x100]}"
+
+		if (( (avg_per_problem_day_x100/10) >= (${events_data[#all.total]}/days_to_look_back) )); then
+			color="${BRED}"
+		else
+			color="${NOCOLOR}"
+		fi
+		printf "%b${first_column_template}%b" "$color" "$event" "${NOCOLOR}"
+
+
+		for (( day=0 ; day < days_to_look_back ; day++ )); do
+
+			event_counter="${events_data["$event"."$day"]}"
+
+			if (( (event_counter*100) > avg_per_problem_day_x100 )); then
+				color="${BRED}"
+			else
+				color="${LGRAY}"
+			fi
+
+			if (( event_counter == 0 )); then
+				printf "%b${data_column_template}%b" "${DGRAY}" "$zero_symbol" "${NOCOLOR}"
+			else
+				printf "%b${data_column_template}%b" "$color" "$event_counter" "${NOCOLOR}"
+			fi
+
+		done
+
+#		# totals column
+#		this_event_total="${events_data["$event".total]}"
+#		printf "   %5d %5d %5d" "$this_event_total" "$avg_per_day_x100" "$avg_per_problem_day_x100"
+#		printf ' %7.1f' "$(( 10**9 * ${accumulator[$event]} / days_to_look_back ))e-9" # yay, neat trick
+		echo
+	done
+}
+
+print_stats() {
+	printf "\n%d events in %d days\n" "${events_data[#all.total]}" "$days_to_look_back"
+}
+
+
+# code
+
+intro
+
+check_log
+get_unique_events_from_log
+
+create_calendar
+calculate_data
+
+print_table_header
+print_table_body
+print_stats
