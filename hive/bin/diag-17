@@ -1,26 +1,36 @@
-#!/hive/sbin/bash
-
+#!/usr/bin/env bash
 
 readonly mission='Antminer Series 15/17 Error Report'
 readonly version='1.1'
+readonly DEBUG=0
+
+
+#
+# strict mode, no unbound variables
+#
+
+set -o nounset
 
 
 # consts
 
 . colors
-readonly log='/nvdata/miner_status.log'
-#readonly log='miner_status.log'
+readonly log="/tmp/$( basename $0 ).log"
+readonly logs_dir='/nvdata'
 readonly days_to_look_back=14
 readonly data_column_template='%4.4s'
-readonly first_column_template='%-20.20s'
+readonly first_column_template='%-25.25s'
 readonly zero_symbol='-'
+readonly domains_of_interest=':set_miner_status|:check_miner_status|stop_mining|power off|update_fan_status: Error'
+readonly domain_prefix='<DOMAIN> '
+
 
 # arrays
 
 declare -a log_events=()
-declare -a calendar_dates=()
-declare -A accumulator=()
+declare -a last_days_calendar=()
 declare -A events_data=()
+declare -a error_domains=() # ( 'check_asic_number_with_power_on:' 'killall_hashboard:' 'set_miner_status:' 'stop_mining:' 'stop_mining_and_reboot:' )
 
 
 # functions
@@ -38,78 +48,167 @@ create_calendar() {
 
 	for (( i=0; i < days_to_look_back; i++ )); do
 		printf -v current_day_in_yymmdd '%(%F)T' "$current_day_in_seconds" # convert unix time to yy-mm-dd
-		calendar_dates+=( "$current_day_in_yymmdd" ) # add date to array
-		(( current_day_in_seconds -= 24 * 60 * 60 )) # get back for 24hrs
+		last_days_calendar+=( "$current_day_in_yymmdd" ) # add date to array
+		(( current_day_in_seconds -= 24 * 60 * 60 )) # get 24h back
 	done
 }
 
 check_log() {
-	if [[ ! -e "$log" ]]; then
-		echo "$log not found. All files around:"; ls -al $( dirname "$log" )
+	
+	if [[ ! -d "$logs_dir" ]]; then
+		echo "$logs_dir not found. Is it Antminer Series 15/17?"
+		echo
+		echo "Other files are:"
+		ls -l /
 		exit 100
 	fi
 }
 
+check_for_1970() {
+	find "${logs_dir}/1970-01/" -name log -mtime "-${days_to_look_back}" -type f -print |
+		grep -q '.' && {
+			echo "${RED}WARNING: Recently updated logs from 1970 year are found, check host time settings (ntpd)${NOCOLOR}"
+			echo
+			}
+}
+
+get_filtered_log() {
+	local -r files_to_grep="$( find "$logs_dir" /var/log -name log -type f )"
+
+	if (( DEBUG )); then
+		echo -n "DEBUG> 'log' files found: "
+		wc -l -- <<< "$files_to_grep"
+
+		echo -n "DEBUG> Number of lines: "
+		cat -- $files_to_grep | tee 0.debug | wc -l
+
+		echo -n "DEBUG> Number of unique lines: "
+		cat -- $files_to_grep | sort -su | tee 1.debug | wc -l
+
+		echo -n "DEBUG> Number of unique lines with timestamp: "
+		cat -- $files_to_grep | sort -su | grep -ahE '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' | tee 2.debug | wc -l
+
+		echo -n "DEBUG> Number of lines for the last $days_to_look_back days: "
+		grep -ahF "$( printf '%s\n' "${last_days_calendar[@]}" )" -- $files_to_grep | tee 3.debug | wc -l
+	fi
+
+	grep -ahF "$( printf '%s\n' "${last_days_calendar[@]}" )" -- $files_to_grep |
+			grep -aE "$domains_of_interest" > "$log"
+}
+
 get_unique_events_from_log() {
+	# 2020-03-09 18:39:32 driver/fan.c:59:update_fan_status: Error, fan lost, only find 3 (< 8)
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 0, fan_speed = 6000
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 1, fan_speed = 0
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 2, fan_speed = 5640
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 3, fan_speed = 5880
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 4, fan_speed = 0
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 5, fan_speed = 0
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 6, fan_speed = 0
+	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 7, fan_speed = 0
+	# 2020-03-09 18:39:32 driver/driver-btm-api.c:175:set_miner_status: ERROR_FAN_LOST
+	# 2020-03-09 18:39:38 driver/driver-btm-api.c:622:killall_hashboard: ****power off hashboard****
+	# 2020-03-09 18:39:38 driver/driver-btm-api.c:137:stop_mining: stop mining: fan lost
+	# ^^^^^^^^^^ ^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^ ^^^^^^^^
+	# f1         f2       f3                                       f4           f5
+
 	local unique_events=''
 
-	unique_events="$( grep '\S' "$log" | cut -d ' ' -f 3 | sort -u )"  # remove empty lines and then get unique events list
-	log_events=( $( echo "$unique_events" | grep -F ':' ) ) # errors first
-	log_events+=( $( echo "$unique_events" | grep -Fv ':' ) )
+	readarray -t error_domains < <( cat "$log" | cut -d ' ' -f 3 | sort -u )  # get list of error types (unique)
+
+	if (( DEBUG )); then
+		printf 'DEBUG> error domains: '
+		printf '[%s] ' "${error_domains[@]}"
+		printf '\n\n'
+	fi
+
+	for error_type in "${error_domains[@]}"; do
+		if (( DEBUG )); then
+			echo "Domain: '$error_type' (${#log_events[@]})"
+		fi
+		log_events+=( "${domain_prefix}${error_type#*:*:}" )
+		readarray -t -O "${#log_events[@]}" log_events < <( grep -e "$error_type" -- "$log" | cut -d ' ' -f 4- | sort -u )  # get list of events (unique)
+	done
+
+	if (( DEBUG )); then
+	set | grep log_events=
+		printf 'DEBUG> log events: '
+		printf '[%s] ' "${log_events[@]}"
+		printf '\n\n'
+	fi
 }
 
 print_table_header() {
-	printf -v current_date '%(%F)T'
-	
-	for entity in year month day; do
-		if [[ $entity == 'month' ]]; then
+	local today
+	local date_category
+	local this_date
+	local -i this_day
+
+	printf -v today '%(%F)T'
+
+	for date_category in year month day; do
+
+		# print 1st column header only on 2nd line
+		if [[ $date_category == 'month' ]]; then
 			printf "${first_column_template}" 'Events by date'
 		else
 			printf "${first_column_template}" ''
 		fi
-		for (( idx=0 ; idx < days_to_look_back ; idx++ )); do
-			date="${calendar_dates[idx]}"
-			year=${date:2:2}	# 2020-01-01
-			month=${date:5:2}	#   ^^ ^^ ^^
-			day=${date:8:2}		# 0123456789
-			declare -n date_entity="$entity"
-			if [[ $date == $current_date ]]; then # highlight current date
-				printf "${WHITE}${data_column_template}${NOCOLOR}" "${date_entity}"
+
+		for (( this_day=0 ; this_day < days_to_look_back ; this_day++ )); do
+			this_date="${last_days_calendar[this_day]}"
+			case "$date_category" in
+				year)
+					text=${this_date:2:2}	# 2020-01-01
+					;;
+				month)
+					text=${this_date:5:2}	#   ^^ ^^ ^^
+					;;
+				day)
+					text=${this_date:8:2}	# 0123456789
+					;;
+			esac
+
+			if [[ $this_date == $today ]]; then # highlight current date
+				printf "${WHITE}${data_column_template}${NOCOLOR}" "$text"
 			else
-				printf "${data_column_template}" "${date_entity}"
+				printf "${data_column_template}" "$text"
 			fi
 		done
+
 		echo
 	done
 }
 
 calculate_data() {
-	local event
 	local date_to_process
-	local RE
-	local -i day
-	local -i event_counter
-	local -i this_event_total
-	local -i problem_days_count
-	local -i all_events_total
 
-	for event in ${log_events[@]}; do
-		for (( day=0 ; day < days_to_look_back ; day++ )); do
-			date_to_process="${calendar_dates[day]}"
-			RE="${date_to_process}.*${event}"
-			event_counter="$( grep -c "$RE" "$log" )" # aahhhh grep
+	local this_event
+	local this_event_RE
+	local -i this_day=0
+	local -i this_event_counter=0
+	local -i this_event_total=0
 
-			events_data["$event"."$day"]="$event_counter"
+	local -i problem_days_count=0
+	local -i all_events_total=0
 
-			(( this_event_total += event_counter ))
-			if (( event_counter > 0 )); then
+	for this_event in "${log_events[@]}"; do
+		for (( this_day=0 ; this_day < days_to_look_back ; this_day++ )); do
+			date_to_process="${last_days_calendar[this_day]}"
+			this_event_RE="${date_to_process}.*${this_event}"
+			this_event_counter="$( grep -c "$this_event_RE" "$log" )" # tenfold faster than bash matching
+
+			events_data["${this_event}.${this_day}"]="$this_event_counter"
+
+			(( this_event_total += this_event_counter ))
+			if (( this_event_counter > 0 )); then
 				(( problem_days_count++ ))
 			fi
 		done
 
-		events_data["$event".total]=$(( this_event_total ))
-		events_data["$event".avg.per_day.x100]=$(( (this_event_total*100) / (days_to_look_back) )) # x100 for fixed point
-		events_data["$event".avg.per_problem_day.x100]=$(( problem_days_count > 0 ? (this_event_total*100) / (problem_days_count) : 0 )) # x100 for fixed point
+		events_data["${this_event}.total"]=$(( this_event_total ))
+		events_data["${this_event}.avg.per_day.x100"]=$(( (this_event_total*100) / (days_to_look_back) )) # x100 for fixed point
+		events_data["${this_event}.avg.per_problem_day.x100"]=$(( problem_days_count > 0 ? (this_event_total*100) / (problem_days_count) : 0 )) # x100 for fixed point
 
 		(( all_events_total += this_event_total ))
 
@@ -117,55 +216,105 @@ calculate_data() {
 		problem_days_count=0
 	done
 
-	events_data[#all.total]=$(( all_events_total ))
+	events_data['#all.total']=$(( all_events_total ))
 }
 
 print_table_body() {
-	local event
-	local -i day
-	local -i event_counter
-	local color
+	local event_name=''
+	local event_name_for_display=''
+	local -i event_is_domain_name=0
 
-	for event in ${log_events[@]}; do
-		avg_per_day_x100="${events_data["$event".avg.per_day.x100]}"
-		avg_per_problem_day_x100="${events_data["$event".avg.per_problem_day.x100]}"
+	local -i this_day=0
+	local -i event_counter=0
+	local event_counter_for_display=''
 
-		if (( (avg_per_problem_day_x100/10) >= (${events_data[#all.total]}/days_to_look_back) )); then
-			color="${BRED}"
+	local display_color=''
+	local -i avg_per_day_x100=0
+	local -i avg_per_problem_day_x100=0
+
+	# dictionaries
+
+	local -A event_name_translator=( # dictionary: event regex -> event transforming template. %1..9% for (group number)
+		['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% asic)'
+		["Can't get temperature sensor type"]='temp sensor fail'
+		['stop mining: (.+)']='%1%'
+		['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
+		['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)'
+	)
+
+	# code
+
+	for event_name in "${log_events[@]}"; do
+		if [[ "$event_name" =~ $domain_prefix ]]; then
+			event_is_domain_name=1
 		else
-			color="${NOCOLOR}"
+			event_is_domain_name=0
 		fi
-		printf "%b${first_column_template}%b" "$color" "$event" "${NOCOLOR}"
+		
+		if (( event_is_domain_name )); then
+			event_name_for_display="-${event_name#${domain_prefix}}------------------------"
+			display_color="${DGRAY}"
+		else
+			avg_per_day_x100="${events_data[${event_name}.avg.per_day.x100]}"
+			avg_per_problem_day_x100="${events_data[${event_name}.avg.per_problem_day.x100]}"
 
+			#if (( (avg_per_problem_day_x100/10) >= (${events_data['#all.total']}/days_to_look_back) )); then
+			#	display_color="${BRED}"
+			#else
+			#	display_color="${NOCOLOR}"
+			#fi
 
-		for (( day=0 ; day < days_to_look_back ; day++ )); do
+			# transform event name to simplified form
+			event_name_for_display="$event_name"
+			for event_RE in "${!event_name_translator[@]}"; do # for each RE in dictionary
+				event_template="${event_name_translator[${event_RE}]}" # get a transforming template
+				#printf 'DEBUG: %s = %s\n' "${event_RE}" "${event_template}"
+				if [[ $event_name =~ $event_RE ]]; then
+					for (( rematch_counter=1; rematch_counter < ${#BASH_REMATCH[@]}; rematch_counter++ )); do
+						event_template="${event_template//%${rematch_counter}%/${BASH_REMATCH[$rematch_counter]}}"
+					done
+					event_name_for_display="$event_template"
+					break
+				fi
+			done
+			display_color="${NOCOLOR}"
+		fi
 
-			event_counter="${events_data["$event"."$day"]}"
+		printf "%b${first_column_template}%b" "$display_color" "$event_name_for_display" "${NOCOLOR}"
 
-			if (( (event_counter*100) > avg_per_problem_day_x100 )); then
-				color="${BRED}"
+		for (( this_day=0 ; this_day < days_to_look_back ; this_day++ )); do
+			if (( event_is_domain_name )); then
+				display_color="${DGRAY}"
+				event_counter_for_display='-----------------------'
 			else
-				color="${LGRAY}"
-			fi
+				event_counter="${events_data[${event_name}.${this_day}]}"
 
-			if (( event_counter == 0 )); then
-				printf "%b${data_column_template}%b" "${DGRAY}" "$zero_symbol" "${NOCOLOR}"
-			else
-				printf "%b${data_column_template}%b" "$color" "$event_counter" "${NOCOLOR}"
+				if (( event_counter == 0 )); then
+					display_color="${DGRAY}"
+					event_counter_for_display="$zero_symbol"
+				elif (( (event_counter*100) > avg_per_problem_day_x100 )); then
+					# paint the value in red if it's greater than the day average for this event
+					display_color="${BRED}"
+					event_counter_for_display="$event_counter"
+				else
+					# ordinary value
+					display_color="${NOCOLOR}"
+					event_counter_for_display="$event_counter"
+				fi
 			fi
-
+			printf "%b${data_column_template}%b" "$display_color" "$event_counter_for_display" "${NOCOLOR}"
 		done
 
 #		# totals column
-#		this_event_total="${events_data["$event".total]}"
+#		this_event_total="${events_data["${event_name}.total"]}"
 #		printf "   %5d %5d %5d" "$this_event_total" "$avg_per_day_x100" "$avg_per_problem_day_x100"
-#		printf ' %7.1f' "$(( 10**9 * ${accumulator[$event]} / days_to_look_back ))e-9" # yay, neat trick
+#		printf ' %7.1f' "$(( 10**9 * ${accumulator[$event_name]} / days_to_look_back ))e-9" # yay, neat trick
 		echo
 	done
 }
 
 print_stats() {
-	printf "\n%d events in %d days\n" "${events_data[#all.total]}" "$days_to_look_back"
+	printf "\n%d events in %d days\n" "${events_data['#all.total']}" "$days_to_look_back"
 }
 
 
@@ -174,11 +323,14 @@ print_stats() {
 intro
 
 check_log
-get_unique_events_from_log
 
 create_calendar
+get_filtered_log
+get_unique_events_from_log
+
 calculate_data
 
 print_table_header
 print_table_body
 print_stats
+check_for_1970

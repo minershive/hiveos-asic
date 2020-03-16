@@ -46,8 +46,8 @@ mem_check () {
 	if [ $free_mem -lt 3000 ]; then
 		echo -e "\n$(date +"%F %T") [ERROR] - Memory leak!"
 		print_top=$(top -b -n1 | head -n 8)
-		echo -e $print_top
-		echo $print_top | message warn "Memory leak! Trying to clean a logs" payload
+		echo -e "$print_top"
+		echo "$print_top" | message warn "Memory leak! Trying to clean logs" payload
 		mem_clean
 		log_clean
 	fi
