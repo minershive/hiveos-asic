@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 readonly mission='Antminer Series 15/17 Error Report'
 readonly version='1.1'
