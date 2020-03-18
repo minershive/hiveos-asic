@@ -32,13 +32,13 @@ else
         sync
         fi
         if [ -e /dev/mtd8 ]; then
-                if [ -e initramfs.bin.SD ]; then
+                if [ -f initramfs.bin.SD ]; then
                         echo "flash romfs"
                         flash_eraseall /dev/mtd8 >/dev/null 2>&1
                         nandwrite -p /dev/mtd8 initramfs.bin.SD >/dev/null 2>&1
                 fi
 
-                if [ -e uImage.bin ]; then
+                if [ -f uImage.bin ]; then
                         echo "flash kernel"
                         flash_eraseall /dev/mtd7 2>/dev/null
                         nandwrite -p /dev/mtd7 uImage.bin 2>/dev/null
