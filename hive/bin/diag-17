@@ -1,7 +1,7 @@
-#!/hive/sbin/bash
+#!/usr/bin/env bash
 
-readonly mission='Antminer Series 15/17 Error Report'
-readonly version='1.1'
+readonly script_mission='Antminer Series 15/17 Error Report'
+readonly script_version='1.1'
 readonly DEBUG=0
 
 
@@ -35,8 +35,12 @@ declare -a error_domains=() # ( 'check_asic_number_with_power_on:' 'killall_hash
 
 # functions
 
+print_script_version() {
+	echo -e "${CYAN-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
 intro() {
-	printf '%s\n\n' "$mission"
 	printf '%(%F %T)T Report for the last %d days:\n\n' -1 "$days_to_look_back"
 }
 
@@ -320,6 +324,7 @@ print_stats() {
 
 # code
 
+print_script_version
 intro
 
 check_log
