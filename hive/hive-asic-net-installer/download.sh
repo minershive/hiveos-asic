@@ -1,6 +1,16 @@
 #!/usr/bin/env sh
 
-if [ -e "/usr/bin/compile_time" ]; then
+
+# functions
+
+is_on_busybox() {
+    [ -f "/usr/bin/compile_time" ]
+}
+
+
+# code
+
+if is_on_busybox; then
     which sshpass > /dev/null || (echo -e "${RED}sshpass${NOCOLOR} is required, upgrade hiveos client to latest version: selfupgrade" && exit 1)
 else
     which sshpass > /dev/null || (echo -e "${RED}sshpass${NOCOLOR} is required, try apt-get install sshpass" && exit 1)

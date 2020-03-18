@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 
 
-[[ -e /hive/bin/colors ]] && source /hive/bin/colors
+# functions
+
+is_on_busybox() {
+    [[ -f "/usr/bin/compile_time" ]]
+}
+
+
+# code
+
+[[ -f /hive/bin/colors ]] && source /hive/bin/colors
 
 
 cd `dirname $0`
@@ -29,7 +38,7 @@ install_cmd="cd /tmp; chmod +x ./firmware-upgrade; screen -dm -S upgrade /tmp/fi
 for ip in $IPS; do
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
-	if [[ -e "/usr/bin/compile_time" ]]; then
+	if is_on_busybox; then
 #		cp -rf firmware-upgrade firmware-upgrade-hash
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
 		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade

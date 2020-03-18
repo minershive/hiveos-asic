@@ -63,7 +63,7 @@ for ip in $@; do
     ips=$(echo $str | sed "s, ,\\.,g"); ## replace spaces with periods, a join...
 #    eval echo $ips | tr ' ' '\012'
     echo > /dev/shm/ips
-    for i in $(eval echo $ips | tr ' ' '\012'); do curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i & sleep 0.1; done
+    for i in $(eval echo $ips | tr ' ' '\012'); do curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i & (sleep 0.1 || usleep 100); done
     wait
 done
 

@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 
 
-[[ -e /hive/bin/colors ]] && source /hive/bin/colors
+# functions
+
+is_on_busybox() {
+    [[ -f "/usr/bin/compile_time" ]]
+}
+
+
+# code
+
+[[ -f /hive/bin/colors ]] && source /hive/bin/colors
 
 
 cd `dirname $0`
@@ -24,12 +33,12 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 install_cmd="export PATH=$PATH:/hive/bin:/hive/sbin; export LD_LIBRARY_PATH=/hive/lib; cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=$FARM_HASH HIVE_HOST_URL=$HIVE_HOST_URL sh selfupgrade master"
 #install_cmd="pwd; ls" #for testing
-install_cmd="[ -e /hive ] && (echo Already_installed) || ($install_cmd)"
+install_cmd="[ -d /hive ] && (echo Already_installed) || ($install_cmd)"
 
 for ip in $IPS; do
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
-	if [[ -e "/usr/bin/compile_time" ]]; then
+	if is_on_busybox; then
 		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
 	else
 		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'"
