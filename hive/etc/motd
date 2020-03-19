@@ -1,15 +1,97 @@
-[ -e /hive/bin/asic-model ] && . /hive/bin/asic-model
-[ -e /hive-config/rig.conf ] && . /hive-config/rig.conf
+[[ -s /hive/bin/colors ]] && . /hive/bin/colors
+[[ -s /hive/bin/asic-model ]] && . /hive/bin/asic-model # do we really need this?
+[[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
+
+
+
+# consts
+
+readonly controller_log='/config/hive-controller.log'
+
+
+# functions
+
+get_fs_name() {
+	local fs_name=''
+	local fs_RE=''
+	local fs_raw=''
+
+	if [[ -s /hive-config/wallet.conf ]]; then
+		fs_RE="### FLIGHT SHEET \"(.*)\" ###"
+		fs_raw="$( < /hive-config/wallet.conf )"
+		[[ $fs_raw =~ $fs_RE ]]
+		fs_name="${BASH_REMATCH[1]}"
+	fi
+
+	echo "$fs_name"
+}
+
+pretty_print() {
+	local -r label_color="${LGRAY}"
+	local -r variable_ok_color="${BCYAN}"
+	local -r variable_empty_color="${DGRAY}"
+	local -r separator='·'
+
+	while true; do
+		local label="$1"
+		local -n variable_name="$2"
+		local delimiter="$3"
+
+		printf '%b%s ' "$label_color" "$label"
+
+		if [[ -n "$variable_name" ]]; then
+			printf '%b%s' "$variable_ok_color" "$variable_name"
+		else
+			printf '%b%s' "$variable_empty_color" "<empty>"
+		fi
+
+		if [[ -z "$delimiter" ]]; then
+			printf ' %b\n' "${NOCOLOR}"
+			break
+		else
+			printf ' %b%s ' "${DGRAY}" "$separator"
+			shift 3
+		fi
+	done
+}
+
+
+# code
 
 #echo $ASIC_MODEL
-if [ -e "/usr/bin/compile_ver" ]; then
-    cat /usr/bin/compile_ver
-elif [ -e "/usr/bin/compile_ver" ]; then
-    cat /usr/bin/compile_time
+if [[ -s "/usr/bin/compile_ver" ]]; then
+	asic_model="$( < /usr/bin/compile_ver )"
+elif [[ -s "/usr/bin/compile_time" ]]; then
+	asic_model="$( < /usr/bin/compile_time )"
 fi
-echo "IP: "$(ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
-echo "MAC: "$(ifconfig eth0 | grep 'HWaddr' | awk '{ print $5}')
-echo "FARM_ID: "$FARM_ID
-echo "RIG_ID: "$RIG_ID
-echo "HIVE_HOST_URL: "$HIVE_HOST_URL
-echo "AGENT: "$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)
+
+agent_release_version="$( cat /hive/etc/VERSION 2> /dev/null )"
+agent_build_version="$( cat /hive/etc/build 2> /dev/null )"
+agent_full_version="${agent_release_version:-<not set>}-${agent_build_version:-release}"
+
+hostname="$( hostname )"
+ip="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
+mac="$( ifconfig eth0 | grep 'HWaddr' | awk '{ print $5}' )"
+mac="${mac,,}"
+netmask="$( ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
+uptime="$( cat /proc/uptime | awk '{printf "%dd %02dh %02dm", $1/24/3600, $1/3600%24, $1/60%60}' )"
+fs_name="$( get_fs_name )"
+local_date="$( date '+%F %T %z' )"
+
+echo -e "${BPURPLE}${asic_model:-<not set>}${NOCOLOR}"
+echo
+pretty_print 'Worker' WORKER_NAME - 'Flight sheet' fs_name - 'Hive OS Client' agent_full_version
+pretty_print 'Farm ID' FARM_ID - 'Rig ID' RIG_ID - 'FARM_HASH' FARM_HASH - 'API server' HIVE_HOST_URL
+pretty_print 'Host' hostname - 'IP' ip - 'Mask' netmask - 'MAC' mac - 'Uptime' uptime
+echo
+
+# TODO tail miner logs
+if [[ -s "$controller_log" ]]; then
+	echo -e "${DGRAY}-- Last lines from $controller_log ------------------------${NOCOLOR}"
+	grep '\S' "$controller_log" | tail -n 10 
+	echo -e "${DGRAY}-----------------------------------------------------------------------${NOCOLOR}"
+	echo
+fi
+
+pretty_print 'Local date' local_date
+echo
