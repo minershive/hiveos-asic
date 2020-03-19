@@ -25,18 +25,78 @@ fi
 
 
 #eval `cat /hive-config/rig.conf | dos2unix | grep '^HIVE_HOST_URL='`
+
+# read, check (rough sanity check) and set HIVE_HOST_URL
+# 
+# todo: connectivity test
+# todo: valid api answer test
+
 HIVE_HOST_URL_default='http://api.hiveos.farm'
 HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
 
-if [[ -z $HIVE_HOST_URL ]]; then
+sanitize_HIVE_HOST_URL() {
+	(( $# < 1 && $# > 2 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
+	#
+	# sanitize_HIVE_HOST_URL 'url_to_sanitize' ['fallback_url'] -> 'sanitized_url'
+	#
+	# exit code: is_fallback_happen
+	#
+	local -r url_to_sanitize="$1"
+	local -r fallback_url="${2:-${HIVE_HOST_URL_default}}"
+	local -r valid_url_RE='^(http|https)://[[:alnum:]\.\-]+(:[[:digit:]]{1,5})?' # first line w/o control chars (only alnum|punct), starting with http(s)://
+	local sanitized_url=''
+	local -i is_fallback_happen=0
+
+	if [[ $url_to_sanitize =~ $valid_url_RE ]]; then
+		# URL seems ok, use it
+		sanitized_url="$BASH_REMATCH"
+		is_fallback_happen=0
+	else
+		# something wrong, falling back to default
+		sanitized_url="$fallback_url"
+		is_fallback_happen=1
+	fi
+
+	echo "$sanitized_url"
+
+	return $(( is_fallback_happen ))
+}
+
+validate_and_set_HIVE_HOST_URL() {
+	(( $# != 1 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
+	#
+	# validate_and_set_HIVE_HOST_URL 'url_to_validate_and_set'
+	#
+	# sets: $HIVE_HOST_URL
+	#
+	local -r url_to_validate_and_set="$1"
+	local validated_url=''
+
+	if validated_url="$( sanitize_HIVE_HOST_URL "$url_to_validate_and_set" )"; then
+		echo "URL seems ok. Hive Server URL have been set to $validated_url"
+	else
+		echo "Something wrong with '$url_to_validate_and_set'. Falling back to default: $validated_url"
+	fi
+	HIVE_HOST_URL="$validated_url"
+}
+
+# try to read it from environment
+if [[ -n "$HIVE_HOST_URL" ]]; then
+	echo -n "HIVE_HOST_URL variable is set, checking... "
+	validate_and_set_HIVE_HOST_URL "$HIVE_HOST_URL"
+else
 	HIVE_HOST_URL="$HIVE_HOST_URL_default"
 	echo "HIVE_HOST_URL variable is not set. Using default Hive Server URL: $HIVE_HOST_URL"
 fi
 
-if [ -e "$HIVE_HOST_URL_file" ]; then
-	HIVE_HOST_URL=$( cat "$HIVE_HOST_URL_file" )
+# try to read it from file
+if [[ -s "$HIVE_HOST_URL_file" ]]; then
+	echo -n "File '$HIVE_HOST_URL_file' found, checking... "
+
+	HIVE_HOST_URL_from_file="$( < "$HIVE_HOST_URL_file" )"
+
+	validate_and_set_HIVE_HOST_URL "$HIVE_HOST_URL_from_file"
 	rm "$HIVE_HOST_URL_file"
-	echo "$HIVE_HOST_URL_file found. Hive Server URL (HIVE_HOST_URL) is set to '$HIVE_HOST_URL'"
 fi
 
 
