@@ -126,7 +126,7 @@ get_unique_events_from_log() {
 
 	local unique_events=''
 
-	readarray -t error_domains < <( cat "$log" | cut -d ' ' -f 3 | sort -u )  # get list of error types (unique)
+	readarray -t error_domains < <( cat "$log" | cut -d ' ' -f 3 | sort -su )  # get list of error types (unique)
 
 	if (( DEBUG )); then
 		printf 'DEBUG> error domains: '
@@ -139,7 +139,7 @@ get_unique_events_from_log() {
 			echo "Domain: '$error_type' (${#log_events[@]})"
 		fi
 		log_events+=( "${domain_prefix}${error_type#*:*:}" )
-		readarray -t -O "${#log_events[@]}" log_events < <( grep -e "$error_type" -- "$log" | cut -d ' ' -f 4- | sort -u )  # get list of events (unique)
+		readarray -t -O "${#log_events[@]}" log_events < <( grep -F -e "$error_type" -- "$log" | cut -d ' ' -f 4- | sort -su )  # get list of events (unique)
 	done
 
 	if (( DEBUG )); then
@@ -207,8 +207,8 @@ calculate_data() {
 	for this_event in "${log_events[@]}"; do
 		for (( this_day=0 ; this_day < days_to_look_back ; this_day++ )); do
 			date_to_process="${last_days_calendar[this_day]}"
-			this_event_RE="${date_to_process}.*${this_event}"
-			this_event_counter="$( grep -c "$this_event_RE" "$log" )" # tenfold faster than bash matching
+			#this_event_RE="${date_to_process}.*${this_event}"
+			this_event_counter="$( grep -F "$date_to_process" "$log" | grep -F -c "$this_event" )" # tenfold faster than bash matching
 
 			events_data["${this_event}.${this_day}"]="$this_event_counter"
 
