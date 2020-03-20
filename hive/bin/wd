@@ -112,8 +112,8 @@ function loop() {
 case $1 in
 	run)
 		loadconf
-		echo "MINER RERSTART:  $WD_MINER minutes"
-		echo "REBOOT:          $WD_REBOOT minutes"
+		echo "MINER RESTART:  $WD_MINER minutes"
+		echo "REBOOT:         $WD_REBOOT minutes"
 		while true; do
 			loop
 			sleep $SLEEP

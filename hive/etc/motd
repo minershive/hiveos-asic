@@ -1,15 +1,53 @@
-[[ -s /hive/bin/colors ]] && . /hive/bin/colors
-[[ -s /hive/bin/asic-model ]] && . /hive/bin/asic-model # do we really need this?
-[[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
-
-
-
 # consts
 
+[[ -s /hive/bin/colors ]] && . /hive/bin/colors
+[[ -s /hive/bin/asic-model ]] && . /hive/bin/asic-model
+[[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
 readonly controller_log='/config/hive-controller.log'
 
 
 # functions
+
+seconds2dhm() {
+	# Usage: seconds2dhm 'time_in_seconds' ['delimiter']
+	# Renders time_in_seconds to 'XXd XXh XXm XXs' string
+	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS
+	local -r delimiter=' '
+
+	# consts
+
+	local -i -r days="$(( time_in_seconds / 60 / 60 / 24 ))"
+	local -i -r hours="$(( time_in_seconds / 60 / 60 % 24 ))"
+	local -i -r minutes="$(( time_in_seconds / 60 % 60 ))"
+
+	# code
+
+	(( days > 0 )) && printf '%ud%s' "$days" "$delimiter"
+	(( hours > 0 )) && printf '%uh%s' "$hours" "$delimiter"
+	(( minutes > 0 )) && printf '%um' "$minutes"
+
+	printf '\n'
+}
+
+netmask_to_cidr() {
+	local -r netmask="$1"
+	local -i cidr=0
+	local x
+	
+	x="0$( printf '%o' ${netmask//./ } )"
+
+	while (( x > 0 )); do
+		(( cidr += x % 2, x >>= 1 ))
+	done
+
+	echo "/$cidr"
+}
+
+get_uptime_in_dhm() {
+	local -r uptime_raw="$( < /proc/uptime )"
+	local -r uptime_dhm="$( seconds2dhm "${uptime_raw%%.*}" )"
+	echo "$uptime_dhm"
+}
 
 get_fs_name() {
 	local fs_name=''
@@ -55,34 +93,59 @@ pretty_print() {
 	done
 }
 
+rematch() {
+	# actually we don't have to use pure bash eh?
+	# rematch 'regex' ['string']
+	local -r regex="$1"
+	local -r string="${2:-$(</dev/stdin)}" # get from arg or stdin
+
+	[[ $string =~ $regex ]]
+	printf '%s\n' "${BASH_REMATCH[@]:1}"
+}
+
 
 # code
-
-#echo $ASIC_MODEL
-if [[ -s "/usr/bin/compile_ver" ]]; then
-	asic_model="$( < /usr/bin/compile_ver )"
-elif [[ -s "/usr/bin/compile_time" ]]; then
-	asic_model="$( < /usr/bin/compile_time )"
-fi
 
 agent_release_version="$( cat /hive/etc/VERSION 2> /dev/null )"
 agent_build_version="$( cat /hive/etc/build 2> /dev/null )"
 agent_full_version="${agent_release_version:-<not set>}-${agent_build_version:-release}"
 
-hostname="$( hostname )"
-ip="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
-mac="$( ifconfig eth0 | grep 'HWaddr' | awk '{ print $5}' )"
+mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
 mac="${mac,,}"
-netmask="$( ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
-uptime="$( cat /proc/uptime | awk '{printf "%dd %02dh %02dm", $1/24/3600, $1/3600%24, $1/60%60}' )"
-fs_name="$( get_fs_name )"
+#gateway="$(route -n | grep 'UG[ \t]' | awk '{print $2}')"
+gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
+ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
+netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
+cidr="$( netmask_to_cidr "$netmask" )"
+hostname="$( hostname )"
+nameserver="$( cat /etc/resolv.conf | awk '{ print $2}' )"
+
+ip_w_cidr="$ip $cidr"
+netmask_w_cidr="$netmask $cidr"
+
+uptime="$( get_uptime_in_dhm )"
 local_date="$( date '+%F %T %z' )"
 
-echo -e "${BPURPLE}${asic_model:-<not set>}${NOCOLOR}"
+fs_name="$( get_fs_name )"
+
+if [[ -n "$HIVEON_VER" ]]; then
+	HIVEON_VER="$( sed -n 3p /usr/bin/compile_ver )"
+fi
+
+# print
+
+pretty_print 'host' hostname / 'uptime' uptime / 'local date' local_date
+pretty_print 'ip' ip_w_cidr / 'mac' mac / 'gw' gateway / 'dns' nameserver
 echo
-pretty_print 'Worker' WORKER_NAME - 'Flight sheet' fs_name - 'Hive OS Client' agent_full_version
-pretty_print 'Farm ID' FARM_ID - 'Rig ID' RIG_ID - 'FARM_HASH' FARM_HASH - 'API server' HIVE_HOST_URL
-pretty_print 'Host' hostname - 'IP' ip - 'Mask' netmask - 'MAC' mac - 'Uptime' uptime
+echo -e "${BPURPLE}${ASIC_MODEL:-<not set>} ${HIVEON_VER:-<not set>}${NOCOLOR}"
+echo
+pretty_print 'Worker' WORKER_NAME / 'Flight sheet' fs_name / 'Client' agent_full_version
+pretty_print 'Farm ID' FARM_ID / 'Rig ID' RIG_ID / 'API server' HIVE_HOST_URL
+
+if [[ -n "$FARM_HASH" ]]; then
+	pretty_print 'FARM_HASH' FARM_HASH
+fi
+
 echo
 
 # TODO tail miner logs
@@ -92,6 +155,3 @@ if [[ -s "$controller_log" ]]; then
 	echo -e "${DGRAY}-----------------------------------------------------------------------${NOCOLOR}"
 	echo
 fi
-
-pretty_print 'Local date' local_date
-echo
