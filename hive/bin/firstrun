@@ -29,7 +29,7 @@ fi
 # read, check (rough sanity check) and set HIVE_HOST_URL
 # 
 # todo: connectivity test
-# todo: valid api answer test
+# todo: valid api answer test (curl -v $url/worker/api?a=b)
 
 HIVE_HOST_URL_default='http://api.hiveos.farm'
 HIVE_HOST_URL_file='/config/HIVE_HOST_URL'

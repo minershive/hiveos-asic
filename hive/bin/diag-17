@@ -56,6 +56,12 @@ create_calendar() {
 		last_days_calendar+=( "$current_day_in_yymmdd" ) # add date to array
 		(( current_day_in_seconds -= 24 * 60 * 60 )) # get 24h back
 	done
+
+	if (( DEBUG )); then
+		printf 'DEBUG> last_days_calendar array: '
+		printf '[%s] ' "${last_days_calendar[@]}"
+		printf '\n\n'
+	fi
 }
 
 check_log() {
@@ -78,8 +84,9 @@ check_for_1970() {
 }
 
 get_filtered_log() {
-	local -r files_to_grep="$( find "$logs_dir" '/var/log/' -name log -type f -mtime "-${days_to_look_back}" )"
+	local -r files_to_grep="$( find "$logs_dir" '/var/log/' -name log -type f )"
 
+	# WARNING: debug is extremely slow (20-30 minutes) on arm machines.
 	if (( DEBUG )); then
 		echo -n "DEBUG> 'log' files found: "
 		wc -l -- <<< "$files_to_grep"
