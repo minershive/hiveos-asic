@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.11'
+readonly script_version='1.12'
 readonly DEBUG=0
 
 
@@ -101,10 +101,10 @@ get_filtered_log() {
 		cat -- "${script_basename}.debug.1" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' | tee "${script_basename}.debug.2" | wc -l
 
 		echo -n "DEBUG> Number of lines for the last $days_to_look_back days: "
-		grep -hF -f <( printf '%s\n' "${calendar[@]}" ) -- "${script_basename}.debug.2" | tee "${script_basename}.debug.3" | wc -l
+		grep -hF -f <( printf '%s\n' "${last_days_calendar[@]}" ) -- "${script_basename}.debug.2" | tee "${script_basename}.debug.3" | wc -l
 	fi
 
-	grep -hF -f <( printf '%s\n' "${calendar[@]}" ) -- $files_to_grep |
+	grep -hF -f <( printf '%s\n' "${last_days_calendar[@]}" ) -- $files_to_grep |
 			grep -E "$domains_of_interest" > "$log"
 }
 
