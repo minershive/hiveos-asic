@@ -1,13 +1,28 @@
 #!/usr/bin/env bash
 
-which curl > /dev/null || (echo -e "curl is required, try apt-get install curl" && exit 1)
+
+readonly script_mission='Hive OS Client for ASIC: Network ASIC scanner'
+readonly script_version='1.0'
+
+
+# consts
+
+. colors
+
+
+# functions
+
+print_script_version() {
+	echo -e "${CYAN-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
 
 function usage() {
     bname=`basename $0`
-    echo -e "Usage example 1: $bname 192.168.0.0/24"
-    echo -e "Usage example 2: $bname 192.168.0.0/24 192.168.100.0/24"
-    echo -e "Usage example 3: $bname 172.16.1.0/16 192.168.1.0/24 10.0.1.0/24"
-    echo -e "Usage example 4: $bname 192.168.0.0/24 > ips.txt"
+    echo -e "Usage example 1: {$CYAN}$bname${NOCOLOR} 192.168.0.0/24"
+    echo -e "Usage example 2: {$CYAN}$bname${NOCOLOR} 192.168.0.0/24 192.168.100.0/24"
+    echo -e "Usage example 3: {$CYAN}$bname${NOCOLOR} 172.16.1.0/16 192.168.1.0/24 10.0.1.0/24"
+    echo -e "Usage example 4: {$CYAN}$bname${NOCOLOR} 192.168.0.0/24 > ips.txt"
 }
 
 prefix_to_bit_netmask() {
@@ -40,27 +55,35 @@ bit_netmask_to_wildcard_netmask() {
     echo $wildcard_mask;
 }
 
+
+# code
+
+print_script_version
+
+which curl > /dev/null || ( echo -e "${CYAN}curl${NOCOLOR} is required, try ${CYAN}apt-get install curl${NOCOLOR}"; exit 1 )
+
+[[ -z "$1" ]] && { usage; exit 1; }
+
 mkdir -p /dev/shm/ip
 rm -rf /dev/shm/ip/*
 
 for ip in $@; do
-    net=$(echo $ip | cut -d '/' -f 1);
-    prefix=$(echo $ip | cut -d '/' -f 2);
+    net=$(echo $ip | cut -d '/' -f 1)
+    prefix=$(echo $ip | cut -d '/' -f 2)
 
-    bit_netmask=$(prefix_to_bit_netmask $prefix);
-
-    wildcard_mask=$(bit_netmask_to_wildcard_netmask "$bit_netmask");
+    bit_netmask=$(prefix_to_bit_netmask $prefix)
+    wildcard_mask=$(bit_netmask_to_wildcard_netmask "$bit_netmask")
 
     str=
     for (( i = 1; i <= 4; i++ )); do
         range=$(echo $net | cut -d '.' -f $i)
         mask_octet=$(echo $wildcard_mask | cut -d ' ' -f $i)
         if [ $mask_octet -gt 0 ]; then
-            range="{0..$mask_octet}";
+            range="{0..$mask_octet}"
         fi
         str="${str} $range"
     done
-    ips=$(echo $str | sed "s, ,\\.,g"); ## replace spaces with periods, a join...
+    ips=$(echo $str | sed "s, ,\\.,g") ## replace spaces with periods, a join...
 #    eval echo $ips | tr ' ' '\012'
     echo > /dev/shm/ips
     for i in $(eval echo $ips | tr ' ' '\012'); do curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i & (sleep 0.1 || usleep 100); done
@@ -70,4 +93,3 @@ done
 eval ls /dev/shm/ip/ | tr ' ' '\012' | sort -n -t . -k 1,1 -k 2,2 -k 3,3 -k 4,4
 
 rm -rf /dev/shm/ip/*
-[[ -z $1 ]] && usage
