@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.1'
+readonly script_version='1.11'
 readonly DEBUG=0
 
 
@@ -15,6 +15,7 @@ set -o nounset
 # consts
 
 . colors
+readonly script_basename="$( basename "$0" )"
 readonly log="/tmp/$( basename $0 ).log"
 readonly logs_dir='/nvdata'
 readonly days_to_look_back=14
@@ -69,7 +70,7 @@ check_log() {
 }
 
 check_for_1970() {
-	find "${logs_dir}/1970-01/" -name log -mtime "-${days_to_look_back}" -type f -print |
+	find "${logs_dir}/1970-01/" -name log -type f -mtime "-${days_to_look_back}" -print |
 		grep -q '.' && {
 			echo "${RED}WARNING: Recently updated logs from 1970 year are found, check host time settings (ntpd)${NOCOLOR}"
 			echo
@@ -77,27 +78,27 @@ check_for_1970() {
 }
 
 get_filtered_log() {
-	local -r files_to_grep="$( find "$logs_dir" /var/log -name log -type f )"
+	local -r files_to_grep="$( find "$logs_dir" '/var/log/' -name log -type f -mtime "-${days_to_look_back}" )"
 
 	if (( DEBUG )); then
 		echo -n "DEBUG> 'log' files found: "
 		wc -l -- <<< "$files_to_grep"
 
 		echo -n "DEBUG> Number of lines: "
-		cat -- $files_to_grep | tee 0.debug | wc -l
+		cat -- $files_to_grep | tee "${script_basename}.debug.0" | wc -l
 
 		echo -n "DEBUG> Number of unique lines: "
-		cat -- $files_to_grep | sort -su | tee 1.debug | wc -l
+		cat -- "${script_basename}.debug.0" | sort -su | "${script_basename}.debug.1" | wc -l
 
 		echo -n "DEBUG> Number of unique lines with timestamp: "
-		cat -- $files_to_grep | sort -su | grep -ahE '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' | tee 2.debug | wc -l
+		cat -- "${script_basename}.debug.1" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' | tee "${script_basename}.debug.2" | wc -l
 
 		echo -n "DEBUG> Number of lines for the last $days_to_look_back days: "
-		grep -ahF "$( printf '%s\n' "${last_days_calendar[@]}" )" -- $files_to_grep | tee 3.debug | wc -l
+		grep -hF -e "$( printf '%s\n' "${last_days_calendar[@]}" )" -- $files_to_grep | tee "${script_basename}.debug.3" | wc -l
 	fi
 
-	grep -ahF "$( printf '%s\n' "${last_days_calendar[@]}" )" -- $files_to_grep |
-			grep -aE "$domains_of_interest" > "$log"
+	grep -hF -e "$( printf '%s\n' "${last_days_calendar[@]}" )" -- $files_to_grep |
+			grep -E "$domains_of_interest" > "$log"
 }
 
 get_unique_events_from_log() {
