@@ -88,7 +88,7 @@ get_filtered_log() {
 		cat -- $files_to_grep | tee "${script_basename}.debug.0" | wc -l
 
 		echo -n "DEBUG> Number of unique lines: "
-		cat -- "${script_basename}.debug.0" | sort -su | "${script_basename}.debug.1" | wc -l
+		cat -- "${script_basename}.debug.0" | sort -su | tee "${script_basename}.debug.1" | wc -l
 
 		echo -n "DEBUG> Number of unique lines with timestamp: "
 		cat -- "${script_basename}.debug.1" | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2} ' | tee "${script_basename}.debug.2" | wc -l
