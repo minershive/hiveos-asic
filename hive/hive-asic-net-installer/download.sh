@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 
-readonly script_mission='Hive OS Client for ASIC: Download bulk install scripts'
+readonly script_mission='Hive OS Client for ASICs: Download bulk install scripts'
 readonly script_version='1.0'
 
 

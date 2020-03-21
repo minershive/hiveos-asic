@@ -105,32 +105,35 @@ rematch() {
 show_mixed_logs() {
 	local -r controller_log='/config/hive-controller.log'
 	local -r miner_status_log='/nvdata/miner_status.log'
+	local -r error_line_marker='MaRkEr'
+	local -r -i error_line_marker_length="${#error_line_marker}"
+	local -r -i tail_lines=12
 	local line=''
 	
 	if [[ -s "$controller_log" || -s "$miner_status_log" ]]; then
-		echo -e "${DGRAY}-- Last lines from logs -----------------------------------------------${NOCOLOR}"
+		echo -e "${DGRAY}-- Last lines from logs --------------------------------------------------------${NOCOLOR}"
 	
 		{
 			if [[ -s "$controller_log" ]]; then
-				grep -E '^[0-9]{4}' "$controller_log"
+				grep -E '^[0-9]{4}' "$controller_log" | tail -n "$tail_lines"
 			fi
 			
 			if [[ -s "$miner_status_log" ]]; then
 				while IFS= read line; do
-					echo -e "${line}MaRkEr"
-				done < <( grep -E 'WARN|ERR' "$miner_status_log" )
+					echo -e "${line}${error_line_marker}"
+				done < <( grep -E 'WARN|ERR' "$miner_status_log" | tail -n "$tail_lines" )
 			fi
 		} | sort -us | {
 			while IFS= read line; do
-				if [[ "${line: -6}" == 'MaRkEr' ]]; then
-					echo -e " ${RED}${line::-6}${NOCOLOR}"
+				if [[ "${line: -${error_line_marker_length}}" == "${error_line_marker}" ]]; then
+					echo -e " ${RED}${line::-${error_line_marker_length}}${NOCOLOR}"
 				else
 					echo -e " $line"
 				fi
 			done
-		} | tail -n 12
+		} | tail -n "$tail_lines"
 	
-		echo -e "${DGRAY}-----------------------------------------------------------------------${NOCOLOR}"
+		echo -e "${DGRAY}--------------------------------------------------------------------------------${NOCOLOR}"
 		echo
 	fi
 }

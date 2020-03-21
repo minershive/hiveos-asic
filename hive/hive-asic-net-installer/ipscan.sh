@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 
-readonly script_mission='Hive OS Client for ASIC: Network ASIC scanner'
-readonly script_version='1.0'
+readonly script_mission='Hive OS Client for ASICs: Network ASIC scanner'
+readonly script_version='1.01'
 
 
 # consts
@@ -19,10 +19,10 @@ print_script_version() {
 
 function usage() {
     bname=`basename $0`
-    echo -e "Usage example 1: {$CYAN}$bname${NOCOLOR} 192.168.0.0/24"
-    echo -e "Usage example 2: {$CYAN}$bname${NOCOLOR} 192.168.0.0/24 192.168.100.0/24"
-    echo -e "Usage example 3: {$CYAN}$bname${NOCOLOR} 172.16.1.0/16 192.168.1.0/24 10.0.1.0/24"
-    echo -e "Usage example 4: {$CYAN}$bname${NOCOLOR} 192.168.0.0/24 > ips.txt"
+    echo -e "Usage example 1: ${CYAN}$bname${NOCOLOR} 192.168.0.0/24"
+    echo -e "Usage example 2: ${CYAN}$bname${NOCOLOR} 192.168.0.0/24 192.168.100.0/24"
+    echo -e "Usage example 3: ${CYAN}$bname${NOCOLOR} 172.16.1.0/16 192.168.1.0/24 10.0.1.0/24"
+    echo -e "Usage example 4: ${CYAN}$bname${NOCOLOR} 192.168.0.0/24 > ips.txt"
 }
 
 prefix_to_bit_netmask() {
