@@ -1,18 +1,26 @@
 #!/bin/sh
 
-sleep 10
+#sleep 10
 
-if [ -s /etc/hive-url ]; then
+if [ -s "/etc/hive-url" ]; then
     URL=$(cat /etc/hive-url)
 fi
 
-if [ -s /config/hive-url ]; then
+if [ -s "/config/hive-url" ]; then
     URL=$(cat /config/hive-url)
 fi
 
-boot_h () {
+export PATH=$PATH:/hive/bin:/hive/sbin
+export LD_LIBRARY_PATH=/hive/lib
+
+
+random() {
+    awk -v min=$1 -v max=$2 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
+}
+
+boot_h() {
     #$FARM_HASH can be defined externally
-    if [ -e /config/FARM_HASH ]; then
+    if [ -e "/config/FARM_HASH" ]; then
         FARM_HASH=$(cat /config/FARM_HASH)
         [[ ! -z "$FARM_HASH" ]] && /hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
         rm /config/FARM_HASH
@@ -21,21 +29,25 @@ boot_h () {
     /hive/bin/hive > /tmp/hive-boot.log
 }
 
-check () {
+check_h() {
     cd /nvdata
     if [ -z $URL ]; then
         URL="hiveos.farm"
     fi
 
-    if [ -s /config/HIVE_HOST_URL ]; then
-        URL=$(cat /config/HIVE_HOST_URL | sed s%'http://api.'%%)
+    if [ -s "/config/HIVE_HOST_URL" ]; then
+        URL=$(cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.%)
     fi
 
+    if ! echo "$URL" | grep -q -s -F "download"; then
+        URL="http://download.hiveos.farm"
+    fi
+    echo $URL
     if [ ! -e "/nvdata/latest.tar.gz" ] || ! $(gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1); then
         #curl -L --insecure http://download.$URL/asic/repo/s9/latest -o latest_new.tar.gz
         while ! $(gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1); do
-            sleep $(( $RANDOM % 40 + 20 ))
-            curl -L --insecure http://download.$URL/asic/repo/s9/latest -o latest_new.tar.gz
+            sleep $(random 15 60)
+            curl -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz
         done
         cp -rf latest_new.tar.gz latest.tar.gz
     fi
@@ -46,7 +58,7 @@ check () {
     fi
 
     tar -xzv -f latest.tar.gz
-    [ -L /hive ] && rm /hive
+    [ -L "/hive" ] && rm /hive
     rm -rf hiveos-asic-*/hive/sbin/teleconsole
     cp -rf hiveos-asic-*/hive /
     [ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
@@ -55,17 +67,17 @@ check () {
     rm -rf hiveos-asic*
     sleep 2
 
-    export PATH=$PATH:/hive/bin:/hive/sbin
-    export LD_LIBRARY_PATH=/hive/lib
     [[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
     [ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
     #cp -rf /hive/share/S9/S69hive /etc/rcS.d/
     cp -rf /hive/share/S9/.profile /home/root/
-    ((boot_h)) &
+    boot_h &
 }
 
-if [ ! -e /hive ]; then
-    ((check)) &
+if [ -e "/hive" ]; then
+    echo "boot"
+    boot_h &
 else
-    ((boot_h)) &
+    echo "check"
+    check_h &
 fi
