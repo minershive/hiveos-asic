@@ -359,6 +359,7 @@ install_antminer_bmminer_ro() {
 		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive
 	fi
 	[ -e "/nvdata/latest.tar.gz" ] && rm /nvdata/latest.tar.gz
+	[ -e "/nvdata/latest_new.tar.gz" ] && rm /nvdata/latest_new.tar.gz
 	[ -e "/hive" ] && rm -rf /hive
 	sync
 	/etc/rcS.d/S69hive
