@@ -38,6 +38,12 @@ if [ $release == $version ]; then
 		fi
 	fi
 fi
+#check dev build
+if [ "$2" == $(cat /hive/etc/build) ]; then
+    echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
+    exit $exitcode
+fi
+
 if [ $exitcode -ne 0 ] || [ -z $release ]; then
 	echo "Can't get current version from repository"
 	exit $exitcode
@@ -348,6 +354,10 @@ install_zig() {
 }
 
 install_antminer_bmminer_ro() {
+	sync && echo 3 > /proc/sys/vm/drop_caches
+	if ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; then
+		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive
+	fi
 	[ -e "/nvdata/latest.tar.gz" ] && rm /nvdata/latest.tar.gz
 	[ -e "/hive" ] && rm -rf /hive
 	sync

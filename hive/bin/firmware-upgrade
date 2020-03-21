@@ -3,6 +3,7 @@
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
 [ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time` #Antminer
 
+sync && echo 3 > /proc/sys/vm/drop_caches
 
 URL="$1"
 #curl "$URL" | tar xvz
@@ -84,6 +85,7 @@ FILEEOF
 }
 
 upgrade_st17() {
+    sync && echo 3 > /proc/sys/vm/drop_caches
     file=/dev/$$
     trap atexit 0
     atexit() {

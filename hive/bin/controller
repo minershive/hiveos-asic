@@ -69,6 +69,7 @@ while true; do
 	mem_check #free mem and log rotation
 	version_check #check dev build after upgrade client
 	sleep 60
+	sync && echo 3 > /proc/sys/vm/drop_caches
 	[[ $(($count % 10)) = 0 ]] && /hive/bin/agent-screen dontattach #cron agent
 	[[ $count -eq 59 ]] && /hive/bin/cache-hive-ip > /dev/null #cron cache-hive-ip
 	[[ $count -gt 60 ]] && count=0

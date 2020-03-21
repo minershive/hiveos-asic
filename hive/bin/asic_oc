@@ -27,13 +27,13 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" =~ "Antminer T17" ]]; the
 	killall bmminer
 	n=0
 	while true; do
-		sleep 30
+		sleep 60
 		if [[ $(cat /config/profile.txt | grep tune_status | awk -F\= '{print $2}') -eq 2 ]]; then
 			miner tuning
 			exit 0
 		fi
 		n=$[ $n + 1 ]
-		if [ $n -eq 180 ]; then
+		if [ $n -eq 200 ]; then
 			sed -i 's/tune_status=1/tune_status=2/' /config/profile.txt > /dev/null 2>&1
 			miner restart
 		fi
