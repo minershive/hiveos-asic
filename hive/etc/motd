@@ -3,7 +3,7 @@
 [[ -s /hive/bin/colors ]] && . /hive/bin/colors
 [[ -s /hive/bin/asic-model ]] && . /hive/bin/asic-model
 [[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
-readonly controller_log='/config/hive-controller.log'
+readonly separator='·'
 
 
 # functions
@@ -68,7 +68,6 @@ pretty_print() {
 	local -r label_color="${LGRAY}"
 	local -r variable_ok_color="${BCYAN}"
 	local -r variable_empty_color="${DGRAY}"
-	local -r separator='·'
 
 	while true; do
 		local label="$1"
@@ -103,16 +102,49 @@ rematch() {
 	printf '%s\n' "${BASH_REMATCH[@]:1}"
 }
 
+show_mixed_logs() {
+	local -r controller_log='/config/hive-controller.log'
+	local -r miner_status_log='/nvdata/miner_status.log'
+	local line=''
+	
+	if [[ -s "$controller_log" || -s "$miner_status_log" ]]; then
+		echo -e "${DGRAY}-- Last lines from logs -----------------------------------------------${NOCOLOR}"
+	
+		{
+			if [[ -s "$controller_log" ]]; then
+				grep -E '^[0-9]{4}' "$controller_log"
+			fi
+			
+			if [[ -s "$miner_status_log" ]]; then
+				while IFS= read line; do
+					echo -e "${line}MaRkEr"
+				done < <( grep -E 'WARN|ERR' "$miner_status_log" )
+			fi
+		} | sort -us | {
+			while IFS= read line; do
+				if [[ "${line: -6}" == 'MaRkEr' ]]; then
+					echo -e " ${RED}${line::-6}${NOCOLOR}"
+				else
+					echo -e " $line"
+				fi
+			done
+		} | tail -n 12
+	
+		echo -e "${DGRAY}-----------------------------------------------------------------------${NOCOLOR}"
+		echo
+	fi
+}
+
 
 # code
 
+# collect sysinfo
 agent_release_version="$( cat /hive/etc/VERSION 2> /dev/null )"
 agent_build_version="$( cat /hive/etc/build 2> /dev/null )"
 agent_full_version="${agent_release_version:-<not set>}-${agent_build_version:-release}"
 
 mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
 mac="${mac,,}"
-#gateway="$(route -n | grep 'UG[ \t]' | awk '{print $2}')"
 gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
 ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
 netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
@@ -129,15 +161,16 @@ local_date="$( date '+%F %T %z' )"
 fs_name="$( get_fs_name )"
 
 if [[ -n "$HIVEON_VER" ]]; then
-	HIVEON_VER="$( sed -n 3p /usr/bin/compile_ver )"
+	fw_version="$( sed -n 3p /usr/bin/compile_ver )"
+else
+	fw_version="$( sed -n 1p /usr/bin/compile_time )"
 fi
 
 # print
-
 pretty_print 'host' hostname / 'uptime' uptime / 'local date' local_date
 pretty_print 'ip' ip_w_cidr / 'mac' mac / 'gw' gateway / 'dns' nameserver
 echo
-echo -e "${BPURPLE}${ASIC_MODEL:-<not set>} ${HIVEON_VER:-<not set>}${NOCOLOR}"
+echo -e "${BPURPLE}${ASIC_MODEL:-<not set>} ${PURPLE}${separator} ${fw_version}${NOCOLOR}"
 echo
 pretty_print 'Worker' WORKER_NAME / 'Flight sheet' fs_name / 'Client' agent_full_version
 pretty_print 'Farm ID' FARM_ID / 'Rig ID' RIG_ID / 'API server' HIVE_HOST_URL
@@ -148,10 +181,4 @@ fi
 
 echo
 
-# TODO tail miner logs
-if [[ -s "$controller_log" ]]; then
-	echo -e "${DGRAY}-- Last lines from $controller_log ------------------------${NOCOLOR}"
-	grep '\S' "$controller_log" | tail -n 10 
-	echo -e "${DGRAY}-----------------------------------------------------------------------${NOCOLOR}"
-	echo
-fi
+show_mixed_logs
