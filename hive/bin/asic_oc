@@ -18,7 +18,7 @@ if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL
 		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
 	fi
 	echo -e "Autotune config applied!"
-elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" =~ "Antminer T17" ]]; then
+elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || "$ASIC_MODEL" == "Antminer T17 Hiveon" ]]; then
 	if [ $1 == "default" ]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
@@ -38,7 +38,7 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" =~ "Antminer T17" ]]; the
 			miner restart
 		fi
 	done
-elif [[ $ASIC_MODEL =~ "Antminer S17+" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 	profile_file="/hive/share/profiles/"$(echo $ASIC_MODEL | cut -d' ' -f2)
 	if [ $1 == "default" ]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
@@ -47,9 +47,7 @@ elif [[ $ASIC_MODEL =~ "Antminer S17+" ]]; then
 		if [ -e "$profile_file" ]; then
 			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
 		else
-			echo "Profile file not found"
-			exit 0
-			#echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
+			echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
 		fi
 	fi
 	killall bmminer
