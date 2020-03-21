@@ -38,6 +38,34 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || "$ASIC_MODEL" =~ "Antminer T17" ]]; the
 			miner restart
 		fi
 	done
+elif [[ $ASIC_MODEL =~ "Antminer S17+" ]]; then
+	profile_file="/hive/share/profiles/"$(echo $ASIC_MODEL | cut -d' ' -f2)
+	if [ $1 == "default" ]; then
+		rm -rf /config/profile.txt > /dev/null 2>&1
+	else
+		profile_id=$(echo $1 | jq -r .tune_profile)
+		if [ -e "$profile_file" ]; then
+			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
+		else
+			echo "Profile file not found"
+			exit 0
+			#echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
+		fi
+	fi
+	killall bmminer
+	n=0
+	while true; do
+		sleep 60
+		if [[ $(cat /config/profile.txt | grep tune_status | awk -F\= '{print $2}') -eq 2 ]]; then
+			miner tuning
+			exit 0
+		fi
+		n=$[ $n + 1 ]
+		if [ $n -eq 200 ]; then
+			sed -i 's/tune_status=1/tune_status=2/' /config/profile.txt > /dev/null 2>&1
+			miner restart
+		fi
+	done
 else
 	if [ $1 == "default" ]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
