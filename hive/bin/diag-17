@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.14'
+readonly script_version='1.14.1'
 readonly DEBUG=0
 
 
@@ -310,8 +310,8 @@ calculate_data() {
 }
 
 print_table_body() {
-	local event_name=''
-	local event_name_for_display=''
+	local this_event_name=''
+	local this_event_name_for_display=''
 	local -i event_is_domain_name=0
 
 	local -i this_day=0
@@ -330,27 +330,29 @@ print_table_body() {
 		['stop mining: (.+)']='%1%'
 		['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
 		['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)'
+		['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='temp: pcb %1%C/%2%C, chip %3%C/%4%C'
 	)
 
 	# code
 
-	for event_name in "${log_events[@]}"; do
+	for this_event_name in "${log_events[@]}"; do
 
 		# print first column
 
-		if [[ "$event_name" =~ $domain_prefix ]]; then
+		if [[ "$this_event_name" =~ $domain_prefix ]]; then
 			event_is_domain_name=1
 		else
 			event_is_domain_name=0
 		fi
-		
+
+		# special display format for domain names
 		if (( event_is_domain_name )); then
-			#event_name_for_display="-${event_name#${domain_prefix}}------------------------"
-			event_name_for_display="${event_name#${domain_prefix}}"
+			#this_event_name_for_display="-${this_event_name#${domain_prefix}}------------------------"
+			this_event_name_for_display="${this_event_name#${domain_prefix}}"
 			display_color="${GRAY}"
 		else
-			avg_per_day_x100="${events_data[${event_name}.avg.per_day.x100]}"
-			avg_per_problem_day_x100="${events_data[${event_name}.avg.per_problem_day.x100]}"
+			avg_per_day_x100="${events_data[${this_event_name}.avg.per_day.x100]}"
+			avg_per_problem_day_x100="${events_data[${this_event_name}.avg.per_problem_day.x100]}"
 
 			#if (( (avg_per_problem_day_x100/10) >= (${events_data['#all.total']}/days_to_look_back) )); then
 			#	display_color="${BRED}"
@@ -358,23 +360,25 @@ print_table_body() {
 			#	display_color="${NOCOLOR}"
 			#fi
 
-			# transform event name to simplified form
-			event_name_for_display="$event_name"
-			for event_RE in "${!event_name_translator[@]}"; do # for each RE in dictionary
-				event_template="${event_name_translator[${event_RE}]}" # get a transforming template
-				#printf 'DEBUG: %s = %s\n' "${event_RE}" "${event_template}"
-				if [[ $event_name =~ $event_RE ]]; then
+			# transform event name to a simplified form thru event_name_translator[]
+			for translator_key in "${!event_name_translator[@]}"; do # for each key in dictionary
+				translator_value="${event_name_translator[${translator_key}]}" # get a transforming template
+				#printf 'DEBUG: %s = %s\n' "${translator_key}" "${translator_value}"
+				if [[ $this_event_name =~ $translator_key ]]; then
 					for (( rematch_counter=1; rematch_counter < ${#BASH_REMATCH[@]}; rematch_counter++ )); do
-						event_template="${event_template//%${rematch_counter}%/${BASH_REMATCH[$rematch_counter]}}"
+						# use %n% as a numbered pointer to a capture group in translator_key: %1% %2% etc
+						translator_value="${translator_value//%${rematch_counter}%/${BASH_REMATCH[$rematch_counter]}}"
 					done
-					event_name_for_display="$event_template"
-					break
+					this_event_name_for_display="$translator_value"
+					break # let's assume that we wand 1 translation at most
+				else
+					this_event_name_for_display="$this_event_name"
 				fi
 			done
 			display_color="${NOCOLOR}"
 		fi
 
-		printf "%b${first_column_printf_format}%b" "$display_color" "$event_name_for_display" "${NOCOLOR}"
+		printf "%b${first_column_printf_format}%b" "$display_color" "$this_event_name_for_display" "${NOCOLOR}"
 
 		# print data columns
 
@@ -383,7 +387,7 @@ print_table_body() {
 				display_color='' # "${GRAY}"
 				event_counter_for_display='' # '------------------------'
 			else
-				event_counter="${events_data[${event_name}.${this_day}]}"
+				event_counter="${events_data[${this_event_name}.${this_day}]}"
 
 				if (( event_counter == 0 )); then
 					display_color="${DGRAY}"
@@ -407,9 +411,9 @@ print_table_body() {
 		done
 
 #		# totals column
-#		this_event_total="${events_data["${event_name}.total"]}"
+#		this_event_total="${events_data["${this_event_name}.total"]}"
 #		printf "   %5d %5d %5d" "$this_event_total" "$avg_per_day_x100" "$avg_per_problem_day_x100"
-#		printf ' %7.1f' "$(( 10**9 * ${accumulator[$event_name]} / days_to_look_back ))e-9" # yay, neat trick
+#		printf ' %7.1f' "$(( 10**9 * ${accumulator[$this_event_name]} / days_to_look_back ))e-9" # yay, neat trick
 		echo
 	done
 }
