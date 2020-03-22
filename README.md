@@ -139,12 +139,17 @@ You can install Hive OS Client via firmware file download or via SSH.
 ##### Antminer Series 15, Series 17 and Series 9 models S9k and S9SE
 These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by upgrading ASIC with a special firmware file. That file contains stock Bitmain firmware with built-in Hive OS client:
 
-- [Antminer S9k](http://download.hiveos.farm/asic/repo/unsig/S9k-hive.tar.gz)
+- [Antminer S9k](http://download.hiveos.farm/asic/repo/fw/Antminer/S9k/S9k-20190929.tar.gz)
 - [Antminer S9SE](http://download.hiveos.farm/asic/repo/unsig/S9se-hive.tar.gz)
+
 - [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)
-- [Antminer S15](http://download.hiveos.farm/asic/repo/unsig/S15-hive.tar.gz)
+
+- [Antminer S15](http://download.hiveos.farm/asic/repo/fw/Antminer/S15/S15-v19.08.12-ln.tar.gz)
 - [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)
-- [Antminer T17](http://download.hiveos.farm/asic/repo/unsig/T17-hive.tar.gz)
+
+- [Antminer S17](http://download.hiveos.farm/asic/repo/fw/Antminer/S17/S17-v19.08.20-noln.tar.gz)
+- [Antminer S17 Pro](http://download.hiveos.farm/asic/repo/fw/Antminer/S17pro/S17pro-v19.08.20-noln.tar.gz)
+- [Antminer T17](http://download.hiveos.farm/asic/repo/fw/Antminer/T17/T17-v19.08.20-noln.tar.gz)
 
 >After successful flashing, you have to open up ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button. The page will refresh itself. Wait a minute and worker will appear in the Hive dashboard.
 
