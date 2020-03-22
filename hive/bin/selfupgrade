@@ -42,6 +42,8 @@ fi
 if [ "$2" == $(cat /hive/etc/build) ]; then
     echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
     exit $exitcode
+elif [ "$2" == "github" ]; then
+    github=1
 fi
 
 if [ $exitcode -ne 0 ] || [ -z $release ]; then
@@ -358,11 +360,19 @@ install_antminer_bmminer_ro() {
 	if ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; then
 		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive
 	fi
-	[ -e "/nvdata/latest.tar.gz" ] && rm /nvdata/latest.tar.gz
 	[ -e "/nvdata/latest_new.tar.gz" ] && rm /nvdata/latest_new.tar.gz
 	[ -e "/hive" ] && rm -rf /hive
 	sync
-	/etc/rcS.d/S69hive
+	if [ $github -eq 1 ]; then
+		curl -f -L --insecure http://github.com/minershive/hiveos-asic/archive/master.tar.gz > /nvdata/latest.tar.gz
+		/etc/rcS.d/S69hive
+	else
+		/etc/rcS.d/S69hive -f
+	fi
+	while [ ! -e /hive/sbin/ ]; do
+		sleep 5
+	done
+	sleep 10
 }
 
 if [ "$ASIC_MODEL" == "Antminer S9" ]; then

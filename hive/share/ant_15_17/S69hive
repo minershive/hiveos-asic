@@ -10,6 +10,10 @@ if [ -s "/config/hive-url" ]; then
     URL=$(cat /config/hive-url)
 fi
 
+if [ "$1 = "-f" ]; then
+    force_download=1
+fi
+
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
@@ -43,13 +47,13 @@ check_h() {
         URL="http://download.hiveos.farm"
     fi
     echo $URL
-    if [ ! -e "/nvdata/latest.tar.gz" ] || ! $(gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1); then
-        #curl -L --insecure http://download.$URL/asic/repo/s9/latest -o latest_new.tar.gz
-        while ! $(gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1); do
+    if [ $force_download -eq 1 ] || [ ! -e "/nvdata/latest.tar.gz" ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
+        until сurl -f -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
             sleep $(random 15 60)
-            curl -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz
         done
         cp -rf latest_new.tar.gz latest.tar.gz
+        sync
+        [ -e "/nvdata/latest_new.tar.gz" ] && rm /nvdata/latest_new.tar.gz
     fi
 
     echo "> Extracting latest.tar.gz"
