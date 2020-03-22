@@ -10,7 +10,7 @@ if [ -s "/config/hive-url" ]; then
     URL=$(cat /config/hive-url)
 fi
 
-if [ "$1 = "-f" ]; then
+if [ "$1 == "-f" ]; then
     force_download=1
 fi
 
