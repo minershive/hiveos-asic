@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.13'
+readonly script_version='1.14'
 readonly DEBUG=0
 
 
@@ -23,37 +23,9 @@ declare -i -r days_to_look_back="${1:-14}" # default to 14 days
 readonly script_basename="$( basename "$0" )"
 readonly log="/tmp/$( basename "$0" ).log"
 readonly logs_dir='/nvdata'
-readonly first_column_template='%-25.25s'
 readonly zero_symbol='-'
 readonly domains_of_interest=':set_miner_status|:check_miner_status|stop_mining|power off|update_fan_status: Error'
 readonly domain_prefix='<DOMAIN> '
-
-
-declare -A view_settings=(
-	[wide.printf]='%4.4s'
-	[wide.date]='2'
-	[wide.margin]='20'
-
-	[normal.printf]='%3.3s'
-	[normal.date]='2'
-	[normal.margin]='26'
-
-	[compact.printf]='%1.1s'
-	[compact.date]='1'
-	[compact.margin]='38'
-)
-
-if (( days_to_look_back >= ${view_settings[compact.margin]} )); then
-	view='compact'
-elif (( days_to_look_back >= ${view_settings[normal.margin]} )); then
-	view='normal'
-else
-	view='wide'
-fi
-
-
-readonly data_column_template="${view_settings[${view}.printf]}"
-readonly date_positions="${view_settings[${view}.date]}"
 
 
 # arrays
@@ -64,6 +36,14 @@ declare -A events_data=()
 declare -a error_domains=() # ( f.e. 'check_asic_number_with_power_on:' 'killall_hashboard:' 'set_miner_status:' 'stop_mining:' 'stop_mining_and_reboot:' )
 
 
+# vars
+
+declare first_column_printf_format=''
+declare data_column_printf_format=''
+declare date_width=''
+declare current_view=''
+
+
 # functions
 
 print_script_version() {
@@ -71,8 +51,60 @@ print_script_version() {
 	echo
 }
 
+set_view() {
+	local -r -i terminal_width_DEFAULT='109' # the width of Hive OS 'remote command result' window
+	local -r -A view_settings=(
+		[views_list]='wide normal compact'
+
+		[all.first_column_width]='25'
+		[all.first_column_printf_format]='%-25.25s'
+
+		[wide.date_width]='2'
+		[wide.data_column_width]='4'
+		[wide.data_column_printf_format]='%4.4s'
+		[wide.days_limit]='20'
+
+		[normal.date_width]='2'
+		[normal.data_column_width]='3'
+		[normal.data_column_printf_format]='%3.3s'
+		[normal.days_limit]='26'
+
+		[compact.date_width]='1'
+		[compact.data_column_width]='1'
+		[compact.data_column_printf_format]='%1.1s'
+		[compact.days_limit]='38'
+	)
+	local -i terminal_width='0'
+	local this_view=''
+
+	if [ -t 1 ]; then
+		readonly terminal_width="$( stty size | cut -d' ' -f2 )"
+	else
+		readonly terminal_width="$terminal_width_DEFAULT"
+		(( DEBUG )) && echo "No terminal, use default width $terminal_width."
+	fi
+
+	for this_view in ${view_settings[views_list]}; do
+		(( table_width= ${view_settings[all.first_column_width]} + ( ${view_settings[${this_view}.data_column_width]} * days_to_look_back ) ))
+		(( DEBUG )) && echo "'$this_view' view, table width $table_width, terminal width $terminal_width"
+		if (( table_width <= terminal_width )); then
+			current_view="$this_view"
+			break
+		fi
+	done
+
+	if [[ -z "$current_view" ]]; then
+		echo "Table is too wide ($table_width) to fit in the current terminal width ($terminal_width)."
+		exit 2
+	fi
+
+	readonly first_column_printf_format="${view_settings[all.first_column_printf_format]}"
+	readonly data_column_printf_format="${view_settings[${current_view}.data_column_printf_format]}"
+	readonly date_width="${view_settings[${current_view}.date_width]}"
+}
+
 intro() {
-	printf '%(%F %T)T Report for the last %d days, %s view\n\n' -1 "$days_to_look_back" "$view"
+	printf '%(%F %T)T Report for the last %d days, %s view:\n\n' -1 "$days_to_look_back" "$current_view"
 }
 
 create_calendar() {
@@ -108,9 +140,9 @@ check_log() {
 check_for_1970() {
 	find "${logs_dir}/1970-01/" -name log -type f -mtime "-${days_to_look_back}" -print |
 		grep -q '.' && {
-			echo "${RED}WARNING: Recently updated logs from 1970 year are found, check host time settings (ntpd)${NOCOLOR}"
+			echo "${RED}WARNING: Recently updated logs from 1970 year are found, check host time settings and ntpd.${NOCOLOR}"
 			echo
-			}
+			} || :
 }
 
 get_filtered_log() {
@@ -195,13 +227,13 @@ print_table_header() {
 		# print 1st column header only on 2nd line
 		case "$date_category" in
 			year)
-				printf "${first_column_template}" '                        y'
+				printf "${first_column_printf_format}" '                        y'
 				;;
 			month)
-				printf "${first_column_template}" 'Events by date          m'
+				printf "${first_column_printf_format}" 'Events by date          m'
 				;;
 			day)
-				printf "${first_column_template}" '                        d'
+				printf "${first_column_printf_format}" '                        d'
 				;;
 		esac
 
@@ -223,13 +255,13 @@ print_table_header() {
 
 			if [[ "$text" != "${previous_text-}" ]]; then
 				if [[ $this_date == $today ]]; then # highlight current date
-					printf "%b${data_column_template}%b" "${WHITE}" "${text: -${date_positions}}" "${NOCOLOR}"
+					printf "%b${data_column_printf_format}%b" "${WHITE}" "${text: -${date_width}}" "${NOCOLOR}"
 				else
-					printf "%b${data_column_template}%b" "${GRAY}" "${text: -${date_positions}}" "${NOCOLOR}"
-					#printf "${data_column_template}" "${text: -${date_positions}}"
+					printf "%b${data_column_printf_format}%b" "${GRAY}" "${text: -${date_width}}" "${NOCOLOR}"
+					#printf "${data_column_printf_format}" "${text: -${date_width}}"
 				fi
 			else
-				printf "%b${data_column_template}%b" "${DGRAY}" "${text: -${date_positions}}" "${NOCOLOR}"
+				printf "%b${data_column_printf_format}%b" "${DGRAY}" "${text: -${date_width}}" "${NOCOLOR}"
 			fi
 			previous_text="$text" # save for next iteration
 		done
@@ -303,6 +335,9 @@ print_table_body() {
 	# code
 
 	for event_name in "${log_events[@]}"; do
+
+		# print first column
+
 		if [[ "$event_name" =~ $domain_prefix ]]; then
 			event_is_domain_name=1
 		else
@@ -339,7 +374,9 @@ print_table_body() {
 			display_color="${NOCOLOR}"
 		fi
 
-		printf "%b${first_column_template}%b" "$display_color" "$event_name_for_display" "${NOCOLOR}"
+		printf "%b${first_column_printf_format}%b" "$display_color" "$event_name_for_display" "${NOCOLOR}"
+
+		# print data columns
 
 		for (( this_day=days_to_look_back-1 ; this_day >= 0 ; this_day-- )); do
 			if (( event_is_domain_name )); then
@@ -362,11 +399,11 @@ print_table_body() {
 				fi
 			fi
 
-			if [[ $view == 'compact' && "$event_counter" -ne 0 ]]; then
+			if [[ $current_view == 'compact' && "$event_counter" -ne 0 ]]; then
 				event_counter_for_display='+'
 			fi
 
-			printf "%b${data_column_template}%b" "$display_color" "$event_counter_for_display" "${NOCOLOR}"
+			printf "%b${data_column_printf_format}%b" "$display_color" "$event_counter_for_display" "${NOCOLOR}"
 		done
 
 #		# totals column
@@ -385,6 +422,7 @@ print_stats() {
 # code
 
 print_script_version
+set_view
 intro
 
 check_log

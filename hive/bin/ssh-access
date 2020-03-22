@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+
+readonly script_mission='Hive OS Client for ASICs: ssh access control'
+readonly script_version='0.1'
+
+
+#
+# strict mode, no unbound variables
+#
+
+set -o nounset
+
+
+# args
+
+readonly command="${1-}"
+readonly option="${2-}"
+
+
+# consts
+
+. colors
+
+
+# functions
+
+print_script_version() {
+	echo -e "${CYAN-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+print_script_usage() {
+	basename="$( basename "$0" )"
+	echo -e "Usage: ${CYAN-}${basename} on | off | permanent [--reboot]${NOCOLOR-}"
+	echo
+}
+
+
+# code
+
+print_script_version
+
+case "$command" in
+	'on')
+		rm /config/dropbear
+		rm /etc/default/dropbear
+		/etc/init.d/dropbear start
+		echo -e "ssh turned ON till the next reboot."
+		;;
+	'off')
+		rm /config/dropbear
+		echo -e -n "ssh turned OFF. "
+		if [[ "$option" == '--reboot' ]]; then
+			echo -e "Reboot in 30 seconds..."
+			( sleep 30s; reboot ) &
+		else
+			echo -e "Please reboot the machine."
+		fi
+		;;
+	'permanent')
+		ln -s /dev/null /config/dropbear -sf; nohup /etc/init.d/dropbear start & # are you sure?
+		echo -e "ssh turned ON permanently."
+		;;
+	*)
+		print_script_usage
+		;;
+esac
