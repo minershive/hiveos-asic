@@ -96,16 +96,36 @@ validate_and_set_HIVE_HOST_URL() {
 }
 
 HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
-WHITELABEL_HOST_URL_file='/etc/hive-url'
+WHITELABEL_HOST_URL_file_in_FW='/etc/hive-url'
+WHITELABEL_HOST_URL_file_in_NVRAM='/config/hive-url'
 
-# try to get a whitelabel default from a firmware embedded config file
-if [ -s "$WHITELABEL_HOST_URL_file" ]; then
-	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file" )"
+#
+# 1. try to get a whitelabel default from a config file embedded in firmware
+# WARNING: no fallback procedure defined. URL must be correct.
+#
+if [ -s "$WHITELABEL_HOST_URL_file_in_FW" ]; then
+	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_FW" )"
+	echo "Default HIVE_HOST_URL found in firmware: $WHITELABEL_HOST_URL_file_in_FW"
    else
 	HIVE_HOST_URL_default='http://api.hiveos.farm'
 fi
 
-# try to read it from environment
+#
+# 2. try to get a whitelabel default from a config file written in NVRAM
+# WARNING: no fallback procedure defined. URL must be correct.
+#
+if [ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]; then
+	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_NVRAM" )"
+	echo "Default HIVE_HOST_URL found in NVRAM: $WHITELABEL_HOST_URL_file_in_NVRAM"
+   else
+	HIVE_HOST_URL_default='http://api.hiveos.farm'
+fi
+
+echo "Default HIVE_HOST_URL set to $HIVE_HOST_URL_default"
+
+#
+# 3. try to read it from environment
+#
 if [[ -n "$HIVE_HOST_URL" ]]; then
 	echo -n "HIVE_HOST_URL variable is set, checking... "
 	validate_and_set_HIVE_HOST_URL "$HIVE_HOST_URL"
@@ -119,7 +139,9 @@ else
 	fi
 fi
 
-# try to read it from file
+#
+# 4. try to read it from file. top prio.
+#
 if [[ -s "$HIVE_HOST_URL_file" ]]; then
 	echo -n "File '$HIVE_HOST_URL_file' found. It has priority over the others. Checking... "
 
