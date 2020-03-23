@@ -2,19 +2,19 @@
 
 . asic-model
 
-[ -t 1 ] && . colors
+[[ -t 1 ]] && . colors
 
 function config_gen() {
 	RIG_CONF="/hive-config/rig.conf"
 	WALLET_CONF="/hive-config/wallet.conf"
-	MINER_CONFIG=$CONFIG_PATH
+	MINER_CONFIG="$CONFIG_PATH"
 
 	echo "Generating $MINER_CONFIG"
 
-	[ ! -f $WALLET_CONF ] && echo -e "${RED}No wallet config $WALLET_CONF${NOCOLOR}" && return 1
+	[[ ! -f $WALLET_CONF ]] && echo -e "${RED}No wallet config $WALLET_CONF${NOCOLOR}" && return 1
 
-	. $RIG_CONF
-	. $WALLET_CONF
+	. "$RIG_CONF"
+	. "$WALLET_CONF"
 
 	[[ -z $ASICMINER_TEMPLATE ]] && echo -e "${YELLOW}ASICMINER__TEMPLATE is empty${NOCOLOR}" && return 1
 	[[ -z $ASICMINER_URL ]] && echo -e "${YELLOW}ASICMINER__URL is empty${NOCOLOR}" && return 1
@@ -63,7 +63,7 @@ function config_gen() {
 	fi
 #innosilicon A5/A8 end
 
-#	echo $pools | jq .
+#	echo "$pools" | jq .
 
 
 if [[ $ASIC_MODEL == "Antminer S9k" ]]; then
@@ -402,7 +402,7 @@ elif [[ $ASIC_MODEL == "t3.soc" ]]; then
 "syslog" : true,
 "text-only" : true
 }'
-elif [[ "$ASIC_MODEL" == "t3h+.soc" || "$ASIC_MODEL" == "t3+.soc" || "$ASIC_MODEL" == "t2th+.soc" || "$ASIC_MODEL" == "t2thf+.soc" || "$ASIC_MODEL" == "t2thl+.soc" || "$ASIC_MODEL" == "t2th.soc" || "$ASIC_MODEL" == "t2tz.soc" || "$ASIC_MODEL" == "t2thm.soc" || "$ASIC_MODEL" == "t2thf.soc" || "$ASIC_MODEL" == "t2t+.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t2ti.soc" || "$ASIC_MODEL" == "t2t.soc" ]]; then
+elif [[ $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-port" : "4028",
@@ -488,8 +488,8 @@ fi
 		while read -r line; do
 			[[ -z $line ]] && continue
 			varkey=$(echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .key')
-			varval=$(echo $line | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .value')
-			config_global=$(echo $config_global | jq '."'$varkey'"="'$varval'"')
+			varval=$(echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .value')
+			config_global=$(echo "$config_global" | jq '."'$varkey'"="'$varval'"')
 		done <<< "$ASICMINER_USER_CONFIG"
 	fi
 
@@ -505,7 +505,7 @@ fi
 	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< "$conf")
 
 #	echo "$conf" | jq .
-	echo "$conf" | jq . > $MINER_CONFIG
+	echo "$conf" | jq . > "$MINER_CONFIG"
 
 }
 
