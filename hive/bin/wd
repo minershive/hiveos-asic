@@ -21,11 +21,11 @@ function loadconf() {
 	fi
 
 
-	[[ -z $WD_ENABLED || $WD_ENABLED != 1 ]] &&
+	if [[ -z $WD_ENABLED || $WD_ENABLED -ne 1 ]]; then
 		printf '%(%F %T %z)T %s: ' -1 'watchdog'
 		echo -e "${YELLOW}Watchdog not enabled (WD_ENABLED=$WD_ENABLED), exiting${NOCOLOR}" &&
 		exit 0
-
+	fi
 
 	minhash=`echo "$WD_MINHASHES" | jq -r ".\"$MINER\""`
 	[[ -z $minhash || $minhash == "null" ]] &&
