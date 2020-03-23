@@ -43,13 +43,13 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 	if [ $1 == "default" ]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
-		profile_id=$(echo $1 | jq -r .tune_profile)
+		profile_id=$(echo $1 | jq -r .profile)
 
 		if [ -e "$profile_file" ]; then
 			#temp S17+ fix. DOTO delete profile
-			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
+			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
 		else
-			echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
+			echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
 		fi
 
 		#tuned profiles
