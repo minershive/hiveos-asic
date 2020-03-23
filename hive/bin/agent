@@ -27,7 +27,7 @@ fi
 
 . asic-model
 
-printf '%(%F %T %z)T agent '
+printf '%(%F %T %z)T %s: ' -1 'agent'
 echo -e "Detected ASIC model: ${CYAN}$ASIC_MODEL${NOCOLOR}\n"
 
 [[ $WD_ENABLED -eq 1 ]] && nohup wd stop && nohup sleep 5; wd start &
@@ -46,7 +46,7 @@ miner_stats () {
 		"Antminer S9"|"Antminer T9+"*|"Antminer S9i"|"Antminer E3"|"Antminer S9 Hydro"|"Antminer S9 (vnish"*|"Antminer S9"*|"Antminer S10"*|"Antminer "|"Antminer T9"*|"Antminer T17"*|"Antminer S17"*|"Antminer T15"|"Antminer S15"|"Antminer S9j"|"Antminer S11"|"Minecenter S9")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T agent '
+				printf '%(%F %T %z)T %s: ' -1 'agent'
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
@@ -110,7 +110,7 @@ miner_stats () {
 		"Antminer A3"|"Antminer D3"|"Antminer L3+"*|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"*|"Antminer Z11"*|"Antminer X3"|"Antminer S7"|"Antminer DR3")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T agent '
+				printf '%(%F %T %z)T %s: ' -1 'agent'
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
@@ -169,7 +169,7 @@ miner_stats () {
 		"Zig Z1+"|"Zig Z1")
 			stats_raw=`echo '{"command":"stats"}' | timeout 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T agent '
+				printf '%(%F %T %z)T %s: ' -1 'agent'
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				local STATS=$(jq '.STATS' <<< "$stats_raw")
@@ -206,7 +206,7 @@ miner_stats () {
 		"b29+.g19"|"d9.g19"|"s11.g19"|"t3.soc"|"t3+.soc"|"t3h+.soc"|"t2th+.soc"|"t2thf+.soc"|"t2thl+.soc"|"t2th.soc"|"t2tz.soc"|"t2thm.soc"|"t2thf.soc"|"t2t+.soc"|"t2ts.soc"|"t2ti.soc"|"t2t.soc")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T agent '
+				printf '%(%F %T %z)T %s: ' -1 'agent'
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				#stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
@@ -248,7 +248,7 @@ miner_stats () {
 		"T4.G19")
 			stats_raw=`echo '{"command":"devs"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T agent '
+				printf '%(%F %T %z)T %s: ' -1 'agent'
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				local STATS=$(jq '.DEVS' <<< "$stats_raw")
@@ -306,7 +306,7 @@ miner_stats () {
 loop () {
 	[[ ! -z $TIMEZONE ]] && export TZ="$TIMEZONE"
 
-	printf '%(%F %T %z)T %s %s\n' 'agent' 'Collecting stats...'
+	printf '%(%F %T %z)T %s: %s\n' -1 'agent' 'Collecting stats...'
 
 	[[ ! -f $RIG_CONF ]] && echo -e "Config file $RIG_CONF not found" && return
 
@@ -320,7 +320,7 @@ loop () {
 
 	miner_stats "$MINER" #khs and stats are global
 
-	printf '%(%F %T %z)T agent '
+	printf '%(%F %T %z)T %s: ' -1 'agent'
 	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs > "0" ]] && echo -e "${YELLOW}" || echo -e "${RED}"`$khs${NOCOLOR} kH/s"
 	#                                                   ^ floating point, that's why
 	echo -en "\n"
@@ -354,7 +354,7 @@ loop () {
 	echo "$request" | jq '.' -c
 
 	if [[ -z $RIG_ID ]]; then
-		printf '%(%F %T %z)T agent '
+		printf '%(%F %T %z)T %s: ' -1 'agent'
 		echo -e "${YELLOW}No RIG_ID, skipping sending stats${NOCOLOR}"
 		return
 	fi
@@ -369,7 +369,7 @@ loop () {
 
 	exitcode=$?
 	if [[ $exitcode -ne 0 || -z $response ]]; then
-		printf '%(%F %T %z)T agent '
+		printf '%(%F %T %z)T %s: ' -1 'agent'
 		echo -e "${RED}Error sending stats${NOCOLOR} $HIVE_HOST_URL" && human-curl-error $exitcode
 		echo "[`date`] < ERROR SENDING STATS TO $HIVE_HOST_URL (curl code=$exitcode) \"$response\"" >> "$LOG"
 		/hive/bin/timeout -t 10 /hive/bin/cache-hive-ip
@@ -382,12 +382,12 @@ loop () {
 
 	error=$(echo "$response" | jq '.error' --raw-output)
 	if [[ $? -ne 0 ]]; then
-		printf '%(%F %T %z)T agent '
+		printf '%(%F %T %z)T %s: ' -1 'agent'
 		echo -e "${RED}Invalid response${NOCOLOR}: $HIVE_HOST_URL\n$response"
 		return 1
 	fi
 	if [[ ! -z $error && "$error" != "null" ]]; then
-		printf '%(%F %T %z)T agent '
+		printf '%(%F %T %z)T %s: ' -1 'agent'
 		echo -e "${RED}Error response${NOCOLOR}: $error"
 		return 1
 	fi
@@ -431,12 +431,12 @@ do_command () {
 
 	case "$command" in
 		OK)
-			printf '%(%F %T %z)T agent '
+			printf '%(%F %T %z)T %s: ' -1 'agent'
 			echo -e "${BGREEN}$command${NOCOLOR}"
 		;;
 		reboot)
 			message ok "Rebooting" --id="$cmd_id"
-			printf '%(%F %T %z)T agent '
+			printf '%(%F %T %z)T %s: ' -1 'agent'
 			echo -e "${BRED}Rebooting${NOCOLOR}"
 			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
 			/sbin/reboot
@@ -513,7 +513,7 @@ do_command () {
 
 				# Password change ---------------------------------------------------
 				if [[ $RIG_PASSWD != "$NEW_PASSWD" ]]; then
-					printf '%(%F %T %z)T agent '
+					printf '%(%F %T %z)T %s: ' -1 'agent'
 					echo -e "${RED}New password:${NOCOLOR} $NEW_PASSWD";
 
 					message warning "Password change received, wait for next message..." --id="$cmd_id"
@@ -604,7 +604,7 @@ do
 	if (( tosleep > 0 )); then
 		sleep "$INTERVAL"
 	else
-		printf '%(%F %T %z)T agent '
+		printf '%(%F %T %z)T %s: ' -1 'agent'
 		echo -e "${YELLOW}WARNING: Stats sending interval > $INTERVAL seconds, hanging driver?${NOCOLOR}"
 	fi
 done

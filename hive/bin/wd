@@ -22,7 +22,7 @@ function loadconf() {
 
 
 	[[ -z $WD_ENABLED || $WD_ENABLED -ne 1 ]] &&
-		printf '%(%F %T %z)T watchdog '
+		printf '%(%F %T %z)T %s: ' -1 'watchdog'
 		echo -e "${YELLOW}Watchdog not enabled, exiting${NOCOLOR}" &&
 		exit 0
 
@@ -30,7 +30,7 @@ function loadconf() {
 	minhash=`echo "$WD_MINHASHES" | jq -r ".\"$MINER\""`
 	[[ -z $minhash || $minhash == "null" ]] &&
 		message warn "Minimal hashrate for $MINER is not set" &&
-		printf '%(%F %T %z)T watchdog '
+		printf '%(%F %T %z)T %s: ' -1 'watchdog'
 		echo -e "${RED}Minimal hashrate for $MINER is not set in config, exiting${NOCOLOR}" &&
 		exit 1
 }
@@ -65,7 +65,7 @@ function loop() {
 	if (( hash_is_ok )); then
 		set_lastgood
 		if (( ok_count == 0 )); then
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "${GREEN}OK${NOCOLOR} ${CYAN}$MINER${NOCOLOR} $khs kHs >= $minhash kHs"
 		fi
 		(( ++ok_count >= OK_MESSAGE_REDUCE )) && ok_count=0
@@ -77,7 +77,7 @@ function loop() {
 	elapsed=$(( now - lastgood ))
 	#echo Elapsed $elapsed seconds
 
-	printf '%(%F %T %z)T watchdog '
+	printf '%(%F %T %z)T %s: ' -1 'watchdog'
 	echo -e "${RED}BARK${NOCOLOR} ${CYAN}$MINER${NOCOLOR} $khs kHs < $minhash kHs for $elapsed seconds"
 
 	#Check to reboot first
@@ -85,11 +85,11 @@ function loop() {
 		reboot_timeout=`echo "$WD_REBOOT 60" | awk '{print $1 * $2}'`
 		if [[ $elapsed -ge $reboot_timeout ]]; then
 			message danger "$MINER low hashrate ($khs kH/s), rebooting"
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "---"
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "${RED}Rebooting after $WD_REBOOT minutes${NOCOLOR}"
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "---"
 			#sreboot
 			nohup bash -c 'reboot' > /tmp/nohup.log 2>&1 &
@@ -102,11 +102,11 @@ function loop() {
 		miner_restart_timeout=`echo "$WD_MINER 60" | awk '{print $1 * $2}'`
 		if [[ $miner_restart_count -eq 0 && $elapsed -ge $miner_restart_timeout ]]; then
 			message warn "$MINER low hashrate ($khs kH/s), restarting"
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "---"
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "${YELLOW}Restarting ${CYAN}$MINER${NOCOLOR} ${YELLOW}after $WD_MINER minutes${NOCOLOR}"
-			printf '%(%F %T %z)T watchdog '
+			printf '%(%F %T %z)T %s: ' -1 'watchdog'
 			echo -e "---"
 			miner_restart_count=1
 			/hive/bin/miner restart
@@ -120,9 +120,9 @@ function loop() {
 case "$1" in
 	run)
 		loadconf
-		printf '%(%F %T %z)T watchdog '
+		printf '%(%F %T %z)T %s: ' -1 'watchdog'
 		echo "MINER RESTART: $WD_MINER minutes"
-		printf '%(%F %T %z)T watchdog '
+		printf '%(%F %T %z)T %s: ' -1 'watchdog'
 		echo "WORKER REBOOT: $WD_REBOOT minutes"
 		while true; do
 			loop
