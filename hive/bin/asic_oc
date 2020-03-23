@@ -18,7 +18,7 @@ if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL
 		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
 	fi
 	echo -e "Autotune config applied!"
-elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || "$ASIC_MODEL" == "Antminer T17 Hiveon" ]]; then
+elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || $ASIC_MODEL == "Antminer T17 Hiveon" ]]; then
 	if [[ $1 == "default" ]]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
@@ -77,7 +77,7 @@ else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
 	fi
 	conftune=`cat /config/autoTune.conf`
-	if [[ -e "/usr/bin/compile_ver" && "$ASIC_MODEL" =~ "Antminer S9" ]]; then
+	if [[ -e "/usr/bin/compile_ver" && $ASIC_MODEL =~ "Antminer S9" ]]; then
 		sed -i 's/profile=1\&/profile=1\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' /config/autoTune.conf
 		sed -i 's/profile=2\&/profile=2\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' /config/autoTune.conf
 		sed -i 's/profile=3\&/profile=3\&slow_freq_start=400\&slow_freq_step=50\&slow_volt_max=860\&/' /config/autoTune.conf
