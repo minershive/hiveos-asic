@@ -11,7 +11,7 @@ screen -ls agent | grep -q agent && running=1 || running=0
 	TERM="vt102" screen -x -S agent #attach to screen
 
 
-[ $running -ne 1 ] &&
+[[ $running -ne 1 ]] &&
 	echo "Starting new agent screen session" &&
 	screen -dm -S agent "agent" &&
 	exit 1 #was not running, starting
