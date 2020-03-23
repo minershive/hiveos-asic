@@ -31,8 +31,23 @@ fi
 # todo: connectivity test
 # todo: valid api answer test (curl -v $url/worker/api?a=b)
 
-HIVE_HOST_URL_default='http://api.hiveos.farm'
-HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
+read_HIVE_HOST_URL_from_RIG_CONF() {
+	#
+	# read_HIVE_HOST_URL_from_RIG_CONF
+	#
+	# output: $HIVE_HOST_URL from RIG_CONF, got it?
+	# exit code: if success
+	#
+	#
+	local HIVE_HOST_URL_from_RIG_CONF
+
+	if [[ -s "$RIG_CONF" ]]; then
+		HIVE_HOST_URL_from_RIG_CONF="$( . "$RIG_CONF"; echo "$HIVE_HOST_URL" )"
+		echo "$HIVE_HOST_URL_from_RIG_CONF"
+	fi
+
+	[[ -n "$HIVE_HOST_URL_from_RIG_CONF" ]] # set exit code
+}
 
 sanitize_HIVE_HOST_URL() {
 	(( $# < 1 && $# > 2 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
@@ -80,18 +95,33 @@ validate_and_set_HIVE_HOST_URL() {
 	HIVE_HOST_URL="$validated_url"
 }
 
+HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
+WHITELABEL_HOST_URL_file='/etc/hive-url'
+
+# try to get a whitelabel default from a firmware embedded config file
+if [ -s "$WHITELABEL_HOST_URL_file" ]; then
+	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file" )"
+   else
+	HIVE_HOST_URL_default='http://api.hiveos.farm'
+fi
+
 # try to read it from environment
 if [[ -n "$HIVE_HOST_URL" ]]; then
 	echo -n "HIVE_HOST_URL variable is set, checking... "
 	validate_and_set_HIVE_HOST_URL "$HIVE_HOST_URL"
 else
-	HIVE_HOST_URL="$HIVE_HOST_URL_default"
-	echo "HIVE_HOST_URL variable is not set. Using default Hive Server URL: $HIVE_HOST_URL"
+	# then try to read from config
+	if ! HIVE_HOST_URL="$( read_HIVE_HOST_URL_from_RIG_CONF )"; then
+		HIVE_HOST_URL="$HIVE_HOST_URL_default"
+		echo "HIVE_HOST_URL variable is not set. Using default Hive Server URL: $HIVE_HOST_URL"
+	else
+		echo "HIVE_HOST_URL found in $RIG_CONF. Using Hive Server URL: $HIVE_HOST_URL"
+	fi
 fi
 
 # try to read it from file
 if [[ -s "$HIVE_HOST_URL_file" ]]; then
-	echo -n "File '$HIVE_HOST_URL_file' found, checking... "
+	echo -n "File '$HIVE_HOST_URL_file' found. It has priority over the others. Checking... "
 
 	HIVE_HOST_URL_from_file="$( < "$HIVE_HOST_URL_file" )"
 
