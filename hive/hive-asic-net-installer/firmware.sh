@@ -36,9 +36,9 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 IFS=$'\n'
 for ip_worker in $IPS; do
 	install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
-	ip=$(echo $ip_worker | awk {'print $1'})
-	worker=$(echo $ip_worker | awk {'print $2'})
-	[ ! -z $worker ] && install_cmd="$install_cmd $worker"
+	ip=$(echo "$ip_worker" | awk {'print $1'})
+	worker=$(echo "$ip_worker" | awk {'print $2'})
+	[[ ! -z $worker ]] && install_cmd="$install_cmd $worker"
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if is_on_busybox; then
@@ -64,7 +64,7 @@ for ip_worker in $IPS; do
 
 		#Comment it in file
 		sed -i "s/^$ip$/\#$ip/g" ips.txt
-		[ ! -z $worker ] && sed -i "s/^$ip.*$worker$/\#$ip $worker/g" ips.txt
+		[[ ! -z $worker ]] && sed -i "s/^$ip.*$worker$/\#$ip $worker/g" ips.txt
 	fi
 
 done
