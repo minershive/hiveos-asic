@@ -31,7 +31,7 @@ if [ ! -e /hive ]; then
 
     export PATH=$PATH:/hive/bin:/hive/sbin
     export LD_LIBRARY_PATH=/hive/lib
-    [[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
+    [ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
     ln -s /config/hive/hive-config/ /hive-config
     #cp -rf /hive/share/S9/S69hive /etc/rcS.d/
     cp -rf /hive/share/S9/.profile /home/root/
