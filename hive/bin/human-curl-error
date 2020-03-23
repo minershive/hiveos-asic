@@ -2,10 +2,10 @@
 #Human error strings for curl errors
 #https://curl.haxx.se/libcurl/c/libcurl-errors.html
 
-[ -t 1 ] && . colors
+[[ -t 1 ]] && . colors
 
-code=$1
-[ -z $1 ] && code=0
+code="$1"
+[[ -z $1 ]] && code=0
 
 msg=""
 
