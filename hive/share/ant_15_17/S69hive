@@ -10,7 +10,7 @@ if [ -s "/config/hive-url" ]; then
     URL=$(cat /config/hive-url)
 fi
 
-if [ "$1" == "-f" ]; then
+if [ "$1" = "-f" ]; then
     force_download="1"
 fi
 
@@ -19,14 +19,14 @@ export LD_LIBRARY_PATH=/hive/lib
 
 
 random() {
-    awk -v min=$1 -v max=$2 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
+    awk -v min="$1" -v max="$2" 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
 }
 
 boot_h() {
     #$FARM_HASH can be defined externally
     if [ -e "/config/FARM_HASH" ]; then
         FARM_HASH=$(cat /config/FARM_HASH)
-        [[ ! -z "$FARM_HASH" ]] && /hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
+        [ ! -z "$FARM_HASH" ] && /hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
         rm /config/FARM_HASH
     fi
 
@@ -35,7 +35,7 @@ boot_h() {
 
 check_h() {
     cd /nvdata
-    if [ -z $URL ]; then
+    if [ -z "$URL" ]; then
         URL="hiveos.farm"
     fi
 
@@ -46,8 +46,8 @@ check_h() {
     if ! echo "$URL" | grep -q -s -F "download"; then
         URL="http://download.hiveos.farm"
     fi
-    echo $URL
-    if [ "$force_download" == "1" ] || [ ! -e "/nvdata/latest.tar.gz" ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
+    echo "$URL"
+    if [ "$force_download" = "1" ] || [ ! -e "/nvdata/latest.tar.gz" ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
         sleep $(random 10 30)
         until curl -f -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1 ; do
             sleep $(random 15 60)
@@ -72,7 +72,7 @@ check_h() {
     rm -rf hiveos-asic*
     sleep 2
 
-    [[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
+    [ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
     [ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
     #cp -rf /hive/share/S9/S69hive /etc/rcS.d/
     cp -rf /hive/share/S9/.profile /home/root/
