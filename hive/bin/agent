@@ -12,32 +12,32 @@ MINER="asicminer"
 
 API_TIMEOUT=15 #timeout to wait for miner API response, can take very long time on 13+ gpus
 
-[ -t 1 ] && . colors
+[[ -t 1 ]] && . colors
 
 #$PPID - might be parent screen pid
-screen_count=`screen -ls | grep "\.agent" | grep -v $PPID | wc -l`
+screen_count=`screen -ls | grep "\.agent" | grep -v "$PPID" | wc -l`
 
 #there will be still 1 process for subshell
-#[[ `ps aux | grep "./agent" | grep -vE "grep|screen|SCREEN|$$" | wc -l` > 1 ]] &&
-[[ $screen_count > 0 ]] &&
+#[[ `ps aux | grep "./agent" | grep -vE "grep|screen|SCREEN|$$" | wc -l` -gt 1 ]] &&
+[[ $screen_count -gt 0 ]] &&
 	echo -e "${RED}Agent screen is already running${NOCOLOR}\nRun ${CYAN}agent-screen${NOCOLOR} to resume screen" &&
 	exit 1
 
 . asic-model
 echo -e "Detected ASIC model: ${CYAN}$ASIC_MODEL${NOCOLOR}\n"
-[[ $WD_ENABLED=1 ]] && nohup wd stop && nohup sleep 5; wd start &
+[[ $WD_ENABLED -eq 1 ]] && nohup wd stop && nohup sleep 5; wd start &
 
 ########################################################################################################################
 
 miner_stats () {
-	local miner=$1
-	local mindex=$2 #empty or 2
+	local miner="$1"
+	local mindex="$2" #empty or 2
 
 	khs=0
 	stats=
 	stats_raw=
-	max_fan_rpm=$MAX_FAN_RPM
-	case $ASIC_MODEL in
+	max_fan_rpm="$MAX_FAN_RPM"
+	case "$ASIC_MODEL" in
 		"Antminer S9"|"Antminer T9+"*|"Antminer S9i"|"Antminer E3"|"Antminer S9 Hydro"|"Antminer S9 (vnish"*|"Antminer S9"*|"Antminer S10"*|"Antminer "|"Antminer T9"*|"Antminer T17"*|"Antminer S17"*|"Antminer T15"|"Antminer S15"|"Antminer S9j"|"Antminer S11"|"Minecenter S9")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
@@ -50,8 +50,8 @@ miner_stats () {
 				#	algo=`echo '{"command":"coin"}' | nc -w $API_TIMEOUT localhost 4028 | jq '.COIN."Hash Method"'`
 				#fi
 
-				local algo=$ASIC_ALGO
-				local hs_units=$HASH
+				local algo="$ASIC_ALGO"
+				local hs_units="$HASH"
 				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
 				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
 				if [[ $HASH == "mhs" ]]; then
@@ -64,7 +64,7 @@ miner_stats () {
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi
 				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
-				local active_pool=$(echo $stats_pool | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
+				local active_pool=$(echo "$stats_pool" | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
 
 
 				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
@@ -83,13 +83,13 @@ miner_stats () {
 				local asicboost=$((jq '[.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]') <<< "$STATS")
 				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
 
-				test_temp=$(echo $chip_temp | grep .[0-9])
+				test_temp=$(echo "$chip_temp" | grep .[0-9])
 				if [[ ! -z $test_temp ]]; then
-					local temp=$chip_temp
+					local temp="$chip_temp"
 				fi
-				test_freq=$(echo $freq_new | grep .[0-9])
+				test_freq=$(echo "$freq_new" | grep .[0-9])
 				if [[ ! -z $test_freq ]]; then
-					local freq=$freq_new
+					local freq="$freq_new"
 				fi
 
 				stats=$(jq -nc \
@@ -113,8 +113,8 @@ miner_stats () {
 				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
 				#fi
 
-				local algo=$ASIC_ALGO
-				local hs_units=$HASH
+				local algo="$ASIC_ALGO"
+				local hs_units="$HASH"
 				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
 				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
 				if [[ $HASH == "mhs" ]]; then
@@ -140,14 +140,14 @@ miner_stats () {
 				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 
-				if [ $(echo $freq | jq -r length) -ne "$miner_count" ]; then
+				if [[ $(echo "$freq" | jq -r length) -ne $miner_count ]]; then
 					local freq_new="[]"
 					local freq=$((jq '.[1] | with_entries( select(.key | test("frequency")) )       | to_entries | [.[].value]') <<< "$STATS")
-					local freq_num=$(echo $freq | jq -r .[0])
+					local freq_num=$(echo "$freq" | jq -r .[0])
 					for (( c=1; c<=$miner_count; c++ )); do
 						freq_new=$(echo "$freq_new" | jq -r --arg freq_num "$freq_num" '[.[], $freq_num|tonumber]')
 					done
-				else freq_new=$freq
+				else freq_new="$freq"
 				fi
 
 				stats=$(jq -nc \
@@ -165,8 +165,8 @@ miner_stats () {
 				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
 			else
 				local STATS=$(jq '.STATS' <<< "$stats_raw")
-				local algo=$ASIC_ALGO
-				local hs_units=$HASH
+				local algo="$ASIC_ALGO"
+				local hs_units="$HASH"
 				local uptime=$(jq -r '.[0].Elapsed' <<< "$STATS")
 				khs=$(jq -r '.[0]."MHS 30S"' <<< "$STATS")
 				if [[ $HASH == "mhs" ]]; then
@@ -207,8 +207,8 @@ miner_stats () {
 				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
 				#fi
 
-				local algo=$ASIC_ALGO
-				local hs_units=$HASH
+				local algo="$ASIC_ALGO"
+				local hs_units="$HASH"
 				local uptime=$(jq -r '.[0].Elapsed' <<< "$STATS")
 				khs=$(cat /tmp/stats.json | jq -r '.[-1] | .[] | add')
 				if [[ $HASH == "mhs" ]]; then
@@ -247,8 +247,8 @@ miner_stats () {
 				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
 				#fi
 
-				local algo=$ASIC_ALGO
-				local hs_units=$HASH
+				local algo="$ASIC_ALGO"
+				local hs_units="$HASH"
 				local uptime=$(jq -r '.[0]["Device Elapsed"]' <<< "$STATS")
 				khs=$(jq -r '[.[]["MHS av"]] | add' <<< "$STATS")
 				if [[ $HASH == "mhs" ]]; then
@@ -294,28 +294,28 @@ miner_stats () {
 ########################################################################################################################
 
 loop () {
-	[[ ! -z $TIMEZONE ]] && export TZ=$TIMEZONE
+	[[ ! -z $TIMEZONE ]] && export TZ="$TIMEZONE"
 
 	date
 
-	[ ! -f $RIG_CONF ] && echo -e "No config $RIG_CONF" && return
+	[[ ! -f $RIG_CONF ]] && echo -e "No config $RIG_CONF" && return
 
 	#each time read config again
-	. $RIG_CONF
-	. $WALLET_CONF
+	. "$RIG_CONF"
+	. "$WALLET_CONF"
 
 
 	[[ -z $MINER ]] && MINER="asicminer"
 	HIVE_URL="$HIVE_HOST_URL/worker/api"
 
-	miner_stats $MINER #khs and stats are global
+	miner_stats "$MINER" #khs and stats are global
 
-	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs > 0 ]] && echo -e ${YELLOW} || echo -e ${RED}`$khs${NOCOLOR} kH/s"
+	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs -gt 0 ]] && echo -e ${YELLOW} || echo -e ${RED}`$khs${NOCOLOR} kH/s"
 	echo -en "\n"
-	echo $khs > /run/hive/khs
+	echo "$khs" > /run/hive/khs
 
 
-	#echo $stats
+	#echo "$stats"
 	#uptime: load averages for the past 1, 5, and 15 minutes
 
 	[[ ! -z $META ]] && meta="$META" || meta='null'
@@ -339,7 +339,7 @@ loop () {
 	}'
 	)
 
-	echo $request | jq '.' -c
+	echo "$request" | jq '.' -c
 
 	if [[ -z $RIG_ID ]]; then
 		echo -e "${YELLOW}No RIG_ID, skipping sending stats${NOCOLOR}"
@@ -347,42 +347,42 @@ loop () {
 	fi
 
 	#log request
-	echo "[`date`] > `echo $request | jq '.' -c`" >> $LOG
-	#echo "[`date`] > $request" >> $LOG
+	echo "[`date`] > `echo "$request" | jq '.' -c`" >> "$LOG"
+	#echo "[`date`] > $request" >> "$LOG"
 
-	response=$(echo $request | jq '.' -c | curl --insecure -L --data @- \
+	response=$(echo "$request" | jq '.' -c | curl --insecure -L --data @- \
 	--connect-timeout 15 --max-time 25 --silent \
 	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=stats"  -H "Content-Type: application/json")
 
 	exitcode=$?
-	if [[ "$exitcode" -ne 0 || -z "$response" ]]; then
+	if [[ $exitcode -ne 0 || -z $response ]]; then
 		echo -e "${RED}Error sending stats${NOCOLOR} $HIVE_HOST_URL" && human-curl-error $exitcode
-		echo "[`date`] < ERROR SENDING STATS TO $HIVE_HOST_URL (curl code=$exitcode) \"$response\"" >> $LOG
+		echo "[`date`] < ERROR SENDING STATS TO $HIVE_HOST_URL (curl code=$exitcode) \"$response\"" >> "$LOG"
 		/hive/bin/timeout -t 10 /hive/bin/cache-hive-ip
-		return $exitcode
+		return "$exitcode"
 	fi
 
-	#echo $response
-	#echo "[`date`] < `echo $response | jq '.' -c`" >> $LOG
-	echo "[`date`] < $response" >> $LOG #full response even invalid
+	#echo "$response"
+	#echo "[`date`] < `echo "$response" | jq '.' -c`" >> "$LOG"
+	echo "[`date`] < $response" >> "$LOG" #full response even invalid
 
-	error=$(echo $response | jq '.error' --raw-output)
-	[[ $? != 0 ]] && echo -e "${RED}Invalid response${NOCOLOR}: $HIVE_HOST_URL\n$response" && return 1
-	[[ ! -z "$error" && "$error" != "null" ]] && echo -e "${RED}Error response${NOCOLOR}: $error" && return 1
+	error=$(echo "$response" | jq '.error' --raw-output)
+	[[ $? -ne 0 ]] && echo -e "${RED}Invalid response${NOCOLOR}: $HIVE_HOST_URL\n$response" && return 1
+	[[ ! -z $error && "$error" != "null" ]] && echo -e "${RED}Error response${NOCOLOR}: $error" && return 1
 
-	command=$(echo $response | jq '.result.command' --raw-output)
+	command=$(echo "$response" | jq '.result.command' --raw-output)
 
-	[[ "$command" != "OK" ]] && echo "$response" | jq '.result'
+	[[ $command != "OK" ]] && echo "$response" | jq '.result'
 
 
-	if [[ "$command" != "batch" ]]; then
-		body=`echo $response | jq -c '.result'`
+	if [[ $command != "batch" ]]; then
+		body=`echo "$response" | jq -c '.result'`
 		do_command
 	else
-		count=`echo $response | jq '.result.commands|length'`
+		count=`echo "$response" | jq '.result.commands|length'`
 		echo "Got $count batch commands"
-		for (( i=0; i < $count; i++ )); do
-			body=`echo $response | jq -c ".result.commands[$i]"`
+		for (( i=0; i < count; i++ )); do
+			body=`echo "$response" | jq -c ".result.commands[$i]"`
 			command=
 			do_command
 		done
@@ -400,19 +400,19 @@ backslash() {
 }
 
 do_command () {
-	#body=$1
-	[[ -z "$command" ]] && command=`echo $body | jq -r '.command'` #get command for batch
+	#body="$1"
+	[[ -z $command ]] && command=`echo "$body" | jq -r '.command'` #get command for batch
 
 	#Optional command identifier
 	cmd_id=$(echo "$body" | jq -r '.id')
 	[[ $cmd_id == "null" ]] && cmd_id=
 
-	case $command in
+	case "$command" in
 		OK)
 			echo -e "${BGREEN}$command${NOCOLOR}"
 		;;
 		reboot)
-			message ok "Rebooting" --id=$cmd_id
+			message ok "Rebooting" --id="$cmd_id"
 			echo -e "${BRED}Rebooting${NOCOLOR}"
 			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
 			/sbin/reboot
@@ -438,7 +438,7 @@ do_command () {
 			'
 		;;
 		exec)
-			exec=$(echo $body | jq '.exec' --raw-output)
+			exec=$(echo "$body" | jq '.exec' --raw-output)
 			if [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 				exectimeout='nohup timeout 360 bash -c'
 			else
@@ -446,18 +446,18 @@ do_command () {
 			fi
 			$exectimeout '
 			log_name="/tmp/exec_"'$cmd_id'".log"
-			('"$exec"') > $log_name 2>&1
+			('"$exec"') > "$log_name" 2>&1
 			exitcode=$?
 			[[ $exitcode -eq 0 ]] &&
-				cat $log_name | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
-				cat $log_name | message error "'"$(backslash "$exec")"' (Exec failed, exitcode=$exitcode)" payload --id='$cmd_id'
-			rm $log_name > /dev/null 2>&1
+				cat "$log_name" | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
+				cat "$log_name" | message error "'"$(backslash "$exec")"' (Exec failed, exitcode=$exitcode)" payload --id='$cmd_id'
+			rm "$log_name" > /dev/null 2>&1
 			' > /tmp/nohup.log 2>&1 &
 		;;
 		asic_oc)
-			export asic_oc=`echo $body | jq '.asic_oc' --raw-output`
+			export asic_oc=`echo "$body" | jq '.asic_oc' --raw-output`
 			screen -dm -S autotune bash -c '
-				asic_oc $asic_oc 2>&1 | tee /tmp/nohup.log
+				asic_oc "$asic_oc" 2>&1 | tee /tmp/nohup.log
 				exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 					[[ $exitcode -eq 0 ]] &&
@@ -466,9 +466,9 @@ do_command () {
 			'
 		;;
 		firmware-upgrade)
-			export firmware_url=`echo $body | jq '.firmware_url' --raw-output`
+			export firmware_url=`echo "$body" | jq '.firmware_url' --raw-output`
 			screen -dm -S upgrade bash -c '
-				firmware-upgrade $firmware_url 2>&1 | tee /tmp/nohup.log
+				firmware-upgrade "$firmware_url" 2>&1 | tee /tmp/nohup.log
 				exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 					[[ $exitcode -eq 0 ]] &&
@@ -477,45 +477,45 @@ do_command () {
 			'
 		;;
 		config)
-			config=$(echo $body | jq '.config' --raw-output)
-			justwrite=$(echo $body | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
+			config=$(echo "$body" | jq '.config' --raw-output)
+			justwrite=$(echo "$body" | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
 			if [[ ! -z $config && $config != "null" ]]; then
 				#scan for password change
 				echo "$config" > /tmp/rig.conf.new
 				while read line; do
-					[[ $line =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD=${BASH_REMATCH[1]} && break
+					[[ $line =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD="${BASH_REMATCH[1]}" && break
 				done < /tmp/rig.conf.new
 				rm /tmp/rig.conf.new
 
 				# Password change ---------------------------------------------------
-				if [[ $RIG_PASSWD != $NEW_PASSWD ]]; then
+				if [[ $RIG_PASSWD != "$NEW_PASSWD" ]]; then
 					echo -e "${RED}New password:${NOCOLOR} $NEW_PASSWD";
 
-					message warning "Password change received, wait for next message..." --id=$cmd_id
+					message warning "Password change received, wait for next message..." --id="$cmd_id"
 					request=$(jq -n --arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 					'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}')
-					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
+					response=$(echo "$request" | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
 
 					exitcode=$?
-					[ $exitcode -ne 0 ] &&
-						message error "Error notifying hive about \"password_change_received\"" --id=$cmd_id &&
-						return $exitcode #better exit because password will not be changed
+					[[ $exitcode -ne 0 ]] &&
+						message error "Error notifying hive about \"password_change_received\"" --id="$cmd_id" &&
+						return "$exitcode" #better exit because password will not be changed
 
-					error=$(echo $response | jq '.error' --raw-output)
-					[[ ! -z $error && $error != "null" ]] && echo -e "${RED}Server error:${NOCOLOR} `echo $response | jq '.error.message' -r`" && return 1
+					error=$(echo "$response" | jq '.error' --raw-output)
+					[[ ! -z $error && $error != "null" ]] && echo -e "${RED}Server error:${NOCOLOR} `echo "$response" | jq '.error.message' -r`" && return 1
 
 					echo "$response" | jq '.'
 					#after this there will be new password on server, so all new request should use new one
 				fi
 
 				# Write new config and load it ---------------------------------------
-				echo "$config" > $RIG_CONF && sync
-				. $RIG_CONF
+				echo "$config" > "$RIG_CONF" && sync
+				. "$RIG_CONF"
 
 				# Save wallet if given -----------------------------------------------
-				wallet=$(echo $body | jq '.wallet' --raw-output)
+				wallet=$(echo "$body" | jq '.wallet' --raw-output)
 				[[ ! -z $wallet && $wallet != "null" ]] &&
-					echo "$wallet" > $WALLET_CONF
+					echo "$wallet" > "$WALLET_CONF"
 
 
 				# Overclocking if given in config --------------------------------------
@@ -523,32 +523,32 @@ do_command () {
 
 
 				# Final actions ---------------------------------------------------------
-				if [[ "$justwrite" != 1 ]]; then
+				if [[ $justwrite != 1 ]]; then # maybe [[ $justwrite -ne 1 ]]? // @j2h4u
 					#hostname-check
 					/hive/bin/miner restart
 				fi
 
 				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
-				[[ $WD_ENABLED=1 ]] && nohup wd stop && nohup sleep 5; wd start &
+				[[ $WD_ENABLED -eq 1 ]] && nohup wd stop && nohup sleep 5; wd start &
 
-				message ok "Rig config changed" --id=$cmd_id
-				#[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
+				message ok "Rig config changed" --id="$cmd_id"
+				#[[ $? -eq 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
 			else
-				message error "No rig \"config\" given" --id=$cmd_id
+				message error "No rig \"config\" given" --id="$cmd_id"
 			fi
 		;;
 		wallet)
-			wallet=$(echo $body | jq '.wallet' --raw-output)
+			wallet=$(echo "$body" | jq '.wallet' --raw-output)
 			if [[ ! -z $wallet && $wallet != "null" ]]; then
-				echo "$wallet" > $WALLET_CONF && sync
+				echo "$wallet" > "$WALLET_CONF" && sync
 
 				justwrite=
 				oc_if_changed
 
 				/hive/bin/miner restart
-				[[ $? == 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
+				[[ $? -eq 0 ]] && message ok "Wallet changed, miner restarted" --id="$cmd_id" || message warn "Error restarting miner" --id="$cmd_id"
 			else
-				message error "No \"wallet\" config given" --id=$cmd_id
+				message error "No \"wallet\" config given" --id="$cmd_id"
 			fi
 		;;
 	esac
@@ -561,7 +561,7 @@ do_command () {
 
 ########################################################################################################################
 
-echo -e "\n\n[`date`] Started" >> $LOG
+echo -e "\n\n[`date`] Started" >> "$LOG"
 
 while true
 do
@@ -569,15 +569,15 @@ do
 	loop
 	time_finish=`date +%s`
 
-	wasted=$(( $time_finish - $time_start ))
+	wasted=$(( time_finish - time_start ))
 
-	tosleep=$(( $INTERVAL - $wasted ))
+	tosleep=$(( INTERVAL - wasted ))
 
 	#echo "Sleeping $tosleep"
 	echo ""
 
-	if [[ $tosleep > 0 ]]; then
-		sleep $INTERVAL
+	if (( tosleep > 0 )); then
+		sleep "$INTERVAL"
 	else
 		echo -e "${YELLOW}WARNING: Stats sending interval > $INTERVAL seconds, hanging driver?${NOCOLOR}"
 	fi
