@@ -3,7 +3,7 @@
 [[ -s /hive/bin/colors ]] && . /hive/bin/colors
 [[ -s /hive/bin/asic-model ]] && . /hive/bin/asic-model
 [[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
-readonly separator='·'
+readonly separator='Â·'
 
 
 # functions
