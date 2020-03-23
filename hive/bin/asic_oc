@@ -3,7 +3,7 @@
 . asic-model
 
 if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
-	if [ $1 == "default" ]; then
+	if [[ $1 == "default" ]]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
 	else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
@@ -19,7 +19,7 @@ if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL
 	fi
 	echo -e "Autotune config applied!"
 elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || "$ASIC_MODEL" == "Antminer T17 Hiveon" ]]; then
-	if [ $1 == "default" ]; then
+	if [[ $1 == "default" ]]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a \\tune_status=0' > /config/profile.txt
@@ -32,20 +32,20 @@ elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || "
 			miner tuning
 			exit 0
 		fi
-		n=$[ $n + 1 ]
-		if [ $n -eq 200 ]; then
+		n=$(( n + 1 ))
+		if (( n == 200 )); then
 			sed -i 's/tune_status=1/tune_status=2/' /config/profile.txt > /dev/null 2>&1
 			miner restart
 		fi
 	done
 elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 	profile_file="/hive/share/profiles/$( echo "$ASIC_MODEL" | cut -d' ' -f2 )"
-	if [ $1 == "default" ]; then
+	if [[ $1 == "default" ]]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
 		profile_id=$(echo "$1" | jq -r .profile)
 
-		if [ -e "$profile_file" ]; then
+		if [[ -e $profile_file ]]; then
 			#temp S17+ fix. DOTO delete profile
 			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
 		else
@@ -53,7 +53,7 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 		fi
 
 		#tuned profiles
-		if [ -s "/config/profiles/$profile_id/profile.txt" ]; then
+		if [[ -s "/config/profiles/$profile_id/profile.txt" ]]; then
 			cp -rf /config/profiles/$profile_id/* /config
 		fi
 	fi
@@ -71,7 +71,7 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 		fi
 	done
 else
-	if [ $1 == "default" ]; then
+	if [[ $1 == "default" ]]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
 	else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
@@ -96,7 +96,7 @@ else
 		sed -i 's/wait_after_restart_chip=[0-9]*\&/wait_after_restart_chip=7\&/' /config/autoTune.conf
 		sleep 1
 
-		case $conftune in
+		case "$conftune" in
 			*"profile=1"\&*)
 				sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' /config/autoTune.conf
 				;;
