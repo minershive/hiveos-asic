@@ -15,23 +15,23 @@ function direction() {
 		echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction" &
 }
 
-case $1 in
+case "$1" in
 	stop)
 		ps w | grep time | grep while | grep -v '{timeout}' | awk '{print $1}' | xargs kill
-		if [ $GPIO_PATH == "value" ]; then
+		if [[ $GPIO_PATH == "value" ]]; then
 			echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value
-		elif [ $GPIO_PATH == "direction" ]; then
+		elif [[ $GPIO_PATH == "direction" ]]; then
 			echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction
 		fi
 	;;
 	*)
 		if [[ $1 =~ ^[0-9]+$ ]]; then
-			if [ ! -e /sys/class/gpio/gpio$GPIO_LED_RED ]; then
-				echo $GPIO_LED_RED > /sys/class/gpio/export
+			if [[ ! -e /sys/class/gpio/gpio$GPIO_LED_RED ]]; then
+				echo "$GPIO_LED_RED" > /sys/class/gpio/export
 			fi
-			if [ $GPIO_PATH == "value" ]; then
+			if [[ $GPIO_PATH == "value" ]]; then
 				value $(($1 * 60))
-			elif [ $GPIO_PATH == "direction" ]; then
+			elif [[ $GPIO_PATH == "direction" ]]; then
 				direction $(($1 * 60))
 			fi
 		else
