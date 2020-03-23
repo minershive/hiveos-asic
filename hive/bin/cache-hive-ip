@@ -18,17 +18,17 @@ fi
 
 
 RIG_CONF="/hive-config/rig.conf"
-[ ! -e $RIG_CONF ] && echo "No $RIG_CONF" && exit 1
-. $RIG_CONF
-[[ -z "$HIVE_HOST_URL" ]] && echo "HIVE_HOST_URL is empty" && exit 1
+[[ ! -e $RIG_CONF ]] && echo "No $RIG_CONF" && exit 1
+. "$RIG_CONF"
+[[ -z $HIVE_HOST_URL ]] && echo "HIVE_HOST_URL is empty" && exit 1
 
 
 #Resolves host and writes it to /etc/hosts
 
 SEPARATOR="#HIVE HOST CACHE BEGIN"
 #HOST="hiveos.farm"
-HOST=`echo $HIVE_HOST_URL | awk -F'://' '{print $2}'`
-[[ -z "$HOST" ]] && echo "Unable to parse hostname from $HIVE_HOST_URL" && exit 1
+HOST=`echo "$HIVE_HOST_URL" | awk -F'://' '{print $2}'`
+[[ -z $HOST ]] && echo "Unable to parse hostname from $HIVE_HOST_URL" && exit 1
 
 #ent=`getent ahosts $HOST | grep -m 1 STREAM | sed -E 's/(\w+)\s+STREAM\s+(.*)/\1 \2/'`
 ent=`nslookup $HOST | grep -A 4 Name | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
@@ -39,9 +39,9 @@ for i in {1..30}; do
     ent=`nslookup $HOST | grep -A 4 Name | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
 done
 
-if [[ -z "$ent" ]]; then
+if [[ -z $ent ]]; then
     echo "Unable to resolve $HOST"
-    [ -e "/hive-config/hosts" ] && cp -rf /hive-config/hosts $hostfile
+    [[ -e "/hive-config/hosts" ]] && cp -rf /hive-config/hosts $hostfile
 #    message warn "Unable to resolve $HOST"
     exit 0
 else
@@ -50,13 +50,13 @@ else
 fi
 
 #Recreate. Because of shitty picky bugs
-echo "127.0.0.1	localhost.localdomain		localhost" > $hostfile
+echo "127.0.0.1	localhost.localdomain		localhost" > "$hostfile"
 
-echo -e "\n$SEPARATOR" >> $hostfile
-echo "$ent" >> $hostfile
+echo -e "\n$SEPARATOR" >> "$hostfile"
+echo "$ent" >> "$hostfile"
 
-if ! cmp -s $hostfile /hive-config/hosts; then
-    cp -rf $hostfile /hive-config/hosts
+if ! cmp -s "$hostfile" /hive-config/hosts; then
+    cp -rf "$hostfile" /hive-config/hosts
 fi
 
 sync
