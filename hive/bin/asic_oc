@@ -44,10 +44,17 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
 		profile_id=$(echo $1 | jq -r .tune_profile)
+
 		if [ -e "$profile_file" ]; then
+			#temp S17+ fix. DOTO delete profile
 			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
 		else
 			echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a tune_status=0\ntune_max_restarts=10\ntune_uptime=240' > /config/profile.txt
+		fi
+
+		#tuned profiles
+		if [ -s "/coongig/profiles/$profile_id/profile.txt" ]; then
+			cp -rf /config/profiles/$profile_id/* /config
 		fi
 	fi
 	killall bmminer
@@ -58,10 +65,9 @@ elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
 			miner tuning
 			exit 0
 		fi
-		n=$[ $n + 1 ]
-		if [ $n -eq 200 ]; then
-			sed -i 's/tune_status=1/tune_status=2/' /config/profile.txt > /dev/null 2>&1
-			miner restart
+		(( n++ ))
+		if (( n == 500 )); then
+			exit 0
 		fi
 	done
 else
