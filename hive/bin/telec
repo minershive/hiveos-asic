@@ -29,7 +29,7 @@ start () {
 
 
 	#[[ -e $logfile ]] && rm $logfile
-	[[ `find /var/log -name "teleconsole.*" | wc -l` -ne 0 ]] && rm /var/log/teleconsole.*
+	[[ $( find /var/log -name "teleconsole.*" | wc -l ) -ne 0 ]] && rm /var/log/teleconsole.*
 
 	screen -dm -c /hive/etc/screenrc.teleconsole
 	sleep 1
@@ -109,7 +109,7 @@ killidle () {
 
 
 
-case $1 in
+case "$1" in
 	start)
 		start
 	;;
