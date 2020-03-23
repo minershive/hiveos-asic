@@ -4,7 +4,7 @@
 function cron_enable() {
 	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
 	systemctl is-enabled $1.timer > /dev/null
-	[[ $? == 1 ]] && systemctl enable $1.timer
+	[[ $? -eq 1 ]] && systemctl enable $1.timer
 	systemctl start $1.timer
 	nohup sync && sleep 600 && mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs / &
 	echo "$1 enabled"
@@ -24,9 +24,9 @@ function echo_error() {
 
 
 
-case $1 in
+case "$1" in
 	miner)
-		case $2 in
+		case "$2" in
 			enable)
 				cron_enable "restart-cgminer-cron"
 			;;
@@ -39,7 +39,7 @@ case $1 in
 		esac
 	;;
 	asic)
-		case $2 in
+		case "$2" in
 			enable)
 				cron_enable "restart-asic-cron"
 			;;
