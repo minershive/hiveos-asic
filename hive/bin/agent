@@ -310,7 +310,8 @@ loop () {
 
 	miner_stats "$MINER" #khs and stats are global
 
-	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs -gt 0 ]] && echo -e ${YELLOW} || echo -e ${RED}`$khs${NOCOLOR} kH/s"
+	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs > "0" ]] && echo -e ${YELLOW} || echo -e ${RED}`$khs${NOCOLOR} kH/s"
+	#                                               ^^^ floating point, that's why
 	echo -en "\n"
 	echo "$khs" > /run/hive/khs
 
