@@ -4,11 +4,11 @@
 [ -e "/opt/system/bank.conf" ] && ASIC_MODEL="ebit" #Ebit
 [ -e "/etc/hwrevision" ] && ASIC_MODEL=`cut -d\  -f 2 /etc/hwrevision` #Innosilicon
 [ -e "/var/www/html/src/Template/Layout/signin.twig" ] && ASIC_MODEL=`cat /var/www/html/src/Template/Layout/signin.twig | grep Zig || cat /var/www/html/src/Template/Users/login.twig | grep Zig | grep "title\|<a><b>" | sed 's/<[^>]*>//g' | sed s/\ *//` #Zig old firmware
-[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo $ASIC_MODEL | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
+[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && [ -e "/var/www/html/TYPE" ] && ASIC_MODEL=$(echo "$ASIC_MODEL" | sed s/"{{ type() }}"/$(cat /var/www/html/TYPE)/) #Zig new firmware
 [ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && ASIC_MODEL=`cat /tmp/type`.`cat /tmp/hwver` #Innosilicon A5/8
-echo $ASIC_MODEL
+echo "$ASIC_MODEL"
 
-if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
+if [ "$ASIC_MODEL" = "Zig Z1+" ] || [ "$ASIC_MODEL" = "Zig Z1" ]; then
 	release=`wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
 else
 	release=`curl -f --silent -L --insecure https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION`
@@ -20,16 +20,16 @@ version=0
 filename=v$release.tar.gz
 
 t=`df -h | grep  '/tmp' | awk '{print $NF}'`
-[ -z $t ] && t='/tmp'
+[ -z "$t" ] && t='/tmp'
 
-cd $t
+cd "$t"
 rm -rf /tmp/hive/*
 rm -rf /tmp/hiveos-asic*
 rm -rf /tmp/selfupgrade
 rm -rf /tmp/master.tar.gz
 rm -rf /tmp/v*.tar.gz
 
-if [ $release == $version ]; then
+if [ "$release" = "$version" ]; then
 	if [ "$1" != "master" ]; then
 		if [ "$2" != "-f" ]; then
 			[ -e /hive/bin/colors ] && source /hive/bin/colors
@@ -39,33 +39,33 @@ if [ $release == $version ]; then
 	fi
 fi
 #check dev build
-if [ "$2" == $(cat /hive/etc/build) ]; then
+if [ "$2" = "$(cat /hive/etc/build)" ]; then
     echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
     exit $exitcode
-elif [ "$2" == "github" ]; then
+elif [ "$2" = "github" ]; then
     github=1
 fi
 
-if [ $exitcode -ne 0 ] || [ -z $release ]; then
+if [ "$exitcode" -ne 0 ] || [ -z "$release" ]; then
 	echo "Can't get current version from repository"
 	exit $exitcode
 fi
-if [ $# != "0" ]; then
-	release=$1
-	if [ $release == "master" ]; then
-		filename=$release.tar.gz
+if [ $# -ne 0 ]; then
+	release="$1"
+	if [ "$release" = "master" ]; then
+		filename="${release}.tar.gz"
 	else
-		filename=v$release.tar.gz
+		filename="v${release}.tar.gz"
 	fi
 fi
 url=http://github.com/minershive/hiveos-asic/archive/$filename
 
-[ -e $filename ] && rm $filename
+[ -e "$filename" ] && rm $filename
 
 download_url() { #download from github
-	echo $url
+	echo "$url"
 	echo "> Downloading $url"
-	if [ "$ASIC_MODEL" == "Zig Z1+" ] || [ "$ASIC_MODEL" == "Zig Z1" ]; then
+	if [ "$ASIC_MODEL" = "Zig Z1+" ] || [ "$ASIC_MODEL" = "Zig Z1" ]; then
 		wget $url
 	else
 		curl -L --insecure -O $url
@@ -95,8 +95,8 @@ install_antminer_bmminer() { # bmminer, / - rw, cron
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
-	#[[ -d /hive && ! -L /hive ]] && mv -f /hive /config/hive/
-	[[ -d /hive-config && ! -L /hive-config ]] && mv -f /hive-config /config/hive/
+	#[ -d /hive && ! -L /hive ] && mv -f /hive /config/hive/
+	[ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
 
 
 	if [ ! -e /hive-config ]; then
@@ -163,7 +163,7 @@ FILEEOF
 install_antminer_Z9_cgminer() { # cgminer, / - rw, no cron
 	download_url
 	rm -rf /hive/sbin/teleconsole
-	if [[ -e /hive && ! -L /hive ]]; then
+	if [ -e /hive ] && [ ! -L /hive ]; then
 		mkdir -p /config/hive
 		mv -f /hive /config/hive/
 		mv -f /hive-config /config/hive/
@@ -253,13 +253,13 @@ install_innosilicon() {
 	#systemd autorun and cron
 	systemctl daemon-reload
 	systemctl is-enabled hive.service > /dev/null
-	[[ $? == 1 ]] && systemctl enable hive.service
+	[ $? -eq 1 ] && systemctl enable hive.service
 	systemctl start hive.service
 	systemctl is-enabled hive-agent-screen.timer > /dev/null
-	[[ $? == 1 ]] && systemctl enable hive-agent-screen.timer
+	[ $? -eq 1 ] && systemctl enable hive-agent-screen.timer
 	systemctl start hive-agent-screen.timer
 	systemctl is-enabled hive-cache-ip.timer > /dev/null
-	[[ $? == 1 ]] && systemctl enable hive-cache-ip.timer
+	[ $? -eq 1 ] && systemctl enable hive-cache-ip.timer
 	systemctl start hive-cache-ip.timer
 
 	sleep 2
@@ -363,7 +363,7 @@ install_antminer_bmminer_ro() {
 	[ -e "/nvdata/latest_new.tar.gz" ] && rm /nvdata/latest_new.tar.gz
 	[ -e "/hive" ] && rm -rf /hive
 	sync
-	if [ $github -eq 1 ]; then
+	if [ "$github" -eq 1 ]; then
 		curl -f -L --insecure http://github.com/minershive/hiveos-asic/archive/master.tar.gz -o /nvdata/latest.tar.gz
 		/etc/rcS.d/S69hive
 	else
@@ -375,28 +375,28 @@ install_antminer_bmminer_ro() {
 	sleep 10
 }
 
-if [ "$ASIC_MODEL" == "Antminer S9" ]; then
+if [ "$ASIC_MODEL" = "Antminer S9" ]; then
 	echo "Install Antminer S9"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer S9i" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S9i" ]; then
 	echo "Install Antminer S9i"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer S9 SE" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S9 SE" ]; then
 	echo "Install Antminer S9 SE"
 	install_antminer_bmminer_ro
-elif [ "$ASIC_MODEL" == "Antminer S9k" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S9k" ]; then
 	echo "Install Antminer S9k"
 	install_antminer_bmminer_ro
-elif [ "$ASIC_MODEL" == "Minecenter S9" ]; then
+elif [ "$ASIC_MODEL" = "Minecenter S9" ]; then
 	echo "Install Minecenter S9"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer S9j" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S9j" ]; then
 	echo "Install Antminer S9j"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer S9 Hydro" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S9 Hydro" ]; then
 	echo "Install Antminer S9 Hydro"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer S11" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S11" ]; then
 	echo "Install Antminer S11"
 	install_antminer_bmminer
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9 (vnish"; then
@@ -408,25 +408,25 @@ elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9"; then
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S10"; then
 	echo "Install Antminer S10"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer " ]; then
+elif [ "$ASIC_MODEL" = "Antminer " ]; then
 	echo "Install Antminer B3"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer A3" ]; then
+elif [ "$ASIC_MODEL" = "Antminer A3" ]; then
 	echo "Install Antminer A3"
 	install_antminer_cgminer
-elif [ "$ASIC_MODEL" == "Antminer D3" ]; then
+elif [ "$ASIC_MODEL" = "Antminer D3" ]; then
 	echo "Install Antminer D3"
 	install_antminer_cgminer
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer D3 Blissz"; then
 	echo "Install Antminer D3 Blissz"
 	install_antminer_cgminer
-elif [ "$ASIC_MODEL" == "Antminer L3++" ]; then
+elif [ "$ASIC_MODEL" = "Antminer L3++" ]; then
 	echo "Install Antminer L3++"
 	install_antminer_cgminer
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer L3+"; then
 	echo "Install Antminer L3+"
 	install_antminer_cgminer
-elif [ "$ASIC_MODEL" == "Antminer Z9-Mini" ]; then
+elif [ "$ASIC_MODEL" = "Antminer Z9-Mini" ]; then
 	echo "Install Antminer Z9-Mini"
 	install_antminer_Z9_cgminer
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer Z11"; then
@@ -435,28 +435,28 @@ elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer Z11"; then
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer Z9"; then
 	echo "Install Antminer Z9"
 	install_antminer_Z9_cgminer
-elif [ "$ASIC_MODEL" == "Antminer X3" ]; then
+elif [ "$ASIC_MODEL" = "Antminer X3" ]; then
 	echo "Install Antminer X3"
 	install_antminer_cgminer
-elif [ "$ASIC_MODEL" == "Antminer S7" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S7" ]; then
 	echo "Install Antminer S7"
 	install_antminer_cgminer
-elif [ "$ASIC_MODEL" == "Antminer DR3" ]; then
+elif [ "$ASIC_MODEL" = "Antminer DR3" ]; then
 	echo "Install Antminer DR3"
 	install_antminer_cgminer
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer T9+"; then
 	echo "Install Antminer T9+"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer T9" ]; then
+elif [ "$ASIC_MODEL" = "Antminer T9" ]; then
 	echo "Install Antminer T9"
 	install_antminer_bmminer
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer T9"; then
 	echo "Install Antminer T9"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "Antminer T15" ]; then
+elif [ "$ASIC_MODEL" = "Antminer T15" ]; then
 	echo "Install Antminer T15"
 	install_antminer_bmminer_ro
-elif [ "$ASIC_MODEL" == "Antminer S15" ]; then
+elif [ "$ASIC_MODEL" = "Antminer S15" ]; then
 	echo "Install Antminer S15"
 	install_antminer_bmminer_ro
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S17"; then
@@ -465,67 +465,67 @@ elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S17"; then
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer T17"; then
 	echo "Install Antminer T17"
 	install_antminer_bmminer_ro
-elif [ "$ASIC_MODEL" == "Antminer E3" ]; then
+elif [ "$ASIC_MODEL" = "Antminer E3" ]; then
 	echo "Install Antminer E3"
 	install_antminer_bmminer
-elif [ "$ASIC_MODEL" == "b29+.g19" ]; then
+elif [ "$ASIC_MODEL" = "b29+.g19" ]; then
 	echo "Install Innosilicon A9"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "d9.g19" ]; then
+elif [ "$ASIC_MODEL" = "d9.g19" ]; then
 	echo "Install Innosilicon D9"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "s11.g19" ]; then
+elif [ "$ASIC_MODEL" = "s11.g19" ]; then
 	echo "Install Innosilicon S11"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t3.soc" ]; then
+elif [ "$ASIC_MODEL" = "t3.soc" ]; then
 	echo "Install Innosilicon T3"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t3+.soc" ]; then
+elif [ "$ASIC_MODEL" = "t3+.soc" ]; then
 	echo "Install Innosilicon T3+"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2thm.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2thm.soc" ]; then
 	echo "Install Innosilicon T2Thm"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2thf.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2thf.soc" ]; then
 	echo "Install Innosilicon T2Thf"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2th.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2th.soc" ]; then
 	echo "Install Innosilicon T2Th"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2tz.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2tz.soc" ]; then
 	echo "Install Innosilicon T2Tz-30T"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2t.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2t.soc" ]; then
 	echo "Install Innosilicon T2T-24T"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2t+.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2t+.soc" ]; then
 	echo "Install Innosilicon T2T+(32T)"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2th+.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2th+.soc" ]; then
 	echo "Install Innosilicon T2TH+"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2thf+.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2thf+.soc" ]; then
 	echo "Install Innosilicon T2THf+"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2thl+.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2thl+.soc" ]; then
 	echo "Install Innosilicon T2THl+"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2ts.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2ts.soc" ]; then
 	echo "Install Innosilicon T2Ts-26T"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t2ti.soc" ]; then
+elif [ "$ASIC_MODEL" = "t2ti.soc" ]; then
 	echo "Install Innosilicon T2Ti-25T"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "t3h+.soc" ]; then
+elif [ "$ASIC_MODEL" = "t3h+.soc" ]; then
 	echo "Install Innosilicon T3H+"
 	install_innosilicon
-elif [ "$ASIC_MODEL" == "T4.G19" ]; then
+elif [ "$ASIC_MODEL" = "T4.G19" ]; then
 	echo "Install Innosilicon A8"
 	install_innosilicon_innominer
-elif [ "$ASIC_MODEL" == "Zig Z1+" ]; then
+elif [ "$ASIC_MODEL" = "Zig Z1+" ]; then
 	echo "Install Zig Z1+"
 	install_zig
-elif [ "$ASIC_MODEL" == "Zig Z1" ]; then
+elif [ "$ASIC_MODEL" = "Zig Z1" ]; then
 	echo "Install Zig Z1"
 	install_zig
 else
