@@ -8,17 +8,17 @@ HELLO_OK="/tmp/.hive-hello-ok"
 RIG_CONF="/hive-config/rig.conf"
 mkdir -p "/hive-config"
 
-[ -t 1 ] && . colors
+[[ -t 1 ]] && . colors
 
 
 #FARM_HASH=
 FORCE=0
-if [[ "$1" == "-f" ]]; then
+if [[ $1 == "-f" ]]; then
 	echo "Forcing reconfig"
 	FORCE=1
-elif [[ ! -z "$1" ]]; then
+elif [[ ! -z $1 ]]; then
 	FARM_HASH="$1"
-#	if [[ "$2" == "-f" ]]; then
+#	if [[ $2 == "-f" ]]; then
 	FORCE=1
 #	fi
 fi
@@ -110,7 +110,7 @@ BRANDING_LOGO="
 "
 BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
 
-if [[ ! -f "$RIG_CONF" ]] || [[ "$FORCE" -eq 1 ]]; then
+if [[ ! -f $RIG_CONF || $FORCE -eq 1 ]]; then
 #	selfupgrade
 
 	if [[ -z $FARM_HASH ]]; then
@@ -140,7 +140,7 @@ EOF
 
 
 	echo -e "$msg"
-elif [[ ! -f "$HELLO_OK" ]]; then
+elif [[ ! -f $HELLO_OK ]]; then
 	msg=$(cat <<EOF
 ${BRANDING_LOGO}
 $YELLOW
@@ -178,7 +178,7 @@ read_url () {
 		read url
 		[[ -z $url ]] && break
 		[[ $url =~ ^(http|https)://.+$ ]] &&
-			HIVE_HOST_URL=$url &&
+			HIVE_HOST_URL="$url" &&
 			echo -e "New server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}" &&
 			break
 		echo "Invalid URL"
@@ -217,13 +217,13 @@ while true; do
 		read_id
 		read_passwd
 
-		cat > $RIG_CONF <<FILEEOF
+		cat > "$RIG_CONF" <<FILEEOF
 HIVE_HOST_URL="$HIVE_HOST_URL"
 RIG_ID="$id"
 RIG_PASSWD="$passwd"
 FILEEOF
 	else #$FARM_HASH is set
-		cat > $RIG_CONF <<FILEEOF
+		cat > "$RIG_CONF" <<FILEEOF
 HIVE_HOST_URL="$HIVE_HOST_URL"
 FARM_HASH="$FARM_HASH"
 FILEEOF
@@ -237,7 +237,7 @@ FILEEOF
 	sleep 5
 	hello restartminer
 
-	if [ $? -eq 0 ]; then
+	if [[ $? -eq 0 ]]; then
 		#Apply OC if configs are available
 		#[[ -f $AMD_OC_CONF ]] && amd-oc-safe
 		#[[ -f $NVIDIA_OC_CONF ]] && nvidia-oc-log
