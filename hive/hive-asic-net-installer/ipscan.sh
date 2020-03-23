@@ -13,16 +13,17 @@ readonly script_version='1.01'
 # functions
 
 print_script_version() {
-	echo -e "${CYAN-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
-function usage() {
-    bname=`basename $0`
-    echo -e "Usage example 1: ${CYAN}$bname${NOCOLOR} 192.168.0.0/24"
-    echo -e "Usage example 2: ${CYAN}$bname${NOCOLOR} 192.168.0.0/24 192.168.100.0/24"
-    echo -e "Usage example 3: ${CYAN}$bname${NOCOLOR} 172.16.1.0/16 192.168.1.0/24 10.0.1.0/24"
-    echo -e "Usage example 4: ${CYAN}$bname${NOCOLOR} 192.168.0.0/24 > ips.txt"
+print_script_usage() {
+    bname="$( basename "$0" )"
+    echo -e "Usage examples:"
+    echo -e "${CYAN}$bname${NOCOLOR} 192.168.0.0/24"
+    echo -e "${CYAN}$bname${NOCOLOR} 192.168.0.0/24 192.168.100.0/24"
+    echo -e "${CYAN}$bname${NOCOLOR} 172.16.1.0/16 192.168.1.0/24 10.0.1.0/24"
+    echo -e "${CYAN}$bname${NOCOLOR} 192.168.0.0/24 > ips.txt"
 }
 
 prefix_to_bit_netmask() {
@@ -62,7 +63,7 @@ print_script_version
 
 which curl > /dev/null || ( echo -e "${CYAN}curl${NOCOLOR} is required, try ${CYAN}apt-get install curl${NOCOLOR}"; exit 1 )
 
-[[ -z $1 ]] && { usage; exit 1; }
+[[ -z $1 ]] && { print_script_usage; exit 1; }
 
 mkdir -p /dev/shm/ip
 rm -rf /dev/shm/ip/*

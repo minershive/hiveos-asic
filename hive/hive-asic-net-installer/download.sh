@@ -15,7 +15,7 @@ readonly github_path='https://raw.githubusercontent.com/minershive/hiveos-asic/m
 # functions
 
 print_script_version() {
-	echo -e "${CYAN-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
