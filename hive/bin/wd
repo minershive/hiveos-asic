@@ -23,16 +23,17 @@ function loadconf() {
 
 	if [[ -z $WD_ENABLED || $WD_ENABLED -ne 1 ]]; then
 		printf '%(%F %T %z)T %s: ' -1 'watchdog'
-		echo -e "${YELLOW}Watchdog not enabled (WD_ENABLED=$WD_ENABLED), exiting${NOCOLOR}" &&
+		echo -e "${YELLOW}Watchdog not enabled (WD_ENABLED=$WD_ENABLED), exiting${NOCOLOR}"
 		exit 0
 	fi
 
-	minhash=`echo "$WD_MINHASHES" | jq -r ".\"$MINER\""`
-	[[ -z $minhash || $minhash == "null" ]] &&
-		message warn "Minimal hashrate for $MINER is not set" &&
+	minhash=`echo $WD_MINHASHES | jq -r ".\"$MINER\""`
+	if [[ -z $minhash || $minhash == "null" ]]; then
+		message warn "Minimal hashrate for $MINER is not set"
 		printf '%(%F %T %z)T %s: ' -1 'watchdog'
-		echo -e "${RED}Minimal hashrate for $MINER is not set in config, exiting${NOCOLOR}" &&
+		echo -e "${RED}Minimal hashrate for $MINER is not set in config, exiting${NOCOLOR}"
 		exit 1
+	fi
 }
 
 
