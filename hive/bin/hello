@@ -6,17 +6,17 @@ export LD_LIBRARY_PATH=/hive/lib
 # Sends hello to Hive, receives config files, restarts miner
 
 HELLO_OK="/tmp/.hive-hello-ok"
-[ -f $HELLO_OK ] && rm $HELLO_OK
+[[ -f $HELLO_OK ]] && rm $HELLO_OK
 
 RIG_CONF="/hive-config/rig.conf"
 WALLET_CONF="/hive-config/wallet.conf"
 VPN_INSTALLED="/tmp/.openvpn-installed"
 mkdir -p "/hive-config"
 
-[ -t 1 ] && . colors
-[ ! -f $RIG_CONF ] && echo -e "No config $RIG_CONF" && exit 1
+[[ -t 1 ]] && . colors
+[[ ! -f $RIG_CONF ]] && echo -e "No config $RIG_CONF" && exit 1
 
-. $RIG_CONF
+. "$RIG_CONF"
 . asic-model
 
 [[ -z $FARM_HASH && -z $RIG_ID ]] && echo "Please use FARM_HASH or RIG_ID in config" && exit 1
@@ -50,11 +50,11 @@ net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{
 
 mb_manufacturer=
 #mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
-[ -e "/usr/bin/compile_time" ] && mb_product=`sed -n 2p /usr/bin/compile_time`
-[ -e "/opt/system/bank.conf" ] && mb_product="ebit"
-[ -e "/etc/hwrevision" ] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
-[ -e "/var/www/html/src/Template/Layout/signin.twig" ] && mb_product=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
-[ -e "/tmp/type" ] && [ ! -e "/etc/hwrevision" ] && mb_product=`cat /tmp/type`.`cat /tmp/hwver`
+[[ -e "/usr/bin/compile_time" ]] && mb_product=`sed -n 2p /usr/bin/compile_time`
+[[ -e "/opt/system/bank.conf" ]] && mb_product="ebit"
+[[ -e "/etc/hwrevision" ]] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
+[[ -e "/var/www/html/src/Template/Layout/signin.twig" ]] && mb_product=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
+[[ -e "/tmp/type" && ! -e "/etc/hwrevision" ]] && mb_product=`cat /tmp/type`.`cat /tmp/hwver`
 
 
 cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*//g'`
@@ -63,7 +63,7 @@ cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*
 cpu_cores=`cat /proc/cpuinfo | grep "^model name" | wc -l`
 aes=`cat /proc/cpuinfo | grep "^Features .*aes" | wc -l`
 
-if [ -e /hive/etc/build ] && [ -e /hive/etc/VERSION ]; then
+if [[ -e /hive/etc/build && -e /hive/etc/VERSION ]]; then
 	kernel=$(uname --kernel-release)" ("$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)")"
 else
 	kernel=`uname --kernel-release`
@@ -72,24 +72,24 @@ fi
 hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
-[ -e "/usr/bin/compile_ver" ] && [ -e "/var/log/log" ] && MODELH=$(cat /var/log/log | grep "Project type" | awk -F\:\  '{print $NF}')
-if [[ ! -z "$MODELH" ]]; then
-	if [ ! -e /hive-config/model ]; then
+[[ -e "/usr/bin/compile_ver" && -e "/var/log/log" ]] && MODELH=$(cat /var/log/log | grep "Project type" | awk -F\:\  '{print $NF}')
+if [[ ! -z $MODELH ]]; then
+	if [[ ! -e /hive-config/model ]]; then
 		echo "$MODELH" > /hive-config/model
 	else
-		if [ "$MODELH" != "$(cat /hive-config/model)" ]; then
+		if [[ $MODELH != "$(cat /hive-config/model)" ]]; then
 			echo "$MODELH" > /hive-config/model
 		fi
 	fi
 fi
 
-[ -e /hive-config/model ] && MODELH=$(cat /hive-config/model)
-[[ ! -z "$MODELH" ]] && sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
-[[ ! -z "$MODELH" ]] && sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
+[[ -e /hive-config/model ]] && MODELH=$(cat /hive-config/model)
+[[ ! -z $MODELH ]] && sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
+[[ ! -z $MODELH ]] && sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
 
 
-[ -e "/usr/bin/compile_time" ] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
-[ -e "/usr/bin/compile_ver" ] && asic=`cat /usr/bin/compile_ver | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
+[[ -e "/usr/bin/compile_time" ]] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
+[[ -e "/usr/bin/compile_ver" ]] && asic=`cat /usr/bin/compile_ver | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
 [[ $mb_product =~ "Antminer D3 Blissz" ]] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 [[ $mb_product == "b29+.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon A9", "logic_version": .[0]}'`
 [[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
@@ -120,15 +120,15 @@ asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
 [[ $mb_product =~ "Zig Z1" ]] && asic_chain_count=4
 
 
-uid=$(echo ${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g') | tr '[:upper:]' '[:lower:]')
+uid=$(echo "${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g')" | tr '[:upper:]' '[:lower:]')
 if which sha1sum > /dev/null; then
-	uid=$(echo $uid | sha1sum | awk '{print $1}')
+	uid=$(echo "$uid" | sha1sum | awk '{print $1}')
 elif which md5sum > /dev/null; then
-	uid=$(echo $uid | md5sum | awk '{print $1}')
+	uid=$(echo "$uid" | md5sum | awk '{print $1}')
 fi
 
-if [ ! -z $FANS_COUNT_DEFAULT ]; then
-	fans_count=$FANS_COUNT_DEFAULT
+if [[ ! -z $FANS_COUNT_DEFAULT ]]; then
+	fans_count="$FANS_COUNT_DEFAULT"
 else
 	fans_count=2
 fi
@@ -163,7 +163,7 @@ jq -n \
 }'
 )
 
-if [ -e /config/HIVE_WORKER_NAME ]; then
+if [[ -e /config/HIVE_WORKER_NAME ]]; then
 	arg_hostname=$(cat /config/HIVE_WORKER_NAME)
 	rm /config/HIVE_WORKER_NAME
 fi
@@ -174,7 +174,7 @@ fi
 
 echo "$request" | jq -c '.'
 
-response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
+response=$(echo "$request" | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
 exitcode=$?
 [[ $exitcode -ne 0 ]] &&
 	echo -e "${RED}Error connecting to Hive server${NOCOLOR} $HIVE_HOST_URL" &&
@@ -184,26 +184,26 @@ exitcode=$?
 #output and check json
 echo "$response" | jq '.'
 
-[ $? -ne 0 ] && echo -e "${RED}Error parsing JSON response:${NOCOLOR} $response" && exit $? #error json parsing
+[[ $? -ne 0 ]] && echo -e "${RED}Error parsing JSON response:${NOCOLOR} $response" && exit $? #error json parsing
 
-error=$(echo $response | jq '.error' --raw-output)
-[[ ! -z "$error" && "$error" != "null" ]] && echo -e "${RED}ERROR:${NOCOLOR} `echo $response | jq '.error.message' -r`" && exit 1
+error=$(echo "$response" | jq '.error' --raw-output)
+[[ ! -z "$error" && "$error" != "null" ]] && echo -e "${RED}ERROR:${NOCOLOR} $( echo "$response" | jq '.error.message' -r )" && exit 1
 
 
 
 
 
 # Save config and check it ================================================================
-config=$(echo $response | jq '.result.config' --raw-output)
+config=$(echo "$response" | jq '.result.config' --raw-output)
 [[ -z "$config" || "$config" == "null" ]] &&
 	echo "Response body: $response" &&
 	echo -e "${RED}ERROR:${NOCOLOR} no config field in response" &&
 	exit 1
-echo "$config" > $RIG_CONF
-. $RIG_CONF
+echo "$config" > "$RIG_CONF"
+. "$RIG_CONF"
 #hostname-check
 
-[[ ! -z $TIMEZONE ]] && export TZ=$TIMEZONE
+[[ ! -z $TIMEZONE ]] && export TZ="$TIMEZONE"
 
 
 # Timezone ================================================================
@@ -212,17 +212,17 @@ echo "$config" > $RIG_CONF
 
 
 # Wallet config ================================================================
-wallet=$(echo $response | jq '.result.wallet' --raw-output)
-if [[ ! -z "$wallet" && "$wallet" != "null" ]]; then
-	echo "$wallet" > $WALLET_CONF
+wallet=$(echo "$response" | jq '.result.wallet' --raw-output)
+if [[ ! -z $wallet && $wallet != "null" ]]; then
+	echo "$wallet" > "$WALLET_CONF"
 fi
 
 
 # Post actions =================================================================
 #restartminer - restart miner on success
-if [[ $arg_restartminer == 1 ]]; then
+if [[ $arg_restartminer -eq 1 ]]; then
 	/hive/bin/miner restart
-#	[[ $WD_ENABLED == 1 ]] &&
+#	[[ $WD_ENABLED -eq 1 ]] &&
 #		wd restart
 fi
 
