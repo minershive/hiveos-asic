@@ -2,15 +2,15 @@
 . /hive/bin/colors
 
 RIG_CONF="/hive-config/rig.conf"
-[ ! -f $RIG_CONF ] && echo -e "No config $RIG_CONF" && exit 1
+[[ ! -f $RIG_CONF ]] && echo -e "No config $RIG_CONF" && exit 1
 
-. $RIG_CONF
+. "$RIG_CONF"
 
 HIVE_URL="$HIVE_HOST_URL/worker/api"
 #LOG="/var/log/hive-agent.log"
 LOG="/dev/null"
 
-if [[ $# < 2 ]]; then
+if [[ $# -lt 2 ]]; then
 	echo "Usage: $0 success|danger|warning|info|default \"message\" [payload] [-i|--id=msgid]"
 	echo "Aliases: ok|error|err|warn|default|file"
 	echo "payload is read from stdin"
@@ -20,10 +20,10 @@ fi
 type="$1"
 data="$2"
 
-MSGCOLOR=$CYAN
-[[ $type == "error" || $type == "err" ]] && type="danger" && MSGCOLOR=$RED
-[[ $type == "warn" ]] && type="warning" && MSGCOLOR=$YELLOW
-[[ $type == "ok" ]] && type="success" && MSGCOLOR=$GREEN
+MSGCOLOR="$CYAN"
+[[ $type == "error" || $type == "err" ]] && type="danger" && MSGCOLOR="$RED"
+[[ $type == "warn" ]] && type="warning" && MSGCOLOR="$YELLOW"
+[[ $type == "ok" ]] && type="success" && MSGCOLOR="$GREEN"
 
 
 
@@ -38,12 +38,12 @@ echo "$payload_json" | jq -n \
 	"params": {$rig_id, $passwd, $type, $data}
 }'
 )
-#echo $request | jq .
+#echo "$request" | jq .
 
 id=
 payload=
 for i in "$@"; do
-	case $i in
+	case "$i" in
 		-i=*|--id=*)
 			id="${i#*=}"
 			id_json=`jq --arg id "$id" -n '{"params": {$id}}'`
@@ -68,30 +68,30 @@ done
 echo -e "> Sending \"$type\": ${MSGCOLOR}$data${NOCOLOR}"
 
 #Show output and exit for debug
-#echo $request | jq . && exit
+#echo "$request" | jq . && exit
 
-[ $? -ne 0 ] && echo "Error formatting JSON message" && exit 1
+[[ $? -ne 0 ]] && echo "Error formatting JSON message" && exit 1
 
 
-echo "[`date`] > `echo $request | jq . -c`" >> $LOG
-#echo "[`date`] > $request" >> $LOG
+echo "[`date`] > `echo "$request" | jq . -c`" >> "$LOG"
+#echo "[`date`] > $request" >> "$LOG"
 
 response=$(echo "$request" | curl --insecure -L --data @- \
 --connect-timeout 7 --max-time 15 --silent \
 -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=message"  -H "Content-Type: application/json")
 
 exitcode=$?
-if [ $exitcode -ne 0 ]; then
+if [[ $exitcode -ne 0 ]]; then
 	echo "Error sending message (curl code=$exitcode)"
-	echo "[`date`] < Error sending message (curl code=$exitcode)" >> $LOG
+	echo "[`date`] < Error sending message (curl code=$exitcode)" >> "$LOG"
 	exit $exitcode
 fi
 
-#echo "[`date`] < $response" >> $LOG
-echo "[`date`] < `echo $response | jq . -c`" >> $LOG
+#echo "[`date`] < $response" >> "$LOG"
+echo "[`date`] < `echo "$response" | jq . -c`" >> "$LOG"
 
-error=$(echo $response | jq '.error' --raw-output)
-#[[ ! -z $error && $error != "null" ]] && echo -e "Error response: `echo $response | jq '.error' -r`" && exit 1
+error=$(echo "$response" | jq '.error' --raw-output)
+#[[ ! -z $error && $error != "null" ]] && echo -e "Error response: `echo "$response" | jq '.error' -r`" && exit 1
 [[ ! -z $error && $error != "null" ]] && echo "Error response: $error" && exit 1
 
 
