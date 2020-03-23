@@ -24,7 +24,7 @@ atexit() {
         umount $file.boot 2>/dev/null || true
         rmdir $file.boot 2>/dev/null || true
         sync
-        if [ ! $ok ]; then # what's that? where's $ok set? // @j2h4u
+        if [ ! $ok ]; then # $ok have been set in runme.sh
             echo -e "System upgrade failed"
         fi
 }

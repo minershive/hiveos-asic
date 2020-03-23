@@ -87,7 +87,7 @@ for ip in $@; do
 #    eval echo "$ips" | tr ' ' '\012'
     echo > /dev/shm/ips
     for i in $(eval echo "$ips" | tr ' ' '\012'); do
-	# TODO why do we have a --silent and --verbose options at the same time? // @j2h4u
+	# -verbose and --silent options at the same time make verbose output (we need that) but hides curl errors (we don't need them)
         curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i &
         sleep 0.1 || usleep 100 # only integer sleep on BusyBox
     done
