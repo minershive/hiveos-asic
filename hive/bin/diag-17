@@ -77,7 +77,7 @@ set_view() {
 	local -i terminal_width='0'
 	local this_view=''
 
-	if [ -t 1 ]; then
+	if [[ -t 1 ]]; then
 		readonly terminal_width="$( stty size | cut -d' ' -f2 )"
 	else
 		readonly terminal_width="$terminal_width_DEFAULT"
@@ -241,19 +241,19 @@ print_table_header() {
 			this_date="${last_days_calendar[this_day]}"
 			case "$date_category" in
 				year)
-					text=${this_date:2:2}	# 2020-01-01
+					text="${this_date:2:2}"	# 2020-01-01
 					;;
 				month)
-					text=${this_date:5:2}	#   ^^ ^^ ^^
+					text="${this_date:5:2}"	#   ^^ ^^ ^^
 					;;
 				day)
-					text=${this_date:8:2}	# 0123456789
+					text="${this_date:8:2}"	# 0123456789
 					;;
 			esac
 
 			text="${text}"
 
-			if [[ "$text" != "${previous_text-}" ]]; then
+			if [[ $text != "${previous_text-}" ]]; then
 				if [[ $this_date == $today ]]; then # highlight current date
 					printf "%b${data_column_printf_format}%b" "${WHITE}" "${text: -${date_width}}" "${NOCOLOR}"
 				else
@@ -339,7 +339,7 @@ print_table_body() {
 
 		# print first column
 
-		if [[ "$this_event_name" =~ $domain_prefix ]]; then
+		if [[ $this_event_name =~ $domain_prefix ]]; then
 			event_is_domain_name=1
 		else
 			event_is_domain_name=0
