@@ -2,31 +2,31 @@
 #export PATH="./:/hive/bin:/hive/sbin:$PATH"
 
 SLEEP=10 #seconds to sleep over iteration
-OK_MESSAGE_REDUCE=$(( 1 * 60 / $SLEEP )) #e.g. only every 12th message will be displayed to reduce log
+OK_MESSAGE_REDUCE=$(( 1 * 60 / SLEEP )) #e.g. only every 12th message will be displayed to reduce log
 
 RIG_CONF="/hive-config/rig.conf"
 
-[ -t 1 ] && . /hive/bin/colors
+[[ -t 1 ]] && . /hive/bin/colors
 
 
 function loadconf() {
 	WD_ENABLED=
 
-	if [ ! -f $RIG_CONF ]; then
+	if [[ ! -f $RIG_CONF ]]; then
 		echo -e "${RED}No config $RIG_CONF${NOCOLOR}"
 		echo "Exiting"
 		exit 1
 	else
-		. $RIG_CONF
+		. "$RIG_CONF"
 	fi
 
 
-	[[ -z $WD_ENABLED || $WD_ENABLED != 1 ]] &&
+	[[ -z $WD_ENABLED || $WD_ENABLED -ne 1 ]] &&
 		echo -e "${YELLOW}Watchdog not enabled, exiting${NOCOLOR}" &&
 		exit 0
 
 
-	minhash=`echo $WD_MINHASHES | jq -r ".\"$MINER\""`
+	minhash=`echo "$WD_MINHASHES" | jq -r ".\"$MINER\""`
 	[[ -z $minhash || $minhash == "null" ]] &&
 		message warn "Minimal hashrate for $MINER is not set" &&
 		echo -e "${RED}Minimal hashrate for $MINER is not set in config, exiting${NOCOLOR}" &&
@@ -58,29 +58,29 @@ function loop() {
 	[[ -z $khs ]] && khs=0
 
 
-	hashok=`echo $khs $minhash | awk '{ print ($1 >= $2) ? 1 : 0 }'` #float comparison
+	hashok=`echo "$khs $minhash" | awk '{ print ($1 >= $2) ? 1 : 0 }'` #float comparison
 
-	if [[ $hashok == 1 ]]; then
+	if (( hashok == 1 )); then
 		set_lastgood
-		[[ $ok_count == 0 ]] &&
+		(( ok_count == 0 )) &&
 			echo -e "${GREEN}OK${NOCOLOR} ${CYAN}$MINER${NOCOLOR} $khs kHs >= $minhash kHs"
 
-		((ok_count++))
-		[[ $ok_count -ge $OK_MESSAGE_REDUCE ]] && ok_count=0
+		(( ok_count++ ))
+		(( ok_count >= OK_MESSAGE_REDUCE )) && ok_count=0
 
 		return
 	fi
 
 
 	now=`date +%s`
-	elapsed=$(($now - $lastgood))
+	elapsed=$(( now - lastgood ))
 	#echo Elapsed $elapsed seconds
 
 	echo -e "${RED}BARK${NOCOLOR} ${CYAN}$MINER${NOCOLOR} $khs kHs < $minhash kHs for $elapsed seconds"
 
 	#Check to reboot first
 	if [[ ! -z $WD_REBOOT ]]; then
-		reboot_timeout=`echo $WD_REBOOT 60 | awk '{print $1 * $2}'`
+		reboot_timeout=`echo "$WD_REBOOT 60" | awk '{print $1 * $2}'`
 		if [[ $elapsed -ge $reboot_timeout ]]; then
 			message danger "$MINER low hashrate ($khs kH/s), rebooting"
 			echo -e "---"
@@ -94,8 +94,8 @@ function loop() {
 
 	#Check to restart miner
 	if [[ ! -z $WD_MINER ]]; then
-		miner_restart_timeout=`echo $WD_MINER 60 | awk '{print $1 * $2}'`
-		if [[ $miner_restart_count == 0 && $elapsed -ge $miner_restart_timeout ]]; then
+		miner_restart_timeout=`echo "$WD_MINER 60" | awk '{print $1 * $2}'`
+		if [[ $miner_restart_count -eq 0 && $elapsed -ge $miner_restart_timeout ]]; then
 			message warn "$MINER low hashrate ($khs kH/s), restarting"
 			echo -e "---"
 			echo -e "${YELLOW}Restarting ${CYAN}$MINER${NOCOLOR} ${YELLOW}after $WD_MINER minutes${NOCOLOR}"
@@ -109,7 +109,7 @@ function loop() {
 
 ########################################################################################################################
 
-case $1 in
+case "$1" in
 	run)
 		loadconf
 		echo "MINER RESTART:  $WD_MINER minutes"
