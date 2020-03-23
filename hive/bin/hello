@@ -14,7 +14,7 @@ VPN_INSTALLED="/tmp/.openvpn-installed"
 mkdir -p "/hive-config"
 
 [[ -t 1 ]] && . colors
-[[ ! -f $RIG_CONF ]] && echo -e "No config $RIG_CONF" && exit 1
+[[ ! -f $RIG_CONF ]] && echo -e "Config file $RIG_CONF not found" && exit 1
 
 . "$RIG_CONF"
 . asic-model

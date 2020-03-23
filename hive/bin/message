@@ -2,7 +2,7 @@
 . /hive/bin/colors
 
 RIG_CONF="/hive-config/rig.conf"
-[[ ! -f $RIG_CONF ]] && echo -e "No config $RIG_CONF" && exit 1
+[[ ! -f $RIG_CONF ]] && echo -e "Config file $RIG_CONF not found" && exit 1
 
 . "$RIG_CONF"
 
@@ -11,7 +11,7 @@ HIVE_URL="$HIVE_HOST_URL/worker/api"
 LOG="/dev/null"
 
 if [[ $# -lt 2 ]]; then
-	echo "Usage: $0 success|danger|warning|info|default \"message\" [payload] [-i|--id=msgid]"
+	echo -e "${CYAN}Usage: $0 success|danger|warning|info|default \"message\" [payload] [-i|--id=msgid] ${NOCOLOR}"
 	echo "Aliases: ok|error|err|warn|default|file"
 	echo "payload is read from stdin"
 	exit 1

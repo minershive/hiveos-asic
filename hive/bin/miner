@@ -23,7 +23,7 @@ WALLET_CONF="/hive-config/wallet.conf"
 
 
 if [[ ! -f $RIG_CONF ]]; then
-	echo -e "${RED}No config $RIG_CONF${NOCOLOR}"
+	echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
 	#exit 1
 else
 	. "$RIG_CONF"
