@@ -26,33 +26,33 @@ function usage() {
 }
 
 prefix_to_bit_netmask() {
-    prefix=$1;
-    shift=$(( 32 - prefix ));
+    prefix="$1"
+    shift=$(( 32 - prefix ))
 
     bitmask=""
     for (( i=0; i < 32; i++ )); do
         num=0
-        if [ $i -lt $prefix ]; then
+        if (( i < prefix )); then
             num=1
         fi
 
         space=
-        if [ $(( i % 8 )) -eq 0 ]; then
-            space=" ";
+        if (( i % 8 == 0 )); then
+            space=" "
         fi
 
         bitmask="${bitmask}${space}${num}"
     done
-    echo $bitmask
+    echo "$bitmask"
 }
 
 bit_netmask_to_wildcard_netmask() {
-    bitmask=$1;
+    bitmask="$1"
     wildcard_mask=
     for octet in $bitmask; do
         wildcard_mask="${wildcard_mask} $(( 255 - 2#$octet ))"
     done
-    echo $wildcard_mask;
+    echo "$wildcard_mask"
 }
 
 
@@ -62,31 +62,35 @@ print_script_version
 
 which curl > /dev/null || ( echo -e "${CYAN}curl${NOCOLOR} is required, try ${CYAN}apt-get install curl${NOCOLOR}"; exit 1 )
 
-[[ -z "$1" ]] && { usage; exit 1; }
+[[ -z $1 ]] && { usage; exit 1; }
 
 mkdir -p /dev/shm/ip
 rm -rf /dev/shm/ip/*
 
 for ip in $@; do
-    net=$(echo $ip | cut -d '/' -f 1)
-    prefix=$(echo $ip | cut -d '/' -f 2)
+    net=$(echo "$ip" | cut -d '/' -f 1)
+    prefix=$(echo "$ip" | cut -d '/' -f 2)
 
-    bit_netmask=$(prefix_to_bit_netmask $prefix)
+    bit_netmask=$(prefix_to_bit_netmask "$prefix")
     wildcard_mask=$(bit_netmask_to_wildcard_netmask "$bit_netmask")
 
     str=
     for (( i = 1; i <= 4; i++ )); do
-        range=$(echo $net | cut -d '.' -f $i)
-        mask_octet=$(echo $wildcard_mask | cut -d ' ' -f $i)
-        if [ $mask_octet -gt 0 ]; then
+        range=$(echo "$net" | cut -d '.' -f $i)
+        mask_octet=$(echo "$wildcard_mask" | cut -d ' ' -f $i)
+        if (( mask_octet > 0 )); then
             range="{0..$mask_octet}"
         fi
         str="${str} $range"
     done
-    ips=$(echo $str | sed "s, ,\\.,g") ## replace spaces with periods, a join...
-#    eval echo $ips | tr ' ' '\012'
+    ips=$(echo "$str" | sed "s, ,\\.,g") ## replace spaces with periods, a join...
+#    eval echo "$ips" | tr ' ' '\012'
     echo > /dev/shm/ips
-    for i in $(eval echo $ips | tr ' ' '\012'); do curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i & (sleep 0.1 || usleep 100); done
+    for i in $(eval echo "$ips" | tr ' ' '\012'); do
+	# TODO why do we have a --silent and --verbose options at the same time? // @j2h4u
+        curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i &
+        sleep 0.1 || usleep 100 # only integer sleep on BusyBox
+    done
     wait
 done
 
