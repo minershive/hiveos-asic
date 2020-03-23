@@ -16,23 +16,23 @@ function usage() {
 RIG_CONF="/hive-config/rig.conf"
 WALLET_CONF="/hive-config/wallet.conf"
 
-#[ -t 1 ] &&
+#[[ -t 1 ]] &&
 . colors
 
-#[ -z $1 ] && usage && exit 1
+#[[ -z $1 ]] && usage && exit 1
 
 
-if [ ! -f $RIG_CONF ]; then
+if [[ ! -f $RIG_CONF ]]; then
 	echo -e "${RED}No config $RIG_CONF${NOCOLOR}"
 	#exit 1
 else
-	. $RIG_CONF
+	. "$RIG_CONF"
 fi
 
 
-[[ -e $WALLET_CONF ]] && . $WALLET_CONF
+[[ -e $WALLET_CONF ]] && . "$WALLET_CONF"
 
-[ -z $MINER ] && MINER="asicminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
+[[ -z $MINER ]] && MINER="asicminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
 
 #sgminer-gm is deprecated...
 miners_avail=("asicminer")
@@ -77,12 +77,12 @@ function start() {
 	else
 		for i in {1..15}; do
 			test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep' | grep -v 'systemctl')"
-			if [ -z "$test_miner" ] ; then
+			if [[ -z $test_miner ]] ; then
 				config-gen
 				screen -d > /dev/null
 				if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" ]]; then
 					systemctl start cgminer.service
-				elif [[ "$ASIC_MODEL" == "t3h+.soc" || "$ASIC_MODEL" == "t3+.soc" || "$ASIC_MODEL" == "t2th+.soc" || "$ASIC_MODEL" == "t2thf+.soc" || "$ASIC_MODEL" == "t2thl+.soc" || "$ASIC_MODEL" == "t2th.soc" || "$ASIC_MODEL" == "t2tz.soc" || "$ASIC_MODEL" == "t2thm.soc" || "$ASIC_MODEL" == "t2thf.soc" || "$ASIC_MODEL" == "t2t+.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t2ti.soc" || "$ASIC_MODEL" == "t2t.soc" ]]; then
+				elif [[ $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
 					systemctl start cgminer.service
 					#timeout -t 600 /hive/bin/inno_api updatePools
 					timeout -t 600 /hive/bin/inno_api updateFanspeed
@@ -107,7 +107,7 @@ function stop() {
 	if [[ $HIVEON_VER == "1.02" ]]; then
 		echo "ok" > /tmp/norespawn
 	else
-		if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" || "$ASIC_MODEL" == "t3h+.soc" || "$ASIC_MODEL" == "t3+.soc" || "$ASIC_MODEL" == "t2th+.soc" || "$ASIC_MODEL" == "t2thf+.soc" || "$ASIC_MODEL" == "t2thl+.soc" || "$ASIC_MODEL" == "t2th.soc" || "$ASIC_MODEL" == "t2tz.soc" || "$ASIC_MODEL" == "t2thm.soc" || "$ASIC_MODEL" == "t2thf.soc" || "$ASIC_MODEL" == "t2t+.soc" || "$ASIC_MODEL" == "t2ts.soc" || "$ASIC_MODEL" == "t2ti.soc" || "$ASIC_MODEL" == "t2t.soc" ]]; then
+		if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" || $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
 			systemctl stop cgminer.service
 		elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
 			pidof miner | xargs kill -9
@@ -132,10 +132,10 @@ function restart() {
 }
 
 function miner_log_basename() {
-	local miner=$1
+	local miner="$1"
 	[[ -z $miner ]] && echo "No miner given to miner_log_basename" && return 1
 
-	if [ ! -z $LOG_PATH ]; then
+	if [[ ! -z $LOG_PATH ]]; then
 		log_basename="${LOG_PATH}"
 	else
 		log_basename=""
@@ -143,7 +143,7 @@ function miner_log_basename() {
 		return 1
 	fi
 
-	echo $log_basename
+	echo "$log_basename"
 	return 0
 }
 
@@ -190,7 +190,7 @@ function echo_config_file() {
 #Shows miner config
 function config() {
 	logname=""
-	if [ ! -z $CONFIG_PATH ]; then
+	if [[ ! -z $CONFIG_PATH ]]; then
 		echo_config_file "${CONFIG_PATH}"
 	else
 		echo "Unknown model $ASIC_MODEL"
@@ -208,13 +208,13 @@ function check_second_miner {
 	echo "No second miner configured" &&
 	exit 1
 
-	MINER=$MINER2 #substitute MINER var with second miner
+	MINER="$MINER2" #substitute MINER var with second miner
 }
 
 
 ########################################################################################################################
 
-case $1 in
+case "$1" in
 	start)
 		start
 		;;
@@ -241,6 +241,6 @@ case $1 in
 		;;
 	*)
 		screen -x -S miner
-		[[ $? != 0 ]] && usage
+		[[ $? -ne 0 ]] && usage
 		;;
 esac
