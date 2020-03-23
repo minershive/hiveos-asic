@@ -364,7 +364,7 @@ install_antminer_bmminer_ro() {
 	[ -e "/hive" ] && rm -rf /hive
 	sync
 	if [ $github -eq 1 ]; then
-		curl -f -L --insecure http://github.com/minershive/hiveos-asic/archive/master.tar.gz > /nvdata/latest.tar.gz
+		curl -f -L --insecure http://github.com/minershive/hiveos-asic/archive/master.tar.gz -o /nvdata/latest.tar.gz
 		/etc/rcS.d/S69hive
 	else
 		/etc/rcS.d/S69hive -f

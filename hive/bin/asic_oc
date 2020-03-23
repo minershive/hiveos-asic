@@ -6,7 +6,7 @@ if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL
 	if [ $1 == "default" ]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
 	else
-		echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
+		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
 	fi
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
@@ -22,7 +22,7 @@ elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || "
 	if [ $1 == "default" ]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
-		echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a \\tune_status=0' > /config/profile.txt
+		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed '$ a \\tune_status=0' > /config/profile.txt
 	fi
 	killall bmminer
 	n=0
@@ -39,21 +39,21 @@ elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || "
 		fi
 	done
 elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
-	profile_file="/hive/share/profiles/"$(echo $ASIC_MODEL | cut -d' ' -f2)
+	profile_file="/hive/share/profiles/$( echo "$ASIC_MODEL" | cut -d' ' -f2 )"
 	if [ $1 == "default" ]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
-		profile_id=$(echo $1 | jq -r .profile)
+		profile_id=$(echo "$1" | jq -r .profile)
 
 		if [ -e "$profile_file" ]; then
 			#temp S17+ fix. DOTO delete profile
 			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
 		else
-			echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
+			echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
 		fi
 
 		#tuned profiles
-		if [ -s "/coongig/profiles/$profile_id/profile.txt" ]; then
+		if [ -s "/config/profiles/$profile_id/profile.txt" ]; then
 			cp -rf /config/profiles/$profile_id/* /config
 		fi
 	fi
@@ -74,7 +74,7 @@ else
 	if [ $1 == "default" ]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
 	else
-		echo $1 | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
+		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > /config/autoTune.conf
 	fi
 	conftune=`cat /config/autoTune.conf`
 	if [[ -e "/usr/bin/compile_ver" && "$ASIC_MODEL" =~ "Antminer S9" ]]; then
@@ -138,7 +138,7 @@ else
 				;;
 		esac
 	fi
-	#echo $1
+	#echo "$1"
 	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
