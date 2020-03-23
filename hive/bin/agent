@@ -398,13 +398,13 @@ loop () {
 
 
 	if [[ $command != "batch" ]]; then
-		body=`echo "$response" | jq -c '.result'`
+		body=`echo $response | jq -c '.result'`
 		do_command
 	else
-		count=`echo "$response" | jq '.result.commands|length'`
+		count=`echo $response | jq '.result.commands|length'`
 		echo "Got $count batch commands"
 		for (( i=0; i < count; i++ )); do
-			body=`echo "$response" | jq -c ".result.commands[$i]"`
+			body=`echo $response | jq -c ".result.commands[$i]"`
 			command=
 			do_command
 		done
@@ -423,10 +423,10 @@ backslash() {
 
 do_command () {
 	#body="$1"
-	[[ -z $command ]] && command=`echo "$body" | jq -r '.command'` #get command for batch
+	[[ -z $command ]] && command=`echo $body | jq -r '.command'` #get command for batch
 
 	#Optional command identifier
-	cmd_id=$(echo "$body" | jq -r '.id')
+	cmd_id=$(echo $body | jq -r '.id')
 	[[ $cmd_id == "null" ]] && cmd_id=
 
 	case "$command" in
@@ -538,7 +538,7 @@ do_command () {
 				. "$RIG_CONF"
 
 				# Save wallet if given -----------------------------------------------
-				wallet=$(echo "$body" | jq '.wallet' --raw-output)
+				wallet=$(echo $body | jq '.wallet' --raw-output)
 				[[ ! -z $wallet && $wallet != "null" ]] &&
 					echo "$wallet" > "$WALLET_CONF"
 
@@ -563,7 +563,7 @@ do_command () {
 			fi
 		;;
 		wallet)
-			wallet=$(echo "$body" | jq '.wallet' --raw-output)
+			wallet=$(echo $body | jq '.wallet' --raw-output)
 			if [[ ! -z $wallet && $wallet != "null" ]]; then
 				echo "$wallet" > "$WALLET_CONF" && sync
 
