@@ -462,7 +462,7 @@ do_command () {
 			'
 		;;
 		exec)
-			exec=$(echo "$body" | jq '.exec' --raw-output)
+			exec=$(echo $body | jq '.exec' --raw-output)
 			if [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 				exectimeout='nohup timeout 360 bash -c'
 			else
@@ -470,18 +470,18 @@ do_command () {
 			fi
 			$exectimeout '
 			log_name="/tmp/exec_"'$cmd_id'".log"
-			('"$exec"') > "$log_name" 2>&1
+			('"$exec"') > $log_name 2>&1
 			exitcode=$?
 			[[ $exitcode -eq 0 ]] &&
-				cat "$log_name" | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
-				cat "$log_name" | message error "'"$(backslash "$exec")"' (Exec failed, exitcode=$exitcode)" payload --id='$cmd_id'
-			rm "$log_name" > /dev/null 2>&1
+				cat $log_name | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
+				cat $log_name | message error "'"$(backslash "$exec")"' (Exec failed, exitcode=$exitcode)" payload --id='$cmd_id'
+			rm $log_name > /dev/null 2>&1
 			' > /tmp/nohup.log 2>&1 &
 		;;
 		asic_oc)
-			export asic_oc=`echo "$body" | jq '.asic_oc' --raw-output`
+			export asic_oc=`echo $body | jq '.asic_oc' --raw-output`
 			screen -dm -S autotune bash -c '
-				asic_oc "$asic_oc" 2>&1 | tee /tmp/nohup.log
+				asic_oc $asic_oc 2>&1 | tee /tmp/nohup.log
 				exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 					[[ $exitcode -eq 0 ]] &&
@@ -490,9 +490,9 @@ do_command () {
 			'
 		;;
 		firmware-upgrade)
-			export firmware_url=`echo "$body" | jq '.firmware_url' --raw-output`
+			export firmware_url=`echo $body | jq '.firmware_url' --raw-output`
 			screen -dm -S upgrade bash -c '
-				firmware-upgrade "$firmware_url" 2>&1 | tee /tmp/nohup.log
+				firmware-upgrade $firmware_url 2>&1 | tee /tmp/nohup.log
 				exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 					[[ $exitcode -eq 0 ]] &&
@@ -501,18 +501,18 @@ do_command () {
 			'
 		;;
 		config)
-			config=$(echo "$body" | jq '.config' --raw-output)
-			justwrite=$(echo "$body" | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
+			config=$(echo $body | jq '.config' --raw-output)
+			justwrite=$(echo $body | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
 			if [[ ! -z $config && $config != "null" ]]; then
 				#scan for password change
 				echo "$config" > /tmp/rig.conf.new
 				while read line; do
-					[[ $line =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD="${BASH_REMATCH[1]}" && break
+					[[ $line =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD=${BASH_REMATCH[1]} && break
 				done < /tmp/rig.conf.new
 				rm /tmp/rig.conf.new
 
 				# Password change ---------------------------------------------------
-				if [[ $RIG_PASSWD != "$NEW_PASSWD" ]]; then
+				if [[ $RIG_PASSWD != $NEW_PASSWD ]]; then
 					printf '%(%F %T %z)T %s: ' -1 'agent'
 					echo -e "${RED}New password:${NOCOLOR} $NEW_PASSWD";
 
