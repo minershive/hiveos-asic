@@ -28,6 +28,7 @@ time_check () {
 }
 
 mem_clean () {
+	sync && echo 3 > /proc/sys/vm/drop_caches
 	du -h /tmp/* /var/log/ | grep M | awk '{print $2}'
 	du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm
 }
@@ -43,7 +44,7 @@ log_clean () {
 
 mem_check () {
 	free_mem=$(cat /proc/meminfo | grep -i memfree | sed 's/[^0-9]//g')
-	if [[ $free_mem -lt 3000 ]]; then
+	if [[ $free_mem -lt 5000 ]]; then
 		echo -e "\n$(date +"%F %T") [ERROR] - Memory leak!"
 		print_top=$(top -b -n1 | head -n 8)
 		echo -e "$print_top"
@@ -69,7 +70,7 @@ while true; do
 	mem_check #free mem and log rotation
 	version_check #check dev build after upgrade client
 	sleep 60
-	sync && echo 3 > /proc/sys/vm/drop_caches
+#	sync && echo 3 > /proc/sys/vm/drop_caches
 	(( count % 10 == 0 )) && /hive/bin/agent-screen dontattach #cron agent
 	(( count == 59 )) && /hive/bin/cache-hive-ip > /dev/null #cron cache-hive-ip
 	(( count > 60 )) && count=0
