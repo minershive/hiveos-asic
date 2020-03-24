@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.14.1'
+readonly script_version='1.14.2'
 readonly DEBUG=0
 
 
@@ -140,7 +140,7 @@ check_log() {
 check_for_1970() {
 	find "${logs_dir}/1970-01/" -name log -type f -mtime "-${days_to_look_back}" -print |
 		grep -q '.' && {
-			echo "${RED}WARNING: Recently updated logs from 1970 year are found, check host time settings and ntpd.${NOCOLOR}"
+			echo "${RED-}WARNING: Recently updated logs from 1970 year are found, check host time settings and ntpd.${NOCOLOR-}"
 			echo
 			} || :
 }
@@ -255,13 +255,13 @@ print_table_header() {
 
 			if [[ $text != "${previous_text-}" ]]; then
 				if [[ $this_date == $today ]]; then # highlight current date
-					printf "%b${data_column_printf_format}%b" "${WHITE}" "${text: -${date_width}}" "${NOCOLOR}"
+					printf "%b${data_column_printf_format}%b" "${WHITE-}" "${text: -${date_width}}" "${NOCOLOR-}"
 				else
-					printf "%b${data_column_printf_format}%b" "${GRAY}" "${text: -${date_width}}" "${NOCOLOR}"
+					printf "%b${data_column_printf_format}%b" "${GRAY-}" "${text: -${date_width}}" "${NOCOLOR-}"
 					#printf "${data_column_printf_format}" "${text: -${date_width}}"
 				fi
 			else
-				printf "%b${data_column_printf_format}%b" "${DGRAY}" "${text: -${date_width}}" "${NOCOLOR}"
+				printf "%b${data_column_printf_format}%b" "${DGRAY-}" "${text: -${date_width}}" "${NOCOLOR-}"
 			fi
 			previous_text="$text" # save for next iteration
 		done
@@ -349,15 +349,15 @@ print_table_body() {
 		if (( event_is_domain_name )); then
 			#this_event_name_for_display="-${this_event_name#${domain_prefix}}------------------------"
 			this_event_name_for_display="${this_event_name#${domain_prefix}}"
-			display_color="${GRAY}"
+			display_color="${GRAY-}"
 		else
 			avg_per_day_x100="${events_data[${this_event_name}.avg.per_day.x100]}"
 			avg_per_problem_day_x100="${events_data[${this_event_name}.avg.per_problem_day.x100]}"
 
 			#if (( (avg_per_problem_day_x100/10) >= (${events_data['#all.total']}/days_to_look_back) )); then
-			#	display_color="${BRED}"
+			#	display_color="${BRED-}"
 			#else
-			#	display_color="${NOCOLOR}"
+			#	display_color="${NOCOLOR-}"
 			#fi
 
 			# transform event name to a simplified form thru event_name_translator[]
@@ -375,30 +375,30 @@ print_table_body() {
 					this_event_name_for_display="$this_event_name"
 				fi
 			done
-			display_color="${NOCOLOR}"
+			display_color="${NOCOLOR-}"
 		fi
 
-		printf "%b${first_column_printf_format}%b" "$display_color" "$this_event_name_for_display" "${NOCOLOR}"
+		printf "%b${first_column_printf_format}%b" "$display_color" "$this_event_name_for_display" "${NOCOLOR-}"
 
 		# print data columns
 
 		for (( this_day=days_to_look_back-1 ; this_day >= 0 ; this_day-- )); do
 			if (( event_is_domain_name )); then
-				display_color='' # "${GRAY}"
+				display_color='' # "${GRAY-}"
 				event_counter_for_display='' # '------------------------'
 			else
 				event_counter="${events_data[${this_event_name}.${this_day}]}"
 
 				if (( event_counter == 0 )); then
-					display_color="${DGRAY}"
+					display_color="${DGRAY-}"
 					event_counter_for_display="$zero_symbol"
 				elif (( (event_counter*100) > avg_per_problem_day_x100 )); then
 					# paint the value in red if it's greater than the day average for this event
-					display_color="${BRED}"
+					display_color="${BRED-}"
 					event_counter_for_display="$event_counter"
 				else
 					# ordinary value
-					display_color="${NOCOLOR}"
+					display_color="${NOCOLOR-}"
 					event_counter_for_display="$event_counter"
 				fi
 			fi
@@ -407,7 +407,7 @@ print_table_body() {
 				event_counter_for_display='+'
 			fi
 
-			printf "%b${data_column_printf_format}%b" "$display_color" "$event_counter_for_display" "${NOCOLOR}"
+			printf "%b${data_column_printf_format}%b" "$display_color" "$event_counter_for_display" "${NOCOLOR-}"
 		done
 
 #		# totals column
