@@ -71,9 +71,11 @@ function config-gen() {
 
 function start() {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
-	if [[ $HIVEON_VER == "1.02" ]]; then
+	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		config-gen
 		rm -f /tmp/norespawn
+	elif [ -e "/www/pages/cgi-bin/resume_miner.cgi" ]; then
+		sh /www/pages/cgi-bin/resume_miner.cgi
 	else
 		for i in {1..15}; do
 			test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep' | grep -v 'systemctl')"
@@ -104,8 +106,10 @@ function start() {
 
 function stop() {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
-	if [[ $HIVEON_VER == "1.02" ]]; then
+	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		echo "ok" > /tmp/norespawn
+	elif [[ -e "/www/pages/cgi-bin/stop_miner.cgi" ]]; then
+		sh /www/pages/cgi-bin/stop_miner.cgi
 	else
 		if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" || $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
 			systemctl stop cgminer.service
@@ -121,10 +125,12 @@ function stop() {
 
 function restart() {
 	echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
-	if [[ $HIVEON_VER == "1.02" ]]; then
+	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		config-gen
 		rm -f /tmp/norespawn
 		echo "ok" > /config/restart
+	elif [-e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
+		sh /www/pages/cgi-bin/restart_miner.cgi
 	else
 		stop
 		start
@@ -149,7 +155,6 @@ function miner_log_basename() {
 
 function log_tail() {
 	local TAIL_LINE=80
-
 	if [[ ! -z $HIVEON_VER ]]; then
 		sh /www/pages/cgi-bin/get_kernel_log.cgi | tail -n $TAIL_LINE
 	else
