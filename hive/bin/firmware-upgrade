@@ -94,7 +94,7 @@ upgrade_st17() {
         rmdir $file.boot 2>/dev/null || true
         sync
         if [ ! $ok ]; then
-            echo -e "System upgrade stoped"
+            echo -e "System upgrade stopped"
         fi
     }
 
