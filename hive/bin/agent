@@ -39,6 +39,7 @@ miner_stats () {
 	local mindex="$2" #empty or 2
 
 	khs=0
+	system_status="NA"
 	stats=
 	stats_raw=
 	max_fan_rpm="$MAX_FAN_RPM"
@@ -69,6 +70,16 @@ miner_stats () {
 				else
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi
+
+				system_status=$( (jq -r '.[0].Type') <<< "$STATS")
+				if [[ ! -z $system_status ]]; then
+					if $(echo "$system_status" | grep -q "("); then
+						system_status=$(echo $system_status | grep '(' | sed 's/.*(\|).*//g')
+					else
+						system_status="mining"
+					fi
+				fi
+
 				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
 				local active_pool=$(echo "$stats_pool" | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
 
@@ -85,19 +96,8 @@ miner_stats () {
 				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local hw_errors=$((jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local system_status=$( (jq -r '.[0].Type') <<< "$STATS")
 				local asicboost=$((jq '[.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]') <<< "$STATS")
 				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
-
-				if [[ ! -z $system_status ]]; then
-					if $(echo "$system_status" | grep -q "("); then
-						local system_status=$(echo $system_status | grep '(' | sed 's/.*(\|).*//g')
-					else
-						local system_status="mining"
-					fi
-				else
-					local system_status="NA"
-				fi
 
 				test_temp=$(echo "$chip_temp" | grep .[0-9])
 				if [[ ! -z $test_temp ]]; then
@@ -109,12 +109,12 @@ miner_stats () {
 				fi
 
 				stats=$(jq -nc \
-						--arg system_status "$system_status" --arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 						--argjson freq "$freq" --argjson acn "$acn" --argjson power "$power" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
 						--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
-						'{$system_status, $algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
+						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
 			fi
 		;;
 		"Antminer A3"|"Antminer D3"|"Antminer L3+"*|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"*|"Antminer Z11"*|"Antminer X3"|"Antminer S7"|"Antminer DR3")
@@ -349,13 +349,14 @@ loop () {
 	--argjson meta "$meta" \
 	--argjson miner_stats "$stats" \
 	--arg total_khs "$khs" \
+	--arg system_status "$system_status" \
 	--arg df "`df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
 	--argjson cpuavg "[`uptime | awk -F': ' '{print $2}'`]" \
 	'{
 		"method": "stats", "jsonrpc": "2.0", "id": 0,
 		"params": {
 			$rig_id, $passwd, $miner, $meta,
-			$miner_stats, $total_khs,
+			$miner_stats, $total_khs, $system_status,
 			$df, $cpuavg
 		}
 	}'
