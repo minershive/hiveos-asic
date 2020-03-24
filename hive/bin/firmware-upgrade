@@ -34,7 +34,7 @@ upgrade_s9() {
     #exec 2>/tmp/upgrade_result
     #tar zxf -
     #tar -xvf "$filename"
-    curl -f "$URL" | tar xvz
+    curl -f --insecure "$URL" | tar xvz
     if [ ! -f ubi_info ]; then
         echo -e "${RED}Client: Incorrect firmware!!!${NOCOLOR}"
         rm /tmp/*
@@ -112,7 +112,7 @@ upgrade_ro() {
     fi
     sync
 
-    curl -s -f "$URL" | tar xvz
+    curl -s -f --insecure "$URL" | tar xvz
     sh runme.sh
 
     ant_result=`cat /tmp/upgrade_result`
