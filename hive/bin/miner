@@ -129,7 +129,7 @@ function restart() {
 		config-gen
 		rm -f /tmp/norespawn
 		echo "ok" > /config/restart
-	elif [-e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
+	elif [ -e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
 		sh /www/pages/cgi-bin/restart_miner.cgi
 	else
 		stop
