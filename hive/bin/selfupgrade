@@ -425,8 +425,8 @@ fi
 
 if [ -s /hive/etc/build ]; then
 	local_build_version="$( cat /hive/etc/build )"
-else
-	local_build_version=
+#else
+#	local_build_version=
 fi
 
 echo "ASIC model: $ASIC_MODEL"
