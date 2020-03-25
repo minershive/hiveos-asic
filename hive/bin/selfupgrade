@@ -15,6 +15,7 @@ else
 fi
 
 exitcode=$?
+github=0
 version=0
 [ -e /hive/etc/VERSION ] && version=`cat /hive/etc/VERSION`
 filename=v$release.tar.gz
