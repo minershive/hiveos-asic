@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Hive OS Client for ASICs: Upgrade from Hive repository'
-readonly script_version='0.13'
+readonly script_version='0.13.1'
 
 
 [ -s /hive/bin/colors ] && source /hive/bin/colors
@@ -17,12 +17,12 @@ print_script_version () {
 
 print_script_usage () {
 	basename="$( basename "$0" )"
-	echo -e "Usage examples: ${CYAN}${basename}${NOCOLOR} - update to the latest release version"
-	echo -e "                ${CYAN}${basename} 0.1-13${NOCOLOR} - update to release 0.1-13"
+	echo -e "Usage examples: ${CYAN}${basename}${NOCOLOR}                - update to the latest release version"
+	echo -e "                ${CYAN}${basename} 0.1-13${NOCOLOR}         - update to release 0.1-13"
 	echo -e "                ${CYAN}${basename} 0.1-13 --force${NOCOLOR} - force update to release 0.1-13"
-	echo -e "                ${CYAN}${basename} master${NOCOLOR} - force update to the latest stable dev build (beta)"
-	echo -e "                ${CYAN}${basename} master dev347${NOCOLOR} - force update to the latest stable dev build (beta), but do nothing if local build is the same as dev347"
-	echo -e "                ${CYAN}${basename} master github${NOCOLOR} - force update Antminer Series 15/17 or S9k/S9SE to the night build from Github (alpha)"
+	echo -e "                ${CYAN}${basename} master${NOCOLOR}         - force update to the latest stable dev build (beta)"
+	echo -e "                ${CYAN}${basename} master dev347${NOCOLOR}  - force update to the latest stable dev build (beta), but do nothing if local build is the same as dev347"
+	echo -e "                ${CYAN}${basename} master github${NOCOLOR}  - force update Antminer Series 15/17 or S9k/S9SE to the night build from Github (alpha)"
 	echo
 }
 
@@ -424,14 +424,15 @@ else
 fi
 
 if [ -s /hive/etc/build ]; then
-	local_build_version="-$( cat /hive/etc/build )" # do not use in any commands without --
+	local_build_version="$( cat /hive/etc/build )"
 else
 	local_build_version=
 fi
 
 echo "ASIC model: $ASIC_MODEL"
 echo "Repository version: ${remote_release_version}-$remote_build_version"
-echo "Local version: ${local_release_version}${local_build_version}"
+echo "Local version: ${local_release_version}-${local_build_version:-0}"
+echo
 
 filename="v${remote_release_version}.tar.gz"
 
