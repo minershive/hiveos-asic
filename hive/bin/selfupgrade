@@ -456,12 +456,16 @@ if [ "$remote_release_version" = "$local_release_version" ]; then
 fi
 
 #check dev build
-if [ "$2" = "$local_build_version" ]; then
-	echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
-	exit $exitcode
-elif [ "$2" = "github" ]; then
-	echo "> Downloading latest night build from Github"
-	github=1
+if [ -n "$2" ]; then
+	if [ "$2" = "$local_build_version" ]; then
+		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
+		exit $exitcode
+	elif [ "$2" = "github" ]; then
+		echo "> Downloading latest night build from Github"
+		github=1
+	else
+		github=0
+	fi
 else
 	github=0
 fi
