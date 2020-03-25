@@ -447,7 +447,7 @@ if [ "$remote_release_version" = "$local_release_version" ]; then
 		echo 'WARNING: master mode, using dev build'
 	else
 		if [ "$2" != '-f' ] || [ "$2" != '--force' ]; then
-			echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
+			echo -e "${GREEN}Hive is up to date already. You can run 'selfupgrade 0.1-13 --force' to force update.${NOCOLOR}"
 			exit $exitcode
 		else
 			echo 'WARNING: force update mode'
@@ -456,19 +456,20 @@ if [ "$remote_release_version" = "$local_release_version" ]; then
 fi
 
 #check dev build
-if [ -n "$2" ]; then
-	if [ "$2" = "$local_build_version" ]; then
-		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
-		exit $exitcode
-	elif [ "$2" = "github" ]; then
+#if [ -n "$2" ]; then
+#	if [ "-${2}-" = "-$local_build_version-" ]; then
+#		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
+#		exit $exitcode
+#	elif [ "$2" = "github" ]; then
+if [ "$2" = "github" ]; then
 		echo "> Downloading latest night build from Github"
 		github=1
 	else
 		github=0
 	fi
-else
-	github=0
-fi
+#else
+#	github=0
+#fi
 
 if [ "$exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
 	echo "ERROR: Can't get current version from repository"
