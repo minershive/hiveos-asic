@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Hive OS Client for ASICs: Upgrade from Hive repository'
-readonly script_version='0.13.1'
+readonly script_version='0.13.2'
 
 
 [ -s /hive/bin/colors ] && source /hive/bin/colors
@@ -103,8 +103,8 @@ install_antminer_bmminer () { # bmminer, / - rw, cron
 	fi
 	tar -xzv -f "$filename"
 	[ -L /hive ] && rm /hive
-	rm -rf hiveos-asic-${remote_release_version}/hive/sbin/teleconsole
-	cp -rf hiveos-asic-${remote_release_version}/hive /
+	rm -rf hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole
+	cp -rf hiveos-asic-${release_version_to_install}/hive /
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm "$filename"
@@ -140,7 +140,7 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 		mkdir /config/hive
 	fi
 	tar -xzv -f "$filename"
-	cp -rf hiveos-asic-${remote_release_version}/* /config/hive/
+	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm "$filename"
@@ -196,8 +196,8 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 		mkdir /config/hive
 	fi
 	tar -xzv -f "$filename"
-	rm -rf hiveos-asic-${remote_release_version}/hive/sbin/teleconsole
-	cp -rf hiveos-asic-${remote_release_version}/* /config/hive/
+	rm -rf hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole
+	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm "$filename"
@@ -247,13 +247,13 @@ install_innosilicon () {
 		mkdir /hive
 	fi
 	tar -xzv -f "$filename"
-	cp -rf hiveos-asic-${remote_release_version}/hive-config /config/hive/
-	cp -rf hiveos-asic-${remote_release_version}/hive/bin /config/hive/
-	cp -rf hiveos-asic-${remote_release_version}/hive/etc /config/hive/
-	cp -rf hiveos-asic-${remote_release_version}/hive/sbin /hive/
-	cp -rf hiveos-asic-${remote_release_version}/hive/lib /hive/
-	cp -rf hiveos-asic-${remote_release_version}/home/root/.profile /etc/profile.d/hive.sh
-	cp -rf hiveos-asic-${remote_release_version}/hive/share/innosilicon/* /etc/systemd/system/
+	cp -rf hiveos-asic-${release_version_to_install}/hive-config /config/hive/
+	cp -rf hiveos-asic-${release_version_to_install}/hive/bin /config/hive/
+	cp -rf hiveos-asic-${release_version_to_install}/hive/etc /config/hive/
+	cp -rf hiveos-asic-${release_version_to_install}/hive/sbin /hive/
+	cp -rf hiveos-asic-${release_version_to_install}/hive/lib /hive/
+	cp -rf hiveos-asic-${release_version_to_install}/home/root/.profile /etc/profile.d/hive.sh
+	cp -rf hiveos-asic-${release_version_to_install}/hive/share/innosilicon/* /etc/systemd/system/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm "$filename"
@@ -296,9 +296,9 @@ install_innosilicon_innominer () {
 	echo "> Extracting $filename"
 	[ ! -d /hive ] && mkdir /hive
 	tar -xzv -f "$filename"
-	cp -rf hiveos-asic-${remote_release_version}/hive-config /innocfg/
-	cp -rf hiveos-asic-${remote_release_version}/hive /
-#	cp -rf hiveos-asic-${remote_release_version}/home/root/.profile /etc/profile.d/hive.sh
+	cp -rf hiveos-asic-${release_version_to_install}/hive-config /innocfg/
+	cp -rf hiveos-asic-${release_version_to_install}/hive /
+#	cp -rf hiveos-asic-${release_version_to_install}/home/root/.profile /etc/profile.d/hive.sh
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 	rm "$filename"
 
@@ -347,8 +347,8 @@ install_zig () {
 	echo
 	echo "> Extracting $filename"
 	tar -xzv -f "$filename"
-#	rm -rf hiveos-asic-${remote_release_version}/hive/sbin/teleconsole
-	cp -rf hiveos-asic-${remote_release_version}/* /
+#	rm -rf hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole
+	cp -rf hiveos-asic-${release_version_to_install}/* /
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
 	rm "$filename"
@@ -397,13 +397,14 @@ install_antminer_bmminer_ro () {
 # code
 
 print_script_version
-if [ "$1" = '--help' ] || [ "$1" = '-h' ]; then
+if [ "_${1}_" = '_--help_' ] || [ "_${1}_" = '_-h_' ]; then
 	print_script_usage
 	exit 0
 fi 
 
 ASIC_MODEL="$( get_asic_model )"
 
+# get remote versions
 case "$ASIC_MODEL" in
 	"Zig Z1+"|"Zig Z1")
 		remote_release_version="$( wget -q -O- https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/VERSION )"
@@ -417,6 +418,7 @@ case "$ASIC_MODEL" in
 		;;
 esac
 
+# get local versions
 if [ -s /hive/etc/VERSION ]; then
 	local_release_version="$( cat /hive/etc/VERSION )"
 else
@@ -425,70 +427,110 @@ fi
 
 if [ -s /hive/etc/build ]; then
 	local_build_version="$( cat /hive/etc/build )"
-#else
-#	local_build_version=
+else
+	local_build_version=0
 fi
 
+# show info
 echo "ASIC model: $ASIC_MODEL"
-echo "Repository version: ${remote_release_version}-$remote_build_version"
-echo "Local version: ${local_release_version}-${local_build_version:-0}"
-echo
-
-filename="v${remote_release_version}.tar.gz"
-
-t=$( df -h | grep  '/tmp' | awk '{print $NF}' )
-[ -z "$t" ] && t='/tmp'
-cd "$t"
-
-rm -rf /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master.tar.gz /tmp/v*.tar.gz
-
-if [ "$remote_release_version" = "$local_release_version" ]; then
-	if [ "$1" = 'master' ]; then
-		echo 'WARNING: master mode, using dev build'
+echo "Hive latest version: ${remote_release_version}-$remote_build_version"
+if [ "$local_release_version" = 0 ]; then
+	echo "Local version: <not installed>"
+else
+	if [ "$local_build_version" = 0 ]; then
+		echo "Local version: ${local_release_version}-release"
 	else
-		if [ "$2" != '-f' ] || [ "$2" != '--force' ]; then
-			echo -e "${GREEN}Hive is up to date already. You can run 'selfupgrade 0.1-13 --force' to force update.${NOCOLOR}"
-			exit $exitcode
+		echo "Local version: ${local_release_version}-${local_build_version}"
+	fi
+fi
+
+if [ "$exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
+	echo
+	echo "ERROR: Can't get current version from repository. Check your internet connection."
+	exit $exitcode
+fi
+
+# scenario 1: 'selfupgrade'
+# scenario 2: 'selfupgrade --force'
+# scenario 3: 'selfupgrade 0.1-12'
+# scenario 4: 'selfupgrade 0.1-12 --force'
+# scenario 5: 'selfupgrade master'
+# scenario 6: 'selfupgrade master github'
+# scenario 7: 'selfupgrade master dev357'
+
+dont_have_to_update=0
+force=0
+github=0
+master=0
+user_defined_version=
+
+# parse arguments
+if [ $# -ne 0 ]; then
+	if [ "$1" = 'master' ]; then
+		master=1
+		# check for master github or master devNNN
+		case "$2" in
+			github)				github=1;;
+			"${local_build_version}")	dont_have_to_update=1;;
+		esac
+	else
+		if [ "_${1}_" = '_-f_' ] || [ "_${1}_" = '_--force_' ]; then
+			force=1
 		else
-			echo 'WARNING: force update mode'
+			user_defined_version="$1"
+			if [ "_${2}_" = '_-f_' ] || [ "_${2}_" = '_--force_' ]; then
+				force=1
+			fi
 		fi
 	fi
 fi
 
-#check dev build
-#if [ -n "$2" ]; then
-#	if [ "-${2}-" = "-$local_build_version-" ]; then
-#		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
-#		exit $exitcode
-#	elif [ "$2" = "github" ]; then
-if [ "$2" = "github" ]; then
-		echo "> Downloading latest night build from Github"
-		github=1
-	else
-		github=0
+# take decisions
+if [ "$master" -eq 1 ]; then
+	echo 'WARNING: master mode, using dev build'
+	if [ "$github" -eq 1 ]; then
+		echo "WARNING: using latest night build from Github"
 	fi
-#else
-#	github=0
-#fi
-
-if [ "$exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
-	echo "ERROR: Can't get current version from repository"
-	exit $exitcode
+	release_version_to_install='master'
+	filename='master.tar.gz'
+elif [ -n "$user_defined_version" ]; then
+	if [ "$user_defined_version" = "$local_release_version" ]; then
+		dont_have_to_update=1
+	fi
+	release_version_to_install="$user_defined_version"
+	filename="v${release_version_to_install}.tar.gz"
+else
+	if [ "$local_release_version" = "$remote_release_version" ]; then
+		# there's no new version
+		dont_have_to_update=1
+	fi
+	release_version_to_install="$remote_release_version"
+	filename="v${release_version_to_install}.tar.gz"
 fi
 
-if [ $# -ne 0 ]; then
-	remote_release_version="$1" # use user-defined version
-	if [ "$remote_release_version" = 'master' ]; then
-		filename="${remote_release_version}.tar.gz"
+if [ "$dont_have_to_update" = 1 ]; then
+	if [ "$force" -eq 1 ]; then
+		echo "Update to version: $release_version_to_install (forced)"
 	else
-		filename="v${remote_release_version}.tar.gz"
+		echo
+		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
+		echo -e "You can run ${CYAN}selfupgrade --force${NOCOLOR} or ${CYAN}selfupgrade 0.1-13 --force${NOCOLOR} to force update"
+		exit $exitcode
 	fi
+else
+	echo "Update to version: $release_version_to_install"
 fi
 
 url="http://github.com/minershive/hiveos-asic/archive/${filename}"
 
+# some cleaning
+t=$( df -h | grep  '/tmp' | awk '{print $NF}' )
+[ -z "$t" ] && t='/tmp'
+cd "$t"
+rm -rf /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master.tar.gz /tmp/v*.tar.gz
 [ -f "$filename" ] && rm "$filename"
 
+# let's go
 echo -n 'Installing '
 
 case "$ASIC_MODEL" in
