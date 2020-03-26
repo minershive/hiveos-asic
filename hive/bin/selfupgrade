@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Hive OS Client for ASICs: Upgrade from Hive repository'
-readonly script_version='0.13.2'
+readonly script_version='0.13.3'
 
 
 [ -s /hive/bin/colors ] && source /hive/bin/colors
@@ -18,6 +18,7 @@ print_script_version () {
 print_script_usage () {
 	basename="$( basename "$0" )"
 	echo -e "Usage examples: ${CYAN}${basename}${NOCOLOR}                - update to the latest release version"
+	echo -e "                ${CYAN}${basename} --force${NOCOLOR}        - force update to the latest release version"
 	echo -e "                ${CYAN}${basename} 0.1-13${NOCOLOR}         - update to release 0.1-13"
 	echo -e "                ${CYAN}${basename} 0.1-13 --force${NOCOLOR} - force update to release 0.1-13"
 	echo -e "                ${CYAN}${basename} master${NOCOLOR}         - force update to the latest stable dev build (beta)"
@@ -388,6 +389,7 @@ install_antminer_bmminer_ro () {
 		/etc/rcS.d/S69hive -f
 	fi
 	while [ ! -e /hive/sbin/ ]; do
+		echo "> Waiting for /hive/sbin/..."
 		sleep 5
 	done
 	sleep 10
@@ -515,6 +517,7 @@ if [ "$dont_have_to_update" = 1 ]; then
 		echo
 		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
 		echo -e "You can run ${CYAN}selfupgrade --force${NOCOLOR} or ${CYAN}selfupgrade 0.1-13 --force${NOCOLOR} to force update"
+		echo
 		exit $exitcode
 	fi
 else
@@ -523,15 +526,27 @@ fi
 
 url="http://github.com/minershive/hiveos-asic/archive/${filename}"
 
-# some cleaning
 t=$( df -h | grep  '/tmp' | awk '{print $NF}' )
 [ -z "$t" ] && t='/tmp'
 cd "$t"
-rm -rf /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master.tar.gz /tmp/v*.tar.gz
+
+# some cleaning
+echo
+echo -n '> Cleaning '
+for file_to_remove in /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master.tar.gz /tmp/v*.tar.gz "$filename" /hive/etc/build; do
+	if [ -e "$file_to_remove" ]; then
+		echo -n "$file_to_remove "
+		rm -rf "$file_to_remove" || echo -n '(FAIL), '
+		echo -n ', '
+	fi
+done
+
+rm -rf /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master.tar.gz /tmp/v*.tar.gz /hive/etc/build
 [ -f "$filename" ] && rm "$filename"
 
 # let's go
-echo -n 'Installing '
+echo
+echo -n '> Installing '
 
 case "$ASIC_MODEL" in
 
@@ -605,7 +620,7 @@ case "$ASIC_MODEL" in
 	# unknown
 
 	*)
-		echo "$ASIC_MODEL"
+		echo "'$ASIC_MODEL'"
 		echo 'ERROR: model not supported'
 		echo
 		echo 'Please contact us: https://t.me/hiveonasic_en'
@@ -615,6 +630,7 @@ case "$ASIC_MODEL" in
 		;;
 esac
 
+echo
 
 #Don't restart it...
 #echo -e "> Saying hello to server again"
