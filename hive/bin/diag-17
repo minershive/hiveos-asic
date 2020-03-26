@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.14.2'
+readonly script_version='1.14.3'
 readonly DEBUG=0
 
 
@@ -12,20 +12,30 @@ readonly DEBUG=0
 set -o nounset
 
 
-# args
-
-declare -i -r days_to_look_back="${1:-14}" # default to 14 days
-
-
 # consts
 
 . colors
-readonly script_basename="$( basename "$0" )"
-readonly log="/tmp/$( basename "$0" ).log"
-readonly logs_dir='/nvdata'
-readonly zero_symbol='-'
+declare -i -r days_to_look_back_DEFAULT='14'
+declare -r script_basename="$( basename "$0" )"
+declare -r log="/tmp/$( basename "$0" ).log"
+declare -r logs_dir='/nvdata'
+declare -r miner_status_log_file='/nvdata/miner_status.log'
+declare -r zero_symbol='-'
+declare -r domain_prefix='<DOMAIN> '
+
+
+# dictionaries for data mining
+
 readonly domains_of_interest=':set_miner_status|:check_miner_status|stop_mining|power off|update_fan_status: Error'
-readonly domain_prefix='<DOMAIN> '
+declare  -A event_name_translator=(
+	# dictionary: event regex -> event transforming template. %1..9% for (group number)
+	['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% asic)'
+	["Can't get temperature sensor type"]='temp sensor fail'
+	['stop mining: (.+)']='%1%'
+	['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
+	['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)'
+	['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='temps: chip %3%C/%4%C pcb %1%C/%2%C'
+) 
 
 
 # arrays
@@ -51,25 +61,33 @@ print_script_version() {
 	echo
 }
 
+print_script_usage() {
+	echo -e "Usage: ${CYAN-}$script_basename [number of days]${NOCOLOR-}"
+	echo
+}
+
 set_view() {
 	local -r -i terminal_width_DEFAULT='109' # the width of Hive OS 'remote command result' window
 	local -r -A view_settings=(
 		[views_list]='wide normal compact'
 
-		[all.first_column_width]='25'
-		[all.first_column_printf_format]='%-25.25s'
-
 		[wide.date_width]='2'
+		[wide.first_column_width]='35'
+		[wide.first_column_printf_format]='%-35.35s'
 		[wide.data_column_width]='4'
 		[wide.data_column_printf_format]='%4.4s'
 		[wide.days_limit]='20'
 
 		[normal.date_width]='2'
+		[normal.first_column_width]='25'
+		[normal.first_column_printf_format]='%-25.25s'
 		[normal.data_column_width]='3'
 		[normal.data_column_printf_format]='%3.3s'
 		[normal.days_limit]='26'
 
 		[compact.date_width]='1'
+		[compact.first_column_width]='25'
+		[compact.first_column_printf_format]='%-25.25s'
 		[compact.data_column_width]='1'
 		[compact.data_column_printf_format]='%1.1s'
 		[compact.days_limit]='38'
@@ -85,7 +103,7 @@ set_view() {
 	fi
 
 	for this_view in ${view_settings[views_list]}; do
-		(( table_width= ${view_settings[all.first_column_width]} + ( ${view_settings[${this_view}.data_column_width]} * days_to_look_back ) ))
+		(( table_width = ${view_settings[${this_view}.first_column_width]} + ( ${view_settings[${this_view}.data_column_width]} * days_to_look_back ) ))
 		(( DEBUG )) && echo "'$this_view' view, table width $table_width, terminal width $terminal_width"
 		if (( table_width <= terminal_width )); then
 			current_view="$this_view"
@@ -98,13 +116,29 @@ set_view() {
 		exit 2
 	fi
 
-	readonly first_column_printf_format="${view_settings[all.first_column_printf_format]}"
+	readonly first_column_width="${view_settings[${current_view}.first_column_width]}"
+	readonly first_column_printf_format="${view_settings[${current_view}.first_column_printf_format]}"
 	readonly data_column_printf_format="${view_settings[${current_view}.data_column_printf_format]}"
 	readonly date_width="${view_settings[${current_view}.date_width]}"
 }
 
 intro() {
-	printf '%(%F %T)T Report for the last %d days, %s view:\n\n' -1 "$days_to_look_back" "$current_view"
+	local -i -r last_errors_count=5
+	local -r errors_RE='ERR|WARN'
+
+	if [[ -s $miner_status_log_file ]] && { grep -qE -e "$errors_RE" -- "$miner_status_log_file"; }; then
+		#echo "Last $last_errors_count errors"
+		grep -E -e "$errors_RE" -- "$miner_status_log_file" | tail -n "$last_errors_count"
+		echo '---------- --------'
+	fi
+
+	printf '%(%F %T)T Report for the last %d days, %s view\n' -1 "$days_to_look_back" "$current_view"
+
+	if (( days_to_look_back > days_to_look_back_DEFAULT )); then
+		printf '%(%F %T)T Warning: operation can take a long time\n' -1
+	fi
+
+	echo
 }
 
 create_calendar() {
@@ -215,10 +249,21 @@ get_unique_events_from_log() {
 }
 
 print_table_header() {
+	# consts
+	local -r first_column_header='Events by date'
+	local -A date_label
+	# vars
 	local today
 	local date_category
 	local this_date
 	local -i this_day
+
+	# code
+	if [[ $current_view == 'wide' ]]; then
+		date_label=( ['year']='year' ['month']='month' ['day']='day' )
+	else
+		date_label=( ['year']='y ' ['month']='m ' ['day']='d ' )
+	fi
 
 	printf -v today '%(%F)T'
 
@@ -227,13 +272,13 @@ print_table_header() {
 		# print 1st column header only on 2nd line
 		case "$date_category" in
 			year)
-				printf "${first_column_printf_format}" '                        y'
+				printf '%*s%s'                          "$(( first_column_width - ${#date_label[${date_category}]} ))" '' "${date_label[${date_category}]}"
 				;;
 			month)
-				printf "${first_column_printf_format}" 'Events by date          m'
+				printf '%s%*s%s' "$first_column_header" "$(( first_column_width - ${#date_label[${date_category}]} - ${#first_column_header} ))" '' "${date_label[${date_category}]}"
 				;;
 			day)
-				printf "${first_column_printf_format}" '                        d'
+				printf '%*s%s'                          "$(( first_column_width - ${#date_label[${date_category}]} ))" '' "${date_label[${date_category}]}"
 				;;
 		esac
 
@@ -268,6 +313,8 @@ print_table_header() {
 
 		echo
 	done
+
+	printf 'Collecting data...'
 }
 
 calculate_data() {
@@ -322,18 +369,9 @@ print_table_body() {
 	local -i avg_per_day_x100=0
 	local -i avg_per_problem_day_x100=0
 
-	# dictionaries
-
-	local -A event_name_translator=( # dictionary: event regex -> event transforming template. %1..9% for (group number)
-		['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% asic)'
-		["Can't get temperature sensor type"]='temp sensor fail'
-		['stop mining: (.+)']='%1%'
-		['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
-		['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)'
-		['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='temp: pcb %1%C/%2%C, chip %3%C/%4%C'
-	)
-
 	# code
+
+	printf '\r'
 
 	for this_event_name in "${log_events[@]}"; do
 
@@ -419,25 +457,41 @@ print_table_body() {
 }
 
 print_stats() {
-	printf "\n%d events in %d days\n" "${events_data['#all.total']}" "$days_to_look_back"
+	local -i -r average_per_day=$(( ${events_data['#all.total']} / days_to_look_back ))
+
+	printf "\n%d events in %d days (%d per day in average)\n" "${events_data['#all.total']}" "$days_to_look_back" "$average_per_day"
+
+	if (( days_to_look_back == days_to_look_back_DEFAULT )); then
+		echo -e "Hint: you can run ${CYAN-}$script_basename 30${NOCOLOR-} to get report for 30 days"
+	fi
 }
 
 
 # code
 
 print_script_version
+
+# check and use args
+if [[ $# -eq 0 || ${1-} =~ ^[0-9]+$ ]]; then
+	declare -r -i days_to_look_back="${1:-${days_to_look_back_DEFAULT}}"
+else
+	print_script_usage
+	exit 1
+fi
+
 set_view
 intro
-
 check_log
 
 create_calendar
+
+print_table_header
+
 get_filtered_log
 get_unique_events_from_log
 
 calculate_data
 
-print_table_header
 print_table_body
 print_stats
 check_for_1970
