@@ -104,7 +104,6 @@ install_antminer_bmminer () { # bmminer, / - rw, cron
 	fi
 	tar -xzv -f "$filename"
 	[ -L /hive ] && rm /hive
-	rm -rf hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole
 	cp -rf hiveos-asic-${release_version_to_install}/hive /
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
@@ -181,7 +180,6 @@ FILEEOF
 
 install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 	download_url
-	rm -rf /hive/sbin/teleconsole
 	if [ -e /hive ] && [ ! -L /hive ]; then
 		mkdir -p /config/hive
 		mv -f /hive /config/hive/
@@ -197,7 +195,6 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 		mkdir /config/hive
 	fi
 	tar -xzv -f "$filename"
-	rm -rf hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole
 	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
@@ -348,7 +345,6 @@ install_zig () {
 	echo
 	echo "> Extracting $filename"
 	tar -xzv -f "$filename"
-#	rm -rf hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole
 	cp -rf hiveos-asic-${release_version_to_install}/* /
 	[ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
 
