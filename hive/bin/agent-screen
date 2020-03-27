@@ -1,21 +1,241 @@
 #!/hive/sbin/bash
+
+#
 # !!! also can be started from cron and on startup !!!
+#
+
+
+#
+# bash strict mode, no unbound variables allowed
+#
+
+set -o nounset
+
+
+# consts
+
+declare -r -i exitcode_OK=0
+declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
+declare -r -i exitcode_ERROR_CMD_NOT_FOUND=100
+declare -r -i exitcode_ERROR_SOMETHING_BAD_HAPPEN=1
+declare -r -i script_exitcode_OK_RUNNING=0
+declare -r -i script_exitcode_OK_NOT_RUNNING_STARTED=1
+
+
+# vars
+
+# exitcode=0 - has been running
+# exitcode=1 - has not been running, starting
+declare -i script_exitcode
+
+
+# exports
+
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
 
+# functions
 
-screen -ls agent | grep -q agent && running=1 || running=0
+errcho() {
+	# uniform error logging to stderr
+	echo -e "Error in $0:${FUNCNAME[1]}(): $@"
+} 1>&2
 
-[[ $1 != "dontattach" ]] &&
-	TERM="vt102" screen -x -S agent #attach to screen
+# functions: screen
+
+is_screen_session_exist() {
+	# is_screen_session_exist 'session name'
+
+	if (( $# != 1 )); then
+		errcho "only 1 argument allowed"
+		return "$exitcode_ERROR_IN_ARGUMENTS"
+	fi
+
+	# args
+
+	local -r session_name="${1-}"
+	local -i screen_exitcode="$exitcode_OK"
+	
+	# code
+	
+	screen -S "$session_name" -X select . > /dev/null
+	screen_exitcode=$?
+
+	if [[ ! -t 1 ]]; then
+		# if this function will be used as var=$(func), var will receive exitcode in a literal form
+		echo "$screen_exitcode"
+	fi
+
+	return "$screen_exitcode"
+}
+
+screen_attach_to_session() {
+	# screen_attach_to_session 'session name'
+
+	if (( $# != 1 )); then
+		errcho "only 1 argument allowed"
+		return "$exitcode_ERROR_IN_ARGUMENTS"
+	fi
+
+	# args
+	
+	local -r session_name="${1-}"
+
+	# code
+	
+	if is_screen_session_exist "$session_name"; then
+		TERM='vt102' screen -x -S "$session_name" > /dev/null # why TERM?
+	else
+		errcho "'$session_name' hasn't been started. Weird..."
+	fi
+}
+
+screen_start_session() {
+	# screen_start_session 'cmd' [args...]
+
+	if (( $# == 0 )); then
+		errcho "no arguments given"
+		return "$exitcode_ERROR_IN_ARGUMENTS"
+	fi
+
+	# args
+	
+	local -r cmd="${1-}"
+	local -r args="${@:2}"
+
+	# consts
+	
+	local -r session_name="$cmd"
+	local -r -i retries_limit=100
+	
+	# vars
+	
+	local -i retries_counter=0
+	local -i function_exitcode="$exitcode_OK"
+
+	# code
+	
+	if ! which "$cmd" > /dev/null; then
+		errcho "cannot locate command '$cmd' to run in the screen session"
+		return "$exitcode_ERROR_CMD_NOT_FOUND"
+	fi
+
+	screen -dm -S "$session_name" "$cmd" $args > /dev/null
+
+	until is_screen_session_exist "$session_name"; do
+		(( retries_counter++ ))
+		if (( retries_counter % 10 == 0 )); then
+			printf "\rWaiting for %s screen session to start... Attempt #%d" "$session_name" "$retries_counter"
+			# try again
+			screen -dm -S "$session_name" "$cmd" $args > /dev/null
+		fi
+		if (( retries_counter >= retries_limit )); then
+			echo
+			errcho "'$session_name' hasn't been started. Weird..."
+			function_exitcode="$exitcode_ERROR_SOMETHING_BAD_HAPPEN"
+			break
+		fi
+		{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
+	done
+
+	return "$function_exitcode"
+}
+
+screen_stop_session() {
+	# screen_stop_session 'session name' -> $?
+	
+	if (( $# == 0 )); then
+		errcho "no arguments given"
+		return "$exitcode_ERROR_IN_ARGUMENTS"
+	fi
+
+	# args
+	
+	local -r session_name="${1-}"
+	
+	# consts
+	
+	local -r -i retries_limit=100
+	
+	# vars
+	
+	local -i retries_counter=0
+	local -i function_exitcode="$exitcode_OK"
+	
+	# code
+	
+	screen -S "$session_name" -X quit  > /dev/null
+
+	while is_screen_session_exist "$session_name"; do
+		(( retries_counter++ ))
+		if (( retries_counter % 10 == 0 )); then
+			printf "\rWaiting for %s screen session to stop... Attempt #%d" "$session_name" "$retries_counter"
+			rm -rf /var/run/screens/*."$session_name"
+			screen -wipe
+		fi
+		if (( retries_counter >= retries_limit )); then
+			echo
+			errcho "cannot stop '$session_name' in $retries_limit attempts. Zombie screen session?"
+			{ ls -ALl /var/run/screens/*; ps w; } |
+				message warn 'screen session goes zombie, please contact Hive OS support' payload
+			function_exitcode="$exitcode_ERROR_SOMETHING_BAD_HAPPEN"
+			break
+		fi
+		{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
+	done
+
+	return "$function_exitcode"
+}
+
+# functions: agent
+
+agent_start() {
+	if ! is_screen_session_exist 'agent'; then
+		echo -n "> Starting new agent screen session... "
+		screen_start_session 'agent' && echo "Started."
+	else
+		echo "Agent screen session is already running"
+	fi
+}
+
+agent_stop() {
+	if is_screen_session_exist 'agent'; then
+		echo -n "> Stopping agent screen session... "
+		screen_stop_session 'agent' && echo "Stopped."
+	else
+		echo "Agent screen session hasn't been running"
+	fi
+}
+
+agent_restart() {
+	echo "> Restarting agent screen session"
+	agent_stop
+	agent_start
+}
 
 
-[[ $running -ne 1 ]] &&
-	echo "Starting new agent screen session" &&
-	screen -dm -S agent "agent" &&
-	exit 1 #was not running, starting
+# code
 
-#    screen -dm -S agent bash -c "agent; bash"
+script_exitcode="$( is_screen_session_exist 'agent' )"
 
-exit 0 #all was running
+case "${1-}" in
+	start)
+		agent_start
+		;;
+	stop)
+		agent_stop
+		;;
+	restart)
+		agent_restart
+		;;
+	dontattach|daemonize)
+		agent_start
+		;;
+	attach|*)
+		agent_start
+		screen_attach_to_session 'agent'
+		;;
+esac
+
+exit $(( script_exitcode ))
