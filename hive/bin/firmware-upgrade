@@ -8,6 +8,7 @@ sync && echo 3 > /proc/sys/vm/drop_caches
 URL="$1"
 #curl "$URL" | tar xvz
 filename=$(echo "$URL" | awk -F \/ '{print $NF}')
+# get FARM_HASH from a firmware's filename
 FARM_HASH=$(echo "$filename" | awk -F \- '{print $NF}' | sed s/.tar.gz//)
 HIVE_HOST_URL=$(echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm -rf
@@ -118,6 +119,7 @@ upgrade_ro() {
     ant_result=`cat /tmp/upgrade_result`
     if [ -z "$ant_result" ]; then
         echo -e "Client: Upgrade done! Rebooting System ..."
+	# TODO should we fork the reboot to bg? so the agent can send a message to server?
         sleep 10; sh /www/pages/cgi-bin/reboot.cgi || sleep 5; /sbin/reboot -f
     else
         echo -e "$ant_result"
