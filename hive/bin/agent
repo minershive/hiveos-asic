@@ -44,7 +44,17 @@ miner_stats () {
 	stats_raw=
 	max_fan_rpm="$MAX_FAN_RPM"
 	case "$ASIC_MODEL" in
-		"Antminer S9"|"Antminer T9+"*|"Antminer S9i"|"Antminer E3"|"Antminer S9 Hydro"|"Antminer S9 (vnish"*|"Antminer S9"*|"Antminer S10"*|"Antminer "|"Antminer T9"*|"Antminer T17"*|"Antminer S17"*|"Antminer T15"|"Antminer S15"|"Antminer S9j"|"Antminer S11"|"Minecenter S9"|"Antminer X17")
+		"Antminer "|\
+		"Antminer E3"|\
+		"Antminer S9"|"Antminer S9i"|"Antminer S9j"|"Antminer S9 Hydro"|"Antminer S9 (vnish"*|"Antminer S9"*|"Minecenter S9"|\
+		"Antminer S10"*|\
+		"Antminer S11"|\
+		"Antminer S15"|\
+		"Antminer S17"*|\
+		"Antminer T9+"*|"Antminer T9"*|\
+		"Antminer T15"|\
+		"Antminer T17"*|\
+		"Antminer X17")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				printf '%(%F %T %z)T %s: ' -1 'agent'
@@ -117,7 +127,14 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
 			fi
 		;;
-		"Antminer A3"|"Antminer D3"|"Antminer L3+"*|"Antminer D3 Blissz"*|"Antminer L3++"|"Antminer Z9"*|"Antminer Z11"*|"Antminer X3"|"Antminer S7"|"Antminer DR3")
+		
+		"Antminer A3"|\
+		"Antminer D3"|"Antminer D3 Blissz"*|"Antminer DR3"|\
+		"Antminer L3+"*|"Antminer L3++"|\
+		"Antminer S7"|\
+		"Antminer X3"|\
+		"Antminer Z9"*|\
+		"Antminer Z11"*)
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				printf '%(%F %T %z)T %s: ' -1 'agent'
@@ -176,6 +193,7 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
+
 		"Zig Z1+"|"Zig Z1")
 			stats_raw=`echo '{"command":"stats"}' | timeout 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
@@ -213,7 +231,16 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}')
 			fi
 		;;
-		"b29+.g19"|"d9.g19"|"s11.g19"|"t3.soc"|"t3+.soc"|"t3h+.soc"|"t2th+.soc"|"t2thf+.soc"|"t2thl+.soc"|"t2th.soc"|"t2tz.soc"|"t2thm.soc"|"t2thf.soc"|"t2t+.soc"|"t2ts.soc"|"t2ti.soc"|"t2t.soc")
+		
+		"b29+.g19"|\
+		"d9.g19"|\
+		"s11.g19"|\
+		"t2t.soc"|"t2t+.soc"|\
+		"t2th.soc"|"t2th+.soc"|"t2thf.soc"|"t2thf+.soc"|"t2thl+.soc"|"t2thm.soc"|\
+		"t2ti.soc"|\
+		"t2ts.soc"|\
+		"t2tz.soc"|\
+		"t3.soc"|"t3+.soc"|"t3h+.soc")
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				printf '%(%F %T %z)T %s: ' -1 'agent'
@@ -255,6 +282,7 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}')
 			fi
 		;;
+		
 		"T4.G19")
 			stats_raw=`echo '{"command":"devs"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
@@ -295,6 +323,7 @@ miner_stats () {
 						'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}')
 			fi
 		;;
+		
 		*)
 			miner="unknown"
 			#MINER=miner
@@ -314,7 +343,7 @@ miner_stats () {
 ########################################################################################################################
 
 loop () {
-	[[ ! -z $TIMEZONE ]] && export TZ="$TIMEZONE"
+	[[ ! -z $TIMEZONE ]] && export TZ=$TIMEZONE
 
 	printf '%(%F %T %z)T %s: %s\n' -1 'agent' 'Collecting stats...'
 
@@ -453,13 +482,15 @@ do_command () {
 			/sbin/reboot
 		;;
 		upgrade)
+			local version=$(echo "$body" | jq -r '.version')
+			[[ $version == "null" ]] && version=
 			screen -dm -S selfupgrade bash -c '
-				selfupgrade 2>&1 | tee /tmp/nohup.log
+				selfupgrade '"$version"' 2>&1 | tee /tmp/nohup.log
 				upgrade_exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 				[[ $upgrade_exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Selfupgrade successful" payload --id='$cmd_id' ||
-					echo "$payload" | message error "Selfupgrade failed" payload --id='$cmd_id'
+					echo "$payload" | message ok "Client update successful" payload --id='$cmd_id' ||
+					echo "$payload" | message error "Client update failed" payload --id='$cmd_id'
 			'
 		;;
 		"upgrade beta")
@@ -468,12 +499,12 @@ do_command () {
 				upgrade_exitcode=${PIPESTATUS[0]}
 				payload=`cat /tmp/nohup.log`
 				[[ $upgrade_exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Selfupgrade successful" payload --id='$cmd_id' ||
-					echo "$payload" | message error "Selfupgrade failed" payload --id='$cmd_id'
+					echo "$payload" | message ok "Client update successful" payload --id='$cmd_id' ||
+					echo "$payload" | message error "Client update failed" payload --id='$cmd_id'
 			'
 		;;
 		exec)
-			exec=$(echo $body | jq '.exec' --raw-output)
+			exec=$(echo "$body" | jq '.exec' --raw-output)
 			if [[ $ASIC_MODEL == "Zig Z1+" ]]; then
 				exectimeout='nohup timeout 360 bash -c'
 			else
@@ -485,7 +516,7 @@ do_command () {
 			exitcode=$?
 			[[ $exitcode -eq 0 ]] &&
 				cat $log_name | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
-				cat $log_name | message error "'"$(backslash "$exec")"' (Exec failed, exitcode=$exitcode)" payload --id='$cmd_id'
+				cat $log_name | message error "'"$(backslash "$exec")"' (failed, exitcode=$exitcode)" payload --id='$cmd_id'
 			rm $log_name > /dev/null 2>&1
 			' > /tmp/nohup.log 2>&1 &
 		;;
@@ -530,14 +561,14 @@ do_command () {
 					message warning "Password change received, wait for next message..." --id="$cmd_id"
 					request=$(jq -n --arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 					'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}')
-					response=$(echo "$request" | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
+					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
 
 					exitcode=$?
 					[[ $exitcode -ne 0 ]] &&
 						message error "Error notifying hive about \"password_change_received\"" --id="$cmd_id" &&
 						return "$exitcode" #better exit because password will not be changed
 
-					error=$(echo "$response" | jq '.error' --raw-output)
+					error=$(echo $response | jq '.error' --raw-output)
 					[[ ! -z $error && $error != "null" ]] && echo -e "${RED}Server error:${NOCOLOR} `echo "$response" | jq '.error.message' -r`" && return 1
 
 					echo "$response" | jq '.'
