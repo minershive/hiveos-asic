@@ -90,7 +90,7 @@ for ip in $@; do
     for i in $(eval echo "$ips" | tr ' ' '\012'); do
 	# -verbose and --silent options at the same time make verbose output (we need that) but hides curl errors (we don't need them)
         curl -v -s -m 5 $i:80 2>&1 | grep "antMiner Configuration" > /dev/null && touch /dev/shm/ip/$i &
-        sleep 0.1 || usleep 100 # only integer sleep on BusyBox
+        { sleep 0.1 || usleep 100000; } 2> /dev/null # only integer sleep on BusyBox
     done
     wait
 done
