@@ -527,7 +527,8 @@ if [ "$dont_have_to_update" = 1 ]; then
 	else
 		echo
 		echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
-		echo -e "You can run ${CYAN}selfupgrade --force${NOCOLOR} or ${CYAN}selfupgrade 0.1-13 --force${NOCOLOR} to force update"
+		echo
+		echo -e "Hint: you can run ${CYAN}selfupgrade --force${NOCOLOR} or ${CYAN}selfupgrade 0.1-13 --force${NOCOLOR} to force update"
 		echo
 		exit $exitcode
 	fi
@@ -551,6 +552,7 @@ for file_to_remove in /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master
 		echo -n ' '
 	fi
 done
+echo
 
 rm -rf /tmp/hive/* /tmp/hiveos-asic* /tmp/selfupgrade /tmp/master.tar.gz /tmp/v*.tar.gz /hive/etc/build
 [ -f "$filename" ] && rm "$filename"
@@ -650,9 +652,7 @@ echo
 
 rm -rf /tmp/hiveos-asic*
 
-echo -e "> Restarting agent"
-screen -S agent -X quit
-agent-screen dontattach
+agent-screen restart
 
 echo -e "${GREEN}Upgrade complete. Have a happy mining.${NOCOLOR}"
 
