@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-readonly script_mission='Hive OS Client for ASICs: Check for known viruses'
+readonly script_mission='Client for ASICs: Check for known viruses'
 readonly script_version='0.2'
 
 

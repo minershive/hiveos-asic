@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-readonly script_mission='Hive OS Client for ASICs: ssh access control'
+readonly script_mission='Client for ASICs: ssh access control'
 readonly script_version='0.1'
 
 
