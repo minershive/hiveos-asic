@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.0'
+readonly script_version='0.14.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -393,7 +393,7 @@ get_asic_model () {
 	fi
 }
 
-set_ASIC_model () {
+set_ASIC_MODEL_variable () {
 	ASIC_MODEL="$( get_asic_model )"
 }
 
@@ -748,7 +748,7 @@ package_file_url=''
 # code
 
 print_script_version
-set_ASIC_model
+set_ASIC_MODEL_variable
 get_remote_and_local_versions
 print_info
 exit_if_no_repository_available
