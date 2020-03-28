@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.2'
+readonly script_version='0.14.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -615,15 +615,20 @@ remove_needless_files () {
 
 	echo -n '> Cleaning: '
 	for file_to_remove in "$@"; do
-		if [ -e "$file_to_remove" ]; then
-			echo -n "$file_to_remove"
-			if rm -rf "$file_to_remove"; then
-				something_removed_FLAG=1
-			else
-				echo -n ' (FAIL)'
+		# Use the loop as a context for expanding the glob, not actually iterating
+		# over the results. (c) stackoverflow
+		for f in $file_to_remove; do
+			if [[ -e "$f" ]]; then
+				echo -n "$file_to_remove"
+				if rm -rf "$file_to_remove" /dev/null 2>&1; then
+					something_removed_FLAG=1
+					echo -n ' '
+				else
+					echo -n ' (FAIL) '
+				fi
 			fi
-			echo -n ' '
-		fi
+			break
+		done
 	done
 
 	if [ "$something_removed_FLAG" -gt 0 ]; then
