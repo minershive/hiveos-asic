@@ -6,6 +6,13 @@ get_random_number_between () {
 }
 
 boot_h () {
+    [ ! -e /hive ] && ln -s /config/hive/hive/ /hive
+    [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+    [ ! -e /home/root/.profile ] && ln -s /config/hive/home/root/.profile /home/root/.profile
+    [ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
+    [ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+    cp -rf /hive/share/S9/.profile /home/root/
+
     #$FARM_HASH can be defined externally
     if [ -e /config/FARM_HASH ]; then
         FARM_HASH=$( cat /config/FARM_HASH )
@@ -62,16 +69,8 @@ check_h () {
     export PATH=$PATH:/hive/bin:/hive/sbin
     export LD_LIBRARY_PATH=/hive/lib
 
-
-    [ ! -e /hive ] && ln -s /config/hive/hive/ /hive
-    [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
-    [ ! -e /home/root/.profile ] && ln -s /config/hive/home/root/.profile /home/root/.profile
-
     sleep 2
 
-    [ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
-    [ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
-    cp -rf /hive/share/S9/.profile /home/root/
     boot_h & # second run, should refactor?
 }
 
@@ -103,7 +102,7 @@ fi
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
-if [ -e /hive ]; then
+if [ -e /config/hive/hive/ ]; then
     echo 'boot'
     boot_h &
 else

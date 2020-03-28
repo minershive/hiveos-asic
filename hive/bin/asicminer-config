@@ -178,7 +178,7 @@ elif [[ $ASIC_MODEL =~ "Antminer L3+ (" ]]; then
 "bitmain-freq" : "384",
 "bitmain-voltage" : "135"
 }'
-elif [[ $ASIC_MODEL == "Antminer L3++" ]]; then
+elif [[ $ASIC_MODEL =~ "Antminer L3++" ]]; then
 	config_global='{
 "api-listen" : true,
 "api-network" : true,
