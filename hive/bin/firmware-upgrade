@@ -148,7 +148,7 @@ upgrade_ro() {
         rmdir $file.boot 2>/dev/null || true
         sync
         if [ ! $ok ]; then
-            echo -e "Client: System upgrade stopped"
+            echo -e "Client: firmware upgrade unexpectedly interrupted"
         fi
     }
 
@@ -167,49 +167,42 @@ upgrade_ro() {
     curl -s -f --insecure "$URL" | tar xvz
 
     # hide upgrade scripts, version file and certificate
-    mv /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade.cgi-disabled
-    mv /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade2.cgi-disabled
-    mv /www/pages/cgi-bin/upgrade_clear.cgi /www/pages/cgi-bin/upgrade_clear.cgi-disabled
-    mv /etc/ant_version /etc/ant_version-disabled
-    mv /etc/bitmain-pub.pem /etc/bitmain-pub.pem-disabled
+    [ -e /www/pages/cgi-bin/upgrade.cgi ] && { mv /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade.cgi-disabled || true; }
+    [ -e /www/pages/cgi-bin/upgrade2.cgi ] && { mv /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade2.cgi-disabled || true; }
+    [ -e /www/pages/cgi-bin/upgrade2.cgi ] && { mv /www/pages/cgi-bin/upgrade_clear.cgi /www/pages/cgi-bin/upgrade_clear.cgi-disabled || true; }
+    [ -e /etc/ant_version ] && { mv /etc/ant_version /etc/ant_version-disabled || true; }
+    [ -e /etc/bitmain-pub.pem ] && { mv /etc/bitmain-pub.pem /etc/bitmain-pub.pem-disabled || true; }
 
     sh runme.sh
-    
-    # unhide upgrade scripts, version file and certificate
-    mv /etc/bitmain-pub.pem-disabled /etc/bitmain-pub.pem
-    mv /etc/ant_version-disabled /etc/ant_version
-    mv /www/pages/cgi-bin/upgrade_clear.cgi-disabled /www/pages/cgi-bin/upgrade_clear.cgi
-    mv /www/pages/cgi-bin/upgrade2.cgi-disabled /www/pages/cgi-bin/upgrade2.cgi
-    mv /www/pages/cgi-bin/upgrade.cgi-disabled /www/pages/cgi-bin/upgrade.cgi
-    
+
     ant_result=`cat /tmp/upgrade_result`
     if [ -z "$ant_result" ]; then
-        echo -e "Client: Upgrade done! Rebooting System ..."
+        echo -e "Client: firmware upgrade done. Rebooting..."
 	# TODO should we fork the reboot to bg? so the agent can send a message to server?
         sleep 10; sh /www/pages/cgi-bin/reboot.cgi || sleep 5; /sbin/reboot -f
     else
         echo -e "$ant_result"
+	# unhide upgrade scripts, version file and certificate
+	[ -e /etc/bitmain-pub.pem-disabled ] && { mv /etc/bitmain-pub.pem-disabled /etc/bitmain-pub.pem || true; }
+	[ -e /etc/ant_version-disabled ] && { mv /etc/ant_version-disabled /etc/ant_version || true; }
+	[ -e /www/pages/cgi-bin/upgrade_clear.cgi-disabled ] && { mv /www/pages/cgi-bin/upgrade_clear.cgi-disabled /www/pages/cgi-bin/upgrade_clear.cgi || true; }
+	[ -e /www/pages/cgi-bin/upgrade2.cgi-disabled ] && { mv /www/pages/cgi-bin/upgrade2.cgi-disabled /www/pages/cgi-bin/upgrade2.cgi || true; }
+	[ -e /www/pages/cgi-bin/upgrade.cgi-disabled ] && { mv /www/pages/cgi-bin/upgrade.cgi-disabled /www/pages/cgi-bin/upgrade.cgi || true; }
     fi
     ok=1
     #cat /tmp/upgrade_result
 }
 
-if echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9"; then
-    upgrade_s9
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S15"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S15"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S17"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer T17"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer X17"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9k"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9SE"; then
-    upgrade_ro
-elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer L3"; then
-    upgrade_l3
-fi
+case "$ASIC_MODEL" in
+	'Antminer S9'*)		upgrade_s9;;
+
+	'Antminer S9k'*		|\
+	'Antminer S9SE'*	|\
+	'Antminer S15'*		|\
+	'Antminer S17'*		|\
+	'Antminer T15'*		|\
+	'Antminer T17'*		|\
+	'Antminer X17'*)	upgrade_ro;;
+
+	'Antminer L3'*)		upgrade_l3;;
+esac
