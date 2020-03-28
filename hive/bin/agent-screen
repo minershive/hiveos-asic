@@ -62,11 +62,6 @@ is_screen_session_exist() {
 	screen -S "$session_name" -X select . > /dev/null
 	screen_exitcode=$?
 
-	if [[ ! -t 1 ]]; then
-		# if this function will be used as var=$(func), var will receive exitcode in a literal form
-		echo "$screen_exitcode"
-	fi
-
 	return "$screen_exitcode"
 }
 
@@ -222,7 +217,7 @@ agent_restart() {
 
 # code
 
-script_exitcode="$( is_screen_session_exist 'agent' )"
+is_screen_session_exist 'agent'; script_exitcode=$?
 
 case "${1-}" in
 	start)
