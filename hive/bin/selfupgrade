@@ -393,7 +393,7 @@ get_asic_model () {
 	fi
 }
 
-set_asic_model () {
+set_ASIC_model () {
 	ASIC_MODEL="$( get_asic_model )"
 }
 
@@ -614,6 +614,7 @@ remove_needless_files () {
 			echo -n ' '
 		fi
 	done
+	echo
 }
 
 execute_install_routine () {
@@ -699,6 +700,7 @@ execute_install_routine () {
 			echo 'Please contact us: https://t.me/hiveonasic_en'
 			echo '                   https://t.me/hiveonasic'
 			echo '                   bee@hiveos.farm'
+			echo
 			exit "$exitcode_NOT_OK"
 			;;
 	esac
