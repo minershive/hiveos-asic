@@ -325,7 +325,7 @@ install_antminer_bmminer_ro () {
 	local sleep_interval=5
 
 	sync && echo 3 > /proc/sys/vm/drop_caches
-	if [ -s /hive/share/ant_15_17/S69hive ] && { ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; }; then
+	if ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive > /dev/null 2>&1; then
 		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive
 	fi
 	[ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
@@ -620,7 +620,7 @@ remove_needless_files () {
 		for f in $file_to_remove; do
 			if [[ -e "$f" ]]; then
 				echo -n "$file_to_remove"
-				if rm -rf "$file_to_remove" /dev/null 2>&1; then
+				if rm -rf "$file_to_remove" > /dev/null 2>&1; then
 					something_removed_FLAG=1
 					echo -n ' '
 				else
