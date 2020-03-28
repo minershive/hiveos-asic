@@ -73,7 +73,7 @@ hive_version=`cat /hive/etc/VERSION`
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
 [[ -e "/usr/bin/compile_ver" && -e "/var/log/log" ]] && MODELH=$(cat /var/log/log | grep "Project type" | awk -F\:\  '{print $NF}')
-if $(cat /usr/bin/compile_ver | grep -q "TEST"); then
+if [ -e "/usr/bin/compile_ver" ] && $(cat /usr/bin/compile_ver | grep -q "TEST"); then
     rm /hive-config/model > /dev/null 2>&1
     MODELH=''
 fi

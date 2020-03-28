@@ -13,6 +13,57 @@ FARM_HASH=$(echo "$filename" | awk -F \- '{print $NF}' | sed s/.tar.gz//)
 HIVE_HOST_URL=$(echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
 du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm -rf
 
+upgrade_l3() {
+file=/tmp/$$
+trap atexit 0
+
+atexit() {
+        rm -rf $file
+        umount $file.boot 2>/dev/null || true
+        rmdir $file.boot 2>/dev/null || true
+        sync
+        if [ ! $ok ]; then
+            print "Client: System upgrade failed"
+        fi
+}
+
+
+mkdir $file
+cd $file
+curl -f --insecure "$URL" | tar xvz
+if [ -f runme.sh ]; then
+        sh runme.sh
+else
+    if [ -e /dev/mmcblk0p3 ]; then
+                mkdir $file.boot
+        mount /dev/mmcblk0p1 $file.boot
+        cp -rf * $file.boot/
+        umount $file.boot
+        sync
+        fi
+        if [ -e /dev/mtd8 ]; then
+                if [ -f initramfs.bin.SD ]; then
+                        echo "flash romfs"
+                        flash_eraseall /dev/mtd8 >/dev/null 2>&1
+                        nandwrite -p /dev/mtd8 initramfs.bin.SD >/dev/null 2>&1
+                fi
+
+                if [ -f uImage.bin ]; then
+                        echo "flash kernel"
+                        flash_eraseall /dev/mtd7 2>/dev/null
+                        nandwrite -p /dev/mtd7 uImage.bin 2>/dev/null
+                fi
+        fi
+fi
+
+ok=1
+echo
+echo "done"
+
+sleep 1; /sbin/reboot -f
+
+}
+
 upgrade_s9() {
     rm -rf /config/hive/hive
     rm -rf /hive
@@ -144,4 +195,6 @@ elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9k"; then
     upgrade_ro
 elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer S9SE"; then
     upgrade_ro
+elif echo "$ASIC_MODEL" | grep -q -s -F "Antminer L3"; then
+    upgrade_l3
 fi
