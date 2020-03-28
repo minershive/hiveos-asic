@@ -160,15 +160,6 @@ elif [[ $ASIC_MODEL =~ "Antminer S9 (vnish" ]]; then
 "bitmain-fan-rpm-off" : "0",
 "multi-version" : "1"
 }'
-elif [[ $ASIC_MODEL == "Antminer L3+" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "384"
-}'
 elif [[ $ASIC_MODEL =~ "Antminer L3+ (" ]]; then
 	config_global='{
 "api-listen" : true,
@@ -177,6 +168,15 @@ elif [[ $ASIC_MODEL =~ "Antminer L3+ (" ]]; then
 "api-allow" : "A:0/0,W:*",
 "bitmain-freq" : "384",
 "bitmain-voltage" : "135"
+}'
+elif [[ $ASIC_MODEL =~ "Antminer L3+" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:0/0,W:*",
+"bitmain-use-vil" : true,
+"bitmain-freq" : "384"
 }'
 elif [[ $ASIC_MODEL =~ "Antminer L3++" ]]; then
 	config_global='{
