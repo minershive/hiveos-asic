@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-readonly script_mission='Antminer Series 15/17 Error Report'
-readonly script_version='1.14.3'
+readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
+readonly script_version='1.14.4'
 readonly DEBUG=0
 
 
@@ -460,9 +460,10 @@ print_stats() {
 	local -i -r average_per_day=$(( ${events_data['#all.total']} / days_to_look_back ))
 
 	printf "\n%d events in %d days (%d per day in average)\n" "${events_data['#all.total']}" "$days_to_look_back" "$average_per_day"
+	printf "Filtered log file saved to '%s' for further inspection\n" "$log"
 
 	if (( days_to_look_back == days_to_look_back_DEFAULT )); then
-		echo -e "Hint: you can run ${CYAN-}$script_basename 30${NOCOLOR-} to get report for 30 days"
+		echo -e "${WHITE}Hint:${NOCOLOR} you can run ${CYAN-}$script_basename 30${NOCOLOR-} to get report for 30 days"
 	fi
 }
 
