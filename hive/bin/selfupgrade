@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.1'
+readonly script_version='0.14.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -321,8 +321,11 @@ install_zig () {
 }
 
 install_antminer_bmminer_ro () {
+	local sleep_counter=0
+	local sleep_interval=5
+
 	sync && echo 3 > /proc/sys/vm/drop_caches
-	if ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; then
+	if [ -s /hive/share/ant_15_17/S69hive ] && { ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; }; then
 		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive
 	fi
 	[ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
@@ -335,8 +338,9 @@ install_antminer_bmminer_ro () {
 		/etc/rcS.d/S69hive -f
 	fi
 	while [ ! -e /hive/sbin/ ]; do
-		echo "> $script_basename waiting for /hive/sbin/..."
-		sleep 5
+		echo "> $script_basename waiting when /hive/sbin/ shows up for $(( sleep_counter * sleep_interval ))s..."
+		: $(( sleep_counter++ ))
+		sleep "$sleep_interval"
 	done
 	sleep 10
 }
@@ -460,7 +464,7 @@ get_local_version_of () {
 
 get_remote_and_local_versions () {
 	remote_release_version="$( get_remote_version_of 'release' )"; repo_connectivity_status_exitcode=$?
-	remote_build_version=="$( get_remote_version_of 'build' )"
+	remote_build_version="$( get_remote_version_of 'build' )"
 	local_release_version="$( get_local_version_of 'release' )"
 	local_build_version="$( get_local_version_of 'build' )"
 }
@@ -606,19 +610,30 @@ remove_needless_files () {
 		return
 	fi
 
+	local file_to_remove=''
+	local something_removed_FLAG=0
+
 	echo -n '> Cleaning: '
 	for file_to_remove in "$@"; do
 		if [ -e "$file_to_remove" ]; then
 			echo -n "$file_to_remove"
-			rm -rf "$file_to_remove" || echo -n ' (FAIL)'
+			if rm -rf "$file_to_remove"; then
+				something_removed_FLAG=1
+			else
+				echo -n ' (FAIL)'
 			echo -n ' '
 		fi
 	done
-	echo
+
+	if [ "$something_removed_FLAG" -gt 0 ]; then
+		echo
+	else
+		echo 'all is clean'
+	fi
 }
 
 execute_install_routine () {
-	echo -n '> Installing '
+	echo -n '> Installing Client for '
 
 	case "$ASIC_MODEL" in
 
