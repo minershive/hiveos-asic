@@ -34,6 +34,9 @@ get_asic_model () {
 	if [ -s /usr/bin/compile_time ]; then
 		ASIC_MODEL="$( sed -n 2p /usr/bin/compile_time )"
 	fi
+	if [ -s /usr/bin/compile_ver ]; then
+		HIVEON=1
+	fi
 
 	# Ebit
 	if [ -e /opt/system/bank.conf ]; then
@@ -156,7 +159,7 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 
-	if grep "### HIVE AUTORUN ###" /config/network.conf || grep "ln -s /config/hive/hive/ /hive" /config/network.conf; then
+	if grep "### HIVE AUTORUN ###" /config/network.conf || grep "ln -s /config/hive/hive/ /hive" /config/network.conf || [ "$HIVEON" -eq 1 ]; then
 		echo "/config/network.conf skip"
 	else
 		cat >> /config/network.conf <<FILEEOF
