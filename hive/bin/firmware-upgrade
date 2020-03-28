@@ -165,8 +165,23 @@ upgrade_ro() {
     sync
 
     curl -s -f --insecure "$URL" | tar xvz
-    sh runme.sh
 
+    # hide upgrade scripts, version file and certificate
+    mv /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade.cgi-disabled
+    mv /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade2.cgi-disabled
+    mv /www/pages/cgi-bin/upgrade_clear.cgi /www/pages/cgi-bin/upgrade_clear.cgi-disabled
+    mv /etc/ant_version /etc/ant_version-disabled
+    mv /etc/bitmain-pub.pem /etc/bitmain-pub.pem-disabled
+
+    sh runme.sh
+    
+    # unhide upgrade scripts, version file and certificate
+    mv /etc/bitmain-pub.pem-disabled /etc/bitmain-pub.pem
+    mv /etc/ant_version-disabled /etc/ant_version
+    mv /www/pages/cgi-bin/upgrade_clear.cgi-disabled /www/pages/cgi-bin/upgrade_clear.cgi
+    mv /www/pages/cgi-bin/upgrade2.cgi-disabled /www/pages/cgi-bin/upgrade2.cgi
+    mv /www/pages/cgi-bin/upgrade.cgi-disabled /www/pages/cgi-bin/upgrade.cgi
+    
     ant_result=`cat /tmp/upgrade_result`
     if [ -z "$ant_result" ]; then
         echo -e "Client: Upgrade done! Rebooting System ..."
