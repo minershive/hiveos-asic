@@ -102,7 +102,7 @@ fi
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
-if [ -e /config/hive/hive/ ]; then
+if [ -e /config/hive/hive/sbin ]; then
     echo 'boot'
     boot_h &
 else
