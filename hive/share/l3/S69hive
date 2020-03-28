@@ -17,7 +17,7 @@ boot_h () {
 }
 
 check_h () {
-    cd /config
+    cd /tmp
     if [ -z "$URL" ]; then
         URL="hiveos.farm"
     fi
@@ -52,7 +52,7 @@ check_h () {
         mkdir -p /config/hive/hive-config
     fi
 
-    tar -xzv -f latest.tar.gz
+    tar -xzv -f /config/latest.tar.gz
     [ -L /hive ] && rm /hive
     cp -rf /tmp/hiveos-asic-*/* /config/hive/
     [ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
