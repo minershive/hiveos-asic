@@ -621,6 +621,7 @@ remove_needless_files () {
 				something_removed_FLAG=1
 			else
 				echo -n ' (FAIL)'
+			fi
 			echo -n ' '
 		fi
 	done
