@@ -341,6 +341,62 @@ install_antminer_bmminer_ro () {
 	sleep 10
 }
 
+get_asic_model () {
+	local ASIC_MODEL=''
+
+	# Antminer
+	if [ -s /usr/bin/compile_time ]; then
+		ASIC_MODEL="$( sed -n 2p /usr/bin/compile_time )"
+	fi
+	if [ -s /usr/bin/compile_ver ]; then
+		HIVEON=1
+	else
+		HIVEON=0
+	fi
+
+	# Ebit
+	if [ -e /opt/system/bank.conf ]; then
+		ASIC_MODEL='ebit'
+	fi
+
+	#Innosilicon
+	if [ -s /etc/hwrevision ]; then
+		ASIC_MODEL="$( cut -d' ' -f 2 /etc/hwrevision )"
+	fi
+
+	# Zig old firmware
+	if [ -s /var/www/html/src/Template/Layout/signin.twig ]; then
+		ASIC_MODEL="$(
+			(
+				grep -F -e 'Zig' -- /var/www/html/src/Template/Layout/signin.twig ||
+				grep -F -e 'Zig' -- /var/www/html/src/Template/Users/login.twig
+			) |
+				grep 'title\|<a><b>' | sed 's/<[^>]*>//g' | sed 's/\ *//'
+		)"
+	fi
+
+	# Zig new firmware
+	if [ -s /var/www/html/src/Template/Layout/signin.twig ] && [ -s /var/www/html/TYPE ]; then
+		ASIC_MODEL=$(echo "$ASIC_MODEL" | sed s/'{{ type() }}'/$(cat /var/www/html/TYPE)/)
+	fi
+
+	# Innosilicon A5/8
+	if [ -e /tmp/type ] && [ ! -e /etc/hwrevision ]; then
+		ASIC_MODEL="$( cat /tmp/type ).$( cat /tmp/hwver )"
+	fi
+
+	# final
+	if [ -n "$ASIC_MODEL" ]; then
+		echo "$ASIC_MODEL"
+	else
+		echo '<unknown model>'
+	fi
+}
+
+set_asic_model () {
+	ASIC_MODEL="$( get_asic_model )"
+}
+
 get_remote_version_of () {
 	# get_remote_version 'release'|'build'
 
@@ -690,7 +746,7 @@ package_file_url=''
 # code
 
 print_script_version
-get_ASIC_model
+set_ASIC_model
 get_remote_and_local_versions
 print_info
 exit_if_no_repository_available
