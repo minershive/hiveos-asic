@@ -85,7 +85,12 @@ screen_attach_to_session() {
 	# code
 	
 	if is_screen_session_exist "$session_name"; then
-		TERM='vt102' screen -x -S "$session_name" > /dev/null # why TERM?
+		#
+		# why setting TERM in such a fashion? screen has an argument for that:
+		#
+		# -T term       Use term as $TERM for windows, rather than "screen".
+		#
+		TERM='vt102' screen -x -S "$session_name" > /dev/null
 	else
 		errcho "'$session_name' hasn't been started. Weird..."
 	fi
@@ -165,7 +170,7 @@ screen_stop_session() {
 	
 	# code
 	
-	screen -S "$session_name" -X quit  > /dev/null
+	screen -S "$session_name" -X quit > /dev/null
 
 	while is_screen_session_exist "$session_name"; do
 		(( retries_counter++ ))
@@ -178,7 +183,7 @@ screen_stop_session() {
 			echo
 			errcho "cannot stop '$session_name' in $retries_limit attempts. Zombie screen session?"
 			{ ls -ALl /var/run/screens/*; ps w; } |
-				message warn 'screen session goes zombie, please contact Hive OS support' payload
+				message warn 'screen session goes zombie, please contact support' payload
 			function_exitcode="$exitcode_ERROR_SOMETHING_BAD_HAPPEN"
 			break
 		fi
