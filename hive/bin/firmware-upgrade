@@ -175,7 +175,7 @@ upgrade_ro() {
 
     sh runme.sh
 
-    ant_result=`cat /tmp/upgrade_result`
+    ant_result=$( cat /tmp/upgrade_result || true )
     if [ -z "$ant_result" ]; then
         echo -e "Client: firmware upgrade done. Rebooting..."
 	# TODO should we fork the reboot to bg? so the agent can send a message to server?
