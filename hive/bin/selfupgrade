@@ -371,10 +371,10 @@ get_asic_model () {
 	# Zig old firmware
 	if [ -s /var/www/html/src/Template/Layout/signin.twig ]; then
 		ASIC_MODEL="$(
-			(
+			{
 				grep -F -e 'Zig' -- /var/www/html/src/Template/Layout/signin.twig ||
 				grep -F -e 'Zig' -- /var/www/html/src/Template/Users/login.twig
-			) |
+			} |
 				grep 'title\|<a><b>' | sed 's/<[^>]*>//g' | sed 's/\ *//'
 		)"
 	fi
