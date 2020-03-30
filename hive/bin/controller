@@ -58,11 +58,11 @@ mem_check () {
 
 version_check () {
 	if ! cmp -s /hive/etc/build /hive-config/build; then
-		vers="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2>/dev/null || echo 'release' )"
-		vers_old="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2>/dev/null || echo 'release' )"
+		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
+		previous_build_version="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2> /dev/null || echo 'release' )"
 		cp -rf /hive/etc/build /hive-config/build
-		echo -e "\n$( date +"%F %T" ) [INFO] Client updated from $vers_old to $vers"
-		message ok "Client: updated from $vers_old to $vers"
+		echo -e "\n$( date +"%F %T" ) [INFO] Client updated from $previous_build_version to $new_build_version"
+		message ok "Client: updated from $previous_build_version to $new_build_version"
 	fi
 }
 
