@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.3'
+readonly script_version='0.14.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -106,7 +106,7 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 
-	if grep '### HIVE AUTORUN ###' /config/network.conf || grep 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ "$HIVEON" -eq 1 ]; then
+	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ -n "$HIVEON_VER" ]; then
 		echo '/config/network.conf skip'
 	else
 		cat >> /config/network.conf <<FILEEOF
@@ -161,7 +161,7 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 
-	if grep '### HIVE AUTORUN ###' /config/network.conf || grep 'ln -s /config/hive/hive/ /hive' /config/network.conf; then
+	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf; then
 		echo '/config/network.conf skip'
 	else
 		cat >> /config/network.conf <<FILEEOF
@@ -253,7 +253,7 @@ install_innosilicon_innominer () {
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /innocfg/hive-config/ /hive-config
 
 	#autorun
-	if grep '### HIVE AUTORUN ###' /etc/init.d/rcS; then
+	if grep -F '### HIVE AUTORUN ###' /etc/init.d/rcS; then
 		echo '/etc/init.d/rcS skip'
 	else
 		cat >> /etc/init.d/rcS <<FILEEOF
@@ -267,7 +267,7 @@ FILEEOF
 	fi
 
 	#PATH
-	if grep '### HIVE PROFILE ###' /etc/profile; then
+	if grep -F '### HIVE PROFILE ###' /etc/profile; then
 		echo '/etc/profile skip'
 	else
 		cat >> /etc/profile <<FILEEOF
@@ -338,7 +338,7 @@ install_antminer_bmminer_ro () {
 		/etc/rcS.d/S69hive -f
 	fi
 	while [ ! -e /hive/sbin/ ]; do
-		echo "> $script_basename waiting when /hive/sbin/ shows up for $(( sleep_counter * sleep_interval ))s..."
+		echo "> $script_basename waiting $(( sleep_counter * sleep_interval ))s when /hive/sbin/ shows up..."
 		: $(( sleep_counter++ ))
 		sleep "$sleep_interval"
 	done
@@ -346,16 +346,15 @@ install_antminer_bmminer_ro () {
 }
 
 get_asic_model () {
+	#
+	# !!! shall be sh-friendly
+	# !!! copied from 'asic-model' script, please keep it in sync
+	#
 	local ASIC_MODEL=''
 
 	# Antminer
 	if [ -s /usr/bin/compile_time ]; then
-		ASIC_MODEL="$( sed -n 2p /usr/bin/compile_time )"
-	fi
-	if [ -s /usr/bin/compile_ver ]; then
-		HIVEON=1
-	else
-		HIVEON=0
+		ASIC_MODEL="$( sed -n '2p' /usr/bin/compile_time )"
 	fi
 
 	# Ebit
@@ -363,30 +362,28 @@ get_asic_model () {
 		ASIC_MODEL='ebit'
 	fi
 
-	#Innosilicon
-	if [ -s /etc/hwrevision ]; then
+	# Innosilicon
+	if [ -e /etc/hwrevision ]; then
 		ASIC_MODEL="$( cut -d' ' -f 2 /etc/hwrevision )"
+	elif [ -s /tmp/type ]; then
+		# Innosilicon A5/8
+		ASIC_MODEL="$( cat /tmp/type ).$( cat /tmp/hwver )"
 	fi
 
-	# Zig old firmware
+	# Zig
 	if [ -s /var/www/html/src/Template/Layout/signin.twig ]; then
+		# Zig old firmware
 		ASIC_MODEL="$(
 			{
-				grep -F -e 'Zig' -- /var/www/html/src/Template/Layout/signin.twig ||
-				grep -F -e 'Zig' -- /var/www/html/src/Template/Users/login.twig
+				grep -Fse 'Zig' /var/www/html/src/Template/Layout/signin.twig ||
+				grep -Fse 'Zig' /var/www/html/src/Template/Users/login.twig
 			} |
-				grep 'title\|<a><b>' | sed 's/<[^>]*>//g' | sed 's/\ *//'
+				grep -Ese 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g'
 		)"
-	fi
-
-	# Zig new firmware
-	if [ -s /var/www/html/src/Template/Layout/signin.twig ] && [ -s /var/www/html/TYPE ]; then
-		ASIC_MODEL=$(echo "$ASIC_MODEL" | sed s/'{{ type() }}'/$(cat /var/www/html/TYPE)/)
-	fi
-
-	# Innosilicon A5/8
-	if [ -e /tmp/type ] && [ ! -e /etc/hwrevision ]; then
-		ASIC_MODEL="$( cat /tmp/type ).$( cat /tmp/hwver )"
+		# Zig new firmware
+		if [ -s /var/www/html/TYPE ]; then
+			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )"
+		fi
 	fi
 
 	# final
@@ -397,8 +394,25 @@ get_asic_model () {
 	fi
 }
 
+get_hiveon_version () {
+	#
+	# !!! shall be sh-friendly
+	# !!! copied from 'asic-model' script, please keep it in sync
+	#
+	local HIVEON_VER=''
+
+	if [ -s /usr/bin/compile_ver ]; then 
+		HIVEON_VER="$( cat /usr/bin/compile_ver | awk -F'@' 'NR==3 {print $1; exit}' )"
+		echo "$HIVEON_VER"
+	fi
+}
+
 set_ASIC_MODEL_variable () {
 	ASIC_MODEL="$( get_asic_model )"
+}
+
+set_HIVEON_VER_variable () {
+	HIVEON_VER="$( get_hiveon_version )"
 }
 
 get_remote_version_of () {
@@ -472,14 +486,7 @@ get_remote_and_local_versions () {
 print_info () {
 	echo "ASIC model: $ASIC_MODEL"
 
-	echo -n 'Client latest version: '
-	if [ "$repo_connectivity_status_exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
-		echo '<no connection>'
-	else
-		echo "${remote_release_version}-$remote_build_version"
-	fi
-
-	echo -n 'Local version: '
+	echo -n 'Client local version: '
 	if [ "$local_release_version" = '0' ]; then
 		echo '<not installed>'
 	else
@@ -489,6 +496,13 @@ print_info () {
 		else
 			echo "-${local_build_version}"
 		fi
+	fi
+
+	echo -n 'Client latest version: '
+	if [ "$repo_connectivity_status_exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
+		echo '<no connection>'
+	else
+		echo "${remote_release_version}-$remote_build_version"
 	fi
 }
 
@@ -597,7 +611,7 @@ print_update_info () {
 }
 
 set_temp_dir () {
-	temp_dir=$( df -h | grep '/tmp' | awk '{print $NF}' ) # find an existing temp dir
+	temp_dir=$( df -h | grep -F '/tmp' | awk '{print $NF}' ) # find an existing temp dir
 	[ -z "$temp_dir" ] && temp_dir='/tmp'
 	cd "$temp_dir"
 }
@@ -770,6 +784,7 @@ package_file_url=''
 
 print_script_version
 set_ASIC_MODEL_variable
+set_HIVEON_VER_variable
 get_remote_and_local_versions
 print_info
 exit_if_no_repository_available
@@ -785,7 +800,7 @@ execute_install_routine
 #hello restartminer
 
 remove_needless_files "${temp_dir}/hiveos-asic*"
-agent-screen restart
+{ sleep 2; agent-screen restart; }& # could it buy us a little time to send the OK message?
 echo -e "${GREEN}Update complete. Have a happy mining.${NOCOLOR}"
 sync
 exit "$exitcode_OK"
