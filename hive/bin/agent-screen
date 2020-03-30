@@ -191,11 +191,19 @@ screen_stop_session() {
 # functions: agent
 
 agent_start() {
+	# args
+	
+	local -r message_mode="${1-}"
+
+	# code
+
 	if ! is_screen_session_exist 'agent'; then
 		echo -n "> Starting new agent screen session... "
 		screen_start_session 'agent' && echo "Started."
 	else
-		echo "Agent screen session is already running"
+		if [[ $message_mode != 'calmly' ]]
+			echo "Agent screen session is already running"
+		fi
 	fi
 }
 
@@ -230,7 +238,7 @@ case "${1-}" in
 		agent_restart
 		;;
 	dontattach|daemonize)
-		agent_start
+		agent_start 'calmly'
 		;;
 	attach|*)
 		agent_start
