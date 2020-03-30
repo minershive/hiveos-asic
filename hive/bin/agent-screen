@@ -230,11 +230,14 @@ agent_restart() {
 # trying to make the script non-reenterable
 while true; do
 	self_copies_number="$( ps -w | grep -wc "[${0:: 1}]${0:1}" )" # enclose the first char in the brackets to ditch the famous 'grep -v grep'
-	if (( self_copies_number == 1 || busy_counter >= 120 )); then # 60s tops for safety reasons
+	if (( self_copies_number <= 2 || busy_counter >= 120 )); then # 60s tops for safety reasons
 		break
 	else
 		(( busy_counter++ ))
-		(( busy_counter % 10 == 0 )) && echo "$( basename "$0" ) is busy, waiting..." # every tenth iteration
+		if (( busy_counter % 10 == 0 )); then
+			echo "$( basename "$0" ) is busy, $self_copies_number requests in line:" # every tenth iteration
+			ps -w | grep -wc "[${0:: 1}]${0:1}"
+		fi
 		{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
 	fi
 done
