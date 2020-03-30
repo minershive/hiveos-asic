@@ -23,7 +23,7 @@ echo -e "\n$( date +"%F %T" ) [START] Controller started"
 time_check () {
 	if [[ "$( date +"%Y" )" -eq 1970 ]]; then
 		[[ -z $HIVE_HOST_URL ]] && HIVE_HOST_URL='http://api.hiveos.farm'
-		echo -e "\n$( date +"%F %T" ) [INFO] System date is 1970. Get actual date from server: "
+		echo -e -n "\n$( date +"%F %T" ) [INFO] System date is 1970. Get actual date from server: "
 		date -s "@$( curl -I $HIVE_HOST_URL 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
 	fi
 }
@@ -62,7 +62,7 @@ version_check () {
 		vers_old="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2>/dev/null || echo 'release' )"
 		cp -rf /hive/etc/build /hive-config/build
 		echo -e "\n$( date +"%F %T" ) [INFO] Client updated from $vers_old to $vers"
-		message info "Client: updated from $vers_old to $vers"
+		message ok "Client: updated from $vers_old to $vers"
 	fi
 }
 
