@@ -749,6 +749,11 @@ exit_if_no_repository_available () {
 	fi
 }
 
+delayed_agent_screen_restart () {
+	sleep 2
+	agent-screen restart
+}
+
 
 # global consts
 
@@ -800,7 +805,8 @@ execute_install_routine
 #hello restartminer
 
 remove_needless_files "${temp_dir}/hiveos-asic*"
-{ sleep 2; agent-screen restart; }& # could it buy us a little time to send the OK message?
+delayed_agent_screen_restart & # buys a little time for previous agent to send the OK message
+echo
 echo -e "${GREEN}Update complete. Have a happy mining.${NOCOLOR}"
 sync
 exit "$exitcode_OK"
