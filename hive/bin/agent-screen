@@ -27,8 +27,6 @@ declare -r -i script_exitcode_OK_NOT_RUNNING_STARTED=1
 # exitcode=0 - has been running
 # exitcode=1 - has not been running, starting
 declare -i script_exitcode
-declare -i self_copies_number
-declare -i busy_counter=0
 
 
 # exports
@@ -226,21 +224,6 @@ agent_restart() {
 
 
 # code
-
-# trying to make the script non-reenterable
-while true; do
-	self_copies_number="$( ps -w | grep -wc "[${0:: 1}]${0:1}" )" # enclose the first char in the brackets to ditch the famous 'grep -v grep'
-	if (( self_copies_number <= 2 || busy_counter >= 120 )); then # 60s tops for safety reasons
-		break
-	else
-		(( busy_counter++ ))
-		if (( busy_counter % 10 == 0 )); then
-			echo "$( basename "$0" ) is busy, $self_copies_number requests in line:" # every tenth iteration
-			ps -w | grep -wc "[${0:: 1}]${0:1}"
-		fi
-		{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
-	fi
-done
 
 is_screen_session_exist 'agent'; script_exitcode=$?
 
