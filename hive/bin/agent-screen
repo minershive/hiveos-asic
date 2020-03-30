@@ -201,7 +201,7 @@ agent_start() {
 		echo -n "> Starting new agent screen session... "
 		screen_start_session 'agent' && echo "Started."
 	else
-		if [[ $message_mode != 'calmly' ]]
+		if [[ $message_mode != 'calmly' ]]; then
 			echo "Agent screen session is already running"
 		fi
 	fi
