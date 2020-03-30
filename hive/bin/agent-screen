@@ -28,7 +28,7 @@ declare -r -i script_exitcode_OK_NOT_RUNNING_STARTED=1
 # exitcode=1 - has not been running, starting
 declare -i script_exitcode
 declare -i self_copies_number
-declare -i busy_counter
+declare -i busy_counter=0
 
 
 # exports
