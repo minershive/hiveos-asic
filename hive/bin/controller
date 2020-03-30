@@ -13,42 +13,44 @@ export LD_LIBRARY_PATH=/hive/lib
 
 #. colors
 . asic-model
+
 if [[ -e /hive-config/rig.conf ]]; then
 	. /hive-config/rig.conf
 fi
 
-echo -e "\n$(date +"%F %T") [START]"
+echo -e "\n$( date +"%F %T" ) [START] Controller started"
 
 time_check () {
-	if [[ "$(date +"%Y")" -eq 1970 ]]; then
+	if [[ "$( date +"%Y" )" -eq 1970 ]]; then
 		[[ -z $HIVE_HOST_URL ]] && HIVE_HOST_URL='http://api.hiveos.farm'
-		echo -e "\n$(date +"%F %T") [INFO] - New date: "
-		date -s "@$(curl -I $HIVE_HOST_URL 2>&1 | grep Date: | cut -d' ' -f3-6 | timetran)"
+		echo -e "\n$( date +"%F %T" ) [INFO] System date is 1970. Get actual date from server: "
+		date -s "@$( curl -I $HIVE_HOST_URL 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
 	fi
 }
 
 mem_clean () {
 	sync && echo 3 > /proc/sys/vm/drop_caches
-	du -h /tmp/* /var/log/ | grep M | awk '{print $2}'
-	du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm
+	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
 }
 
 log_clean () {
 	for file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
-		if [[ -e $file && "$(wc -l $file | cut -d' ' -f1)" -gt 1000 ]]; then
-			echo -e "\n$(date +"%F %T") [INFO] - Clear log: $file"
-			echo "$(tail -n 1000 $file)" > "$file"
+		if [[ -e $file && "$( wc -l $file | cut -d' ' -f1 )" -gt 1000 ]]; then
+			echo -e "\n$( date +"%F %T" ) [INFO] Truncate log: $file"
+			echo "$( tail -n 1000 $file )" > "$file"
 		fi
 	done
 }
 
 mem_check () {
-	free_mem=$(cat /proc/meminfo | grep -i memfree | sed 's/[^0-9]//g')
-	if [[ $free_mem -lt 5000 ]]; then
-		echo -e "\n$(date +"%F %T") [ERROR] - Memory leak!"
-		print_top=$(top -b -n1 | head -n 8)
+	local -r -i low_memory_limit=5000
+	local free_mem="$( cat /proc/meminfo | grep -Fi 'memfree' | sed 's/[^0-9]//g' )"
+
+	if (( free_mem < low_memory_limit )); then
+		echo -e "\n$( date +"%F %T" ) [ERROR] Memory low ($free_mem Mb). Leak detected?"
+		print_top="$( top -b -n1 | head -n 10 )"
 		echo -e "$print_top"
-		echo "$print_top" | message warn "Memory leak! Trying to clean logs" payload
+		echo "$print_top" | message warn "Low memory detected, trying to clean the logs" payload
 		mem_clean
 		log_clean
 	fi
@@ -56,11 +58,11 @@ mem_check () {
 
 version_check () {
 	if ! cmp -s /hive/etc/build /hive-config/build; then
-		vers=$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)
-		vers_old=$(cat /hive/etc/VERSION)"-"$(cat /hive-config/build 2>/dev/null)
+		vers="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2>/dev/null || echo 'release' )"
+		vers_old="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2>/dev/null || echo 'release' )"
 		cp -rf /hive/etc/build /hive-config/build
-		echo -e "\n$(date +"%F %T") [INFO] - Agent updated from ($vers_old) to ($vers)"
-		message info "Agent updated from ($vers_old) to ($vers)"
+		echo -e "\n$( date +"%F %T" ) [INFO] Client updated from $vers_old to $vers"
+		message info "Client: updated from $vers_old to $vers"
 	fi
 }
 
