@@ -505,7 +505,8 @@ fi
 	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< "$conf")
 
 #	echo "$conf" | jq .
-	echo "$conf" | jq . > "$MINER_CONFIG"
+	[ ! -z "$conf" ] && echo "$conf" | jq . > "$MINER_CONFIG"
+	chmod 644 "$MINER_CONFIG"
 
 }
 

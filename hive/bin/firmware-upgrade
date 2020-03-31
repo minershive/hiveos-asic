@@ -65,8 +65,13 @@ sleep 1; /sbin/reboot -f
 }
 
 upgrade_s9() {
-    rm -rf /config/hive/hive
+#    rm -rf /config/hive/hive
     rm -rf /hive
+    for f in /tmp/*; do
+        if [[ -d "$f" && ! -L "$f" ]]; then
+            rm -rf $f
+        fi
+    done
 
     file=/tmp/$$
     mkdir $file
