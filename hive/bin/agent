@@ -325,6 +325,76 @@ miner_stats () {
 			fi
 		;;
 		
+		"Toddminer C1")
+				. /hive/bin/todd_api
+				khs=0
+				stats="null"
+
+				local API_ports=(4049 4050 4052)
+				local algo=$ASIC_ALGO
+				local hs_units=$HASH
+				local uptime=0
+				local total_hs=0
+				local temp1=`expr $(cat /sys/devices/platform/ff140000.i2c/i2c-1/1-0048/hwmon/hwmon0/temp1_input) / 1000`
+				local temp2=`expr $(cat /sys/devices/platform/ff660000.i2c/i2c-2/2-0048/hwmon/hwmon2/temp1_input) / 1000`
+				local temp4=`expr $(cat /sys/devices/platform/ff160000.i2c/i2c-4/4-0048/hwmon/hwmon1/temp1_input) / 1000`
+				local hs=()
+				local temp=( $temp1 $temp2 $temp4 )
+				local fan_rpm=(`cat /sys/todek/fanspeed/fan1` `cat /sys/todek/fanspeed/fan3`)
+				local fan=( "$((${fan_rpm[0]} * 100 / $max_fan_rpm))" "$((${fan_rpm[1]} * 100 / $max_fan_rpm))")
+				local freq=( 500 500 500 )
+				local acn=(30 30 30)
+				local status=( "`todd_get_board_status /home/sm/miner/build/0mlog`" "`todd_get_board_status /home/sm/miner/build/1mlog`" "`todd_get_board_status /home/sm/miner/build/3mlog`" )
+				local power=(460 460 460) # 1380W
+				local hw_errors=()
+				local ac=0
+				local rj=0
+
+				for (( i=0; i < 3; i++ )); do
+					miner_api_port=${API_ports[$i]}
+					stats_raw=`echo "summary" | nc -w $API_TIMEOUT localhost $miner_api_port | awk '{print $1}'`
+					if [[ $? -ne 0  || -z $stats_raw ]]; then
+						acc[$i]=0
+						rej[$i]=0
+						hs[$i]=0
+						temp[$i]=null
+					else
+						hs[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'Gh/s=' | sed -e 's/.*=//'`
+						local hs_tmp=`echo ${hs[$i]} | awk '{ printf "%.0f",$1 }'`
+						if [[ "$hs_tmp" -gt 750 ]]; then # board not mining
+							hs[$i]=0
+							power[$i]=30
+						fi
+						acc[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'ACC=' | sed -e 's/.*=//'`
+						rej[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'REJ=' | sed -e 's/.*=//'`
+
+						uptime_thread=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'UPTIME=' | sed -e 's/.*=//'`
+						[[ $uptime -lt $uptime_thread ]] && uptime=$uptime_thread
+					fi
+
+					ac=`expr $ac + ${acc[$i]}`
+					rj=`expr $rj + ${rej[$i]}`
+					total_hs=`echo $total_hs ${hs[$i]} | awk '{ printf "%.2f",$1+$2 }'`
+				done
+
+				khs=$(awk '{print $1 * 1000000}' <<< "$total_hs")
+				stats=$(jq -nc \
+					--arg algo "$algo" \
+					--argjson hs "`echo ${hs[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--arg hs_units "$hs_units" \
+					--arg ac "$ac" --arg rj "$rj" \
+					--argjson hw_errors "`echo ${rej[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson acn "`echo ${acn[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson freq "`echo ${freq[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson temp "`echo ${temp[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson fan "`echo ${fan[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson fan_rpm "`echo ${fan_rpm[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson power "`echo ${power[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson status "`printf '%s\n' "${status[@]}" | jq -R . | jq -cs '.'`"  \
+					--arg uptime "$uptime" \
+					'{$algo, $hs, $hs_units, ar: ['$ac', '$rj'], $hw_errors, $acn, $freq, $temp, $fan, $fan_rpm, $power, $status, $uptime}')
+				[[ "$khs" -gt 1 ]] && system_status="mining"
+		
 		*)
 			miner="unknown"
 			#MINER=miner
@@ -506,7 +576,7 @@ do_command () {
 		;;
 		exec)
 			exec=$(echo "$body" | jq '.exec' --raw-output)
-			if [[ $ASIC_MODEL == "Zig Z1+" ]]; then
+			if [[ $ASIC_MODEL == "Zig Z1+" ]] || [[ $ASIC_MODEL == "Toddminer C1" ]]; then
 				exectimeout='nohup timeout 360 bash -c'
 			else
 				exectimeout='nohup timeout -t 360 bash -c'

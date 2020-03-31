@@ -1,0 +1,21 @@
+#!/bin/bash
+# Todek 
+
+function todd_get_board_status(){
+    log_file=$1
+    board_data=( `cat ${log_file} | tail -n 100 | grep -m 1 -A 29 "chip 0 hashrate " | awk '{ print $6 }'` )
+    board_status=""
+    for (( i=0; i < 30; i++ )); do
+        chip_hash=${board_data[$i]}
+	if [[ "$chip_hash" -gt 0 ]]; then
+	    chip_status="o"
+	else
+	    chip_status="x"
+	fi
+
+	board_status="`echo $board_status`$chip_status"
+    done
+
+    echo $board_status
+}
+

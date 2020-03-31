@@ -29,7 +29,7 @@ download_url () { #download from github
 	echo "> Downloading $package_file_url"
 	
 	case "$ASIC_MODEL" in
-		'Zig Z1+' | 'Zig Z1')
+		'Zig Z1+' | 'Zig Z1'| 'Toddminer C1' )
 			wget "$package_file_url"
 			;;
 		*)
@@ -320,6 +320,36 @@ install_zig () {
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
+install_todd() {
+    download_url
+    echo ""
+    echo "> Extracting $filename"
+    tar -xzv -f $filename
+
+    cp -rf hiveos-asic-${release_version_to_install}/* /
+    [ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+
+    rm $filename
+
+    sleep 2
+
+    sudo cp -rf /hive/share/zig/crontab.root /etc/cron.d/hive
+    cp -rf /home/root/.profile /etc/profile.d/hive.sh
+    sudo /etc/init.d/cron restart
+    sudo apt update
+    sudo apt install -y curl screen jq dnsutils
+    sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' /hive/bin/selfupgrade
+    export PATH=$PATH:/hive/bin:/hive/sbin
+    export LD_LIBRARY_PATH=/hive/lib
+
+    /hive/bin/hive
+
+    sleep 2
+
+    #$FARM_HASH can be defined externally
+    bash -c "/hive/bin/firstrun $FARM_HASH"
+}
+
 install_antminer_bmminer_ro () {
 	local sleep_counter=0
 	local sleep_interval=5
@@ -384,6 +414,11 @@ get_asic_model () {
 		if [ -s /var/www/html/TYPE ]; then
 			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )"
 		fi
+	fi
+
+	# Todek Toddminer C1
+	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
+		ASIC_MODEL="Toddminer C1"
 	fi
 
 	# final
@@ -724,6 +759,9 @@ execute_install_routine () {
 
 		'Zig Z1+'				|\
 		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig						;;
+
+		# Todek
+		'Toddminer C1')				echo "$ASIC_MODEL"; 			install_todd						;;
 
 		# unknown
 

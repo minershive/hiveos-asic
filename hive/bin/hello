@@ -45,11 +45,16 @@ done
 
 boot_time=$(( `date +%s` - `cat /proc/uptime | awk '{printf "%d", $1}'` ))
 
-ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
+if [[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]]; then
+    ips_json="[\""`ifconfig eth0 | grep 'inet ' | awk '{ print $2 }'`"\"]"
+else
+    ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
+fi
 net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
 
 mb_manufacturer=
 #mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
+[[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]] && mb_manufacturer="Todek" && mb_product="Toddminer C1"
 [[ -e "/usr/bin/compile_time" ]] && mb_product=`sed -n 2p /usr/bin/compile_time`
 [[ -e "/opt/system/bank.conf" ]] && mb_product="ebit"
 [[ -e "/etc/hwrevision" ]] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
@@ -115,6 +120,7 @@ fi
 [[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
 [[ $mb_product == "Zig Z1" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1", "logic_version": "Zig Z1"}'`
 [[ $mb_product == "T4.G19" ]] && asic=`cat /tmp/type| jq -R . | jq -s '{"firmware": .[0], "model": "Innosilicon A5/A8", "logic_version": .[0]}'`
+[[ $mb_product == "Toddminer C1" ]] && asic=`/home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $3}' | jq -R . | jq -s '{"firmware": .[0], "model": "Toddminer C1", "logic_version": .[0]}'`
 
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
 #asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
@@ -122,6 +128,7 @@ fi
 #asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
 asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
 [[ $mb_product =~ "Zig Z1" ]] && asic_chain_count=4
+[[ $mb_product =~ "Toddminer C1" ]] && asic_chain_count=3
 
 
 uid=$(echo "${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g')" | tr '[:upper:]' '[:lower:]')

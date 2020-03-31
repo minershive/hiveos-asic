@@ -51,6 +51,11 @@ get_asic_model () {
 		fi
 	fi
 
+	# Todek
+	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
+		ASIC_MODEL="Toddminer C1"
+	fi
+
 	# final
 	if [ -n "$ASIC_MODEL" ]; then
 		echo "$ASIC_MODEL"
@@ -357,6 +362,16 @@ set_asic_constants() {
 			CONFIG_PATH='/var/www/html/resources/cgminer.config'
 			HASH='mhs'
 			MAX_FAN_RPM='4000'
+			;;
+
+		'Toddminer C1'* )
+			MOUNT=''
+			ASIC_ALGO='eaglesong'
+			THIS_MINER_NAME='cpuminer'
+			LOG_PATH=''
+			CONFIG_PATH='/flask/sysconf/config/config.json'
+			HASH='ghs'
+			MAX_FAN_RPM='7000'
 			;;
 
 		* )

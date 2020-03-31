@@ -5,6 +5,9 @@
 [[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
 readonly separator='·'
 
+if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
+    export PATH=$PATH:/bin:/sbin
+fi
 
 # functions
 
@@ -146,17 +149,28 @@ agent_release_version="$( cat /hive/etc/VERSION 2> /dev/null )"
 agent_build_version="$( cat /hive/etc/build 2> /dev/null )"
 agent_full_version="${agent_release_version:-<not set>}-${agent_build_version:-release}"
 
-mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
-mac="${mac,,}"
 gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
-ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
-netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
-cidr="$( netmask_to_cidr "$netmask" )"
-hostname="$( hostname )"
-nameserver="$( cat /etc/resolv.conf | awk '{ print $2}' )"
+
+if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
+    mac="$( LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"    
+    ip="$( LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
+    netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
+    nameserver="$( cat /etc/resolv.conf | grep -v "^#" | head -n 1 | awk '{ print $2}' )"
+#    ip_w_cidr="$ip"
+else
+    mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"    
+    ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
+    netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
+    nameserver="$( cat /etc/resolv.conf | awk '{ print $2}' )"
+#    ip_w_cidr="$ip $cidr"
+#    netmask_w_cidr="$netmask $cidr"
+fi
 
 ip_w_cidr="$ip $cidr"
 netmask_w_cidr="$netmask $cidr"
+mac="${mac,,}"
+cidr="$( netmask_to_cidr "$netmask" )"
+hostname="$( hostname )"
 
 uptime="$( get_uptime_in_dhm )"
 local_date="$( date '+%F %T %z' )"
@@ -165,9 +179,13 @@ fs_name="$( get_fs_name )"
 
 if [[ -n "$HIVEON_VER" ]]; then
 	fw_version="$( sed -n 3p /usr/bin/compile_ver )"
+elif [[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]]; then
+	fw_version=`/home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $3}'`
 else
 	fw_version="$( sed -n 1p /usr/bin/compile_time )"
 fi
+
+
 
 # print
 pretty_print 'host' hostname / 'uptime' uptime / 'local date' local_date

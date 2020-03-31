@@ -481,6 +481,32 @@ elif [[ $ASIC_MODEL == "Zig Z1" ]]; then
 "lyra2rev2-cutoffenable": false,
 "lyra2rev2-fan-check": true
 }'
+elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
+        config_global='{
+"algo" : "ckb",
+"api-bind":"0.0.0.0:4049",
+"threads" : 1,
+
+"benchmark" : false,
+"debug" : false,
+"protocol": false,
+"show-diff": false,
+"quiet" : false,
+
+"platform":     "asic",
+"chip_start":   0,
+"chip_num":     30,
+"chip_step":0,
+"baud": 115200,
+"uart": "/dev/ttyS0",
+"fbdiv":        102,
+"vid": 0,
+
+"worknamemode": "allip",
+"worknameplace1": "user",
+"worknameplace2": "user",
+"worknameplace3": "user"
+}'
 fi
 
 	#merge user config options into main config
@@ -494,6 +520,16 @@ fi
 	fi
 
 	config_global=$(echo "$config_global" | sed s/\"true\"/true/g | sed s/\"false\"/false/g)
+        if [[ $ASIC_MODEL == "Toddminer C1" ]]; then
+                pools=$(jq -n --argjson g "$config_global" \
+                        --arg url1 "`echo $pools | jq -r '.pools[0].url'`" \
+                        --arg user1 "`echo $pools | jq -r '.pools[0].user'`" \
+                        --arg pass1 "`echo $pools | jq -r '.pools[0].pass'`" \
+                        --arg url2 "`echo $pools | jq -r '.pools[1].url'`" \
+                        --arg user2 "`echo $pools | jq -r '.pools[1].user'`" \
+                        --arg pass2 "`echo $pools | jq -r '.pools[1].pass'`" \
+                        '{url:$url1, user:$user1, pass:$pass1,backup_url:$url2,backup_user:$user2,backup_pass:$pass2}')
+        fi
 	conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$p * $g'`
 
 	#replace tpl values in whole file
