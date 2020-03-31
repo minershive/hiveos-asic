@@ -659,71 +659,71 @@ execute_install_routine () {
 
 		# Antminer, exact match
 
-		'Antminer A3'		|\
-		'Antminer D3'		|\
-		'Antminer DR3'		|\
-		'Antminer L3++'		|\
-		'Antminer S7'		|\
-		'Antminer X3')		echo "$ASIC_MODEL";		install_antminer_cgminer	;;
+		'Antminer A3'			|\
+		'Antminer D3'			|\
+		'Antminer DR3'			|\
+		'Antminer L3++'			|\
+		'Antminer S7'			|\
+		'Antminer X3')			echo "$ASIC_MODEL";				install_antminer_cgminer		;;
 
-		'Antminer E3'		|\
-		'Antminer S9 Hydro'	|\
-		'Antminer S9'		|\
-		'Antminer S9i'		|\
-		'Antminer S9j'		|\
-		'Antminer S11'		|\
-		'Antminer T9'		|\
-		'Minecenter S9')	echo "$ASIC_MODEL";		install_antminer_bmminer	;;
+		'Antminer E3'			|\
+		'Antminer S9 Hydro'		|\
+		'Antminer S9'			|\
+		'Antminer S9i'			|\
+		'Antminer S9j'			|\
+		'Antminer S11'			|\
+		'Antminer T9'			|\
+		'Minecenter S9')		echo "$ASIC_MODEL";				install_antminer_bmminer		;;
 
-		'Antminer S9 SE'	|\
-		'Antminer S9k'		|\
-		'Antminer S15'		|\
-		'Antminer T15'		|\
-		'Antminer X17')		echo "$ASIC_MODEL";		install_antminer_bmminer_ro	;;
+		'Antminer S9 SE'		|\
+		'Antminer S9k'			|\
+		'Antminer S15'			|\
+		'Antminer T15'			|\
+		'Antminer X17')			echo "$ASIC_MODEL";				install_antminer_bmminer_ro		;;
 
-		'Antminer Z9-Mini')	echo "$ASIC_MODEL";		install_antminer_Z9_cgminer	;;
+		'Antminer Z9-Mini')		echo "$ASIC_MODEL";				install_antminer_Z9_cgminer		;;
 
-		'Antminer ')		echo 'Antminer B3';		install_antminer_bmminer	;;
+		'Antminer ')			echo 'Antminer B3';				install_antminer_bmminer		;;
 
 		# Antminer, partial match
 
-		'Antminer D3 Blissz'*)	echo 'Antminer D3 Blissz';	install_antminer_cgminer	;;
-		'Antminer L3+'*)	echo 'Antminer L3+';		install_antminer_cgminer	;;
-		'Antminer S9 (vnish'*)	echo 'Antminer S9 vnish';	install_antminer_bmminer	;;
-		'Antminer S9'*)		echo 'Antminer S9';		install_antminer_bmminer	;;
-		'Antminer S10'*)	echo 'Antminer S10';		install_antminer_bmminer	;;
-		'Antminer S17'*)	echo 'Antminer S17';		install_antminer_bmminer_ro	;;
-		'Antminer T9+'*)	echo 'Antminer T9+';		install_antminer_bmminer	;;
-		'Antminer T9'*)		echo 'Antminer T9';		install_antminer_bmminer	;;
-		'Antminer T17'*)	echo 'Antminer T17';		install_antminer_bmminer_ro	;;
-		'Antminer Z9'*)		echo 'Antminer Z9';		install_antminer_Z9_cgminer	;;
-		'Antminer Z11'*)	echo 'Antminer Z11';		install_antminer_Z9_cgminer	;;
+		'Antminer D3 Blissz'*)	echo 'Antminer D3 Blissz';		install_antminer_cgminer		;;
+		'Antminer L3+'*)		echo 'Antminer L3+';			install_antminer_cgminer		;;
+		'Antminer S9 (vnish'*)	echo 'Antminer S9 vnish';		install_antminer_bmminer		;;
+		'Antminer S9'*)			echo 'Antminer S9';				install_antminer_bmminer		;;
+		'Antminer S10'*)		echo 'Antminer S10';			install_antminer_bmminer		;;
+		'Antminer S17'*)		echo 'Antminer S17';			install_antminer_bmminer_ro		;;
+		'Antminer T9+'*)		echo 'Antminer T9+';			install_antminer_bmminer		;;
+		'Antminer T9'*)			echo 'Antminer T9';				install_antminer_bmminer		;;
+		'Antminer T17'*)		echo 'Antminer T17';			install_antminer_bmminer_ro		;;
+		'Antminer Z9'*)			echo 'Antminer Z9';				install_antminer_Z9_cgminer		;;
+		'Antminer Z11'*)		echo 'Antminer Z11';			install_antminer_Z9_cgminer		;;
 
 		# Innosilicon
 
-		'b29+.g19')		echo 'Innosilicon A9';		install_innosilicon		;;
-		'd9.g19')		echo 'Innosilicon D9';		install_innosilicon		;;
-		's11.g19')		echo 'Innosilicon S11';		install_innosilicon		;;
-		't2th.soc')		echo 'Innosilicon T2Th';	install_innosilicon		;;
-		't2thf.soc')		echo 'Innosilicon T2Thf';	install_innosilicon		;;
-		't2thm.soc')		echo 'Innosilicon T2Thm';	install_innosilicon		;;
-		't2t.soc')		echo 'Innosilicon T2T-24T';	install_innosilicon		;;
-		't2t+.soc')		echo 'Innosilicon T2T+(32T)';	install_innosilicon		;;
-		't2th+.soc')		echo 'Innosilicon T2TH+';	install_innosilicon		;;
-		't2thf+.soc')		echo 'Innosilicon T2THf+';	install_innosilicon		;;
-		't2thl+.soc')		echo 'Innosilicon T2THl+';	install_innosilicon		;;
-		't2ti.soc')		echo 'Innosilicon T2Ti-25T';	install_innosilicon		;;
-		't2ts.soc')		echo 'Innosilicon T2Ts-26T';	install_innosilicon		;;
-		't2tz.soc')		echo 'Innosilicon T2Tz-30T';	install_innosilicon		;;
-		't3.soc')		echo 'Innosilicon T3';		install_innosilicon		;;
-		't3+.soc')		echo 'Innosilicon T3+';		install_innosilicon		;;
-		't3h+.soc')		echo 'Innosilicon T3H+';	install_innosilicon		;;
-		'T4.G19')		echo 'Innosilicon A8';		install_innosilicon_innominer	;;
+		'b29+.g19')				echo 'Innosilicon A9';			install_innosilicon				;;
+		'd9.g19')				echo 'Innosilicon D9';			install_innosilicon				;;
+		's11.g19')				echo 'Innosilicon S11';			install_innosilicon				;;
+		't2th.soc')				echo 'Innosilicon T2Th';		install_innosilicon				;;
+		't2thf.soc')			echo 'Innosilicon T2Thf';		install_innosilicon				;;
+		't2thm.soc')			echo 'Innosilicon T2Thm';		install_innosilicon				;;
+		't2t.soc')				echo 'Innosilicon T2T-24T';		install_innosilicon				;;
+		't2t+.soc')				echo 'Innosilicon T2T+(32T)';	install_innosilicon				;;
+		't2th+.soc')			echo 'Innosilicon T2TH+';		install_innosilicon				;;
+		't2thf+.soc')			echo 'Innosilicon T2THf+';		install_innosilicon				;;
+		't2thl+.soc')			echo 'Innosilicon T2THl+';		install_innosilicon				;;
+		't2ti.soc')				echo 'Innosilicon T2Ti-25T';	install_innosilicon				;;
+		't2ts.soc')				echo 'Innosilicon T2Ts-26T';	install_innosilicon				;;
+		't2tz.soc')				echo 'Innosilicon T2Tz-30T';	install_innosilicon				;;
+		't3.soc')				echo 'Innosilicon T3';			install_innosilicon				;;
+		't3+.soc')				echo 'Innosilicon T3+';			install_innosilicon				;;
+		't3h+.soc')				echo 'Innosilicon T3H+';		install_innosilicon				;;
+		'T4.G19')				echo 'Innosilicon A8';			install_innosilicon_innominer	;;
 
 		# Zig
 
-		'Zig Z1+'		|\
-		'Zig Z1')		echo "$ASIC_MODEL"; 		install_zig;;
+		'Zig Z1+'				|\
+		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig						;;
 
 		# unknown
 
