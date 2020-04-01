@@ -1,244 +1,309 @@
 #!/hive/sbin/bash
 ##!/usr/bin/env ash
+
+
+_die() {
+	local -r message="${1-}"
+	local -r -i exitcode_DEFAULT=1
+	local -r -i exitcode="${2-${exitcode_DEFAULT}}"
+	echo -e "${RED}ERROR:${NOCOLOR} $message"
+	exit "$exitcode"
+}
+
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
 # Sends hello to Hive, receives config files, restarts miner
 
-HELLO_OK="/tmp/.hive-hello-ok"
-[[ -f $HELLO_OK ]] && rm $HELLO_OK
+HELLO_OK_file='/tmp/.hive-hello-ok'
+[[ -f $HELLO_OK_file ]] && rm $HELLO_OK_file
 
-RIG_CONF="/hive-config/rig.conf"
-WALLET_CONF="/hive-config/wallet.conf"
-VPN_INSTALLED="/tmp/.openvpn-installed"
-mkdir -p "/hive-config"
+RIG_CONF='/hive-config/rig.conf'
+WALLET_CONF='/hive-config/wallet.conf'
+VPN_INSTALLED='/tmp/.openvpn-installed'
+mkdir -p /hive-config
 
 [[ -t 1 ]] && . colors
-[[ ! -f $RIG_CONF ]] && echo -e "Config file $RIG_CONF not found" && exit 1
+[[ ! -f $RIG_CONF ]] && _die "Configuration file $RIG_CONF not found"
 
 . "$RIG_CONF"
 . asic-model
 
-[[ -z $FARM_HASH && -z $RIG_ID ]] && echo "Please use FARM_HASH or RIG_ID in config" && exit 1
-[[ ! -z $RIG_ID  && -z $RIG_PASSWD ]] && echo "No RIG_PASSWD in config" && exit 1
-[[ -z $HIVE_HOST_URL ]] && echo "No HIVE_HOST_URL in config" && exit 1
+[[ -z "$FARM_HASH" && -z "$RIG_ID" ]] && _die "Please use FARM_HASH or RIG_ID in $RIG_CONF"
+[[ -n "$RIG_ID" && -z "$RIG_PASSWD" ]] && _die "No RIG_PASSWD in $RIG_CONF"
+[[ -z "$HIVE_HOST_URL" ]] && _die "No HIVE_HOST_URL in $RIG_CONF"
 
 
 
 HIVE_URL="$HIVE_HOST_URL/worker/api"
 
 
-#will need to restart miner after
-arg_restartminer=0
 #send boot flag with hello message
-arg_boot=0
+arg_boot_FLAG=0
 arg_hostname=
+#will need to restart miner after
+arg_restartminer_FLAG=0
 
-#check for arguments
-for var in "$@"; do
-    [[ $var == "restartminer" ]] && arg_restartminer=1
-    [[ $var == "boot" ]] && arg_boot=1
-    [[ $var == "hostname" ]] && arg_hostname=`hostname`
+#parse arguments
+for argument in "$@"; do
+	case "$argument" in
+		'boot'			)	arg_boot_FLAG=1							;;
+		'hostname'		)	arg_hostname="$( hostname )"		;;
+		'restartminer'	) 	arg_restartminer_FLAG=1					;;
+		*				)	echo "Unknown argument '$argument'"	;;
+	esac
 done
 
 # Make hello request ================================================================
 
-boot_time=$(( `date +%s` - `cat /proc/uptime | awk '{printf "%d", $1}'` ))
+# figure out asic model
+# TODO hey, we have $ASIC_MODEL for that!
 
-if [[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]]; then
+mb_manufacturer=
+#mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
+
+if [[ -e /home/sm/miner/build/cpuminer && -e /flask/setHashinJson ]]; then
+	mb_manufacturer='Todek'
+	mb_product='Toddminer C1'
+elif [[ -e /usr/bin/compile_time ]]; then
+	mb_manufacturer='Bitmain'
+	mb_product="$( sed -n 2p /usr/bin/compile_time )"
+elif [[ -e /opt/system/bank.conf ]]; then
+	mb_manufacturer='Ebang'
+	mb_product='ebit'
+elif [[ -e /etc/hwrevision ]]; then
+	mb_manufacturer='Innosilicon'
+	mb_product="$( cut -d' ' -f 2 /etc/hwrevision )"
+elif [[ ! -e /etc/hwrevision && -e /tmp/type ]]; then
+	mb_manufacturer='Innosilicon'
+	mb_product="$( < /tmp/type ).$( < /tmp/hwver )"
+elif [[ -e /var/www/html/src/Template/Layout/signin.twig ]]; then
+	mb_manufacturer='Dayun'
+	mb_product="$( cat /var/www/html/src/Template/Layout/signin.twig | grep -Ese 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g' )"
+fi
+
+# collect system information
+
+boot_POSIX_time=$(( $( date +%s ) - $( cat /proc/uptime | awk '{printf "%d", $1}' ) ))
+
+if [[ "$mb_product" == 'Toddminer C1' ]]; then
     ips_json="[\""`ifconfig eth0 | grep 'inet ' | awk '{ print $2 }'`"\"]"
 else
     ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
 fi
-net_interfaces=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
+net_interfaces_json=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
 
-mb_manufacturer=
-#mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
-[[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]] && mb_manufacturer="Todek" && mb_product="Toddminer C1"
-[[ -e "/usr/bin/compile_time" ]] && mb_product=`sed -n 2p /usr/bin/compile_time`
-[[ -e "/opt/system/bank.conf" ]] && mb_product="ebit"
-[[ -e "/etc/hwrevision" ]] && mb_product=`cut -d\  -f 2 /etc/hwrevision`
-[[ -e "/var/www/html/src/Template/Layout/signin.twig" ]] && mb_product=`cat /var/www/html/src/Template/Layout/signin.twig | grep title | sed 's/<[^>]*>//g' | sed s/\ *//`
-[[ -e "/tmp/type" && ! -e "/etc/hwrevision" ]] && mb_product=`cat /tmp/type`.`cat /tmp/hwver`
+cpu_model="$( grep -m1 '^model name' /proc/cpuinfo | sed 's/model name[ :\t]*//g' )"
+#cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'
+#[[ -n "$cpu_hardware" ]] && cpu_model="$cpu_model ($cpu_hardware)"
+cpu_cores="$( grep -c '^model name' /proc/cpuinfo )"
+aes="$( grep -c '^Features.*aes' /proc/cpuinfo )"
 
-
-cpu_model=`cat /proc/cpuinfo | grep -m1 "^model name" | sed 's/model name[ :\t]*//g'`
-#cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'`
-#[[ ! -z "$cpu_hardware" ]] && cpu_model="$cpu_model ($cpu_hardware)"
-cpu_cores=`cat /proc/cpuinfo | grep "^model name" | wc -l`
-aes=`cat /proc/cpuinfo | grep "^Features .*aes" | wc -l`
-
-if [[ -e /hive/etc/build && -e /hive/etc/VERSION ]]; then
-	kernel=$(uname --kernel-release)" ("$(cat /hive/etc/VERSION)"-"$(cat /hive/etc/build)")"
-else
-	kernel=`uname --kernel-release`
+kernel="$( uname --kernel-release )"
+if [[ -s /hive/etc/VERSION && -s /hive/etc/build ]]; then
+	# add build version to kernel info
+	kernel+=" ($( < /hive/etc/VERSION )-$( < /hive/etc/build ))"
+fi
+if [[ -s /etc/bitmain-pub.pem ]]; then
+	# add signed status to kernel info
+	kernel+=' signed'
 fi
 
-hive_version=`cat /hive/etc/VERSION`
+hive_version="$( < /hive/etc/VERSION )"
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
-[[ -e "/usr/bin/compile_ver" && -e "/var/log/log" ]] && MODELH=$(cat /var/log/log | grep "Project type" | awk -F\:\  '{print $NF}')
-if [ -e "/usr/bin/compile_ver" ] && $(cat /usr/bin/compile_ver | grep -q "TEST"); then
+[[ -e /usr/bin/compile_ver && -e /var/log/log ]] && MODELH="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
+if [[ -e /usr/bin/compile_ver ]] && $( grep -q 'TEST' /usr/bin/compile_ver ); then
     rm /hive-config/model > /dev/null 2>&1
     MODELH=''
 fi
-if [[ ! -z $MODELH ]]; then
+if [[ -n "$MODELH" ]]; then
 	if [[ ! -e /hive-config/model ]]; then
 		echo "$MODELH" > /hive-config/model
 	else
-		if [[ $MODELH != "$(cat /hive-config/model)" ]]; then
+		if [[ "$MODELH" != "$( < /hive-config/model )" ]]; then
 			echo "$MODELH" > /hive-config/model
 		fi
 	fi
 fi
 
-[[ -e /hive-config/model ]] && MODELH=$(cat /hive-config/model)
-[[ ! -z $MODELH ]] && sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
-[[ ! -z $MODELH ]] && sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
-
-
-[[ -e "/usr/bin/compile_time" ]] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
-[[ -e "/usr/bin/compile_ver" ]] && asic=`cat /usr/bin/compile_ver | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'`
-[[ $mb_product =~ "Antminer D3 Blissz" ]] && asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
-[[ $mb_product == "b29+.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon A9", "logic_version": .[0]}'`
-[[ $mb_product == "d9.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'`
-[[ $mb_product == "s11.g19" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'`
-[[ $mb_product == "t3.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3", "logic_version": .[0]}'`
-[[ $mb_product == "t3+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3+", "logic_version": .[0]}'`
-[[ $mb_product == "t2thm.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Thm", "logic_version": .[0]}'`
-[[ $mb_product == "t2thf.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Th", "logic_version": .[0]}'`
-[[ $mb_product == "t2th.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Thf", "logic_version": .[0]}'`
-[[ $mb_product == "t2tz.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Tz-30T", "logic_version": .[0]}'`
-[[ $mb_product == "t2th+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2TH+", "logic_version": .[0]}'`
-[[ $mb_product == "t2t.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2T-24T", "logic_version": .[0]}'`
-[[ $mb_product == "t2thf.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2THf+", "logic_version": .[0]}'`
-[[ $mb_product == "t2t+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2T+(32T)", "logic_version": .[0]}'`
-[[ $mb_product == "t2thl+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2THl+", "logic_version": .[0]}'`
-[[ $mb_product == "t2ts.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Ts-26T", "logic_version": .[0]}'`
-[[ $mb_product == "t2ti.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T2Ti-25T", "logic_version": .[0]}'`
-[[ $mb_product == "t3h+.soc" ]] && asic=`cat /etc/hwrevision | jq -R . | jq -s '{"firmware": .[1], "model": "Innosilicon T3H+", "logic_version": .[0]}'`
-[[ $mb_product == "Zig Z1+" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'`
-[[ $mb_product == "Zig Z1" ]] && asic=`cat /var/www/html/VERSION | jq -R . | jq -s '{"firmware": .[0], "model": "Zig Z1", "logic_version": "Zig Z1"}'`
-[[ $mb_product == "T4.G19" ]] && asic=`cat /tmp/type| jq -R . | jq -s '{"firmware": .[0], "model": "Innosilicon A5/A8", "logic_version": .[0]}'`
-[[ $mb_product == "Toddminer C1" ]] && asic=`/home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $3}' | jq -R . | jq -s '{"firmware": .[0], "model": "Toddminer C1", "logic_version": .[0]}'`
-
-#asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
-#asic=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
-
-#asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
-asic_chain_count=`ls -lLtr /dev/fd/ | grep rw | wc -l`
-[[ $mb_product =~ "Zig Z1" ]] && asic_chain_count=4
-[[ $mb_product =~ "Toddminer C1" ]] && asic_chain_count=3
-
-
-uid=$(echo "${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g')" | tr '[:upper:]' '[:lower:]')
-if which sha1sum > /dev/null; then
-	uid=$(echo "$uid" | sha1sum | awk '{print $1}')
-elif which md5sum > /dev/null; then
-	uid=$(echo "$uid" | md5sum | awk '{print $1}')
+[[ -e /hive-config/model ]] && MODELH="$( < /hive-config/model)"
+if [[ -n "$MODELH" ]]; then
+	sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
+	sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
 fi
 
-if [[ ! -z $FANS_COUNT_DEFAULT ]]; then
+
+#asic_json=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'`
+#asic_json=`cat /usr/bin/compile_time | jq -R . | jq -s '{"firmware": .[0], "model": .[1]}'`
+
+#asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g`
+asic_chain_count="$( ls -lLtr /dev/fd/ | grep -Fc 'rw' )"
+
+[[ -s /usr/bin/compile_time ]] &&
+		asic_json="$( cat /usr/bin/compile_time	| jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'					)"
+[[ -s /usr/bin/compile_ver ]] &&
+		asic_json="$( cat /usr/bin/compile_ver	| jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": .[2]}'					)"
+
+case "$mb_product" in
+	'Antminer D3 Blissz'*)
+		asic_json="$( cat /usr/bin/compile_time	| jq -R . | jq -s '{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'				)";;
+	'b29+.g19')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon A9", "logic_version": .[0]}'		)";;
+	'd9.g19')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon D9", "logic_version": .[0]}'		)";;
+	's11.g19')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon S11", "logic_version": .[0]}'		)";;
+	't3.soc' )
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T3", "logic_version": .[0]}'		)";;
+	't3+.soc' )
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T3+", "logic_version": .[0]}'		)";;
+	't2thm.soc' 			)
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2Thm", "logic_version": .[0]}'		)";;
+	't2thf.soc' 			)
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2Th", "logic_version": .[0]}'		)";;
+	't2th.soc' )
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2Thf", "logic_version": .[0]}'		)";;
+	't2tz.soc' )
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2Tz-30T", "logic_version": .[0]}'	)";;
+	't2th+.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2TH+", "logic_version": .[0]}'		)";;
+	't2t.soc' )
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2T-24T", "logic_version": .[0]}'	)";;
+	't2thf.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2THf+", "logic_version": .[0]}'	)";;
+	't2t+.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2T+(32T)", "logic_version": .[0]}'	)";;
+	't2thl+.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2THl+", "logic_version": .[0]}'	)";;
+	't2ts.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2Ts-26T", "logic_version": .[0]}'	)";;
+	't2ti.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T2Ti-25T", "logic_version": .[0]}'	)";;
+	't3h+.soc')
+		asic_json="$( cat /etc/hwrevision		| jq -R . |	jq -s '{"firmware": .[1], "model": "Innosilicon T3H+", "logic_version": .[0]}'		)";;
+	'Zig Z1+')
+		asic_json="$( cat /var/www/html/VERSION	| jq -R . |	jq -s '{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'			)";;
+	'Zig Z1')
+		asic_chain_count=4
+		asic_json="$( cat /var/www/html/VERSION	| jq -R . |	jq -s '{"firmware": .[0], "model": "Zig Z1", "logic_version": "Zig Z1"}'			)";;
+	'T4.G19')
+		asic_json="$( cat /tmp/type				| jq -R . |	jq -s '{"firmware": .[0], "model": "Innosilicon A5/A8", "logic_version": .[0]}'		)";;
+	'Toddminer C1')
+		asic_chain_count=3
+		asic_json="$( /home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $3}' |
+												  jq -R . | jq -s '{"firmware": .[0], "model": "Toddminer C1", "logic_version": .[0]}'			)";;
+esac
+
+
+uid="$( echo "${mb_product}-$(cat /sys/class/net/eth0/address | sed 's/://g')" | tr '[:upper:]' '[:lower:]' )"
+if which sha1sum > /dev/null; then
+	uid="$( echo "$uid" | sha1sum | awk '{print $1}' )"
+elif which md5sum > /dev/null; then
+	uid="$( echo "$uid" | md5sum | awk '{print $1}' )"
+fi
+
+if [[ -n $FANS_COUNT_DEFAULT ]]; then
 	fans_count="$FANS_COUNT_DEFAULT"
 else
 	fans_count=2
 fi
 
-request=$(
+request_json="$(
 jq -n \
---arg uid "$uid" \
---arg rig_id "$RIG_ID" \
---arg passwd "$RIG_PASSWD" \
---arg farm_hash "$FARM_HASH" \
---arg boot_time "$boot_time" \
---arg boot_event "$arg_boot" \
---argjson ip "$ips_json" \
---argjson net_interfaces "$net_interfaces" \
---arg model "$cpu_model" --arg cores "$cpu_cores" --arg aes "$aes" \
---arg manufacturer "$mb_manufacturer" --arg product "$mb_product" \
---argjson asic "$asic" \
---arg asic_chain_count "$asic_chain_count" \
---arg kernel "$kernel" \
---arg version "$hive_version" \
---arg fans_count "$fans_count" \
-'{
-	"method": "hello", "jsonrpc": "2.0", "id": 0,
-	"params": {
-		$rig_id, $passwd, $farm_hash, $uid,
-		$boot_time, $boot_event, $ip, $net_interfaces,
-		"mb": {$manufacturer, $product},
-		"cpu": {$model, $cores, $aes},
-		$asic, $asic_chain_count,
-		$kernel, $version, $fans_count
-	}
-}'
-)
+	--arg uid "$uid" \
+	--arg rig_id "$RIG_ID" \
+	--arg passwd "$RIG_PASSWD" \
+	--arg farm_hash "$FARM_HASH" \
+	--arg boot_time "$boot_POSIX_time" \
+	--arg boot_event "$arg_boot_FLAG" \
+	--argjson ip "$ips_json" \
+	--argjson net_interfaces "$net_interfaces_json" \
+	--arg model "$cpu_model" --arg cores "$cpu_cores" --arg aes "$aes" \
+	--arg manufacturer "$mb_manufacturer" --arg product "$mb_product" \
+	--argjson asic "$asic_json" \
+	--arg asic_chain_count "$asic_chain_count" \
+	--arg kernel "$kernel" \
+	--arg version "$hive_version" \
+	--arg fans_count "$fans_count" \
+	'{
+		"method": "hello", "jsonrpc": "2.0", "id": 0,
+		"params": {
+			$rig_id, $passwd, $farm_hash, $uid,
+			$boot_time, $boot_event, $ip, $net_interfaces,
+			"mb": {$manufacturer, $product},
+			"cpu": {$model, $cores, $aes},
+			$asic, $asic_chain_count,
+			$kernel, $version, $fans_count
+		}
+	}'
+)"
 
-if [[ -e /config/HIVE_WORKER_NAME ]]; then
-	arg_hostname=$(cat /config/HIVE_WORKER_NAME)
+if [[ -s /config/HIVE_WORKER_NAME ]]; then
+	arg_hostname="$( < /config/HIVE_WORKER_NAME )"
 	rm /config/HIVE_WORKER_NAME
 fi
 
-if [[ ! -z $arg_hostname ]]; then
-	request=`echo "$request" | jq --arg worker_name "$arg_hostname" '. * {"params": {$worker_name}}'`
+if [[ -n "$arg_hostname" ]]; then
+	request_json="$( echo "$request_json" | jq --arg worker_name "$arg_hostname" '. * {"params": {$worker_name}}' )"
 fi
 
-echo "$request" | jq -c '.'
+echo "$request_json" | jq -c '.'
 
-response=$(echo "$request" | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
+response_json=$(echo "$request_json" | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
 exitcode=$?
-[[ $exitcode -ne 0 ]] &&
-	echo -e "${RED}Error connecting to Hive server${NOCOLOR} $HIVE_HOST_URL" &&
-	human-curl-error $exitcode &&
-	exit $exitcode #404 is not a bad exit code
+if (( exitcode != 0 )); then
+	_die "Error connecting to server $HIVE_HOST_URL\n$( human-curl-error $exitcode )" "$exitcode" #404 is not a bad exit code
+fi
 
 #output and check json
-echo "$response" | jq '.'
+echo "$response_json" | jq '.'
+exitcode=$?
 
-[[ $? -ne 0 ]] && echo -e "${RED}Error parsing JSON response:${NOCOLOR} $response" && exit $? #error json parsing
+if (( exitcode != 0 )); then
+	_die "Error parsing JSON response:\n${response_json}" "$exitcode"
+fi
 
-error=$(echo "$response" | jq '.error' --raw-output)
-[[ ! -z "$error" && "$error" != "null" ]] && echo -e "${RED}ERROR:${NOCOLOR} $( echo "$response" | jq '.error.message' -r )" && exit 1
-
-
-
+error="$( echo "$response_json" | jq '.error' --raw-output) )"
+if [[ -n "$error" && "$error" != "null" ]]; then
+	_die "$( echo "$response_json" | jq '.error.message' -r )"
+fi
 
 
 # Save config and check it ================================================================
-config=$(echo "$response" | jq '.result.config' --raw-output)
-[[ -z "$config" || "$config" == "null" ]] &&
-	echo "Response body: $response" &&
-	echo -e "${RED}ERROR:${NOCOLOR} no config field in response" &&
-	exit 1
+config="$( echo "$response_json" | jq '.result.config' --raw-output )"
+if [[ -z "$config" || "$config" == "null" ]]; then
+	_die "No config field in response:\n${response_json}"
+fi
+
 echo "$config" > "$RIG_CONF"
 . "$RIG_CONF"
 #hostname-check
 
-[[ ! -z $TIMEZONE ]] && export TZ="$TIMEZONE"
+[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
 
 
 # Timezone ================================================================
-#[[ ! -z $TIMEZONE ]] &&
+#[[ -n $TIMEZONE ]] &&
 #	timedatectl set-timezone "$TIMEZONE"
 
 
 # Wallet config ================================================================
-wallet=$(echo "$response" | jq '.result.wallet' --raw-output)
-if [[ ! -z $wallet && $wallet != "null" ]]; then
+wallet="$( echo "$response_json" | jq '.result.wallet' --raw-output )"
+if [[ -n "$wallet" && $wallet != "null" ]]; then
 	echo "$wallet" > "$WALLET_CONF"
 fi
 
 
 # Post actions =================================================================
 #restartminer - restart miner on success
-if [[ $arg_restartminer -eq 1 ]]; then
+if (( arg_restartminer_FLAG )); then
 	/hive/bin/miner restart
-#	[[ $WD_ENABLED -eq 1 ]] &&
-#		wd restart
+	#[[ $WD_ENABLED -eq 1 ]] && wd restart
 fi
 
-echo "Touching $HELLO_OK"
-touch $HELLO_OK
+echo "Touching $HELLO_OK_file"
+touch "$HELLO_OK_file"
 
 
 #Flush buffers if any files changed
