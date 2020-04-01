@@ -2,7 +2,8 @@
 
 
 readonly script_mission='Client for ASICs: Check for known viruses'
-readonly script_version='0.2'
+readonly script_version='0.3'
+readonly script_basename="$( basename "$0" )"
 
 
 #
@@ -21,6 +22,7 @@ readonly label_format='-18.18'
 # vars
 
 declare -i is_virus_found=0
+declare -i is_silent=0
 
 
 # functions
@@ -30,7 +32,17 @@ print_script_version() {
 	echo
 }
 
+print_script_usage() {
+	echo -e "Usage: ${CYAN-}${script_basename} [-s|--silent]${NOCOLOR-}"
+	echo
+	echo -e "	${WHITE-}-s${NOCOLOR-}, ${WHITE-}--silent${NOCOLOR-}"
+	echo -e "		prints nothing, returns exit code"
+	echo
+}
+
 pretty_print() {
+	(( is_silent )) && return
+
 	local -r label_text="${1:-<empty>}"
 	local -r message_color="${2:-<empty>}"
 	local -r message_text="${3:-<empty>}"
@@ -39,7 +51,7 @@ pretty_print() {
 }
 
 check_ntpd_size() {
-	local -r label_text="ntpd size check"
+	local -r label_text='ntpd size check'
 	local -r ntpd_file='/usr/bin/ntpd'
 	local -i ntpd_size=0
 
@@ -47,9 +59,9 @@ check_ntpd_size() {
 		ntpd_size="$( stat -c '%s' "$ntpd_file" )"
 		#if cksum /usr/bin/ntpd  | grep -q '892955227 358832 /usr/bin/ntpd'; then # T9+
 		if (( ntpd_size < 500000 )); then
-			pretty_print "$label_text" "${GREEN}" "ok ($ntpd_size)"
+			pretty_print "$label_text" "${GREEN}" "ok (size $ntpd_size less than 0.5 Mb)"
 		else
-			pretty_print "$label_text" "${BRED}" "greater than 0.5 Mb ($ntpd_size)!"
+			pretty_print "$label_text" "${BRED}" "very suspicious! (size $ntpd_size greater than 0.5 Mb)"
 			is_virus_found=1
 		fi
 	else
@@ -60,7 +72,7 @@ check_ntpd_size() {
 check_nightswitcher() {
 	local -r label_text='Nightswitcher'
 
-	if [[ -e '/config/bNminer.conf' ]]; then
+	if [[ -e /config/bNminer.conf ]]; then
 		pretty_print "$label_text" "${BRED}" 'found'
 		is_virus_found=1
 	else
@@ -71,17 +83,17 @@ check_nightswitcher() {
 check_antbuild() {
 	local -r label_text='Antbuild'
 
-	if [[ -e '/etc/ld.so.preload' || -e '/usr/bin/build' || -e '/usr/bin/egrep' ]]; then
+	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
 		# old1
 		pretty_print "$label_text" "${BRED}" "v2 (uncured) found"
 		is_virus_found=1
 	else
-		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
+		if [[ -s /lib/modules/bitmain_axi.ko ]] && { cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; }; then
 			# old2
 			pretty_print "$label_text" "${BRED}" "v1 (cured) found"
 			is_virus_found=1
 		else
-			if uname -r | grep -q 'g16220c3'; then
+			if { uname -r | grep -q 'g16220c3'; }; then
 				# new
 				pretty_print "$label_text" "${BRED}" "v2 found"
 				is_virus_found=1
@@ -104,7 +116,9 @@ check_shady_files() {
 		fi
 	done
 
-	if (( ! shady_counter )); then
+	if (( shady_counter )); then
+		is_virus_found=1
+	else
 		pretty_print "$label_text" "${GREEN}" "none found"
 	fi
 }
@@ -124,13 +138,25 @@ bottom_line() {
 
 # code
 
-print_script_version
+case "${1-}" in
+	'-s' | '--silent')
+		is_silent=1
+		;;
+	'')
+		print_script_version
+		;;
+	'-h' | '--help' | *)
+		print_script_version
+		print_script_usage
+		exit 0
+		;;
+esac
 
 check_ntpd_size
 check_nightswitcher
 check_antbuild
 check_shady_files
 
-bottom_line
+(( ! is_silent )) && bottom_line
 
 exit $(( is_virus_found ))
