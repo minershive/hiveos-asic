@@ -43,7 +43,7 @@ netmask_to_cidr() {
 		(( cidr += x % 2, x >>= 1 ))
 	done
 
-	echo "/$cidr"
+	echo "$cidr"
 }
 
 get_uptime_in_dhm() {
@@ -156,21 +156,18 @@ if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
     ip="$( LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
     netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
     nameserver="$( cat /etc/resolv.conf | grep -v "^#" | head -n 1 | awk '{ print $2}' )"
-#    ip_w_cidr="$ip"
 else
     mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"    
     ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
     netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
-    nameserver="$( cat /etc/resolv.conf | awk '{ print $2}' )"
-#    ip_w_cidr="$ip $cidr"
-#    netmask_w_cidr="$netmask $cidr"
+    nameserver="$( grep -qF 'nameserver' /etc/resolv.conf && grep -F 'nameserver' /etc/resolv.conf | awk '{ print $2}' || awk '{ print $2}' )"
 fi
 
-ip_w_cidr="$ip $cidr"
-netmask_w_cidr="$netmask $cidr"
+hostname="$( hostname )"
+
 mac="${mac,,}"
 cidr="$( netmask_to_cidr "$netmask" )"
-hostname="$( hostname )"
+ip_w_cidr="${ip} /${cidr}"
 
 uptime="$( get_uptime_in_dhm )"
 local_date="$( date '+%F %T %z' )"
