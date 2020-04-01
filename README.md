@@ -70,6 +70,8 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |S11 SiaMaster|•|•|•|•|
 |T3 BTCMiner|•|•|•|•|
 |T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T|•|•|•|•|
+**Todek**
+|Toddminer C1|•|•|•|•|
 **Zig**
 |Z1, Z1+|•|•|•|•|
 
@@ -99,6 +101,8 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
   - S11 SiaMaster
   - T3 BTCMiner
   - T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T
+- Todek
+  - Toddminer C1
 - Zig
   - Z1, Z1+
 
@@ -276,6 +280,21 @@ inno-reboot miner enable/disable
 inno-reboot asic enable/disable
 inno-reboot status
 ```
+
+
+### Todek Toddminer C1
+
+```sh
+sudo su -
+cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade
+```
+or
+```sh
+sudo su -
+cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=replace_with_your_farm_hash bash selfupgrade
+```
+
+&nbsp;
 
 ### Zig Z1+
 [Hive OS Client Installation Manual for Zig Z1+](hive/share/zig/README.md)
