@@ -253,7 +253,7 @@ echo "$request_json" | jq -c '.'
 response_json=$(echo "$request_json" | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" -H "Content-Type: application/json")
 exitcode=$?
 if (( exitcode != 0 )); then
-	_die "Error connecting to server $HIVE_HOST_URL\n$( human-curl-error $exitcode )" "$exitcode" #404 is not a bad exit code
+	_die "Error connecting to server ${HIVE_HOST_URL}\n$( human-curl-error "$exitcode" )" "$exitcode" #404 is not a bad exit code
 fi
 
 #output and check json
@@ -264,15 +264,15 @@ if (( exitcode != 0 )); then
 	_die "Error parsing JSON response:\n${response_json}" "$exitcode"
 fi
 
-error="$( echo "$response_json" | jq '.error' --raw-output) )"
-if [[ -n "$error" && "$error" != "null" ]]; then
+error="$( echo "$response_json" | jq '.error' --raw-output )"
+if [[ -n "$error" && "$error" != 'null' ]]; then
 	_die "$( echo "$response_json" | jq '.error.message' -r )"
 fi
 
 
 # Save config and check it ================================================================
 config="$( echo "$response_json" | jq '.result.config' --raw-output )"
-if [[ -z "$config" || "$config" == "null" ]]; then
+if [[ -z "$config" || "$config" == 'null' ]]; then
 	_die "No config field in response:\n${response_json}"
 fi
 
@@ -290,7 +290,7 @@ echo "$config" > "$RIG_CONF"
 
 # Wallet config ================================================================
 wallet="$( echo "$response_json" | jq '.result.wallet' --raw-output )"
-if [[ -n "$wallet" && $wallet != "null" ]]; then
+if [[ -n "$wallet" && $wallet != 'null' ]]; then
 	echo "$wallet" > "$WALLET_CONF"
 fi
 
