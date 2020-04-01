@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known viruses'
-readonly script_version='0.3'
+readonly script_version='0.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -40,6 +40,25 @@ print_script_usage() {
 	echo
 }
 
+portable_file_size_in_bytes() {
+	# not used atm
+	local -r input_file="${1-}"
+	local -i file_size=0
+	local -i exitcode=0
+
+	if which stat > /dev/null; then
+		file_size="$( stat -c '%s' "$input_file" )"
+		exitcode=$?
+	else
+		file_size="$( ls -l "$input_file" | awk '{print $5}' )"
+		exitcode=$?
+	fi
+
+	echo "$file_size"
+
+	return "$exitcode"
+}
+
 pretty_print() {
 	(( is_silent )) && return
 
@@ -59,9 +78,9 @@ check_ntpd_size() {
 		ntpd_size="$( stat -c '%s' "$ntpd_file" )"
 		#if cksum /usr/bin/ntpd  | grep -q '892955227 358832 /usr/bin/ntpd'; then # T9+
 		if (( ntpd_size < 500000 )); then
-			pretty_print "$label_text" "${GREEN}" "ok (size $ntpd_size less than 0.5 Mb)"
+			pretty_print "$label_text" "${GREEN}" "looks ok, size $ntpd_size less than 0.5 Mb"
 		else
-			pretty_print "$label_text" "${BRED}" "very suspicious! (size $ntpd_size greater than 0.5 Mb)"
+			pretty_print "$label_text" "${BRED}" "very suspicious! size $ntpd_size greater than 0.5 Mb"
 			is_virus_found=1
 		fi
 	else
@@ -80,7 +99,7 @@ check_nightswitcher() {
 	fi
 }
 
-check_antbuild() {
+check_antbuild_old() {
 	local -r label_text='Antbuild'
 
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
@@ -88,10 +107,10 @@ check_antbuild() {
 		pretty_print "$label_text" "${BRED}" "v2 (uncured) found"
 		is_virus_found=1
 	else
-		if [[ -s /lib/modules/bitmain_axi.ko ]] && { cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; }; then
-			# old2
-			pretty_print "$label_text" "${BRED}" "v1 (cured) found"
-			is_virus_found=1
+		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
+				# old2
+				pretty_print "$label_text" "${BRED}" "v1 (cured) found"
+				is_virus_found=1
 		else
 			if { uname -r | grep -q 'g16220c3'; }; then
 				# new
@@ -101,6 +120,34 @@ check_antbuild() {
 				pretty_print "$label_text" "${GREEN}" "none found"
 			fi
 		fi
+	fi
+}
+
+check_antbuild() {
+	local -r label_text='Antbuild'
+
+	# old1
+	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
+		pretty_print "$label_text" "${BRED}" "v2 (uncured) found"
+		is_virus_found=1
+	fi
+
+	# old2
+	if { which cksum > /dev/null; }; then
+		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
+			pretty_print "$label_text" "${BRED}" "v1 (cured) found"
+			is_virus_found=1
+		fi
+	fi
+
+	# new
+	if { uname -r | grep -q 'g16220c3'; }; then
+		pretty_print "$label_text" "${BRED}" "v2 found"
+		is_virus_found=1
+	fi
+
+	if (( ! is_virus_found )); then
+		pretty_print "$label_text" "${GREEN}" "none found"
 	fi
 }
 
@@ -133,6 +180,10 @@ bottom_line() {
 	fi
 
 	echo
+
+	echo 'Checksums:'
+	md5sum /usr/bin/ntpd
+	md5sum /lib/modules/bitmain_axi.ko
 }
 
 
