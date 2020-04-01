@@ -394,6 +394,7 @@ miner_stats () {
 					--arg uptime "$uptime" \
 					'{$algo, $hs, $hs_units, ar: ['$ac', '$rj'], $hw_errors, $acn, $freq, $temp, $fan, $fan_rpm, $power, $status, $uptime}')
 				[[ "$khs" -gt 1 ]] && system_status="mining"
+		;;
 		
 		*)
 			miner="unknown"

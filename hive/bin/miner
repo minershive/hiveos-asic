@@ -119,8 +119,8 @@ function stop() {
 			pidof miner | xargs kill -9
 		elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 			killall innominer_T4
-#		elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
-#			/home/sm/miner/build/miner.sh &
+		elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
+			echo "Miner stop not implemented yet"
 		else
 			/etc/init.d/$THIS_MINER_NAME.sh stop
 		fi
