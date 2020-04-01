@@ -1,5 +1,132 @@
 #!/hive/sbin/bash
 
+
+#
+# !!! bash strict mode, no unbound variables
+#
+
+set -o nounset
+
+
+# functions
+
+print_log_entry () {
+	# print_log_entry 'log_level' 'log_message'
+	local log_level="${1-<undefined>}"
+	local log_message="${2-<undefined>}"
+
+	printf '%(%F %T)T %-9.9s %b\n' -1 "[${log_level^^}]" "$log_message"
+}
+
+drop_caches () {
+	sync && echo 3 > /proc/sys/vm/drop_caches
+}
+
+wipe_memory () {
+	drop_caches
+	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
+}
+
+truncate_logs () {
+	local file=''
+
+	for file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
+		if [[ -e $file && "$( wc -l "$file" | cut -d' ' -f1 )" -gt 1000 ]]; then
+			print_log_entry 'info' "Truncate log: $file"
+			echo "$( tail -n 1000 "$file" )" > "$file"
+		fi
+	done
+}
+
+check_for_1970_year () {
+	local -i -r current_year="$( date +"%Y" )"
+	local -i date_from_server=0
+
+	if (( current_year == 1970 )); then
+		if [[ -z ${HIVE_HOST_URL-} ]]; then
+			HIVE_HOST_URL='http://api.hiveos.farm'
+		fi
+		date_from_server="$( curl -I "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
+		print_log_entry 'info' "System date is 1970. Get actual date from server: $( date -s "@$date_from_server" )"
+	fi
+}
+
+check_for_free_memory () {
+	local -r -i low_memory_limit=5000
+	local -r -i top_lines_count=10
+	local free_memory="$( cat /proc/meminfo | grep -Fi 'memfree' | sed 's/[^0-9]//g' )"
+	local print_top=''
+
+	if (( free_memory < low_memory_limit )); then
+		print_log_entry 'warning' "Memory low: $free_memory Mb"
+		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
+		echo -e "$print_top" | tee >( message warn "Low memory detected, trying to clean the logs" payload )
+
+		wipe_memory
+		truncate_logs
+	fi
+}
+
+check_for_updated_build_version () {
+	local new_build_version=''
+	local previous_build_version=''
+
+	if ! cmp -s /hive/etc/build /hive-config/build; then
+		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
+		previous_build_version="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2> /dev/null || echo 'release' )"
+		cp -rf /hive/etc/build /hive-config/build
+
+		print_log_entry 'info' "Client updated from $previous_build_version to $new_build_version"
+		message ok "Client: updated from $previous_build_version to $new_build_version"
+	fi
+}
+
+check_for_virii () {
+	local virus_report=''
+	local -i is_virus_found=0
+
+	virus_report="$(( virus-check ))"
+	is_virus_found=$?
+
+	if (( is_virus_found )); then
+		print_log_entry 'warning' 'Virus found!'
+		if (( ! message_about_virus_was_sent )); then
+			echo -e "$virus_report" | tee >( message err 'Virus found!' payload )
+			if (( assign_tag_to_worker )); then
+				message tag 'virus found'
+			fi
+			message_about_virus_was_sent=1
+		fi
+	fi
+}
+
+
+# consts
+
+declare -i -r assign_tag_to_worker=1
+
+
+# vars
+
+declare -i minute_counter=0
+declare -i message_about_virus_was_sent=0
+declare check_function=''
+
+
+# sources
+
+[[ -s /hive/bin/asic-model ]] && source asic-model
+[[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
+
+
+# exports
+
+export PATH=$PATH:/hive/bin:/hive/sbin
+export LD_LIBRARY_PATH=/hive/lib
+
+
+# code
+
 #TODO:
 #logs problem
 #watchdog alert
@@ -8,73 +135,18 @@
 #wd
 #check read only nvdata and config
 
-export PATH=$PATH:/hive/bin:/hive/sbin
-export LD_LIBRARY_PATH=/hive/lib
+print_log_entry 'start' 'Controller started'
 
-#. colors
-. asic-model
-
-if [[ -e /hive-config/rig.conf ]]; then
-	. /hive-config/rig.conf
-fi
-
-echo -e "\n$( date +"%F %T" ) [START] Controller started"
-
-time_check () {
-	if [[ "$( date +"%Y" )" -eq 1970 ]]; then
-		[[ -z $HIVE_HOST_URL ]] && HIVE_HOST_URL='http://api.hiveos.farm'
-		echo -e -n "\n$( date +"%F %T" ) [INFO] System date is 1970. Get actual date from server: "
-		date -s "@$( curl -I $HIVE_HOST_URL 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
-	fi
-}
-
-mem_clean () {
-	sync && echo 3 > /proc/sys/vm/drop_caches
-	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
-}
-
-log_clean () {
-	for file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
-		if [[ -e $file && "$( wc -l $file | cut -d' ' -f1 )" -gt 1000 ]]; then
-			echo -e "\n$( date +"%F %T" ) [INFO] Truncate log: $file"
-			echo "$( tail -n 1000 $file )" > "$file"
-		fi
-	done
-}
-
-mem_check () {
-	local -r -i low_memory_limit=5000
-	local free_mem="$( cat /proc/meminfo | grep -Fi 'memfree' | sed 's/[^0-9]//g' )"
-
-	if (( free_mem < low_memory_limit )); then
-		echo -e "\n$( date +"%F %T" ) [ERROR] Memory low ($free_mem Mb). Leak detected?"
-		print_top="$( top -b -n1 | head -n 10 )"
-		echo -e "$print_top"
-		echo "$print_top" | message warn "Low memory detected, trying to clean the logs" payload
-		mem_clean
-		log_clean
-	fi
-}
-
-version_check () {
-	if ! cmp -s /hive/etc/build /hive-config/build; then
-		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
-		previous_build_version="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2> /dev/null || echo 'release' )"
-		cp -rf /hive/etc/build /hive-config/build
-		echo -e "\n$( date +"%F %T" ) [INFO] Client updated from $previous_build_version to $new_build_version"
-		message ok "Client: updated from $previous_build_version to $new_build_version"
-	fi
-}
-
-count=0
 while true; do
-	time_check #check and sync date
-	mem_check #free mem and log rotation
-	version_check #check dev build after upgrade client
+	# execute check_for_* functions in alphabetical order
+	for check_function in $( compgen -A function 'check_for_' | sort ); do
+		"$check_function"
+	done
+
 	sleep 60
-#	sync && echo 3 > /proc/sys/vm/drop_caches
-	(( count % 10 == 0 )) && /hive/bin/agent-screen dontattach #cron agent
-	(( count == 59 )) && /hive/bin/cache-hive-ip > /dev/null #cron cache-hive-ip
-	(( count > 60 )) && count=0
-	(( count++ ))
+
+#	drop_caches
+	(( minute_counter % 10 == 0 )) && /hive/bin/agent-screen dontattach	# cron agent every 10m
+	(( minute_counter == 59 )) && /hive/bin/cache-hive-ip > /dev/null	# cron cache-hive-ip every 59m
+	(( minute_counter >= 60 ? minute_counter=0 : minute_counter++ ))	# clear counter every 60m
 done
