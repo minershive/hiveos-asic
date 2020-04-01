@@ -323,13 +323,13 @@ install_zig () {
 install_todd() {
     download_url
     echo ""
-    echo "> Extracting $filename"
-    tar -xzv -f $filename
+    echo "> Extracting $package_file_to_download"
+    tar -xzv -f "$package_file_to_download"
 
     cp -rf hiveos-asic-${release_version_to_install}/* /
-    [ $? -ne 0 ] && echo "Error extracting $filename" && exit 1
+    [ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
-    rm $filename
+    rm "$package_file_to_download"
 
     sleep 2
 
