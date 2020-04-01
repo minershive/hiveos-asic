@@ -60,7 +60,7 @@ check_for_free_memory () {
 	if (( free_memory < low_memory_limit )); then
 		print_log_entry 'warning' "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
-		echo -e "$print_top" | tee >( message warn "Low memory detected, trying to clean the logs" payload )
+		echo -e "$print_top" | tee >( message warn "Low memory detected, trying to clean the logs" payload; echo )
 
 		wipe_memory
 		truncate_logs
@@ -78,22 +78,29 @@ check_for_updated_build_version () {
 
 		print_log_entry 'info' "Client updated from $previous_build_version to $new_build_version"
 		message ok "Client: updated from $previous_build_version to $new_build_version"
+		echo
 	fi
 }
 
 check_for_virii () {
+	if ! which virus-check > /dev/null; then
+		print_log_entry 'warning' "'virus-check' program not found"
+		return
+	fi
+	
 	local virus_report=''
 	local -i is_virus_found=0
 
-	virus_report="$(( virus-check ))"
+	virus_report="$( virus-check )"
 	is_virus_found=$?
 
 	if (( is_virus_found )); then
 		print_log_entry 'warning' 'Virus found!'
 		if (( ! message_about_virus_was_sent )); then
-			echo -e "$virus_report" | tee >( message err 'Virus found!' payload )
+			echo -e "$virus_report" | tee >( message err 'Virus found!' payload; echo )
 			if (( assign_tag_to_worker )); then
 				message tag 'virus found'
+				echo
 			fi
 			message_about_virus_was_sent=1
 		fi
