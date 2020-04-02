@@ -1,57 +1,14 @@
 #!/usr/bin/env bash
 
+
 readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
-readonly script_version='1.14.4'
+readonly script_version='1.14.5'
 readonly DEBUG=0
 
 
-#
-# strict mode, no unbound variables
-#
+# !!! bash strict mode, no unbound variables
 
 set -o nounset
-
-
-# consts
-
-. colors
-declare -i -r days_to_look_back_DEFAULT='14'
-declare -r script_basename="$( basename "$0" )"
-declare -r log="/tmp/$( basename "$0" ).log"
-declare -r logs_dir='/nvdata'
-declare -r miner_status_log_file='/nvdata/miner_status.log'
-declare -r zero_symbol='-'
-declare -r domain_prefix='<DOMAIN> '
-
-
-# dictionaries for data mining
-
-readonly domains_of_interest=':set_miner_status|:check_miner_status|stop_mining|power off|update_fan_status: Error'
-declare  -A event_name_translator=(
-	# dictionary: event regex -> event transforming template. %1..9% for (group number)
-	['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% asic)'
-	["Can't get temperature sensor type"]='temp sensor fail'
-	['stop mining: (.+)']='%1%'
-	['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
-	['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)'
-	['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='temps: chip %3%C/%4%C pcb %1%C/%2%C'
-) 
-
-
-# arrays
-
-declare -a log_events=()
-declare -a last_days_calendar=()
-declare -A events_data=()
-declare -a error_domains=() # ( f.e. 'check_asic_number_with_power_on:' 'killall_hashboard:' 'set_miner_status:' 'stop_mining:' 'stop_mining_and_reboot:' )
-
-
-# vars
-
-declare first_column_printf_format=''
-declare data_column_printf_format=''
-declare date_width=''
-declare current_view=''
 
 
 # functions
@@ -250,15 +207,19 @@ get_unique_events_from_log() {
 
 print_table_header() {
 	# consts
+
 	local -r first_column_header='Events by date'
 	local -A date_label
+
 	# vars
+
 	local today
 	local date_category
 	local this_date
 	local -i this_day
 
 	# code
+
 	if [[ $current_view == 'wide' ]]; then
 		date_label=( ['year']='year' ['month']='month' ['day']='day' )
 	else
@@ -448,10 +409,10 @@ print_table_body() {
 			printf "%b${data_column_printf_format}%b" "$display_color" "$event_counter_for_display" "${NOCOLOR-}"
 		done
 
-#		# totals column
-#		this_event_total="${events_data["${this_event_name}.total"]}"
-#		printf "   %5d %5d %5d" "$this_event_total" "$avg_per_day_x100" "$avg_per_problem_day_x100"
-#		printf ' %7.1f' "$(( 10**9 * ${accumulator[$this_event_name]} / days_to_look_back ))e-9" # yay, neat trick
+		# totals column
+		#this_event_total="${events_data["${this_event_name}.total"]}"
+		#printf "   %5d %5d %5d" "$this_event_total" "$avg_per_day_x100" "$avg_per_problem_day_x100"
+		#printf ' %7.1f' "$(( 10**9 * ${accumulator[$this_event_name]} / days_to_look_back ))e-9" # yay, neat trick
 		echo
 	done
 }
@@ -468,7 +429,53 @@ print_stats() {
 }
 
 
-# code
+# global consts
+
+declare -i -r days_to_look_back_DEFAULT='14'
+declare -r script_basename="$( basename "$0" )"
+declare -r log="/tmp/$( basename "$0" ).log"
+declare -r logs_dir='/nvdata'
+declare -r miner_status_log_file='/nvdata/miner_status.log'
+declare -r zero_symbol='-'
+declare -r domain_prefix='<DOMAIN> '
+
+
+# global sources
+
+source colors
+
+
+# global dictionaries for data mining
+
+readonly domains_of_interest=':set_miner_status|:check_miner_status|stop_mining|power off|update_fan_status: Error'
+declare  -A event_name_translator=(
+	# dictionary: event regex -> event transforming template. %1..9% for (group number)
+	['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% asic)' #'#syntax highlighting fix
+	["Can't get temperature sensor type"]='temp sensor fail' #"#syntax highlighting fix
+	['stop mining: (.+)']='%1%'
+	['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
+	['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)' #'#syntax highlighting fix
+	['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='temps: chip %3%C/%4%C pcb %1%C/%2%C' #'#syntax highlighting fix
+) 
+
+
+# global arrays
+
+declare -a log_events=()
+declare -a last_days_calendar=()
+declare -A events_data=()
+declare -a error_domains=() # ( f.e. 'check_asic_number_with_power_on:' 'killall_hashboard:' 'set_miner_status:' 'stop_mining:' 'stop_mining_and_reboot:' )
+
+
+# global vars
+
+declare first_column_printf_format=''
+declare data_column_printf_format=''
+declare date_width=''
+declare current_view=''
+
+
+# main()
 
 print_script_version
 
