@@ -1,38 +1,19 @@
 #!/hive/sbin/bash
 
+
+readonly script_mission='Client for ASICs: agent-screen helper'
+readonly script_version='1.0.2'
+readonly script_basename="$( basename "$0" )"
+
+
 #
 # !!! also can be started from cron and on startup !!!
 #
 
 
-#
-# bash strict mode, no unbound variables allowed
-#
+# !!! bash strict mode, no unbound variables
 
 set -o nounset
-
-
-# consts
-
-declare -r -i exitcode_OK=0
-declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
-declare -r -i exitcode_ERROR_CMD_NOT_FOUND=100
-declare -r -i exitcode_ERROR_SOMETHING_BAD_HAPPEN=1
-declare -r -i script_exitcode_OK_RUNNING=0
-declare -r -i script_exitcode_OK_NOT_RUNNING_STARTED=1
-
-
-# vars
-
-# exitcode=0 - has been running
-# exitcode=1 - has not been running, starting
-declare -i script_exitcode
-
-
-# exports
-
-export PATH=$PATH:/hive/bin:/hive/sbin
-export LD_LIBRARY_PATH=/hive/lib
 
 
 # functions
@@ -47,12 +28,12 @@ errcho() {
 is_screen_session_exist() {
 	# is_screen_session_exist 'session name'
 
+	# args
+
 	if (( $# != 1 )); then
 		errcho "only 1 argument allowed"
 		return "$exitcode_ERROR_IN_ARGUMENTS"
 	fi
-
-	# args
 
 	local -r session_name="${1-}"
 	local -i screen_exitcode="$exitcode_OK"
@@ -68,13 +49,13 @@ is_screen_session_exist() {
 screen_attach_to_session() {
 	# screen_attach_to_session 'session name'
 
+	# args
+	
 	if (( $# != 1 )); then
 		errcho "only 1 argument allowed"
 		return "$exitcode_ERROR_IN_ARGUMENTS"
 	fi
 
-	# args
-	
 	local -r session_name="${1-}"
 
 	# code
@@ -94,12 +75,12 @@ screen_attach_to_session() {
 screen_start_session() {
 	# screen_start_session 'cmd' [args...]
 
+	# args
+
 	if (( $# == 0 )); then
 		errcho "no arguments given"
 		return "$exitcode_ERROR_IN_ARGUMENTS"
 	fi
-
-	# args
 	
 	local -r cmd="${1-}"
 	local -r args="${@:2}"
@@ -145,13 +126,13 @@ screen_start_session() {
 screen_stop_session() {
 	# screen_stop_session 'session name' -> $?
 	
+	# args
+	
 	if (( $# == 0 )); then
 		errcho "no arguments given"
 		return "$exitcode_ERROR_IN_ARGUMENTS"
 	fi
 
-	# args
-	
 	local -r session_name="${1-}"
 	
 	# consts
@@ -223,24 +204,47 @@ agent_restart() {
 }
 
 
-# code
+# global consts
+
+declare -r -i exitcode_OK=0
+declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
+declare -r -i exitcode_ERROR_CMD_NOT_FOUND=100
+declare -r -i exitcode_ERROR_SOMETHING_BAD_HAPPEN=1
+declare -r -i script_exitcode_OK_RUNNING=0
+declare -r -i script_exitcode_OK_NOT_RUNNING_STARTED=1
+
+
+# global vars
+
+# exitcode=0 - has been running
+# exitcode=1 - has not been running, starting
+declare -i script_exitcode
+
+
+# global exports
+
+export PATH=$PATH:/hive/bin:/hive/sbin
+export LD_LIBRARY_PATH=/hive/lib
+
+
+# main()
 
 is_screen_session_exist 'agent'; script_exitcode=$?
 
 case "${1-}" in
-	start)
+	'start')
 		agent_start
 		;;
-	stop)
+	'stop')
 		agent_stop
 		;;
-	restart)
+	'restart')
 		agent_restart
 		;;
-	dontattach|daemonize)
+	'dontattach' | 'daemonize')
 		agent_start 'calmly'
 		;;
-	attach|*)
+	'attach' | *)
 		agent_start
 		screen_attach_to_session 'agent'
 		;;
