@@ -2,25 +2,12 @@
 
 
 readonly script_mission='Client for ASICs: ssh access control'
-readonly script_version='0.1'
+readonly script_version='0.1.1'
 
 
-#
-# strict mode, no unbound variables
-#
+# !!! bash strict mode, no unbound variables
 
 set -o nounset
-
-
-# args
-
-readonly command="${1-}"
-readonly option="${2-}"
-
-
-# consts
-
-. colors
 
 
 # functions
@@ -37,7 +24,18 @@ print_script_usage() {
 }
 
 
-# code
+# global args
+
+readonly command="${1-}"
+readonly option="${2-}"
+
+
+# global sources
+
+source colors
+
+
+# main()
 
 print_script_version
 
