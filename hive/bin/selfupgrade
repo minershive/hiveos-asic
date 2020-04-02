@@ -6,7 +6,7 @@ readonly script_version='0.14.4'
 readonly script_basename="$( basename "$0" )"
 
 
-# global functions
+# functions
 
 print_script_version () {
 	echo -e "${YELLOW}${script_mission}, version ${script_version}${NOCOLOR}"
@@ -29,7 +29,7 @@ download_url () { #download from github
 	echo "> Downloading $package_file_url"
 	
 	case "$ASIC_MODEL" in
-		'Zig Z1+' | 'Zig Z1'| 'Toddminer C1' )
+		'Zig Z1+' | 'Zig Z1' | 'Toddminer C1' )
 			wget "$package_file_url"
 			;;
 		*)
@@ -320,7 +320,7 @@ install_zig () {
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
-install_todd() {
+install_todd () {
     download_url
     echo ""
     echo "> Extracting $package_file_to_download"
@@ -418,7 +418,7 @@ get_asic_model () {
 
 	# Todek Toddminer C1
 	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
-		ASIC_MODEL="Toddminer C1"
+		ASIC_MODEL='Toddminer C1'
 	fi
 
 	# final
@@ -451,17 +451,28 @@ set_HIVEON_VER_variable () {
 }
 
 get_remote_version_of () {
+	#
 	# get_remote_version 'release'|'build'
+	#
 
-	local release_or_build=${1-"release"}
+	# args
+
+	local release_or_build="${1-release}"
+
+	# consts
 
 	local repo_url='https://raw.githubusercontent.com/minershive/hiveos-asic/master'
 	local release_url="$repo_url/hive/etc/VERSION"
 	local build_url="$repo_url/hive/etc/build"
 	local wget_cmd='wget -q -O-'
 	local curl_cmd='curl -f --silent -L --insecure'
+
+	# vars
+
 	local download_url=''
 	local download_cmd=''
+
+	# code
 
 	case "$release_or_build" in
 		'release')
@@ -485,13 +496,25 @@ get_remote_version_of () {
 }
 
 get_local_version_of () {
+	#
 	# get_local_version 'release'|'build'
+	#
+
+	# args
 
 	local release_or_build=${1-"release"}
+
+	# consts
+
 	local release_file='/hive/etc/VERSION'
 	local build_file='/hive/etc/build'
+
+	# vars
+
 	local local_file_with_version=''
 	local local_version=''
+
+	# code
 
 	case "$release_or_build" in
 		'release')
@@ -652,21 +675,31 @@ set_temp_dir () {
 }
 
 remove_needless_files () {
+	#
 	# remove_needless_files 'filename' ['file'...]
+	#
 	# wildcards are supported
+	#
+
+	# args
 
 	if [ $# -eq 0 ]; then
 		return
 	fi
 
+	# vars
+
 	local file_to_remove=''
+	local f=''
 	local something_removed_FLAG=0
+
+	# code
 
 	echo -n '> Cleaning: '
 	for file_to_remove in "$@"; do
-		# Use the loop as a context for expanding the glob, not actually iterating
-		# over the results. (c) stackoverflow
+		# iterate over the arguments
 		for f in $file_to_remove; do
+			# auxiliary loop is just for expanding the glob--note 'break' statement
 			if [[ -e "$f" ]]; then
 				echo -n "$file_to_remove"
 				if rm -rf "$file_to_remove" > /dev/null 2>&1; then
@@ -761,7 +794,8 @@ execute_install_routine () {
 		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig						;;
 
 		# Todek
-		'Toddminer C1')				echo "$ASIC_MODEL"; 			install_todd						;;
+
+		'Toddminer C1')			echo "$ASIC_MODEL"; 			install_todd					;;
 
 		# unknown
 
