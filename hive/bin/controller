@@ -1,21 +1,64 @@
 #!/hive/sbin/bash
 
 
-#
+readonly script_mission='Client for ASICs: Hourly Controller'
+readonly script_version='1.1.1'
+readonly script_basename="$( basename "$0" )"
+
+
 # !!! bash strict mode, no unbound variables
-#
 
 set -o nounset
 
 
 # functions
 
+print_script_version() {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+print_script_usage() {
+	echo -e "Usage: ${CYAN-}${script_basename} [log]${NOCOLOR-}"
+	echo
+	echo -e "	${WHITE-}log${NOCOLOR-}"
+	echo -e "		prints last $log_lines lines from its own log"
+	echo
+}
+
+print_last_lines_from_log () {
+	if [[ -s "$log_file" ]]; then
+		tail -n "$log_lines" "$log_file"
+	fi
+}
+
+parse_arguments () {
+	case "${1-}" in
+		'log')
+			print_script_version
+			print_last_lines_from_log
+			exit 0
+			;;
+		'')
+			: 'do nothing special'
+			;;
+		*)
+			print_script_version
+			print_script_usage
+			exit 0
+			;;
+	esac
+}
+
 print_log_entry () {
-	# print_log_entry 'log_level' 'log_message'
-	local log_level="${1-<undefined>}"
+	#
+	# print_log_entry 'event_type' 'log_message'
+	#
+
+	local event_type="${1-<undefined>}"
 	local log_message="${2-<undefined>}"
 
-	printf '%(%F %T)T %-9.9s %b\n' -1 "[${log_level^^}]" "$log_message"
+	printf '%(%F %T)T %-9.9s %b\n' -1 "[${event_type^^}]" "$log_message"
 }
 
 drop_caches () {
@@ -108,31 +151,32 @@ check_for_virii () {
 }
 
 
-# consts
+# global consts
 
 declare -i -r assign_tag_to_worker=1
+declare -i -r log_lines=100
+declare -r log_file='/config/hive-controller.log'
 
-
-# vars
+# global vars
 
 declare -i minute_counter=0
 declare -i message_about_virus_was_sent=0
 declare check_function=''
 
 
-# sources
+# global sources
 
 [[ -s /hive/bin/asic-model ]] && source asic-model
 [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
 
 
-# exports
+# global exports
 
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
 
-# code
+# main()
 
 #TODO:
 #logs problem
@@ -142,6 +186,7 @@ export LD_LIBRARY_PATH=/hive/lib
 #wd
 #check read only nvdata and config
 
+parse_arguments "$@"
 print_log_entry 'start' 'Controller started'
 
 while true; do
@@ -153,7 +198,8 @@ while true; do
 	sleep 60
 
 #	drop_caches
+
 	(( minute_counter % 10 == 0 )) && /hive/bin/agent-screen dontattach	# cron agent every 10m
-	(( minute_counter == 59 )) && /hive/bin/cache-hive-ip > /dev/null	# cron cache-hive-ip every 59m
+	(( minute_counter == 59 )) && /hive/bin/cache-hive-ip > /dev/null	# cron cache-hive-ip on 59m
 	(( minute_counter >= 60 ? minute_counter=0 : minute_counter++ ))	# clear counter every 60m
 done
