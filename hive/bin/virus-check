@@ -2,37 +2,23 @@
 
 
 readonly script_mission='Client for ASICs: Check for known viruses'
-readonly script_version='0.4'
+readonly script_version='0.4.3'
 readonly script_basename="$( basename "$0" )"
 
 
-#
-# strict mode, no unbound variables
-#
+# !!! bash strict mode, no unbound variables
 
 set -o nounset
 
 
-# consts
-
-. colors
-readonly label_format='-18.18'
-
-
-# vars
-
-declare -i is_virus_found=0
-declare -i is_silent=0
-
-
 # functions
 
-print_script_version() {
+print_script_version () {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
-print_script_usage() {
+print_script_usage () {
 	echo -e "Usage: ${CYAN-}${script_basename} [-s|--silent]${NOCOLOR-}"
 	echo
 	echo -e "	${WHITE-}-s${NOCOLOR-}, ${WHITE-}--silent${NOCOLOR-}"
@@ -40,26 +26,29 @@ print_script_usage() {
 	echo
 }
 
-portable_file_size_in_bytes() {
-	# not used atm
-	local -r input_file="${1-}"
-	local -i file_size=0
-	local -i exitcode=0
-
-	if which stat > /dev/null; then
-		file_size="$( stat -c '%s' "$input_file" )"
-		exitcode=$?
-	else
-		file_size="$( ls -l "$input_file" | awk '{print $5}' )"
-		exitcode=$?
-	fi
-
-	echo "$file_size"
-
-	return "$exitcode"
+parse_arguments () {
+	case "${1-}" in
+		'-s' | '--silent')
+			is_silent=1
+			;;
+		'')
+			print_script_version
+			;;
+		'-h' | '--help' | *)
+			print_script_version
+			print_script_usage
+			exit 0
+			;;
+	esac
 }
 
-pretty_print() {
+get_file_size_in_bytes () {
+	# not used atm
+	(( $# != 1 )) && return 1
+	set -- $( ls -dn "$1" ) && echo "$5"
+}
+
+pretty_print () {
 	(( is_silent )) && return
 
 	local -r label_text="${1:-<empty>}"
@@ -69,7 +58,7 @@ pretty_print() {
 	printf "%${label_format}s %b%s%b\n" "$label_text" "$message_color" "$message_text" "${NOCOLOR}"
 }
 
-check_ntpd_size() {
+check_ntpd_size () {
 	local -r label_text='ntpd size check'
 	local -r ntpd_file='/usr/bin/ntpd'
 	local -i ntpd_size=0
@@ -88,7 +77,7 @@ check_ntpd_size() {
 	fi
 }
 
-check_nightswitcher() {
+check_nightswitcher () {
 	local -r label_text='Nightswitcher'
 
 	if [[ -e /config/bNminer.conf ]]; then
@@ -99,7 +88,7 @@ check_nightswitcher() {
 	fi
 }
 
-check_antbuild_old() {
+check_antbuild_old () {
 	local -r label_text='Antbuild'
 
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
@@ -123,7 +112,7 @@ check_antbuild_old() {
 	fi
 }
 
-check_antbuild() {
+check_antbuild () {
 	local -r label_text='Antbuild'
 
 	# old1
@@ -151,7 +140,7 @@ check_antbuild() {
 	fi
 }
 
-check_shady_files() {
+check_shady_files () {
 	local -r label_text='Shady files'
 	local -a -r shady_files=( '/config/.antminers' '/usr/antfalg' '/usr/antfalgZ' )
 	local -i shady_counter=0
@@ -170,7 +159,7 @@ check_shady_files() {
 	fi
 }
 
-bottom_line() {
+bottom_line () {
 	echo
 
 	if (( is_virus_found )); then
@@ -187,21 +176,25 @@ bottom_line() {
 }
 
 
-# code
+# global consts
 
-case "${1-}" in
-	'-s' | '--silent')
-		is_silent=1
-		;;
-	'')
-		print_script_version
-		;;
-	'-h' | '--help' | *)
-		print_script_version
-		print_script_usage
-		exit 0
-		;;
-esac
+readonly label_format='-18.18'
+
+
+# global sources
+
+source colors
+
+
+# global vars
+
+declare -i is_virus_found=0
+declare -i is_silent=0
+
+
+# main()
+
+parse_arguments "$@"
 
 check_ntpd_size
 check_nightswitcher
@@ -211,3 +204,15 @@ check_shady_files
 (( ! is_silent )) && bottom_line
 
 exit $(( is_virus_found ))
+
+#
+# md5 library
+#
+
+# Series 9
+bb965c01fbba97604b94813fcdaa0829  /usr/bin/ntpd
+e78d5effe8c1e4afd1cf514ba23844d1  /lib/modules/bitmain_axi.ko
+
+# Series 17
+94699039a78b6ee320b2e1a5c436527a  /usr/bin/ntpd
+f552505dcf1e7c61be414a40d6352684  /lib/modules/bitmain_axi.ko
