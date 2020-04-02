@@ -1,9 +1,12 @@
 #!/hive/sbin/bash
 
 
-#
-# strict mode, no unbound variables
-#
+#readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
+#readonly script_version='1.0'
+#readonly script_basename="$( basename "$0" )"
+
+
+# !!! bash strict mode, no unbound variables
 
 #set -o nounset # !!! this script being sourced constantly, so turninng this off for a while -- we don't want to break the other not-yet-refactored scripts
 
@@ -51,9 +54,9 @@ get_asic_model () {
 		fi
 	fi
 
-	# Todek
+	# Todek Toddminer C1
 	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
-		ASIC_MODEL="Toddminer C1"
+		ASIC_MODEL='Toddminer C1'
 	fi
 
 	# final
@@ -397,7 +400,24 @@ set_asic_constants "$ASIC_MODEL"
 
 # check if we're sourced
 if ! ( return 0 2>/dev/null ); then
+	# not sourced
+
+	readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
+	readonly script_version='1.0'
+	readonly script_basename="$( basename "$0" )"
+
 	. colors
+
+	#print_script_version() {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+	#}
+
+	#print_script_usage() {
+	#echo -e "Usage: ${CYAN-}${script_basename}${NOCOLOR-}"
+	#echo
+	#}
+
 	echo "ASIC model: ${WHITE}$ASIC_MODEL${NOCOLOR}"
 	echo
 	echo 'Model configuration:'
