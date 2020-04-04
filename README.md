@@ -149,7 +149,7 @@ These models are special. They're loading OS right to the RAM in read-only mode.
 - [Antminer S11](https://download.hiveos.farm/asic/S11/stock%2Bclient/S11-hive.tar.gz)
 
 - [Antminer S15](https://download.hiveos.farm/asic/S15/stock%2Bclient/S15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
-- [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz) *// broken link, will fix ASAP*
+- [Antminer T15](http://download.hiveos.farm/asic/T15/stock%2Bclient/T15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
 
 - [Antminer S17/S17Pro](https://download.hiveos.farm/asic/s17/stock%2Bclient/)
 - [Antminer T17](https://download.hiveos.farm/asic/T17/stock%2Bclient/)
