@@ -1,8 +1,8 @@
 #!/hive/sbin/bash
 
 
-readonly script_mission='Client for ASICs: Hourly Controller'
-readonly script_version='1.1.1'
+readonly script_mission='Client for ASICs: Routine controller'
+readonly script_version='1.2.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -24,6 +24,222 @@ print_script_usage() {
 	echo -e "	${WHITE-}log${NOCOLOR-}"
 	echo -e "		prints last $log_lines lines from its own log"
 	echo
+}
+
+get_file_size_in_bytes () {
+	#
+	# get_file_size_in_bytes 'file_name'
+	#
+	# highly portable, uses ls
+	#
+
+	# args
+
+	(( $# != 1 )) && return 2
+	local -r file_name="${1-}"
+
+	# arrays
+
+	local -a ls_output_field=()
+
+	# code
+
+	# parse ls output to array
+	# -rwxr-xr-x 1 0 0 4745 Apr  3 16:03 log-watcher.sh
+	# 0          1 2 3 4    5    6 7     8
+	if [[ -f "$file_name" ]] && ls_output_field=( $( ls -dn "$file_name" ) ); then
+		# print 5th field
+		echo "${ls_output_field[4]}"
+	else
+		return 1
+	fi
+}
+
+initialize_dictionaries () {
+
+	# consts
+
+	# for assembling regexes for various date formats
+	# named as strftime() conversion specifier characters
+	local -r Y='[12][0-9]{3}' m='[01][0-9]' d='[0123][0-9]' e='[ 123][0-9]' # %e: space padded month's day
+	local -r a='(Mon|Tue|Wed|Thu|Fri|Sat|Sun)' b='(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
+	local -r H='[012][0-9]' M='[0-5][0-9]' S='[0-5][0-9]'
+	local -r F="$Y-$m-$d" T="$H:$M:$S"
+	local -r z='[+-][01][0-9]{3}' # %z: +hhmm numeric time zone (e.g., -0400)
+	local -r Z="[A-Z][A-Za-z]*" # %Z: alphabetic time zone abbreviation (e.g., EDT)
+
+	# unsupported formats:
+	#
+	# ISO_8601	2020-04-03T05:38:26
+	# RFC 3339	2020-04-03T05:38:26.123456-0000
+	# RFC 2822	Fri, 03 Apr 2020 05:38:26 GMT
+	#			Fri, 03 Apr 2020 05:38:26.123456 -0000
+
+	declare -r -A -g date_formats_dictionary=(
+		['list_by_incidence']='ISO_8601_old perl syslog BusyBox'
+
+		['ISO_8601_old'.RE]="^$F $T"		# 2020-01-18 05:08:13				(19 chars)
+		['ISO_8601_old'.pattern]='F T'
+
+		['perl'.RE]="^$a $b $e $T $Y"		# Sun Jan  6 21:29:57 2020			(24 chars)
+		['perl'.pattern]='a b e T Y'
+
+		['syslog'.RE]="^$b $e $T"			# Apr  3 20:44:01					(15 chars)
+		['syslog'.pattern]='b e T'
+
+		['BusyBox'.RE]="^$a $b $e $T $Z $Y"	# Fri Apr  3 07:29:28 Europe 2020	(31 char)
+		['BusyBox'.pattern]='a b e T Z Y'
+	) # in use in split_log_line_to_date_and_message()
+
+	declare -r -A -g translate_month_name_to_number_dictionary=(
+		['Jan']=1 ['Feb']=2 ['Mar']=3 ['Apr']=4  ['May']=5 ['Jun']=6
+		['Jul']=7 ['Aug']=8 ['Sep']=9 ['Oct']=10 ['Nov']=11 ['Dec']=12
+		['unknown']=0
+	) # in use in split_log_line_to_date_and_message()
+
+	# vars
+
+	declare -A -g log_variables # in use in get_new_lines_from_log()
+}
+
+split_log_line_to_date_and_message () {
+	#
+	# split_log_line_to_date_and_message 'log_line' 'date_var_by_ref' 'message_var_by_ref'
+	#
+
+	# args
+
+	(( $# != 3 )) && return 2
+	local -r log_line="${1-}"
+	local -r -n log_date="${2-}" # get var by ref
+	local -r -n log_message="${3-}" # get var by ref
+
+	# vars
+
+	local a b d e m F T Z Y
+
+	# code
+
+	log_date='--empty-timestamp--'
+	log_message="${log_line}"
+
+	for this_format in ${date_formats_dictionary['list_by_incidence']}; do
+		if [[ "$log_line" =~ ${date_formats_dictionary[${this_format}.RE]} ]]; then
+			read -r -t 0.1 ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line"
+			[[ -z "${F-}" && -z "${d-}" ]] && printf -v d '%02d' "$(( 10#$e ))" # drop any leading zeros before printf %d
+			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02d' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
+			[[ -z "${F-}" && -z "${Y-}" ]] && printf -v Y '%(%Y)T' -1
+			[[ -z "${F-}" ]] && F="$Y-$m-$d"
+			printf -v log_date '%-10.10s %-8.8s' "$F" "$T"
+			log_message="${message}"
+			break
+		fi
+	done
+}
+
+filter_lines_send_messages () {
+	#
+	# get lines from stdin, parse them and send message, if necessary
+	#
+
+	# consts
+
+	local -r -i send_messages_enabled=1
+
+	# vars
+
+	local log_line=''
+	local log_timestamp=''
+	local event_type=''
+	local log_message=''
+	local message_body=''
+
+	# code
+
+	while read -r -t 0.1 log_line; do
+		if [[ -z "${log_line-}" ]]; then
+			# skip empty log_lines
+			continue
+		fi
+
+		split_log_line_to_date_and_message "$log_line" 'log_timestamp' 'log_message' # !! last two vars passed by reference, not by value
+
+		# cut milliseconds from watchdog messages like 'Total rate is 0 after 1870.000000 seconds, restart'
+		log_message="${log_message//\.000000 seconds/ seconds}"
+
+		case "$log_message" in
+			'STATUS_'*			)	event_type='skip'		;;
+			'ERROR_'*			)	event_type='error'		;;
+			'WARN_'*			)	event_type='warning'	;;
+			*'domains fixed'*	)	event_type='warning'	;;
+			*					)	event_type='error'		;;
+		esac
+
+		if [[ "$event_type" != 'skip' ]]; then
+				printf -v message_body '%-19.19s %-13.13s %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_message"
+				echo "$message_body"
+			if (( send_messages_enabled )); then
+				printf -v message_body 'Date: %s\nType: %s\n%b' "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
+				echo "$message_body" | message "$event_type" "$log_message" payload
+			fi
+		fi
+	done
+}
+
+get_new_lines_from_log () {
+	#
+	# get_new_lines_from_log 'log_name' ['log_name'...]
+	#
+	# the function uses *global* hashtable for saving session data between calls
+	# WARNING: it does not work in any pipes and subshells like | () $() <()
+	#
+
+	# args
+
+	(( $# < 1 )) && return 2
+	local -r -a logs_list=( "$@" )
+
+	# vars
+
+	local previous_lines_quantity=''
+	local current_lines_quantity=''
+	local log_to_check=''
+	local -i previous_log_size=0
+	local -i current_log_size=0
+	local -i tail_from_line=0
+	local -i how_much_new_lines=0
+
+	# code
+
+	for log_to_check in "${logs_list[@]}"; do
+		current_lines_quantity=''
+
+		if [[ -s "$log_to_check" ]]; then
+			# don't waste resources to count lines on every iteration, check file size first
+			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
+
+			if [[ -z "${log_variables[${log_to_check}:size]-}" ]]; then # first time, init vars
+				current_lines_quantity="$( wc -l < "$log_to_check" )"
+				previous_log_size="$current_log_size"
+			else # not a first time
+				previous_log_size="${log_variables[${log_to_check}:size]}"
+			fi
+
+			if (( current_log_size > previous_log_size )); then # log file has changed
+				current_lines_quantity="$( wc -l < "$log_to_check" )" # get current lines count
+				previous_lines_quantity="${log_variables[${log_to_check}:lines]}" # get previous lines count
+				(( tail_from_line = previous_lines_quantity + 1 ))
+				(( how_much_new_lines = current_lines_quantity - previous_lines_quantity ))
+				tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines"
+			fi
+
+			# save current values to previous values
+			log_variables["${log_to_check}:size"]="$current_log_size"
+			if [[ -n "$current_lines_quantity" ]]; then
+				log_variables["${log_to_check}:lines"]="$current_lines_quantity"
+			fi
+		fi
+	done
 }
 
 print_last_lines_from_log () {
@@ -58,7 +274,7 @@ print_log_entry () {
 	local event_type="${1-<undefined>}"
 	local log_message="${2-<undefined>}"
 
-	printf '%(%F %T)T %-9.9s %b\n' -1 "[${event_type^^}]" "$log_message"
+	printf '%(%F %T)T %-13.13s %b\n' -1 "[${event_type^^}]" "$log_message"
 }
 
 drop_caches () {
@@ -157,11 +373,13 @@ declare -i -r assign_tag_to_worker=1
 declare -i -r log_lines=100
 declare -r log_file='/config/hive-controller.log'
 
+
 # global vars
 
+declare log_to_check=''
+declare check_function=''
 declare -i minute_counter=0
 declare -i message_about_virus_was_sent=0
-declare check_function=''
 
 
 # global sources
@@ -187,13 +405,18 @@ export LD_LIBRARY_PATH=/hive/lib
 #check read only nvdata and config
 
 parse_arguments "$@"
-print_log_entry 'start' 'Controller started'
+initialize_dictionaries
 
+print_log_entry 'start' "Controller $script_version started"
+
+# main loop
 while true; do
 	# execute check_for_* functions in alphabetical order
 	for check_function in $( compgen -A function 'check_for_' | sort ); do
 		"$check_function"
 	done
+
+	get_new_lines_from_log /nvdata/miner_status.log /config/watchdog.log > >( filter_lines_send_messages )
 
 	sleep 60
 
