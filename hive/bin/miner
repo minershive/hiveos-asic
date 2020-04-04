@@ -52,10 +52,10 @@ function print_kernel_log {
 	
 	printf -v now '%(%s)T' -1
 
-	if [[ -s /proc/uptime ]]; then
+	if [[ -r /proc/uptime ]]; then
 		uptime_line=( $( < /proc/uptime ) )
 		cputime=$(( ${uptime_line/\.} / 100 ))
-	elif [[ -s /proc/sched_debug ]]; then
+	elif [[ -r /proc/sched_debug ]]; then
 		# do we really need second option?
 		cputime_line=$(grep -F -m 1 '\.clock' /proc/sched_debug)
 		if [[ $cputime_line =~ [^0-9]*([0-9]*).* ]]; then
