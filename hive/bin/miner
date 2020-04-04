@@ -48,11 +48,16 @@ fi
 function print_kernel_log {
 	#FORMAT="%F %T"
 	#now=$(date +%s)
-	printf -v now '%(%F %T)T' -1
-	cputime_line=$(grep -m1 "\.clock" /proc/sched_debug)
+	printf -v now '%(%s)T' -1
 
-	if [[ $cputime_line =~ [^0-9]*([0-9]*).* ]]; then
-		cputime=$(( BASH_REMATCH[1] / 1000 ))
+	if [[ -e /proc/sched_debug ]]; then
+		cputime_line=$(grep -m1 "\.clock" /proc/sched_debug)
+		if [[ $cputime_line =~ [^0-9]*([0-9]*).* ]]; then
+			cputime=$(( BASH_REMATCH[1] / 1000 ))
+		fi
+	else
+		cputime_line=( $( grep -F -m 1 'btime' /proc/stat ) )
+		cputime="${cputime_line[1]}"
 	fi
 
 	dmesg | while IFS= read -r -t 0.1 line; do
