@@ -143,17 +143,16 @@ You can install Hive OS Client via firmware file download or via SSH.
 ##### Antminer Series 15, Series 17 and Series 9 models S9k and S9SE
 These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by upgrading ASIC with a special firmware file. That file contains stock Bitmain firmware with built-in Hive OS client:
 
-- [Antminer S9k](http://download.hiveos.farm/asic/repo/fw/Antminer/S9k/S9k-20190929.tar.gz)
-- [Antminer S9SE](http://download.hiveos.farm/asic/repo/unsig/S9se-hive.tar.gz)
+- [Antminer S9k](https://download.hiveos.farm/asic/S9k/stock%2Bclient/S9k-stock%2Bclient-20190929.tar.gz)
+- [Antminer S9SE](https://download.hiveos.farm/asic/S9se/stock%2Bclient/S9se-stok%2Bclient.tar.gz)
 
-- [Antminer S11](http://download.hiveos.farm/asic/repo/unsig/S11-hive.tar.gz)
+- [Antminer S11](https://download.hiveos.farm/asic/S11/stock%2Bclient/S11-hive.tar.gz)
 
-- [Antminer S15](http://download.hiveos.farm/asic/repo/fw/Antminer/S15/S15-v19.08.12-ln.tar.gz)
-- [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz)
+- [Antminer S15](https://download.hiveos.farm/asic/S15/stock%2Bclient/S15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
+- [Antminer T15](http://download.hiveos.farm/asic/repo/unsig/T15-hive.tar.gz) *// broken link, will fix ASAP*
 
-- [Antminer S17](http://download.hiveos.farm/asic/repo/fw/Antminer/S17/S17-v19.08.20-noln.tar.gz)
-- [Antminer S17 Pro](http://download.hiveos.farm/asic/repo/fw/Antminer/S17pro/S17pro-v19.08.20-noln.tar.gz)
-- [Antminer T17](http://download.hiveos.farm/asic/repo/fw/Antminer/T17/T17-v19.08.20-noln.tar.gz)
+- [Antminer S17/S17Pro](https://download.hiveos.farm/asic/s17/stock%2Bclient/)
+- [Antminer T17](https://download.hiveos.farm/asic/T17/stock%2Bclient/)
 
 >After successful flashing, you have to open up ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button. The page will refresh itself. Wait a minute and worker will appear in the Hive dashboard.
 
@@ -244,8 +243,9 @@ cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive
 
 Locally on ASIC you can run ```selfupgrade``` command. 
 To install specific version you should run ```selfupgrade 0.1-02```.
-If you want to reinstall version please add ```-f``` to the command like this ```selfupgrade 0.1-02 -f```.
-To install current development version from repository please run ```selfupgrade master```.
+If you want to reinstall version please add ```--force``` to the command like this ```selfupgrade 0.1-02 --force```.
+To install stable development version from repository please run ```selfupgrade master```.
+To install night build development version directly from Github please run ```selfupgrade master github```.
 
 &nbsp;
 
@@ -313,16 +313,16 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 ### Antminer
 
-You can find recovery boot images at [our repository](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/) (highly recommended) or [Bitmain's official site](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
+You can find recovery boot images at [our repository](https://download.hiveos.farm/asic/) (highly recommended) or [Bitmain's official site](https://service.bitmain.com/support/download?product=Flashing%20SD%20card%20with%20image).
 
 >Please note the two different file formats of recovery images:
 >- `.img` file. It's a raw disk image. Should be written to SD with a special imaging software.
 >- `.zip` file. A ZIP archive containing files like `u-boot.img` and `uImage.bin` inside. Unzip that file to SD card formatted with **FAT32**.
 
-- [S9 Recovery image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/Recovery_S9.img)
-- [S17 Hiveon recovery image (beta)](http://download.hiveos.farm/asic/repo/test/sd/)
+- [S9 Recovery image](https://download.hiveos.farm/asic/s9/recovery-stock/Recovery_S9.img)
+- [S17 Hiveon recovery image (beta)](https://download.hiveos.farm/asic/s17/SD-S17-S17pro_Hiveon_1.01-200331_sig.zip)
 - S17, S17 Pro, T17
-  - Download [recovery boot image](https://download.hiveos.farm/asic/repo/fw/Antminer/recovery/SD_S17-T17_650M.05.06.2019.zip)
+  - Download [recovery boot image](https://download.hiveos.farm/asic/s17/recovery-stock/SD_S17-T17_650M.05.06.2019.zip)
   - Use SD card size less than **16 Gb**
   - Format SD card with **FAT32**
   - Unzip it to SD card
