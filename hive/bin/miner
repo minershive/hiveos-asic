@@ -1,12 +1,12 @@
 #!/hive/sbin/bash
 
-MINER_LOGS_BASE_DIR=/var/log/miner
+MINER_LOGS_BASE_DIR='/var/log/miner'
 #ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-MINER="asicminer"
+MINER='asicminer'
 
 . asic-model
 
-function usage() {
+function script_usage {
 	bname=`basename $0`
 	echo -e "Usage: ${CYAN}$bname start|stop|restart|log|tuning|config|config-gen${NOCOLOR}"
 	echo -e "If you run ${CYAN}$bname${NOCOLOR} without parameters miner screen will be tried to resume."
@@ -19,7 +19,7 @@ WALLET_CONF="/hive-config/wallet.conf"
 #[[ -t 1 ]] &&
 . colors
 
-#[[ -z $1 ]] && usage && exit 1
+#[[ -z $1 ]] && script_usage && exit 1
 
 
 if [[ ! -f $RIG_CONF ]]; then
@@ -45,31 +45,33 @@ fi
 
 ########################################################################################################################
 
-dmesg_asic_timestamps() {
-	FORMAT="%F %T"
-	now=$(date +%s)
+function print_kernel_log {
+	#FORMAT="%F %T"
+	#now=$(date +%s)
+	printf -v now '%(%F %T)T' -1
 	cputime_line=$(grep -m1 "\.clock" /proc/sched_debug)
 
 	if [[ $cputime_line =~ [^0-9]*([0-9]*).* ]]; then
-		cputime=$((BASH_REMATCH[1] / 1000))
+		cputime=$(( BASH_REMATCH[1] / 1000 ))
 	fi
-	dmesg | while IFS= read -r line; do
+
+	dmesg | while IFS= read -r -t 0.1 line; do
 		if [[ $line =~ ^\[\ *([0-9]+)\.[0-9]+\]\ (.*) ]]; then
-			stamp=$((now-cputime+BASH_REMATCH[1]))
-			echo "$(date +"${FORMAT}" --date=@${stamp}) ${BASH_REMATCH[2]}"
+			stamp=$(( now - cputime + BASH_REMATCH[1] ))
+			printf '%(%F %T)T %s' "$stamp" "${BASH_REMATCH[2]}"
+			#echo "$(date +"${FORMAT}" --date=@${stamp}) ${BASH_REMATCH[2]}"
 		else
 			echo "$line"
 		fi
 	done
 }
 
-
-function config-gen() {
+function config-gen {
 	/hive/bin/asicminer-config
 }
 
 
-function start() {
+function start {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		config-gen
@@ -103,10 +105,10 @@ function start() {
 			sleep 1
 		done
 	fi
-	echo "";
+	echo
 }
 
-function stop() {
+function stop {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
 	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		echo "ok" > /tmp/norespawn
@@ -127,7 +129,7 @@ function stop() {
 	fi
 }
 
-function restart() {
+function restart {
 	echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
 	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		config-gen
@@ -141,7 +143,7 @@ function restart() {
 	fi
 }
 
-function miner_log_basename() {
+function miner_log_basename {
 	local miner="$1"
 	[[ -z $miner ]] && echo "No miner given to miner_log_basename" && return 1
 
@@ -157,7 +159,7 @@ function miner_log_basename() {
 	return 0
 }
 
-function log_tail() {
+function log_tail {
 	local TAIL_LINE=80
 	if [[ ! -z $HIVEON_VER ]]; then
 		sh /www/pages/cgi-bin/get_kernel_log.cgi | tail -n $TAIL_LINE
@@ -189,15 +191,14 @@ function log_tail() {
 	fi
 }
 
-
-function echo_config_file() {
+function echo_config_file {
 	echo -e "${YELLOW}=== $1 =================================================${NOCOLOR}"
 	cat $1
 	echo ""
 }
 
-#Shows miner config
-function config() {
+function config {
+	# shows miner config
 	logname=""
 	if [[ ! -z $CONFIG_PATH ]]; then
 		echo_config_file "${CONFIG_PATH}"
@@ -207,10 +208,8 @@ function config() {
 	fi
 }
 
-
-
-# Sets MINER to MINER2 if requested
 function check_second_miner {
+	# sets MINER to MINER2 if requested
 	[[ -z $1 || $1 != "2" ]] && return #not a second miner request
 
 	[[ $1 == "2" && -z $MINER2 ]] &&
@@ -220,6 +219,14 @@ function check_second_miner {
 	MINER="$MINER2" #substitute MINER var with second miner
 }
 
+function print_tune_log {
+	local tune_log_script
+	for tune_log_script in '/www/pages/cgi-bin/get_auto_tune_log.cgi' '/www/pages/cgi-bin/get_tune_log.cgi'; do
+		if [[ -s "$tune_log_script" ]]; then
+			sh "$tune_log_script"
+		fi
+	done
+}
 
 ########################################################################################################################
 
@@ -240,16 +247,30 @@ case "$1" in
 		config-gen
 		;;
 	log) # supports args for tail
-		log_tail $2 $3 $4
+		case "$2" in
+			'kernel')
+				print_kernel_log
+				;;
+			'tuning')
+				print_tune_log
+				;;
+			'watchdog')
+				[[ -s /config/watchdog.log ]] && tail -n 80 /config/watchdog.log
+				;;
+			*)
+				log_tail $2 $3 $4
+				;;
+		esac
 		;;
 	kernel-log) #temp. TODO miner log [kernel|tuning|watchdog|all [filter=regex_pattern] [sort=none|date]]
-		dmesg_asic_timestamps
+		print_kernel_log
 		;;
 	tuning)
-		sh /www/pages/cgi-bin/get_auto_tune_log.cgi || sh /www/pages/cgi-bin/get_tune_log.cgi
+		print_tune_log
 		;;
 	*)
-		screen -x -S miner
-		[[ $? -ne 0 ]] && usage
+		screen -x -S bmminer > /dev/null ||
+			screen -x -S cgminer /dev/null ||
+				script_usage
 		;;
 esac
