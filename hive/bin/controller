@@ -465,7 +465,7 @@ function check_for_updated_build_version {
 		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
 		print_log_entry 'info' "selfupgrade running, skipping ${FUNCNAME}..."
 		return $(( exitcode_OK_NOTHING_HAPPENED ))
-	done
+	fi
 	
 	if ! cmp -s /hive/etc/build /hive-config/build; then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
@@ -500,7 +500,7 @@ function check_for_virii {
 		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
 		print_log_entry 'info' "selfupgrade running, skipping ${FUNCNAME}..."
 		return $(( exitcode_OK_NOTHING_HAPPENED ))
-	done
+	fi
 
 	if ! which virus-check > /dev/null; then
 		print_log_entry 'warning' "'virus-check' program not found"
