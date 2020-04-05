@@ -545,6 +545,7 @@ function routine_checkups {
 			(( routine_checkups_counters["${check_function}:idle"]++ ))
 		else
 			(( routine_checkups_counters["${check_function}:alarm"]++ ))
+		fi
 	done
 }
 
