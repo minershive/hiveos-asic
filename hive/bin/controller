@@ -621,7 +621,7 @@ function print_summary_report {
 
 	printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup function' 'Alarms' 'Total'
 	for this_function in $( printf '%s\n' "${!functions_list[@]}" | sort ); do
-		alarm_counter="${routine_checkups_counters[${this_function}:alarm-0]}"
+		alarm_counter="${routine_checkups_counters[${this_function}:alarm]-0}"
 		idle_counter="${routine_checkups_counters[${this_function}:idle]-0}"
 		(( total_counter = alarm_counter + idle_counter ))
 		printf '%33.33s %-35.35s %7.7s %7.7s\n'	'' "$this_function" "$alarm_counter" "$total_counter"
