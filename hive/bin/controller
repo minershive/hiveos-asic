@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.2.0'
+readonly script_version='1.3.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -13,20 +13,38 @@ set -o nounset
 
 # functions
 
-print_script_version() {
+function print_script_version {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
-print_script_usage() {
+function print_script_usage {
 	echo -e "Usage: ${CYAN-}${script_basename} [log]${NOCOLOR-}"
 	echo
 	echo -e "	${WHITE-}log${NOCOLOR-}"
-	echo -e "		prints last $log_lines lines from its own log"
+	echo -e "		prints last $log_lines_to_tail lines from its own log"
 	echo
 }
 
-get_file_size_in_bytes () {
+function calculate_percent_from_number {
+	#
+	# calculate_percent_from_number 'percent' 'number'
+	#
+	# gives result rounded to nearest integer
+	#
+
+	# args
+
+	(( $# != 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	local -r -i percent=${1}
+	local -r -i number=${2}
+
+	# code
+
+	printf '%.0f\n' "$((10**9 * (number * percent) / 100 ))e-9" # yay, neat trick
+}
+
+function get_file_size_in_bytes {
 	#
 	# get_file_size_in_bytes 'file_name'
 	#
@@ -35,7 +53,7 @@ get_file_size_in_bytes () {
 
 	# args
 
-	(( $# != 1 )) && return 2
+	(( $# != 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
 	local -r file_name="${1-}"
 
 	# arrays
@@ -51,12 +69,42 @@ get_file_size_in_bytes () {
 		# print 5th field
 		echo "${ls_output_field[4]}"
 	else
-		return 1
+		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
 }
 
-initialize_dictionaries () {
+# time functions
 
+function tick_tock {
+	# advance running d h m time counters
+	if (( time_counter[minutes]++ >= 59 )); then
+		time_counter[minutes]=0
+		if (( time_counter[hours]++ >= 23 )); then
+			time_counter[hours]=0
+			(( time_counter[days]++ ))
+		fi
+	fi
+}
+
+function every_nth_minute {
+	# every_nth_minute 'minute' 'command' ['options'...]
+	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( time_counter[minutes] % $1 == 0 )) && "${@:2}"
+}
+
+function every_nth_hour {
+	# every_nth_hour 'hour' 'command' ['options'...]
+	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( time_counter[hours] % $1 == 0 && time_counter[minutes] == 0 )) && "${@:2}"
+}
+
+function every_nth_day {
+	# every_nth_day 'day' 'command' ['options'...]
+	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( time_counter[days] % $1 == 0 && time_counter[hours] == 0 && time_counter[minutes] == 0 )) && "${@:2}"
+}
+
+function initialize_dictionaries {
 	# consts
 
 	# for assembling regexes for various date formats
@@ -89,27 +137,29 @@ initialize_dictionaries () {
 
 		['BusyBox'.RE]="^$a $b $e $T $Z $Y"	# Fri Apr  3 07:29:28 Europe 2020	(31 char)
 		['BusyBox'.pattern]='a b e T Z Y'
-	) # in use in split_log_line_to_date_and_message()
+	)											# in use in: split_log_line_to_date_and_message
 
 	declare -r -A -g translate_month_name_to_number_dictionary=(
 		['Jan']=1 ['Feb']=2 ['Mar']=3 ['Apr']=4  ['May']=5 ['Jun']=6
 		['Jul']=7 ['Aug']=8 ['Sep']=9 ['Oct']=10 ['Nov']=11 ['Dec']=12
 		['unknown']=0
-	) # in use in split_log_line_to_date_and_message()
+	)											# in use in: split_log_line_to_date_and_message
 
 	# vars
 
-	declare -A -g log_variables # in use in get_new_lines_from_log()
+	declare -A -g logs_counters					# in use in: get_new_lines_from_log
+	declare -A -g routine_checkups_counters	# in use in: routine_checkups, print_summary_report
+	declare -A -g time_counter					# in use in: tick_tock, every_nth_minute, every_nth_hour, every_nth_day
 }
 
-split_log_line_to_date_and_message () {
+function split_log_line_to_date_and_message {
 	#
 	# split_log_line_to_date_and_message 'log_line' 'date_var_by_ref' 'message_var_by_ref'
 	#
 
 	# args
 
-	(( $# != 3 )) && return 2
+	(( $# != 3 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
 	local -r log_line="${1-}"
 	local -r -n log_date="${2-}" # get var by ref
 	local -r -n log_message="${3-}" # get var by ref
@@ -137,7 +187,7 @@ split_log_line_to_date_and_message () {
 	done
 }
 
-filter_lines_send_messages () {
+function filter_lines_send_messages {
 	#
 	# get lines from stdin, parse them and send message, if necessary
 	#
@@ -148,11 +198,7 @@ filter_lines_send_messages () {
 
 	# vars
 
-	local log_line=''
-	local log_timestamp=''
-	local event_type=''
-	local log_message=''
-	local message_body=''
+	local event_type log_line log_message log_timestamp message_body
 
 	# code
 
@@ -186,7 +232,7 @@ filter_lines_send_messages () {
 	done
 }
 
-get_new_lines_from_log () {
+function get_new_lines_from_log {
 	#
 	# get_new_lines_from_log 'log_name' ['log_name'...]
 	#
@@ -196,18 +242,17 @@ get_new_lines_from_log () {
 
 	# args
 
-	(( $# < 1 )) && return 2
+	(( $# < 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
 	local -r -a logs_list=( "$@" )
 
 	# vars
 
-	local previous_lines_quantity=''
-	local current_lines_quantity=''
-	local log_to_check=''
+	local previous_lines_quantity current_lines_quantity log_to_check
 	local -i previous_log_size=0
 	local -i current_log_size=0
 	local -i tail_from_line=0
 	local -i how_much_new_lines=0
+	local -i is_something_found=$(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# code
 
@@ -218,37 +263,40 @@ get_new_lines_from_log () {
 			# don't waste resources to count lines on every iteration, check file size first
 			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
 
-			if [[ -z "${log_variables[${log_to_check}:size]-}" ]]; then # first time, init vars
+			if [[ -z "${logs_counters[${log_to_check}:size]-}" ]]; then # first time, init vars
 				current_lines_quantity="$( wc -l < "$log_to_check" )"
 				previous_log_size="$current_log_size"
 			else # not a first time
-				previous_log_size="${log_variables[${log_to_check}:size]}"
+				previous_log_size="${logs_counters[${log_to_check}:size]}"
 			fi
 
 			if (( current_log_size > previous_log_size )); then # log file has changed
+				is_something_found=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				current_lines_quantity="$( wc -l < "$log_to_check" )" # get current lines count
-				previous_lines_quantity="${log_variables[${log_to_check}:lines]}" # get previous lines count
+				previous_lines_quantity="${logs_counters[${log_to_check}:lines]}" # get previous lines count
 				(( tail_from_line = previous_lines_quantity + 1 ))
 				(( how_much_new_lines = current_lines_quantity - previous_lines_quantity ))
 				tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines"
 			fi
 
 			# save current values to previous values
-			log_variables["${log_to_check}:size"]="$current_log_size"
+			logs_counters["${log_to_check}:size"]="$current_log_size"
 			if [[ -n "$current_lines_quantity" ]]; then
-				log_variables["${log_to_check}:lines"]="$current_lines_quantity"
+				logs_counters["${log_to_check}:lines"]="$current_lines_quantity"
 			fi
 		fi
 	done
+
+	return $(( is_something_found ))
 }
 
-print_last_lines_from_log () {
-	if [[ -s "$log_file" ]]; then
-		tail -n "$log_lines" "$log_file"
+function print_last_lines_from_log {
+	if [[ -s "$controller_log_file" ]]; then
+		tail -n "$log_lines_to_tail" "$controller_log_file"
 	fi
 }
 
-parse_arguments () {
+function parse_arguments {
 	case "${1-}" in
 		'log')
 			print_script_version
@@ -266,57 +314,95 @@ parse_arguments () {
 	esac
 }
 
-print_log_entry () {
+function print_log_entry {
 	#
 	# print_log_entry 'event_type' 'log_message'
 	#
 
+	# args
+
+	(( $# != 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
 	local event_type="${1-<undefined>}"
 	local log_message="${2-<undefined>}"
+
+	# code
 
 	printf '%(%F %T)T %-13.13s %b\n' -1 "[${event_type^^}]" "$log_message"
 }
 
-drop_caches () {
+function drop_caches {
 	sync && echo 3 > /proc/sys/vm/drop_caches
 }
 
-wipe_memory () {
+function wipe_memory {
 	drop_caches
 	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
 }
 
-truncate_logs () {
-	local file=''
+function truncate_logs {
 
-	for file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
-		if [[ -e $file && "$( wc -l "$file" | cut -d' ' -f1 )" -gt 1000 ]]; then
-			print_log_entry 'info' "Truncate log: $file"
-			echo "$( tail -n 1000 "$file" )" > "$file"
+	# vars
+
+	local this_file
+	local -i current_number_of_lines_in_log
+
+	# code
+
+	for this_file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
+		if [[ -s $this_file ]]; then
+			current_number_of_lines_in_log="$( wc -l < "$this_file" )"
+			if $(( current_number_of_lines_in_log > log_lines_truncate_limit )); then
+				print_log_entry 'info' "Truncate log $this_file, $current_number_of_lines_in_log to $log_lines_truncate_limit"
+				echo "$( tail -n "$log_lines_truncate_limit" "$this_file" )" > "$this_file"
+			fi
 		fi
 	done
 }
 
-check_for_1970_year () {
-	local -i -r current_year="$( date +"%Y" )"
-	local -i date_from_server=0
+#
+# check_for_* functions executed once in a minute
+#
+
+function check_for_1970_year {
+
+	# vars
+
+	local -i current_year date_from_server_in_seconds
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	printf -v current_year '%(%Y)T' -1
 
 	if (( current_year == 1970 )); then
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
-		date_from_server="$( curl -I "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
-		print_log_entry 'info' "System date is 1970. Get actual date from server: $( date -s "@$date_from_server" )"
+		date_from_server_in_seconds="$( curl -I "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
+		print_log_entry 'warning' "System date is 1970. Get actual date from server: $( date -s "@$date_from_server_in_seconds" )"
 	fi
+
+	return $(( is_something_happened ))
 }
 
-check_for_free_memory () {
+function check_for_free_memory {
+
+	# consts
+
 	local -r -i low_memory_limit=5000
 	local -r -i top_lines_count=10
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 	local free_memory="$( cat /proc/meminfo | grep -Fi 'memfree' | sed 's/[^0-9]//g' )"
-	local print_top=''
+	local print_top
+
+	# code
 
 	if (( free_memory < low_memory_limit )); then
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		print_log_entry 'warning' "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
 		echo -e "$print_top" | tee >( message warn "Low memory detected, trying to clean the logs" payload; echo )
@@ -324,39 +410,61 @@ check_for_free_memory () {
 		wipe_memory
 		truncate_logs
 	fi
+
+	return $(( is_something_happened ))
 }
 
-check_for_updated_build_version () {
-	local new_build_version=''
-	local previous_build_version=''
+function check_for_updated_build_version {
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+	local message_header new_build_version previous_build_version
+
+	# code
 
 	if ! cmp -s /hive/etc/build /hive-config/build; then
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
 		previous_build_version="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2> /dev/null || echo 'release' )"
 		cp -rf /hive/etc/build /hive-config/build
 
-		print_log_entry 'info' "Client updated from $previous_build_version to $new_build_version"
-		message ok "Client: updated from $previous_build_version to $new_build_version"
+		message_header="Client updated from $previous_build_version to $new_build_version"
+		print_log_entry 'info' "$message_header"
+		message ok "$message_header"
 		echo
 	fi
+
+	return $(( is_something_happened ))
 }
 
-check_for_virii () {
+function check_for_virii {
+
+	# consts
+
+	local -r message_header='Virus found!'
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+	local -i is_virus_found=0
+	local virus_report
+
+	# code
+
 	if ! which virus-check > /dev/null; then
 		print_log_entry 'warning' "'virus-check' program not found"
-		return
+		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
-	
-	local virus_report=''
-	local -i is_virus_found=0
 
 	virus_report="$( virus-check )"
 	is_virus_found=$?
 
 	if (( is_virus_found )); then
-		print_log_entry 'warning' 'Virus found!'
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+		print_log_entry 'error' "$message_header"
 		if (( ! message_about_virus_was_sent )); then
-			echo -e "$virus_report" | tee >( message err 'Virus found!' payload; echo )
+			echo -e "$virus_report" | tee >( message err "$message_header" payload; echo )
 			if (( assign_tag_to_worker )); then
 				message tag 'virus found'
 				echo
@@ -364,22 +472,128 @@ check_for_virii () {
 			message_about_virus_was_sent=1
 		fi
 	fi
+
+	return $(( is_something_happened ))
+}
+
+function check_for_flash_in_ro_mode {
+
+	# consts
+
+	local -r -a directories_on_flash=( '/nvdata' '/config' )
+
+	# vars
+
+	local directory message_header temp_file
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	for directory in "${directories_on_flash[@]}"; do
+		if [[ -d "$directory" ]]; then
+			if temp_file="$( mktemp -p "$directory" 2> /dev/null )"; then
+				rm -rf "$temp_file"
+			else
+				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+				message_header="$directory switched to read-only mode, please check"
+				print_log_entry 'error' "$message_header"
+				if (( ! message_about_ro_was_sent )); then
+					message err "$message_header"
+					message_about_ro_was_sent=1
+				fi
+			fi
+		fi
+	done
+
+	return $(( is_something_happened ))
+}
+
+function check_for_errors_in_logs {
+
+	# consts
+
+	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' )
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	get_new_lines_from_log "${logs_to_check[@]}" > >( filter_lines_send_messages )
+
+	# ??? could that be the exitcode will come from last command in chain? I think not, there's a simple redirection
+	if (( $? != 0 )); then
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+	fi
+
+	return $(( is_something_happened ))
+}
+
+function routine_checkups {
+
+	# vars
+
+	local check_function
+
+	# code
+
+  	# execute check_for_* functions in alphabetical order
+	for check_function in $( compgen -A function 'check_for_' | sort ); do
+		"$check_function"
+		if (( $? == 0 )); then
+			(( routine_checkups_counters["${check_function}:idle"]++ ))
+		else
+			(( routine_checkups_counters["${check_function}:alarm"]++ ))
+	done
+}
+
+function print_summary_report {
+
+	# vars
+	
+	local -A functions_list
+	local function_name this_function
+
+	# code
+
+	# get unique functions list
+	for this_function in "${!routine_checkups_counters[@]}"; do
+		function_name="${this_function%%:*}" # cut .* from string
+		functions_list["$function_name"]=1 # any char you want, it's a flag, sort of
+	done
+
+	print_log_entry 'info' "Controller performance report for 24 hours"
+
+	printf '%-25.25s %10.10s %10.10s' 'Checkup' 'Alarms' 'Idle runs'
+	for this_function in "$( printf '%s\n' "${!functions_list[@]}" | sort )"; do
+		printf '%-25.25s %-10.10s %-10.10s' "$this_function" \
+											"${routine_checkups_counters["${this_function}:alarm"]-0}" \
+											"${routine_checkups_counters["${this_function}:idle"]-0}"
+	done
 }
 
 
 # global consts
 
-declare -i -r assign_tag_to_worker=1
-declare -i -r log_lines=100
-declare -r log_file='/config/hive-controller.log'
+declare -r -i sleep_time=60
+declare -r -i assign_tag_to_worker=1
+declare -r -i log_lines_to_tail=80
+declare -r -i log_lines_truncate_limit=1000
+declare -r controller_log_file='/config/hive-controller.log'
+declare -r -i exitcode_OK_NOTHING_HAPPENED=0
+declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
+declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
+declare -r -i exitcode_ERROR_NOT_FOUND=100
 
 
 # global vars
 
-declare log_to_check=''
 declare check_function=''
-declare -i minute_counter=0
+declare -i actual_sleep_time
+declare -i execution_time
 declare -i message_about_virus_was_sent=0
+declare -i message_about_ro_was_sent=0
 
 
 # global sources
@@ -402,27 +616,31 @@ export LD_LIBRARY_PATH=/hive/lib
 #pool checks
 #DNS checks
 #wd
-#check read only nvdata and config
+# warn unsigned fw owners
 
 parse_arguments "$@"
 initialize_dictionaries
 
-print_log_entry 'start' "Controller $script_version started"
+print_log_entry 'info' "Controller $script_version started"
 
 # main loop
 while true; do
-	# execute check_for_* functions in alphabetical order
-	for check_function in $( compgen -A function 'check_for_' | sort ); do
-		"$check_function"
-	done
+	printf -v before_execution '%(%s)T' -1
+	routine_checkups
+	printf -v after_execution '%(%s)T' -1
 
-	get_new_lines_from_log /nvdata/miner_status.log /config/watchdog.log > >( filter_lines_send_messages )
+	(( execution_time = after_execution - before_execution ))
+  	(( actual_sleep_time = sleep_time - execution_time ))
+	if (( execution_time > $( calculate_percent_from_number 80 "$sleep_time" ) )); then
+		print_log_entry 'warning' "Lagging. Routine checkups took $execution_time seconds ( >80% of an idle time )"
+	fi
 
-	sleep 60
+	sleep $(( actual_sleep_time <= 0 ? 0 : actual_sleep_time ))
+	tick_tock # advance dhm timer
 
-#	drop_caches
-
-	(( minute_counter % 10 == 0 )) && /hive/bin/agent-screen dontattach	# cron agent every 10m
-	(( minute_counter == 59 )) && /hive/bin/cache-hive-ip > /dev/null	# cron cache-hive-ip on 59m
-	(( minute_counter >= 60 ? minute_counter=0 : minute_counter++ ))	# clear counter every 60m
+	# cron-like stuff
+	every_nth_minute 10 /hive/bin/agent-screen dontattach
+	every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
+	every_nth_minute 10 print_summary_report # !!! test
+	#every_nth_day 1 print_summary_report
 done
