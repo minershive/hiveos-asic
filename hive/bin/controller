@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.0'
+readonly script_version='1.3.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -137,19 +137,19 @@ function initialize_dictionaries {
 
 		['BusyBox'.RE]="^$a $b $e $T $Z $Y"	# Fri Apr  3 07:29:28 Europe 2020	(31 char)
 		['BusyBox'.pattern]='a b e T Z Y'
-	)											# in use in: split_log_line_to_date_and_message
+	)										# in use in: split_log_line_to_date_and_message
 
 	declare -r -A -g translate_month_name_to_number_dictionary=(
 		['Jan']=1 ['Feb']=2 ['Mar']=3 ['Apr']=4  ['May']=5 ['Jun']=6
 		['Jul']=7 ['Aug']=8 ['Sep']=9 ['Oct']=10 ['Nov']=11 ['Dec']=12
 		['unknown']=0
-	)											# in use in: split_log_line_to_date_and_message
+	)										# in use in: split_log_line_to_date_and_message
 
 	# vars
 
-	declare -A -g logs_counters					# in use in: get_new_lines_from_log
+	declare -A -g logs_counters				# in use in: get_new_lines_from_log
 	declare -A -g routine_checkups_counters	# in use in: routine_checkups, print_summary_report
-	declare -A -g time_counter					# in use in: tick_tock, every_nth_minute, every_nth_hour, every_nth_day
+	declare -A -g time_counter				# in use in: tick_tock, every_nth_minute, every_nth_hour, every_nth_day
 }
 
 function split_log_line_to_date_and_message {
@@ -542,8 +542,10 @@ function routine_checkups {
 	for check_function in $( compgen -A function 'check_for_' | sort ); do
 		"$check_function"
 		if (( $? == 0 )); then
+			: "${routine_checkups_counters["${check_function}:idle"]:=0}" # take care of unbound var, haven't figured out a pretty way
 			(( routine_checkups_counters["${check_function}:idle"]++ ))
 		else
+			: "${routine_checkups_counters["${check_function}:alarm"]:=0}" # take care of unbound var, haven't figured out a pretty way
 			(( routine_checkups_counters["${check_function}:alarm"]++ ))
 		fi
 	done
@@ -569,8 +571,8 @@ function print_summary_report {
 	printf '%-25.25s %10.10s %10.10s' 'Checkup' 'Alarms' 'Idle runs'
 	for this_function in "$( printf '%s\n' "${!functions_list[@]}" | sort )"; do
 		printf '%-25.25s %-10.10s %-10.10s' "$this_function" \
-											"${routine_checkups_counters["${this_function}:alarm"]-0}" \
-											"${routine_checkups_counters["${this_function}:idle"]-0}"
+											"${routine_checkups_counters["${this_function}:alarm"]-.}" \
+											"${routine_checkups_counters["${this_function}:idle"]-.}"
 	done
 }
 
