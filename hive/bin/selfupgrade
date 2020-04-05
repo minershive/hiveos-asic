@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.5'
+readonly script_version='0.14.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -826,11 +826,6 @@ exit_if_no_repository_available () {
 	fi
 }
 
-delayed_agent_screen_restart () {
-	sleep 2
-	agent-screen restart
-}
-
 
 # global consts
 
@@ -882,7 +877,8 @@ execute_install_routine
 #hello restartminer
 
 remove_needless_files "${temp_dir}/hiveos-asic*"
-nohup delayed_agent_screen_restart > /dev/null 2>&1 & # buys a little time for previous agent to send the OK message
+# delayed_agent_screen_restart ()
+nohup bash -c '	sleep 2; agent-screen restart' > /dev/null 2>&1 & # buys a little time for previous agent to send the OK message
 echo
 echo -e "${GREEN}Update complete. Have a happy mining.${NOCOLOR}"
 sync
