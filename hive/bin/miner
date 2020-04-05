@@ -1,49 +1,26 @@
 #!/hive/sbin/bash
 
-MINER_LOGS_BASE_DIR='/var/log/miner'
-#ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-MINER='asicminer'
 
-. asic-model
+readonly script_mission='Client for ASICs: Miner controller'
+readonly script_version='1.0.0'
+readonly script_basename="$( basename "$0" )"
 
-function script_usage {
-	bname=`basename $0`
-	echo -e "Usage: ${CYAN}$bname start|stop|restart|log|tuning|config|config-gen${NOCOLOR}"
-	echo -e "If you run ${CYAN}$bname${NOCOLOR} without parameters miner screen will be tried to resume."
+
+# functions
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
 }
 
-
-RIG_CONF="/hive-config/rig.conf"
-WALLET_CONF="/hive-config/wallet.conf"
-
-#[[ -t 1 ]] &&
-. colors
-
-#[[ -z $1 ]] && script_usage && exit 1
-
-
-if [[ ! -f $RIG_CONF ]]; then
-	echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
-	#exit 1
-else
-	. "$RIG_CONF"
-fi
-
-
-[[ -e $WALLET_CONF ]] && . "$WALLET_CONF"
-
-[[ -z $MINER ]] && MINER="asicminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
-
-#sgminer-gm is deprecated...
-miners_avail=("asicminer")
-if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
-	echo -e "${RED}Please apply Flight Sheet to start mining ${NOCOLOR}"
-	message warn "Please apply Flight Sheet to start mining"
-	exit 1
-fi
-
-
-########################################################################################################################
+function script_usage {
+	script_basename="$( basename "$0" )"
+	echo -e "Usage: ${CYAN}$script_basename start|stop|restart|config|config-gen${NOCOLOR}"
+	echo -e "       ${CYAN}$script_basename log [kernel|tuning|watchdog]${NOCOLOR} - display a corresponding log"
+	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                       - deprecated"
+	echo
+	echo -e "If you run ${CYAN}$script_basename${NOCOLOR} without parameters miner screen will be tried to resume."
+}
 
 function print_kernel_log {
 	local -a uptime_line
@@ -238,7 +215,38 @@ function print_tune_log {
 	done
 }
 
-########################################################################################################################
+
+# main()
+
+MINER_LOGS_BASE_DIR='/var/log/miner'
+#ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
+MINER='asicminer'
+
+. colors
+. asic-model
+
+RIG_CONF="/hive-config/rig.conf"
+WALLET_CONF="/hive-config/wallet.conf"
+
+
+if [[ ! -f $RIG_CONF ]]; then
+	echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
+	#exit 1
+else
+	. "$RIG_CONF"
+fi
+
+[[ -e $WALLET_CONF ]] && . "$WALLET_CONF"
+
+[[ -z $MINER ]] && MINER="asicminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
+
+#sgminer-gm is deprecated...
+miners_avail=("asicminer")
+if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
+	echo -e "${RED}Please apply Flight Sheet to start mining ${NOCOLOR}"
+	message warn "Please apply Flight Sheet to start mining"
+	exit 1
+fi
 
 case "$1" in
 	start)
@@ -278,9 +286,14 @@ case "$1" in
 	tuning)
 		print_tune_log
 		;;
-	*)
+	'')
+		print_script_version
 		screen -x -S bmminer > /dev/null ||
 			screen -x -S cgminer /dev/null ||
-				script_usage
+				echo 'No miner screen running'
+		;;
+	*)
+		print_script_version
+		script_usage
 		;;
 esac
