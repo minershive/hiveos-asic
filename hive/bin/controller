@@ -73,7 +73,7 @@ function get_file_size_in_bytes {
 	fi
 }
 
-pgrep_count {
+function pgrep_count {
 	#
 	# pgrep_count 'pattern'
 	#
@@ -90,7 +90,7 @@ pgrep_count {
 	ps w | grep -E "$pattern" | grep -cv 'grep'
 }
 
-pgrep_quiet {
+function pgrep_quiet {
 	#
 	# pgrep_quiet 'pattern'
 	#
