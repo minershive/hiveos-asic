@@ -36,8 +36,8 @@ function calculate_percent_from_number {
 	# args
 
 	(( $# != 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	local -r -i percent=${1}
-	local -r -i number=${2}
+	local -r -i percent=${1-}
+	local -r -i number=${2-}
 
 	# code
 
@@ -71,6 +71,40 @@ function get_file_size_in_bytes {
 	else
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
+}
+
+pgrep_count {
+	#
+	# pgrep_count 'pattern'
+	#
+	# pgrep --count emulator
+	#
+	
+	# args
+
+	(( $# != 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	local -r pattern="$1"
+
+	# code
+
+	ps w | grep -E "$pattern" | grep -cv 'grep'
+}
+
+pgrep_quiet {
+	#
+	# pgrep_quiet 'pattern'
+	#
+	# pgrep --quiet emulator
+	#
+	
+	# args
+
+	(( $# != 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	local -r pattern="$1"
+
+	# code
+
+	ps w | grep -E "$pattern" | grep -qv 'grep'
 }
 
 function initialize_dictionaries {
@@ -427,6 +461,12 @@ function check_for_updated_build_version {
 
 	# code
 
+	if pgrep_quiet 'selfupgrade|S69hive'; then
+		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
+		print_log_entry 'info' "selfupgrade running, skipping ${FUNCNAME}..."
+		return $(( exitcode_OK_NOTHING_HAPPENED ))
+	done
+	
 	if ! cmp -s /hive/etc/build /hive-config/build; then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
@@ -455,6 +495,12 @@ function check_for_virii {
 	local virus_report
 
 	# code
+
+	if pgrep_quiet 'selfupgrade|S69hive'; then
+		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
+		print_log_entry 'info' "selfupgrade running, skipping ${FUNCNAME}..."
+		return $(( exitcode_OK_NOTHING_HAPPENED ))
+	done
 
 	if ! which virus-check > /dev/null; then
 		print_log_entry 'warning' "'virus-check' program not found"
@@ -561,6 +607,7 @@ function print_summary_report {
 	
 	local -A functions_list
 	local function_name this_function
+	local -i alarm_counter idle_counter total_counter	
 
 	# code
 
@@ -570,13 +617,14 @@ function print_summary_report {
 		functions_list["$function_name"]=1 # any char you want, even ''
 	done
 
-	print_log_entry 'info' "Controller performance report for 24 hours"
+	print_log_entry 'info' "Controller performance report for 24 hours:"
 
-	printf '%-25.25s %10.10s %10.10s\n' 'Checkup function' 'Alarms' 'Idle runs'
+	printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup function' 'Alarms' 'Total'
 	for this_function in $( printf '%s\n' "${!functions_list[@]}" | sort ); do
-		printf '%-25.25s %10.10s %10.10s\n'	"$this_function" \
-											"${routine_checkups_counters[${this_function}:alarm]-.}" \
-											"${routine_checkups_counters[${this_function}:idle]-.}"
+		alarm_counter="${routine_checkups_counters[${this_function}:alarm-0]}"
+		idle_counter="${routine_checkups_counters[${this_function}:idle]-0}"
+		(( total_counter = alarm_counter + idle_counter ))
+		printf '%33.33s %-35.35s %7.7s %7.7s\n'	'' "$this_function" "$alarm_counter" "$total_counter"
 	done
 	echo
 }
@@ -634,21 +682,25 @@ print_log_entry 'info' "Controller $script_version started"
 # main loop
 while true; do
 	printf -v before_execution '%(%s)T' -1
+
+	# routine
 	routine_checkups
+	# cron-like stuff
+	every_nth_minute 10 /hive/bin/agent-screen dontattach
+	every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
+	every_nth_hour 1 print_summary_report # !!! test
+	#every_nth_day 1 print_summary_report
+
 	printf -v after_execution '%(%s)T' -1
 
 	(( execution_time = after_execution - before_execution ))
   	(( actual_sleep_time = sleep_time - execution_time ))
 	if (( execution_time > $( calculate_percent_from_number 80 "$sleep_time" ) )); then
+		: "${routine_checkups_counters[controller_lagging:idle]:=0}" # take care of unbound var, haven't figured out a pretty way
+		(( routine_checkups_counters[controller_lagging]++ ))
 		print_log_entry 'warning' "Lagging. Routine checkups took $execution_time seconds ( >80% of an idle time )"
 	fi
 
 	sleep $(( actual_sleep_time <= 0 ? 0 : actual_sleep_time ))
 	tick_tock # advance dhm timer
-
-	# cron-like stuff
-	every_nth_minute 10 /hive/bin/agent-screen dontattach
-	every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
-	every_nth_minute 10 print_summary_report # !!! test
-	#every_nth_day 1 print_summary_report
 done
