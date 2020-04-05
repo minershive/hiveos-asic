@@ -14,7 +14,6 @@ function print_script_version {
 }
 
 function script_usage {
-	script_basename="$( basename "$0" )"
 	echo -e "Usage: ${CYAN}$script_basename start|stop|restart|config|config-gen${NOCOLOR}"
 	echo -e "       ${CYAN}$script_basename log [kernel|tuning|watchdog]${NOCOLOR} - display a corresponding log"
 	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                       - deprecated"
