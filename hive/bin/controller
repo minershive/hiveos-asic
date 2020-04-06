@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.3'
+readonly script_version='1.3.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -21,8 +21,7 @@ function print_script_version {
 function print_script_usage {
 	echo -e "Usage: ${CYAN-}${script_basename} [log]${NOCOLOR-}"
 	echo
-	echo -e "	${WHITE-}log${NOCOLOR-}"
-	echo -e "		prints last $log_lines_to_tail lines from its own log"
+	echo -e "Options: ${WHITE-}log${NOCOLOR-} - show last $log_lines_to_tail lines from log and exit"
 	echo
 }
 
@@ -214,8 +213,8 @@ function split_log_line_to_date_and_message {
 	for this_format in ${date_formats_dictionary['list_by_incidence']}; do
 		if [[ "$log_line" =~ ${date_formats_dictionary[${this_format}.RE]} ]]; then
 			read -r -t 0.1 ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line"
-			[[ -z "${F-}" && -z "${d-}" ]] && printf -v d '%02d' "$(( 10#$e ))" # drop any leading zeros before printf %d
-			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02d' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
+			[[ -z "${F-}" && -z "${d-}" ]] && printf -v d '%02u' "$(( 10#$e ))" # drop any leading zeros before printf %u
+			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02u' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
 			[[ -z "${F-}" && -z "${Y-}" ]] && printf -v Y '%(%Y)T' -1
 			[[ -z "${F-}" ]] && F="$Y-$m-$d"
 			printf -v log_date '%-10.10s %-8.8s' "$F" "$T"
@@ -656,6 +655,7 @@ declare -i message_about_ro_was_sent=0
 
 [[ -s /hive/bin/asic-model ]] && source asic-model
 [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
+[[ -s /hive/bin/colors ]] && source colors
 
 
 # global exports
@@ -685,11 +685,11 @@ while true; do
 
 	# routine
 	routine_checkups
+
 	# cron-like stuff
 	every_nth_minute 10 /hive/bin/agent-screen dontattach
 	every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
-	every_nth_hour 1 print_summary_report # !!! test
-	#every_nth_day 1 print_summary_report
+	every_nth_day 1 print_summary_report
 
 	printf -v after_execution '%(%s)T' -1
 
