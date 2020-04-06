@@ -4,58 +4,43 @@
 readonly script_mission='Client for ASICs: Miner controller'
 readonly script_version='1.0.0'
 readonly script_basename="$( basename "$0" )"
+source /hive/bin/hive-functions.sh
 
 
 # functions
 
-function print_script_version {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
-	echo
-}
-
 function script_usage {
-	echo -e "Usage: ${CYAN}$script_basename start|stop|restart|config|config-gen${NOCOLOR}"
-	echo -e "       ${CYAN}$script_basename log [kernel|tuning|watchdog]${NOCOLOR} - display a corresponding log"
-	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                       - deprecated"
+	echo -e "Usage: ${CYAN}$script_basename [start|stop|restart|config|config-gen]${NOCOLOR}"
+	echo -e "       ${CYAN}$script_basename log [kernel|status|tuning|watchdog|all]${NOCOLOR} - display a corresponding log"
+	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                                  - deprecated, please do not use"
 	echo
 	echo -e "If you run ${CYAN}$script_basename${NOCOLOR} without parameters miner screen will be tried to resume."
 }
 
-function print_kernel_log {
-	local -a uptime_line
-	local -i now cputime timestamp
-	local cputime cputime_line line
-	
-	printf -v now '%(%s)T' -1
-
-	if [[ -r /proc/uptime ]]; then
-		uptime_line=( $( < /proc/uptime ) )
-		cputime=$(( ${uptime_line/\.} / 100 ))
-	elif [[ -r /proc/sched_debug ]]; then
-		# do we really need second option?
-		cputime_line=$(grep -F -m 1 '\.clock' /proc/sched_debug)
-		if [[ $cputime_line =~ [^0-9]*([0-9]*).* ]]; then
-			cputime=$(( BASH_REMATCH[1] / 1000 ))
-		fi
-	else
-		dmesg
-		return
-	fi
-	
-	dmesg | while IFS= read -r -t 0.1 line; do
-		if [[ $line =~ ^\[\ *([0-9]+)\.[0-9]+\]\ (.*) ]]; then
-			timestamp=$(( now - cputime + BASH_REMATCH[1] ))
-			printf '%(%F %T)T %s\n' "$timestamp" "${BASH_REMATCH[2]}"
-		else
-			echo "$line"
-		fi
-	done
-}
+# config functions
 
 function config-gen {
 	/hive/bin/asicminer-config
 }
 
+function echo_config_file {
+	echo -e "${YELLOW}=== $1 =================================================${NOCOLOR}"
+	cat "$1"
+	echo
+}
+
+function config {
+	# shows miner config
+	logname=""
+	if [[ ! -z $CONFIG_PATH ]]; then
+		echo_config_file "${CONFIG_PATH}"
+	else
+		echo "Unknown model $ASIC_MODEL"
+		return
+	fi
+}
+
+# start/stop/restart functions
 
 function start {
 	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
@@ -129,6 +114,19 @@ function restart {
 	fi
 }
 
+function check_second_miner {
+	# sets MINER to MINER2 if requested
+	[[ -z $1 || $1 != "2" ]] && return #not a second miner request
+
+	[[ $1 == "2" && -z $MINER2 ]] &&
+	echo "No second miner configured" &&
+	exit 1
+
+	MINER="$MINER2" #substitute MINER var with second miner
+}
+
+# logs functions
+
 function miner_log_basename {
 	local miner="$1"
 	[[ -z $miner ]] && echo "No miner given to miner_log_basename" && return 1
@@ -145,19 +143,19 @@ function miner_log_basename {
 	return 0
 }
 
-function log_tail {
+function log_tail { # TODO should refactor to smth like print_log()
 	local TAIL_LINE=80
 	if [[ ! -z $HIVEON_VER ]]; then
-		sh /www/pages/cgi-bin/get_kernel_log.cgi | tail -n $TAIL_LINE
+		sh /www/pages/cgi-bin/get_kernel_log.cgi | tail -n "$TAIL_LINE"
 	else
 		log_basename=`miner_log_basename $MINER`
 		if [[ $ASIC_MODEL =~ ".g19" ]]; then
-			journalctl -n $TAIL_LINE
+			journalctl -n "$TAIL_LINE"
 		else
 			#logname="${log_basename}.log"
 			logname="${log_basename}"
 
-			if [[ ! -e $logname ]]; then
+			if [[ ! -e "$logname" ]]; then
 				echo "Log $logname does not exist yet"
 				return
 			fi
@@ -170,39 +168,125 @@ function log_tail {
 
 			echo -e "${YELLOW}=== $logname last $TAIL_LINE lines =================================================${NOCOLOR}"
 			echo "Last modified `stat -c %y $logname`"
-			echo ""
+			echo
 			#tail -n $TAIL_LINE $logname | sed "s,$(printf '\033')\\[[0-9;]*[a-zA-Z],,g" #sed removes colors
-			tail -n $TAIL_LINE $1 $logname
+			tail -n "$TAIL_LINE" "$1" "$logname"
 		fi
 	fi
 }
 
-function echo_config_file {
-	echo -e "${YELLOW}=== $1 =================================================${NOCOLOR}"
-	cat $1
-	echo ""
-}
+function tail_any_log {
+	#
+	# tail_any_log [-d] [-r PATTERN] [-s] [-t LINES] ['input_file']
+	#
+	# -d decorations (header & footer) off
+	# -r extended regex pattern
+	# -s sort
+	# -t tail lines
 
-function config {
-	# shows miner config
-	logname=""
-	if [[ ! -z $CONFIG_PATH ]]; then
-		echo_config_file "${CONFIG_PATH}"
-	else
-		echo "Unknown model $ASIC_MODEL"
-		return
+	# defaults
+
+	local -r -i	is_decoration_DEFAULT=1
+	local -r -i	is_from_file_DEFAULT=1
+	local -r -i	is_regex_DEFAULT=0
+	local -r -i	is_sort_DEFAULT=0
+	local -r -i	is_tail_DEFAULT=0
+
+	# options
+
+	local -i	is_decoration="$is_decoration_DEFAULT"
+	local -i	is_from_file="$is_from_file_DEFAULT"
+	local -i	is_regex="$is_regex_DEFAULT"
+	local -i	is_sort="$is_sort_DEFAULT"
+	local -i	is_tail="$is_tail_DEFAULT"
+	local -i	tail_lines=
+	local		regex_pattern=
+
+	# vars
+
+	local -i now last_modified_time_in_seconds file_size
+	local option input_file last_modified_time_human_readable last_modified_time_dhms
+
+	# arguments parsing
+
+	while getopts ':dr:st:' option; do
+		case "$option" in
+			d)	is_decoration=0				;;
+			r)	is_regex=1
+				regex_pattern="$OPTARG"		;;
+			s)	is_sort=1					;;
+			t)	is_tail=1
+				tail_lines="$OPTARG"		;;
+		esac
+	done
+	shift $(( OPTIND - 1 ))
+	local -r input_file="${1-}"
+
+	# code
+
+	if [[ -z "$input_file" || "$input_file" == '-' ]]; then
+		is_from_file=0
+	fi
+
+	if (( is_from_file )); then
+		if [[ -r "$input_file" ]]; then
+			file_size="$( get_file_size_in_bytes "$input_file" )"
+			if (( is_decoration )); then
+				last_modified_time_in_seconds="$( get_file_last_modified_time_in_seconds "$input_file" )"
+				now="$( get_current_system_time_in_seconds )"
+				(( timespan_between_now_and_last_modified = now - last_modified_time_in_seconds ))
+				last_modified_time_dhms="$( format_date_in_seconds "$timespan_between_now_and_last_modified" 'dhms' )"
+				last_modified_time_human_readable="$( format_date_in_seconds "$last_modified_time_in_seconds" )"
+	
+				header="File ${WHITE}$input_file${NOCOLOR}"
+				(( is_tail )) && header+=", last ${WHITE}${tail_lines}${NOCOLOR} lines"
+				(( is_regex )) && header+=", filtered by '${WHITE}$regex_pattern${NOCOLOR}'"
+	
+				echo -e "$header ----------"
+				echo
+			fi
+	
+			if (( file_size <= 1 )); then
+				echo "$input_file is empty"
+			fi
+		else
+			echo "$input_file not found or not readable"
+			return $(( exitcode_ERROR_NOT_FOUND ))
+		fi
+	fi
+
+	# tremble before awesome 4-stage conditional pipe!
+	iif_pipe "$is_from_file" cat "$input_file" |
+		iif_pipe "$is_regex" grep -E -e "$regex_pattern" |
+			iif_pipe "$is_sort" sort -us |
+				iif_pipe "$is_tail" tail -n "$tail_lines"
+
+	if (( is_from_file )); then
+		if (( is_decoration )); then
+			echo
+			echo -e "${WHITE}$last_modified_time_human_readable${NOCOLOR} file was last modified ${WHITE}$last_modified_time_dhms${NOCOLOR} ago ----------"
+		fi
 	fi
 }
 
-function check_second_miner {
-	# sets MINER to MINER2 if requested
-	[[ -z $1 || $1 != "2" ]] && return #not a second miner request
+function print_kernel_log {
+	local -a uptime_line
+	local -i now cputime timestamp
+	local line
 
-	[[ $1 == "2" && -z $MINER2 ]] &&
-	echo "No second miner configured" &&
-	exit 1
-
-	MINER="$MINER2" #substitute MINER var with second miner
+	if cputime="$( get_system_uptime_in_seconds )"; then
+		now="$( get_current_system_time_in_seconds )"
+		dmesg | while IFS= read -r -t 0.1 line; do
+			if [[ $line =~ ^\[\ *([0-9]+)\.[0-9]+\]\ (.*) ]]; then
+				timestamp=$(( now - cputime + BASH_REMATCH[1] ))
+				printf '%(%F %T)T %s\n' "$timestamp" "${BASH_REMATCH[2]}"
+			else
+				echo "$line"
+			fi
+		done
+	else
+		dmesg
+	fi
 }
 
 function print_tune_log {
@@ -212,6 +296,26 @@ function print_tune_log {
 			sh "$tune_log_script"
 		fi
 	done
+}
+
+function tail_miner_status_log {
+	local -r miner_status_log='/nvdata/miner_status.log'
+	tail_any_log -d -t 80 "$miner_status_log"
+}
+
+function tail_watchdog_log {
+	local -r watchdog_log='/config/watchdog.log'
+	tail_any_log -d -t 80 "$watchdog_log"
+}
+
+function collate_all_logs {
+	{
+		print_kernel_log
+		print_tune_log
+		tail_miner_status_log
+		tail_watchdog_log
+	} |
+		tail_any_log -t 100 -s
 }
 
 
@@ -248,50 +352,31 @@ if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
 fi
 
 case "$1" in
-	start)
-		start
-		;;
-	stop)
-		stop
-		;;
-	restart)
-		restart
-		;;
-	config)
-		config
-		;;
-	config-gen)
-		config-gen
-		;;
-	log) # supports args for tail
-		case "$2" in
-			'kernel')
-				print_kernel_log
-				;;
-			'tuning')
-				print_tune_log
-				;;
-			'watchdog')
-				[[ -s /config/watchdog.log ]] && tail -n 80 /config/watchdog.log
-				;;
-			*)
-				log_tail $2 $3 $4
-				;;
-		esac
-		;;
-	kernel-log) #temp. TODO miner log [kernel|tuning|watchdog|all [filter=regex_pattern] [sort=none|date]]
-		print_kernel_log
-		;;
-	tuning)
-		print_tune_log
-		;;
+	'config')			config					;;
+	'config-gen')		config-gen				;;
+	'kernel-log')		print_kernel_log		;;		# deprecated
+	'log')
+		case "$2" in									# TODO miner log [kernel|tuning|watchdog|all [filter=regex_pattern] [sort=none|date]]
+			'all')			collate_all_logs			;;
+			'kernel')		print_kernel_log			;;
+			'status')		tail_miner_status_log		;;
+			'tuning')		print_tune_log				;;
+			'watchdog')		tail_watchdog_log			;;
+			*)				log_tail $2 $3				;; # supports args for tail. do we still need this???
+		esac									;;
+	'restart')			restart					;;
+	'start')			start					;;
+	'stop')				stop					;;
+	'tuning')			print_tune_log			;;		# deprecated
+
 	'')
 		print_script_version
 		screen -x -S bmminer > /dev/null ||
 			screen -x -S cgminer /dev/null ||
 				echo 'No miner screen running'
 		;;
-	*)
+
+	'-h'|'--help'|*)
 		print_script_version
 		script_usage
 		;;
