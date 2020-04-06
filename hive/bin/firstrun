@@ -50,7 +50,7 @@ read_HIVE_HOST_URL_from_RIG_CONF() {
 }
 
 sanitize_HIVE_HOST_URL() {
-	(( $# < 1 && $# > 2 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
+	(( $# < 1 || $# > 2 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
 	#
 	# sanitize_HIVE_HOST_URL 'url_to_sanitize' ['fallback_url'] -> 'sanitized_url'
 	#
