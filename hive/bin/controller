@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.7'
+readonly script_version='1.3.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -463,12 +463,6 @@ function check_for_updated_build_version {
 
 	# code
 
-	if pgrep_quiet 'selfupgrade|S69hive'; then
-		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
-		print_log_entry 'info' "selfupgrade running, skipping ${FUNCNAME}..."
-		return $(( exitcode_OK_NOTHING_HAPPENED ))
-	fi
-	
 	if ! cmp -s /hive/etc/build /hive-config/build; then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
@@ -497,12 +491,6 @@ function check_for_virii {
 	local virus_report
 
 	# code
-
-	if pgrep_quiet 'selfupgrade|S69hive'; then
-		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
-		print_log_entry 'info' "selfupgrade running, skipping ${FUNCNAME}..."
-		return $(( exitcode_OK_NOTHING_HAPPENED ))
-	fi
 
 	if ! which virus-check > /dev/null; then
 		print_log_entry 'warning' "'virus-check' program not found"
@@ -601,6 +589,11 @@ function routine_checkups {
 			(( routine_checkups_counters[${check_function}:alarm]++ ))
 		fi
 	done
+}
+
+function agent_screen_dontattach {
+
+	/hive/bin/agent-screen dontattach
 }
 
 function print_summary_report {
@@ -703,13 +696,17 @@ print_log_entry 'info' "Controller $script_version started"
 while true; do
 	printf -v before_execution '%(%s)T' -1
 
-	# routine
-	routine_checkups
-
-	# cron-like stuff
-	every_nth_minute 10 /hive/bin/agent-screen dontattach
-	every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
-	every_nth_day 1 print_summary_report
+	if pgrep_quiet 'selfupgrade|S69hive'; then
+		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
+		print_log_entry 'info' "selfupgrade running, skipping checks..."
+	else
+		# routine
+		routine_checkups
+		# cron-like stuff
+		every_nth_minute 10 /hive/bin/agent-screen dontattach
+		every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
+		every_nth_day 1 print_summary_report
+	fi
 
 	printf -v after_execution '%(%s)T' -1
 

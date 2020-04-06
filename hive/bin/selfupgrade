@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.7'
+readonly script_version='0.14.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -827,7 +827,7 @@ exit_if_no_repository_available () {
 }
 
 delayed_agent_screen_restart () {
-	nohup /bin/sh -c 'sleep 2; agent-screen restart' > /dev/null 2>&1 & # buys a little time for the agent currently running to send the OK message
+	nohup /bin/sh -c 'sleep 5; agent-screen restart' > /dev/null 2>&1 & # buys a little time for the agent currently running to send the OK message
 }
 
 
