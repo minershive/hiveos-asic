@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.4'
+readonly script_version='1.3.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -21,7 +21,7 @@ function print_script_version {
 function print_script_usage {
 	echo -e "Usage: ${CYAN-}${script_basename} [log]${NOCOLOR-}"
 	echo
-	echo -e "Options: ${WHITE-}log${NOCOLOR-} - show last $log_lines_to_tail lines from log and exit"
+	echo -e "       ${WHITE-}log${NOCOLOR-} - show last $log_lines_to_tail lines from log and exit"
 	echo
 }
 
@@ -606,26 +606,43 @@ function print_summary_report {
 	
 	local -A functions_list
 	local function_name this_function
-	local -i alarm_counter idle_counter total_counter	
+	local -i alarm_counter idle_counter total_counter
+	local -i number_of_alarmed_checkup_functions=0 total_number_of_checkup_functions=0
 
 	# code
 
-	# get unique functions list
+	# get unique list of function names
 	for this_function in "${!routine_checkups_counters[@]}"; do
 		function_name="${this_function%%:*}" # cut .* from string
 		functions_list["$function_name"]=1 # any char you want, even ''
 	done
 
-	print_log_entry 'info' "Controller performance report for 24 hours:"
-
-	printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup function' 'Alarms' 'Total'
-	for this_function in $( printf '%s\n' "${!functions_list[@]}" | sort ); do
+	for this_function in "${!functions_list[@]}"; do
 		alarm_counter="${routine_checkups_counters[${this_function}:alarm]-0}"
-		idle_counter="${routine_checkups_counters[${this_function}:idle]-0}"
-		(( total_counter = alarm_counter + idle_counter ))
-		printf '%33.33s %-35.35s %7.7s %7.7s\n'	'' "$this_function" "$alarm_counter" "$total_counter"
+		if (( alarm_counter != 0 )); then
+			(( number_of_alarmed_checkup_functions++ ))
+		fi
 	done
-	echo
+
+	total_number_of_checkup_functions="${#functions_list[@]}"
+
+	if (( number_of_alarmed_checkup_functions > 0 )); then
+		print_log_entry 'info' "Daily controller report. Checkup functions involved: $number_of_alarmed_checkup_functions/$total_number_of_checkup_functions"
+
+		printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup function' 'Alarms' 'Total'
+		for this_function in $( printf '%s\n' "${!functions_list[@]}" | sort ); do
+			alarm_counter="${routine_checkups_counters[${this_function}:alarm]-0}"
+			if (( alarm_counter != 0 )); then
+				idle_counter="${routine_checkups_counters[${this_function}:idle]-0}"
+				(( total_counter = alarm_counter + idle_counter ))
+				printf '%33.33s %-35.35s %7.7s %7.7s\n'	'' "$this_function" "$alarm_counter" "$total_counter"
+			fi
+			routine_checkups_counters["${this_function}:idle"]=0
+			routine_checkups_counters["${this_function}:alarm"]=0
+		done
+	else
+		print_log_entry 'info' 'Daily controller report: everything was OK over the past 24h'
+	fi
 }
 
 
