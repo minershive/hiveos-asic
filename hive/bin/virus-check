@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 
-readonly script_mission='Client for ASICs: Check for known viruses'
-readonly script_version='0.4.3'
+readonly script_mission='Client for ASICs: Check for known Antminer viruses'
+readonly script_version='0.4.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -178,6 +178,7 @@ readonly label_format='-18.18'
 # global sources
 
 source colors
+source asic-model
 
 
 # global vars
@@ -190,12 +191,16 @@ declare -i is_silent=0
 
 parse_arguments "$@"
 
-check_ntpd_size
-check_nightswitcher
-check_antbuild
-check_shady_files
+if [[ $ASIC_MODEL =~ 'Antminer' || $ASIC_MODEL =~ 'Minecenter S' ]]; then
+	check_ntpd_size
+	check_nightswitcher
+	check_antbuild
+	check_shady_files
 
-(( ! is_silent )) && bottom_line
+	(( ! is_silent )) && bottom_line
+else
+	(( ! is_silent )) && echo 'Antminer not detected, exiting...'
+fi
 
 exit $(( is_virus_found ))
 
