@@ -300,22 +300,22 @@ function print_tune_log {
 
 function tail_miner_status_log {
 	local -r miner_status_log='/nvdata/miner_status.log'
-	tail_any_log -d -t 80 "$miner_status_log"
+	tail_any_log -t 80 "$miner_status_log"
 }
 
 function tail_watchdog_log {
 	local -r watchdog_log='/config/watchdog.log'
-	tail_any_log -d -t 80 "$watchdog_log"
+	tail_any_log -t 80 "$watchdog_log"
 }
 
 function collate_all_logs {
-	{
-		print_kernel_log
-		print_tune_log
-		tail_miner_status_log
-		tail_watchdog_log
+	{	# !!! temporary
+		print_kernel_log | tail -n 100
+		print_tune_log | tail -n 100
+		tail -n 100 /nvdata/miner_status.log
+		tail -n 100 /config/watchdog.log
 	} |
-		tail_any_log -t 100 -s
+		tail_any_log -t 100 -s -r '^[0-9]'
 }
 
 

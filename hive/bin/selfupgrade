@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.6'
+readonly script_version='0.14.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -826,6 +826,10 @@ exit_if_no_repository_available () {
 	fi
 }
 
+delayed_agent_screen_restart () {
+	nohup /bin/sh -c 'sleep 2; agent-screen restart' > /dev/null 2>&1 & # buys a little time for the agent currently running to send the OK message
+}
+
 
 # global consts
 
@@ -870,6 +874,7 @@ set_package_url_and_file
 print_update_info
 set_temp_dir
 remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download" /hive/etc/build # bug: we delete build file upfront but a downloading or an extracting process can be aborted
+
 execute_install_routine
 
 #Don't restart it...
@@ -877,9 +882,10 @@ execute_install_routine
 #hello restartminer
 
 remove_needless_files "${temp_dir}/hiveos-asic*"
-# delayed_agent_screen_restart ()
-nohup bash -c '	sleep 2; agent-screen restart' > /dev/null 2>&1 & # buys a little time for previous agent to send the OK message
+delayed_agent_screen_restart
+
 echo
 echo -e "${GREEN}Update complete. Have a happy mining.${NOCOLOR}"
+
 sync
 exit "$exitcode_OK"
