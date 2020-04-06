@@ -42,12 +42,6 @@ parse_arguments () {
 	esac
 }
 
-get_file_size_in_bytes () {
-	# not used atm
-	(( $# != 1 )) && return 1
-	set -- $( ls -dn "$1" ) && echo "$5"
-}
-
 pretty_print () {
 	(( is_silent )) && return
 
