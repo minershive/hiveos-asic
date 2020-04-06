@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.5'
+readonly script_version='1.3.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -174,19 +174,22 @@ function tick_tock {
 function every_nth_minute {
 	# every_nth_minute 'minute' 'command' ['options'...]
 	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( time_counter[minutes] == 0 && time_counter[hours] == 0 && time_counter[days] == 0 )) && return
 	(( time_counter[minutes] % $1 == 0 )) && "${@:2}"
 }
 
 function every_nth_hour {
 	# every_nth_hour 'hour' 'command' ['options'...]
 	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( time_counter[minutes] == 0 && time_counter[hours] == 0 && time_counter[days] == 0 )) && return
 	(( time_counter[hours] % $1 == 0 && time_counter[minutes] == 0 )) && "${@:2}"
 }
 
 function every_nth_day {
 	# every_nth_day 'day' 'command' ['options'...]
 	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	(( time_counter[days] % $1 == 0 && time_counter[hours] == 0 && time_counter[minutes] == 0 )) && "${@:2}"
+	(( time_counter[minutes] == 0 && time_counter[hours] == 0 && time_counter[days] == 0 )) && return
+	(( time_counter[days] != 0 && time_counter[days] % $1 == 0 && time_counter[hours] == 0 && time_counter[minutes] == 0 )) && "${@:2}"
 }
 
 function split_log_line_to_date_and_message {
