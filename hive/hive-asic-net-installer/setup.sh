@@ -36,6 +36,7 @@ install_cmd="export PATH=$PATH:/hive/bin:/hive/sbin; export LD_LIBRARY_PATH=/hiv
 #install_cmd="[ -d /hive ] && (echo Already_installed) || ($install_cmd)"
 
 for ip in $IPS; do
+	[ -z $ip ] && echo "Empty line on ips.txt"; continue
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if is_on_busybox; then

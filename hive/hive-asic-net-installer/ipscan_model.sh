@@ -23,6 +23,7 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 echo > ./$1.txt
 
 for ip in $IPS; do
+    [ -z $ip ] && echo "Empty line on ips.txt"; continue
     echo
     echo -e "> Processing ${CYAN}$ip${NOCOLOR}"
 
