@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.9'
+readonly script_version='1.3.10'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -257,7 +257,7 @@ function filter_lines_send_messages {
 			'STATUS_'*			)	event_type='skip'		;;
 			'ERROR_'*			)	event_type='error'		;;
 			'WARN_'*			)	event_type='warning'	;;
-			*'domains fixed'*	)	event_type='warning'	;;
+			*'domains fixed'*	)	event_type='ok'			;;
 			*					)	event_type='error'		;;
 		esac
 
@@ -265,7 +265,7 @@ function filter_lines_send_messages {
 				printf -v message_body '%-19.19s %-13.13s %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_message"
 				echo "$message_body"
 			if (( send_messages_enabled )); then
-				printf -v message_body 'Date: %s\nType: %s\n%b' "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
+				printf -v message_body 'Date: %s\nType: %s\n\n%b' "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
 				echo "$message_body" | message "$event_type" "$log_message" payload
 			fi
 		fi
@@ -330,7 +330,7 @@ function get_new_lines_from_log {
 	return $(( is_something_found ))
 }
 
-function print_last_lines_from_log {
+function print_last_lines_from_own_log {
 	if [[ -s "$controller_log_file" ]]; then
 		tail -n "$log_lines_to_tail" "$controller_log_file"
 	fi
@@ -340,7 +340,7 @@ function parse_arguments {
 	case "${1-}" in
 		'log')
 			print_script_version
-			print_last_lines_from_log
+			print_last_lines_from_own_log
 			exit 0
 			;;
 		'')
@@ -420,7 +420,7 @@ function check_for_1970_year {
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
 		date_from_server_in_seconds="$( curl -I "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
-		print_log_entry 'warning' "System date is 1970. Get actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+		print_log_entry 'warning' "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
 	fi
 
 	return $(( is_something_happened ))
@@ -560,9 +560,10 @@ function check_for_errors_in_logs {
 
 	# code
 
+	# TODO add logname before date
 	get_new_lines_from_log "${logs_to_check[@]}" > >( filter_lines_send_messages )
 
-	# ??? could that be the exitcode will come from last command in chain? I think not, there's a simple redirection
+	# ??? could that be the exitcode will come from the last command in chain? I think not, there's a simple redirection
 	if (( $? != 0 )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
@@ -646,7 +647,7 @@ function print_summary_report {
 
 declare -r -i sleep_time=60
 declare -r -i assign_tag_to_worker=1
-declare -r -i log_lines_to_tail=80
+declare -r -i log_lines_to_tail=200
 declare -r -i log_lines_truncate_limit=1000
 declare -r controller_log_file='/config/hive-controller.log'
 declare -r -i exitcode_OK_NOTHING_HAPPENED=0
