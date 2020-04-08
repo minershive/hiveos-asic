@@ -124,7 +124,7 @@ check_antbuild () {
 	fi
 
 	# new
-	if [[ "$( uname -r )" =~ 'g16220c3']]; then
+	if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
 		pretty_print "$label_text" "${BRED}" "v2 found"
 		is_virus_found=1
 	fi
