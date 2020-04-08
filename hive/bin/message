@@ -57,6 +57,7 @@ for i in "$@"; do
 			request=`echo "$request $payload_json" | jq -sc '.[0] * .[1]'`
 			shift # past argument with no value
 		;;
+# TODO file: gzip -c /usr/sbin/dropbearmulti | openssl base64 -e -A | message file 'dropbearmulti' payload
 		*)
 			# unknown option
 		;;

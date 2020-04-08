@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.0.0'
+readonly script_version='1.0.1'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -242,7 +242,7 @@ function tail_any_log {
 				(( is_tail )) && header+=", last ${WHITE}${tail_lines}${NOCOLOR} lines"
 				(( is_regex )) && header+=", filtered by '${WHITE}$regex_pattern${NOCOLOR}'"
 	
-				echo -e "$header ----------"
+				echo -e "${header}:"
 				echo
 			fi
 	
@@ -264,7 +264,7 @@ function tail_any_log {
 	if (( is_from_file )); then
 		if (( is_decoration )); then
 			echo
-			echo -e "${WHITE}$last_modified_time_human_readable${NOCOLOR} file was last modified ${WHITE}$last_modified_time_dhms${NOCOLOR} ago ----------"
+			echo -e "${WHITE}$last_modified_time_human_readable${NOCOLOR} file was last modified ${WHITE}$last_modified_time_dhms${NOCOLOR} ago"
 		fi
 	fi
 }
@@ -290,22 +290,28 @@ function print_kernel_log {
 }
 
 function print_tune_log {
+	local -r tune_log_file='/tmp/tune_log.txt'
 	local tune_log_script
-	for tune_log_script in '/www/pages/cgi-bin/get_auto_tune_log.cgi' '/www/pages/cgi-bin/get_tune_log.cgi'; do
-		if [[ -s "$tune_log_script" ]]; then
-			sh "$tune_log_script"
-		fi
-	done
+
+	if [[ -s "$tune_log_file" ]]; then
+		tail_any_log -t 80 "$tune_log_file"
+	else
+		for tune_log_script in '/www/pages/cgi-bin/get_auto_tune_log.cgi' '/www/pages/cgi-bin/get_tune_log.cgi'; do
+			if [[ -s "$tune_log_script" ]]; then
+				sh "$tune_log_script"
+			fi
+		done
+	fi
 }
 
 function tail_miner_status_log {
-	local -r miner_status_log='/nvdata/miner_status.log'
-	tail_any_log -t 80 "$miner_status_log"
+	local -r miner_status_log_file='/nvdata/miner_status.log'
+	tail_any_log -t 80 "$miner_status_log_file"
 }
 
 function tail_watchdog_log {
-	local -r watchdog_log='/config/watchdog.log'
-	tail_any_log -t 80 "$watchdog_log"
+	local -r watchdog_log_file='/config/watchdog.log'
+	tail_any_log -t 80 "$watchdog_log_file"
 }
 
 function collate_all_logs {
