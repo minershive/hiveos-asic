@@ -46,11 +46,13 @@ for ip_worker in $IPS; do
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
 #		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade #scp don't save fingerprint
 		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y sh -c 'cat > /tmp/firmware-upgrade' < firmware-upgrade
+		[ -n "$FARM_HASH" ] && sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y sh -c 'cat > /config/FARM_HASH' <<< "$FARM_HASH"
 		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y "$install_cmd"
 	else
 #		cp -rf firmware-upgrade firmware-upgrade-hash
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
 		sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		[ -n "$FARM_HASH" ] && echo "$FARM_HASH" > FARM_HASH && sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no FARM_HASH $LOGIN@$ip:/config/FARM_HASH
 #		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-start $LOGIN@$ip:/tmp/firmware-start
 		sleep 1
 		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -oConnectTimeout=25 -oStrictHostKeyChecking=no "$install_cmd"

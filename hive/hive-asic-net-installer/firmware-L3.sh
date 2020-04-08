@@ -31,25 +31,31 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 #sleep 1
 
-install_cmd="cd /tmp; chmod +x ./firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
-#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -L -dm -S upgrade /tmp/firmware-upgrade"
-#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; chmod +x /tmp/firmware-start; nohup /tmp/firmware-start"
+#install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
 
-for ip in $IPS; do
+IFS=$'\n'
+for ip_worker in $IPS; do
+	install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
+	ip=$(echo "$ip_worker" | awk {'print $1'})
+	worker=$(echo "$ip_worker" | awk {'print $2'})
+	[[ ! -z $worker ]] && install_cmd="$install_cmd $worker"
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if is_on_busybox; then
 #		cp -rf firmware-upgrade firmware-upgrade-hash
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
-		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+#		sshpass -p$PASS scp -P 22 firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade #scp don't save fingerprint
+		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y sh -c 'cat > /tmp/firmware-upgrade' < firmware-upgrade-L3
+		[ -n "$FARM_HASH" ] && sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y sh -c 'cat > /config/FARM_HASH' <<< "$FARM_HASH"
 		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -y "$install_cmd"
 	else
 #		cp -rf firmware-upgrade firmware-upgrade-hash
 #		sed -i '/URL="$1"/c URL="'$URL'"' firmware-upgrade-hash
-		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade $LOGIN@$ip:/tmp/firmware-upgrade
+		sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-upgrade-L3 $LOGIN@$ip:/tmp/firmware-upgrade
+		[ -n "$FARM_HASH" ] && echo "$FARM_HASH" > FARM_HASH && sshpass -p$PASS scp -P 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no FARM_HASH $LOGIN@$ip:/config/FARM_HASH
 #		sshpass -p$PASS scp -P 4444 -oConnectTimeout=15 -oStrictHostKeyChecking=no firmware-start $LOGIN@$ip:/tmp/firmware-start
 		sleep 1
-		sshpass -p$PASS ssh $LOGIN@$ip -p 4444 -oConnectTimeout=25 -oStrictHostKeyChecking=no "$install_cmd"
+		sshpass -p$PASS ssh $LOGIN@$ip -p 22 -oConnectTimeout=25 -oStrictHostKeyChecking=no "$install_cmd"
 	fi
 
 
@@ -60,6 +66,7 @@ for ip in $IPS; do
 
 		#Comment it in file
 		sed -i "s/^$ip$/\#$ip/g" ips.txt
+		[[ ! -z $worker ]] && sed -i "s/^$ip.*$worker$/\#$ip $worker/g" ips.txt
 	fi
 
 done
