@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
-readonly script_version='1.14.6'
+readonly script_version='1.14.7'
 readonly DEBUG=0
 
 
@@ -36,14 +36,14 @@ set_view() {
 		[wide.days_limit]='20'
 
 		[normal.date_width]='2'
-		[normal.first_column_width]='25'
+		[normal.first_column_width]='35'
 		[normal.first_column_printf_format]='%-25.25s'
 		[normal.data_column_width]='3'
 		[normal.data_column_printf_format]='%3.3s'
 		[normal.days_limit]='26'
 
 		[compact.date_width]='1'
-		[compact.first_column_width]='25'
+		[compact.first_column_width]='35'
 		[compact.first_column_printf_format]='%-25.25s'
 		[compact.data_column_width]='1'
 		[compact.data_column_printf_format]='%1.1s'
@@ -129,11 +129,14 @@ check_log() {
 }
 
 check_for_1970() {
-	find "${logs_dir}/1970-01/" -name log -type f -mtime "-${days_to_look_back}" -print |
-		grep -q '.' && {
-			echo "${RED-}WARNING: Recently updated logs from 1970 year are found, check host time settings and ntpd.${NOCOLOR-}"
-			echo
-			} || :
+	if [[ -d "${logs_dir}/1970-01" ]]; then
+		if [[ -n "$( find "${logs_dir}/1970-01/" -name log -type f -mtime "-${days_to_look_back}" )" ]]; then
+				echo "${RED-}WARNING: Recently updated logs from 1970 year are found, check host time settings and ntpd.${NOCOLOR-}"
+				echo
+		fi
+	fi
+	
+	return 0
 }
 
 get_filtered_log() {
@@ -209,6 +212,9 @@ print_table_header() {
 	# consts
 
 	local -r first_column_header='Events by date'
+
+	# arrays
+
 	local -A date_label
 
 	# vars
@@ -217,6 +223,7 @@ print_table_header() {
 	local date_category
 	local this_date
 	local -i this_day
+	local display_color=''
 
 	# code
 
@@ -261,21 +268,19 @@ print_table_header() {
 
 			if [[ $text != "${previous_text-}" ]]; then
 				if [[ $this_date == $today ]]; then # highlight current date
-					printf "%b${data_column_printf_format}%b" "${WHITE-}" "${text: -${date_width}}" "${NOCOLOR-}"
+					display_color="${WHITE-}"
 				else
-					printf "%b${data_column_printf_format}%b" "${GRAY-}" "${text: -${date_width}}" "${NOCOLOR-}"
-					#printf "${data_column_printf_format}" "${text: -${date_width}}"
+					display_color="${GRAY-}"
 				fi
 			else
-				printf "%b${data_column_printf_format}%b" "${DGRAY-}" "${text: -${date_width}}" "${NOCOLOR-}"
+				display_color="${DGRAY-}"
 			fi
+			printf "%b${data_column_printf_format}%b" "$display_color" "${text: -${date_width}}" "${NOCOLOR-}"
 			previous_text="$text" # save for next iteration
 		done
 
 		echo
 	done
-
-	printf 'Collecting data...'
 }
 
 calculate_data() {
@@ -332,12 +337,9 @@ print_table_body() {
 
 	# code
 
-	printf '\r'
-
 	for this_event_name in "${log_events[@]}"; do
 
 		# print first column
-
 		if [[ $this_event_name =~ $domain_prefix ]]; then
 			event_is_domain_name=1
 		else
@@ -369,7 +371,7 @@ print_table_body() {
 						translator_value="${translator_value//%${rematch_counter}%/${BASH_REMATCH[$rematch_counter]}}"
 					done
 					this_event_name_for_display="$translator_value"
-					break # let's assume that we wand 1 translation at most
+					break # let's assume that we want only 1 translation
 				else
 					this_event_name_for_display="$this_event_name"
 				fi
@@ -389,7 +391,7 @@ print_table_body() {
 				event_counter="${events_data[${this_event_name}.${this_day}]}"
 
 				if (( event_counter == 0 )); then
-					display_color="${DGRAY-}"
+					display_color="${GRAY-}"
 					event_counter_for_display="$zero_symbol"
 				elif (( (event_counter*100) > avg_per_problem_day_x100 )); then
 					# paint the value in red if it's greater than the day average for this event
@@ -437,7 +439,7 @@ declare -r log="/tmp/$( basename "$0" ).log"
 declare -r logs_dir='/nvdata'
 declare -r miner_status_log_file='/nvdata/miner_status.log'
 declare -r zero_symbol='-'
-declare -r domain_prefix='<DOMAIN> '
+declare -r domain_prefix='<d0Ma1n> '
 
 
 # global sources
@@ -450,12 +452,12 @@ source colors
 readonly domains_of_interest=':set_miner_status|:check_miner_status|stop_mining|power off|update_fan_status: Error'
 declare  -A event_name_translator=(
 	# dictionary: event regex -> event transforming template. %1..9% for (group number)
-	['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% asic)' #'#syntax highlighting fix
+	['Chain ([0-9]+) only find ([0-9]+) asic, will power off hash board ([0-9]+)']='Board %3% off (%2% chips found)' #'#syntax highlighting fix
 	["Can't get temperature sensor type"]='temp sensor fail' #"#syntax highlighting fix
 	['stop mining: (.+)']='%1%'
 	['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
 	['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)' #'#syntax highlighting fix
-	['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='temps: chip %3%C/%4%C pcb %1%C/%2%C' #'#syntax highlighting fix
+	['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='overheat: pcb %1%/%2%C, chip %3%/%4%C' #'#syntax highlighting fix
 ) 
 
 
@@ -495,10 +497,14 @@ create_calendar
 
 print_table_header
 
+[[ -t 1 ]] && printf 'Collecting data...'
+
 get_filtered_log
 get_unique_events_from_log
 
 calculate_data
+
+[[ -t 1 ]] && printf '\r'
 
 print_table_body
 print_stats
