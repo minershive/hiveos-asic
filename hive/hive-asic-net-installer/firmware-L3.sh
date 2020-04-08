@@ -35,7 +35,7 @@ echo -e "IPs count `echo "$IPS" | wc -l`"
 
 IFS=$'\n'
 for ip_worker in $IPS; do
-	[ -z $ip_worker ] && echo "Empty line on ips.txt"; continue
+	[ -z "$ip_worker" ] && echo "Empty line on ips.txt" && continue
 	install_cmd="cd /tmp; chmod +x /tmp/firmware-upgrade; screen -dm -S upgrade /tmp/firmware-upgrade $URL"
 	ip=$(echo "$ip_worker" | awk {'print $1'})
 	worker=$(echo "$ip_worker" | awk {'print $2'})
