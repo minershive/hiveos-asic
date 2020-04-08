@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.4.4'
+readonly script_version='0.4.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -124,7 +124,7 @@ check_antbuild () {
 	fi
 
 	# new
-	if { uname -r | grep -q 'g16220c3'; }; then
+	if [[ "$( uname -r )" =~ 'g16220c3']]; then
 		pretty_print "$label_text" "${BRED}" "v2 found"
 		is_virus_found=1
 	fi
@@ -136,7 +136,13 @@ check_antbuild () {
 
 check_shady_files () {
 	local -r label_text='Shady files'
-	local -a -r shady_files=( '/config/.antminers' '/usr/antfalg' '/usr/antfalgZ' )
+	local -a -r shady_files=(
+		'/config/.antminers'
+		'/usr/antfalg'
+		'/usr/antfalgZ'
+#		'/lib/libcmd_trans_a.so.0'
+#		'/lib/libcmd_trans_b.so.0'
+	)
 	local -i shady_counter=0
 
 	for file in "${shady_files[@]}"; do
@@ -154,19 +160,24 @@ check_shady_files () {
 }
 
 bottom_line () {
-	echo
+	local file size md5
 
+	echo
 	if (( is_virus_found )); then
 		pretty_print "STATUS" "${BRED}" "DANGER"
 	else
 		pretty_print "STATUS" "${BGREEN}" "OK"
 	fi
-
 	echo
 
 	echo 'Checksums:'
-	md5sum /usr/bin/ntpd
-	md5sum /lib/modules/bitmain_axi.ko
+	for file in '/usr/bin/ntpd' '/lib/modules/bitmain_axi.ko'; do
+		if [[ -s "$file" ]]; then
+			size="$( get_file_size_in_bytes "$file" )"
+			md5="$( md5sum "$file" )"
+			echo "${file} size: ${size}, md5: ${md5}"
+		fi
+	done
 }
 
 
@@ -179,6 +190,7 @@ readonly label_format='-18.18'
 
 source colors
 source asic-model
+source /hive/bin/hive-functions.sh
 
 
 # global vars
