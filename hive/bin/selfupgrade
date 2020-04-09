@@ -366,6 +366,7 @@ install_antminer_bmminer_ro () {
 
 	if [ "$github_FLAG" -eq 1 ]; then
 		curl -L --insecure "$package_file_url" -o /nvdata/latest.tar.gz
+		echo "Downloaded build: $( < /hive/etc/build )" # TODO do something with Github caching the old version
 		# ??? have to talk with Pasha about this
 		#if [ $? -ne 0 ]; then
 		#	echo "Error downloading $package_file_url"
