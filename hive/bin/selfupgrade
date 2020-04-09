@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.11'
+readonly script_version='0.14.12'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -841,18 +841,12 @@ exit_if_no_repository_available () {
 
 delayed_agent_screen_restart () {
 	echo '> Deploying delayed agent restart'
-	nohup /hive/sbin/bash -c '
-		trap "echo SIGEXIT received!" EXIT
-		echo ": Sleeping..."
-		sleep 3
-		echo ": Agent restarting"
-		agent-screen restart
-		sleep 1
-		echo ": Restarting again..."
-		agent-screen start
-		sleep 1
-		echo ": Restarting again..."
-		agent-screen start' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
+	nohup sh -c '
+		trap "echo SIGEXIT received" EXIT
+		echo "> Sleeping..."
+		sleep 5
+		echo "> Agent restarting"
+		agent-screen restart' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
 }
 
 
