@@ -2,8 +2,9 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.2'
+readonly script_version='1.0.3'
 readonly script_basename="$( basename "$0" )"
+readonly DEBUG=1
 
 
 #
@@ -40,7 +41,11 @@ is_screen_session_exist() {
 	
 	# code
 	
-	screen -S "$session_name" -X select . > /dev/null
+	if (( DEBUG )); then
+		screen -S "$session_name" -X select .
+	else
+		screen -S "$session_name" -X select . > /dev/null
+	fi
 	screen_exitcode=$?
 
 	return "$screen_exitcode"
@@ -66,7 +71,11 @@ screen_attach_to_session() {
 		#
 		# -T term       Use term as $TERM for windows, rather than "screen".
 		#
-		TERM='vt102' screen -x -S "$session_name" > /dev/null
+		if (( DEBUG )); then
+			TERM='vt102' screen -x -S "$session_name"
+		else
+			TERM='vt102' screen -x -S "$session_name" > /dev/null
+		fi
 	else
 		errcho "'$session_name' hasn't been started. Weird..."
 	fi
@@ -92,7 +101,7 @@ screen_start_session() {
 	
 	# vars
 	
-	local -i retries_counter=0
+	local -i retries_counter
 	local -i function_exitcode="$exitcode_OK"
 
 	# code
@@ -102,22 +111,33 @@ screen_start_session() {
 		return "$exitcode_ERROR_CMD_NOT_FOUND"
 	fi
 
-	screen -dm -S "$session_name" "$cmd" $args > /dev/null
-
+	retries_counter=0
 	until is_screen_session_exist "$session_name"; do
-		(( retries_counter++ ))
-		if (( retries_counter % 10 == 0 )); then
-			printf "\rWaiting for %s screen session to start... Attempt #%d" "$session_name" "$retries_counter"
-			# try again
+		if (( retries_counter > 0 )); then
+			{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
+		#else
+			# skip 'sleep' at the first iteration
+		fi
+
+		if (( DEBUG )); then
+			screen -dm -S "$session_name" "$cmd" $args
+		else
 			screen -dm -S "$session_name" "$cmd" $args > /dev/null
 		fi
+	
+		(( retries_counter++ ))
+
+		if (( retries_counter % 10 == 0 )); then
+			[[ -t 1 ]] && printf '\r'
+			printf 'Waiting for %s screen session to start... Attempt #%d' "$session_name" "$retries_counter"
+		fi
+
 		if (( retries_counter >= retries_limit )); then
-			echo
+			[[ -t 1 ]] && printf '\n'
 			errcho "'$session_name' hasn't been started. Weird..."
 			function_exitcode="$exitcode_ERROR_SOMETHING_BAD_HAPPEN"
 			break
 		fi
-		{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
 	done
 
 	return "$function_exitcode"
@@ -141,29 +161,41 @@ screen_stop_session() {
 	
 	# vars
 	
-	local -i retries_counter=0
+	local -i retries_counter
 	local -i function_exitcode="$exitcode_OK"
 	
 	# code
 	
-	screen -S "$session_name" -X quit > /dev/null
-
+	retries_counter=0
 	while is_screen_session_exist "$session_name"; do
+		if (( retries_counter > 0 )); then
+			{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
+		#else
+			# skip 'sleep' at the first iteration
+		fi
+
+		if (( DEBUG )); then
+			screen -S "$session_name" -X quit
+		else
+			screen -S "$session_name" -X quit > /dev/null
+		fi
+
 		(( retries_counter++ ))
+
 		if (( retries_counter % 10 == 0 )); then
-			printf "\rWaiting for %s screen session to stop... Attempt #%d" "$session_name" "$retries_counter"
+			[[ -t 1 ]] && printf '\r'
+			printf 'Waiting for %s screen session to stop... Attempt #%d' "$session_name" "$retries_counter"
 			rm -rf /var/run/screens/*."$session_name"
 			screen -wipe
 		fi
+
 		if (( retries_counter >= retries_limit )); then
-			echo
+			[[ -t 1 ]] && printf '\n'
 			errcho "cannot stop '$session_name' in $retries_limit attempts. Zombie screen session?"
-			{ ls -ALl /var/run/screens/*; ps w; } |
-				message warn 'screen session goes zombie, please contact support' payload
+			{ ls -ALl /var/run/screens/*; ps w; } | message warn 'screen session goes zombie, please contact support' payload
 			function_exitcode="$exitcode_ERROR_SOMETHING_BAD_HAPPEN"
 			break
 		fi
-		{ sleep 0.5 || usleep 500000 || sleep 1; } 2> /dev/null # only integer sleep on BusyBox
 	done
 
 	return "$function_exitcode"
@@ -180,9 +212,9 @@ agent_start() {
 
 	if ! is_screen_session_exist 'agent'; then
 		echo -n "> Starting new agent screen session... "
-		screen_start_session 'agent' && echo "Started."
+		screen_start_session 'agent' && echo "Started." || echo "Error."
 	else
-		if [[ $message_mode != 'calmly' ]]; then
+		if [[ $message_mode != '--quiet-ok' ]]; then
 			echo "Agent screen session is already running"
 		fi
 	fi
@@ -191,7 +223,7 @@ agent_start() {
 agent_stop() {
 	if is_screen_session_exist 'agent'; then
 		echo -n "> Stopping agent screen session... "
-		screen_stop_session 'agent' && echo "Stopped."
+		screen_stop_session 'agent' && echo "Stopped." || echo "Error."
 	else
 		echo "Agent screen session hasn't been running"
 	fi
@@ -242,7 +274,7 @@ case "${1-}" in
 		agent_restart
 		;;
 	'dontattach' | 'daemonize')
-		agent_start 'calmly'
+		agent_start --quiet-ok
 		;;
 	'attach' | *)
 		agent_start
