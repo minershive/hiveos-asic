@@ -33,19 +33,19 @@ check_h () {
     fi
 
     if [ "$force_download" = 1 ] || [ ! -e /nvdata/latest.tar.gz ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
-	snooze_time="$( get_random_number_between 5 30 )"
-	echo "> ${snooze_time}s random pause (for better bulk update)"
-	sleep "$snooze_time"
-        retries_counter=0
-        until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
-		retries_counter=$(( retries_counter + 1 ))
-		snooze_time="$( get_random_number_between 15 60 )"
-		echo "Error. Try #${retries_counter} in $snooze_time seconds..."
+		snooze_time="$( get_random_number_between 5 30 )"
+		echo "> ${snooze_time}s random pause (for better bulk update)"
 		sleep "$snooze_time"
-        done
-        cp -rf latest_new.tar.gz latest.tar.gz
-        sync
-        [ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
+		retries_counter=0
+		until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
+			retries_counter=$(( retries_counter + 1 ))
+			snooze_time="$( get_random_number_between 15 60 )"
+			echo "Error. Try #${retries_counter} in $snooze_time seconds..."
+			sleep "$snooze_time"
+		done
+		cp -rf latest_new.tar.gz latest.tar.gz
+		sync
+		[ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
     fi
 
     echo "> Extracting latest.tar.gz"
