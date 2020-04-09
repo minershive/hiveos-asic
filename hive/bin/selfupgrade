@@ -841,8 +841,9 @@ exit_if_no_repository_available () {
 
 delayed_agent_screen_restart () {
 	echo '> Deploying delayed agent restart'
-	nohup sh -c '
+	nohup sh -v -c '
 		trap "echo SIGEXIT received" EXIT
+		trap
 		echo "> Sleeping..."
 		sleep 5
 		echo "> Agent restarting"
