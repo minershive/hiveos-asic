@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.9'
+readonly script_version='0.14.10'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -827,7 +827,8 @@ exit_if_no_repository_available () {
 }
 
 delayed_agent_screen_restart () {
-	nohup /bin/sh -c 'sleep 5; agent-screen restart' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
+	echo '> Deploying delayed agent restart'
+	nohup /bin/sh -c 'sleep 5; agent-screen restart > /tmp/selfupgrade-agent-screen-restart.log 2>&1' > /tmp/nohup.sh.log 2>&1 & # have to see what's going on
 #	nohup /bin/sh -c 'sleep 5; agent-screen restart' > /dev/null 2>&1 & # buys a little time for the agent currently running to send the OK message
 }
 
@@ -874,7 +875,7 @@ parse_arguments "$@"
 set_package_url_and_file
 print_update_info
 set_temp_dir
-remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download" /hive/etc/build # bug: we delete build file upfront but a downloading or an extracting process can be aborted
+remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download"
 
 execute_install_routine
 
