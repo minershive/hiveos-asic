@@ -2,9 +2,9 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.3'
+readonly script_version='1.0.4'
 readonly script_basename="$( basename "$0" )"
-readonly DEBUG=1
+readonly DEBUG=0
 
 
 #
@@ -260,6 +260,8 @@ export LD_LIBRARY_PATH=/hive/lib
 
 
 # main()
+
+trap -- 'errcho "SIGHUP received, ignoring..."' SIGHUP
 
 is_screen_session_exist 'agent'; script_exitcode=$?
 

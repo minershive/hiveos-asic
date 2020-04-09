@@ -377,8 +377,8 @@ install_antminer_bmminer_ro () {
 	fi
 
 	while true; do
-		if [ ! -e /hive/sbin/ ]; then
-			echo "> $script_basename waiting $(( sleep_counter * sleep_interval ))s when /hive/sbin/ shows up..."
+		if [ ! -e /hive/sbin/bash ]; then
+			echo "> $script_basename waiting $(( sleep_counter * sleep_interval ))s when /hive/sbin/bash shows up..."
 			: $(( sleep_counter++ ))
 			sleep "$sleep_interval"
 			if [ $(( sleep_counter * sleep_interval )) -gt 5 ]; then
@@ -842,16 +842,13 @@ exit_if_no_repository_available () {
 delayed_agent_screen_restart () {
 	echo '> Deploying delayed agent restart'
 	nohup sh -x -c '
-		trap "echo SIGEXIT received" EXIT
-		trap "echo SIGINT received" INT
-		trap "echo SIGHUP received" HUP
-		trap
-		echo "> Sleeping..."
+		trap -- "echo SIGEXIT received" EXIT
+		trap -- "echo SIGINT received" INT
+		trap -- "echo SIGHUP received" HUP
+		echo "> Sleeping 5s..."
 		sleep 5
-		echo "> Agent restarting"
 		agent-screen restart
-		echo "Done!"
-		agent-screen restart' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
+		echo "Done"' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
 }
 
 
