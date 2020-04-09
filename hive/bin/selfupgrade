@@ -355,15 +355,18 @@ install_antminer_bmminer_ro () {
 	local sleep_interval=5
 
 	sync && echo 3 > /proc/sys/vm/drop_caches
+
 	if ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; then
 		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive > /dev/null 2>&1 # hide this: cp: can't stat /etc/rcS.d/S69hive
 	fi
+
 	[ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
 	[ -e /hive ] && rm -rf /hive
 	sync
+
 	if [ "$github_FLAG" -eq 1 ]; then
 		curl -L --insecure "$package_file_url" -o /nvdata/latest.tar.gz
-		# !!! have to talk with Pasha about this
+		# ??? have to talk with Pasha about this
 		#if [ $? -ne 0 ]; then
 		#	echo "Error downloading $package_file_url"
 		#	exit "$exitcode_NOT_OK"
@@ -372,12 +375,21 @@ install_antminer_bmminer_ro () {
 	else
 		/etc/rcS.d/S69hive -f
 	fi
-	while [ ! -e /hive/sbin/ ]; do
-		echo "> $script_basename waiting $(( sleep_counter * sleep_interval ))s when /hive/sbin/ shows up..."
-		: $(( sleep_counter++ ))
-		sleep "$sleep_interval"
+
+	while true; do
+		if [ ! -e /hive/sbin/ ]; then
+			echo "> $script_basename waiting $(( sleep_counter * sleep_interval ))s when /hive/sbin/ shows up..."
+			: $(( sleep_counter++ ))
+			sleep "$sleep_interval"
+			if [ $(( sleep_counter * sleep_interval )) -gt 5 ]; then
+				echo "> Still no /hive/sbin/, continue"
+				break
+			fi
+		else
+			break
+		fi
 	done
-	sleep 10
+	sleep 10 # ??? do we still need this?
 }
 
 get_asic_model () {
@@ -828,7 +840,18 @@ exit_if_no_repository_available () {
 
 delayed_agent_screen_restart () {
 	echo '> Deploying delayed agent restart'
-	nohup /hive/sbin/bash -c 'for sig in HUP INT EXIT; do trap "echo $sig" $sig; done; trap; echo ': Sleeping...'; sleep 3; echo ': Agent restarting'; agent-screen restart; sleep 1; echo ': Restarting again...'; agent-screen start; sleep 1; echo ':Restarting again...'; agent-screen start' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
+	nohup /hive/sbin/bash -c '
+		trap "echo SIGEXIT received!" EXIT
+		echo ": Sleeping..."
+		sleep 3
+		echo ": Agent restarting"
+		agent-screen restart
+		sleep 1
+		echo ": Restarting again..."
+		agent-screen start
+		sleep 1
+		echo ": Restarting again..."
+		agent-screen start' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
 }
 
 
