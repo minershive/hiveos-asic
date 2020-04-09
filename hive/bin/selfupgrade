@@ -843,10 +843,14 @@ delayed_agent_screen_restart () {
 	echo '> Deploying delayed agent restart'
 	nohup sh -v -c '
 		trap "echo SIGEXIT received" EXIT
+		trap "echo SIGINT received" INT
+		trap "echo SIGHUP received" HUP
 		trap
 		echo "> Sleeping..."
 		sleep 5
 		echo "> Agent restarting"
+		agent-screen restart
+		echo "Done!"
 		agent-screen restart' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
 }
 
