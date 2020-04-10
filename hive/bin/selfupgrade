@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.12'
+readonly script_version='0.14.13'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -350,6 +350,63 @@ install_todd () {
     bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
+wait_for_file () {
+	#
+	# wait_for_file 'file_to_wait' ['timeout_in_seconds'(default:300s)]
+	#
+	# waits for file or directory
+	#
+
+	# args
+
+	if [ $# -lt 1 ]; then
+		return 2
+	fi
+	local file_to_wait="$1"
+	local timeout_in_seconds="${2:-300}"
+	
+	# consts
+
+	local sleep_interval_in_seconds=1
+	local print_message_every=30
+
+	# vars
+
+	local countdown="$timeout_in_seconds"
+	local is_file_found=0
+	local waiting_time=0
+
+	# code
+
+	until [ "$countdown" -le 0 ]; do
+		if [ -e "$file_to_wait" ]; then
+			is_file_found=1
+			break
+		else
+			waiting_time=$(( timeout_in_seconds - countdown ))
+			message="> $script_basename has to wait ${countdown}s for '${file_to_wait}'... "
+			if [ $(( waiting_time % print_message_every )) -eq 0 -a ! -t 1 ]; then
+				echo "$message" # print every 30s -- if file not found yet and no terminal connected
+			elif [ -t 1 ]; then
+				echo -n "\r$message" # print every step on the same line -- if file not found yet and terminal connected
+			fi
+			: $(( countdown -= 1 ))
+			sleep "$sleep_interval_in_seconds"
+		fi
+	done
+
+
+	if [ "$is_file_found" -ne 1 ]; then
+		[ -t 1 ] && echo -n "\r"
+		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s. '${file_to_wait}' still not found."
+	elif [ "$waiting_time" -ne 0 ]; then
+		[ -t 1 ] && echo -n "\r"
+		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s. '${file_to_wait}' found!"
+	fi
+
+	return $(( is_file_found==0 ))
+}
+
 install_antminer_bmminer_ro () {
 	local sleep_counter=0
 	local sleep_interval=5
@@ -376,21 +433,11 @@ install_antminer_bmminer_ro () {
 		/etc/rcS.d/S69hive -f
 	fi
 
-	while true; do
-		if [ ! -e /hive/sbin/bash ]; then
-			echo "> $script_basename waiting $(( sleep_counter * sleep_interval ))s when /hive/sbin/bash shows up..."
-			: $(( sleep_counter++ ))
-			sleep "$sleep_interval"
-			if [ $(( sleep_counter * sleep_interval )) -gt 5 ]; then
-				echo "> Still no /hive/sbin/, continue"
-				break
-			fi
-		else
-			break
-		fi
-	done
-	echo "Downloaded build: $( < /hive/etc/build )" # TODO do something with Github caching the old version
-	sleep 10 # ??? do we still need this?
+	wait_for_file '/hive/share/zzz/EOF' 60
+
+	echo "Downloaded build: $( cat /hive/etc/build )"
+
+	#sleep 10 # ??? do we still need this? we can put a marker file at the end of archive and then wait_for_file() --DONE!
 }
 
 get_asic_model () {
