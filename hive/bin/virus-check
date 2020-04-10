@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.4.5'
+readonly script_version='0.4.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -13,46 +13,49 @@ set -o nounset
 
 # functions
 
-print_script_version () {
+function print_script_version {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
-print_script_usage () {
-	echo -e "Usage: ${CYAN-}${script_basename} [-s|--silent]${NOCOLOR-}"
+function print_script_usage {
+	echo -e "Usage: ${CYAN-}${script_basename} [--nocolor] [-s|--silent]${NOCOLOR-}"
 	echo
-	echo -e "	${WHITE-}-s${NOCOLOR-}, ${WHITE-}--silent${NOCOLOR-}"
-	echo -e "		prints nothing, returns exit code"
+	echo -e "       ${WHITE-}--nocolor${NOCOLOR-}       b/w mode"
+	echo -e "       ${WHITE-}-s${NOCOLOR-}, ${WHITE-}--silent${NOCOLOR-}    prints nothing, returns exit code"
 	echo
 }
 
-parse_arguments () {
-	case "${1-}" in
-		'-s' | '--silent')
-			is_silent=1
-			;;
-		'')
-			print_script_version
-			;;
-		'-h' | '--help' | *)
-			print_script_version
-			print_script_usage
-			exit 0
-			;;
-	esac
+function parse_arguments {
+	for ARG in "$@"; do
+		case "$ARG" in
+			'--nocolor')
+				is_colors=0
+				;;
+			'-s' | '--silent')
+				is_silent=1
+				;;
+			'-h' | '--help' | *)
+				source colors
+				print_script_version
+				print_script_usage
+				exit 0
+				;;
+		esac
+	done
 }
 
-pretty_print () {
+function pretty_print {
 	(( is_silent )) && return
 
 	local -r label_text="${1:-<empty>}"
-	local -r message_color="${2:-<empty>}"
+	local -r message_color="${2-}"
 	local -r message_text="${3:-<empty>}"
 
-	printf "%${label_format}s %b%s%b\n" "$label_text" "$message_color" "$message_text" "${NOCOLOR}"
+	printf "%${label_format}s %b%s%b\n" "$label_text" "$message_color" "$message_text" "${NOCOLOR-}"
 }
 
-check_ntpd_size () {
+function check_ntpd_size {
 	local -r label_text='ntpd size check'
 	local -r ntpd_file='/usr/bin/ntpd'
 	local -i ntpd_size=0
@@ -61,93 +64,104 @@ check_ntpd_size () {
 		ntpd_size="$( stat -c '%s' "$ntpd_file" )"
 		#if cksum /usr/bin/ntpd  | grep -q '892955227 358832 /usr/bin/ntpd'; then # T9+
 		if (( ntpd_size < 500000 )); then
-			pretty_print "$label_text" "${GREEN}" "looks ok, size $ntpd_size less than 0.5 Mb"
+			pretty_print "$label_text" "${GREEN-}" "looks ok, size $ntpd_size less than 0.5 Mb"
 		else
-			pretty_print "$label_text" "${BRED}" "very suspicious! size $ntpd_size greater than 0.5 Mb"
+			pretty_print "$label_text" "${BRED-}" "very suspicious! size $ntpd_size greater than 0.5 Mb"
 			is_virus_found=1
 		fi
 	else
-		pretty_print "$label_text" "${DGRAY}" "file not found"
+		pretty_print "$label_text" "${GRAY-}" "/usr/bin/ntpd not found (it's ok)"
 	fi
 }
 
-check_nightswitcher () {
-	local -r label_text='Nightswitcher'
+function check_nightswitcher {
+	local -r label_text='Virus: Nightswitcher'
 
 	if [[ -e /config/bNminer.conf ]]; then
-		pretty_print "$label_text" "${BRED}" 'found'
+		pretty_print "$label_text" "${BRED-}" 'virus signature found: /config/bNminer.conf'
 		is_virus_found=1
 	else
-		pretty_print "$label_text" "${GREEN}" 'none found'
+		pretty_print "$label_text" "${GREEN-}" 'not found'
 	fi
 }
 
-check_antbuild_old () {
-	local -r label_text='Antbuild'
+function check_antbuild_old {
+	# deprecated
+	local -r label_text='Virus: Antbuild'
 
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
 		# old1
-		pretty_print "$label_text" "${BRED}" "v2 (uncured) found"
+		pretty_print "$label_text" "${BRED-}" "v2 (uncured) found"
 		is_virus_found=1
 	else
 		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
 				# old2
-				pretty_print "$label_text" "${BRED}" "v1 (cured) found"
+				pretty_print "$label_text" "${BRED-}" "v1 (cured) found"
 				is_virus_found=1
 		else
-			if { uname -r | grep -q 'g16220c3'; }; then
+			if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
 				# new
-				pretty_print "$label_text" "${BRED}" "v2 found"
+				pretty_print "$label_text" "${BRED-}" "v2 found"
 				is_virus_found=1
 			else
-				pretty_print "$label_text" "${GREEN}" "none found"
+				pretty_print "$label_text" "${GREEN-}" "not found"
 			fi
 		fi
 	fi
 }
 
-check_antbuild () {
-	local -r label_text='Antbuild'
+function check_antbuild {
+	local -r label_text='Virus: Antbuild'
 
 	# old1
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
-		pretty_print "$label_text" "${BRED}" "v2 (uncured) found"
+		pretty_print "$label_text" "${BRED-}" "v2 (uncured) found"
 		is_virus_found=1
 	fi
 
 	# old2
 	if { which cksum > /dev/null; }; then
 		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
-			pretty_print "$label_text" "${BRED}" "v1 (cured) found"
+			pretty_print "$label_text" "${BRED-}" "v1 (cured) found. It's ok -- virus blocked by firmware."
 			is_virus_found=1
 		fi
 	fi
 
 	# new
 	if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
-		pretty_print "$label_text" "${BRED}" "v2 found"
+		pretty_print "$label_text" "${BRED-}" "v2 found"
 		is_virus_found=1
 	fi
 
 	if (( ! is_virus_found )); then
-		pretty_print "$label_text" "${GREEN}" "none found"
+		pretty_print "$label_text" "${GREEN-}" "not found"
 	fi
 }
 
-check_shady_files () {
-	local -r label_text='Shady files'
+function check_bitmsfser_info {
+	local -r label_text='Virus: bitmsfser.info'
+	local -r virus_signature='bitmsfser.info'
+
+	if grep -Fqsm 1 "$virus_signature" /etc/hosts; then
+		pretty_print "$label_text" "${BRED-}" 'virus signature found in /etc/hosts'
+		is_virus_found=1
+	else
+		pretty_print "$label_text" "${GREEN-}" 'not found'
+	fi
+}
+
+function check_shady_files {
+	local -r label_text='Virus: others'
 	local -a -r shady_files=(
 		'/config/.antminers'
 		'/usr/antfalg'
 		'/usr/antfalgZ'
-#		'/lib/libcmd_trans_a.so.0'
-#		'/lib/libcmd_trans_b.so.0'
 	)
 	local -i shady_counter=0
 
 	for file in "${shady_files[@]}"; do
 		if [[ -e "$file" ]]; then
-			pretty_print "$label_text" "${BRED}" "$file found"
+			pretty_print "$label_text" "${BRED-}" "$file found"
 			(( shady_counter++ ))
 		fi
 	done
@@ -155,40 +169,54 @@ check_shady_files () {
 	if (( shady_counter )); then
 		is_virus_found=1
 	else
-		pretty_print "$label_text" "${GREEN}" "none found"
+		pretty_print "$label_text" "${GREEN-}" "not found"
 	fi
 }
 
-bottom_line () {
-	local file size md5
+function print_diagnostic {
+	local -a -r files_to_check=(
+		'/usr/bin/ntpd'
+		'/lib/modules/bitmain_axi.ko'
+	)
+	local -a md5_string
+	local file size
 
+	echo -e "${PURPLE-}Various checksums${NOCOLOR-}"
 	echo
-	if (( is_virus_found )); then
-		pretty_print "STATUS" "${BRED}" "DANGER"
-	else
-		pretty_print "STATUS" "${BGREEN}" "OK"
-	fi
-	echo
-
-	echo 'Checksums:'
-	for file in '/usr/bin/ntpd' '/lib/modules/bitmain_axi.ko'; do
+	for file in "${files_to_check[@]}"; do
 		if [[ -s "$file" ]]; then
 			size="$( get_file_size_in_bytes "$file" )"
-			md5="$( md5sum "$file" )"
-			echo "${file} size: ${size}, md5: ${md5}"
+			md5_string=( $( md5sum "$file" ) )
+			printf '%bmd5 %s, size %ub, file %-30.30s%b\n' "${GRAY-}" "${md5_string}" "${size}" "${file}" "${NOCOLOR-}"
 		fi
 	done
+	echo
+	echo -e "${PURPLE-}/etc/hosts${NOCOLOR-}"
+	echo
+	echo -e -n "${GRAY-}"
+	cat /etc/hosts
+	echo -e -n "${NOCOLOR-}"
+}
+
+function bottom_line {
+	echo
+	if (( is_virus_found )); then
+		pretty_print "ASIC STATUS" "${BRED-}" "IN DANGER"
+	else
+		pretty_print "ASIC STATUS" "${BGREEN-}" "OK"
+	fi
+	echo
+	echo
 }
 
 
 # global consts
 
-readonly label_format='-18.18'
+declare -r label_format='-25.25'
 
 
 # global sources
 
-source colors
 source asic-model
 source /hive/bin/hive-functions.sh
 
@@ -197,22 +225,35 @@ source /hive/bin/hive-functions.sh
 
 declare -i is_virus_found=0
 declare -i is_silent=0
+declare -i is_colors=1
 
 
 # main()
 
 parse_arguments "$@"
 
-if [[ $ASIC_MODEL =~ 'Antminer' || $ASIC_MODEL =~ 'Minecenter S' ]]; then
-	check_ntpd_size
-	check_nightswitcher
-	check_antbuild
-	check_shady_files
-
-	(( ! is_silent )) && bottom_line
-else
-	(( ! is_silent )) && echo 'Antminer not detected, exiting...'
+if (( ! is_silent )); then
+	(( is_colors )) && source colors
+	print_script_version
 fi
+
+case "$ASIC_MODEL" in
+	'Antminer'* |'Minecenter S'*)
+		check_ntpd_size
+		check_nightswitcher
+		check_antbuild
+		check_bitmsfser_info
+		check_shady_files
+
+		if (( ! is_silent )); then
+			bottom_line
+			print_diagnostic
+		fi
+		;;
+	*)
+		(( ! is_silent )) && echo 'Antminer not detected, exiting...'
+		;;
+esac
 
 exit $(( is_virus_found ))
 
