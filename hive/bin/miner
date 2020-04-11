@@ -48,6 +48,7 @@ function start {
 		config-gen
 		rm -f /tmp/norespawn
 	elif [ -e "/www/pages/cgi-bin/resume_miner.cgi" ]; then
+		config-gen
 		sh /www/pages/cgi-bin/resume_miner.cgi
 	else
 		for i in {1..15}; do
@@ -107,6 +108,7 @@ function restart {
 		rm -f /tmp/norespawn
 		echo "ok" > /config/restart
 	elif [ -e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
+		config-gen
 		sh /www/pages/cgi-bin/restart_miner.cgi
 	else
 		stop
