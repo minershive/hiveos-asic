@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.4.6'
+readonly script_version='0.4.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -156,6 +156,7 @@ function check_shady_files {
 		'/config/.antminers'
 		'/usr/antfalg'
 		'/usr/antfalgZ'
+		'/usr/bin/antminers'
 	)
 	local -i shady_counter=0
 
