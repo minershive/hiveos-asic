@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.13'
+readonly script_version='0.14.14'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -388,7 +388,7 @@ wait_for_file () {
 			if [ $(( waiting_time % print_message_every )) -eq 0 -a ! -t 1 ]; then
 				echo "$message" # print every 30s -- if file not found yet and no terminal connected
 			elif [ -t 1 ]; then
-				echo -n "\r$message" # print every step on the same line -- if file not found yet and terminal connected
+				echo -n -e "\r$message" # print every step on the same line -- if file not found yet and terminal connected
 			fi
 			: $(( countdown -= 1 ))
 			sleep "$sleep_interval_in_seconds"
@@ -397,10 +397,10 @@ wait_for_file () {
 
 
 	if [ "$is_file_found" -ne 1 ]; then
-		[ -t 1 ] && echo -n "\r"
+		[ -t 1 ] && echo -n -e '\r'
 		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s. '${file_to_wait}' still not found."
 	elif [ "$waiting_time" -ne 0 ]; then
-		[ -t 1 ] && echo -n "\r"
+		[ -t 1 ] && echo -n -e '\r'
 		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s. '${file_to_wait}' found!"
 	fi
 
