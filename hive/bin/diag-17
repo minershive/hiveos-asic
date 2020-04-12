@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
-readonly script_version='1.14.7'
+readonly script_version='1.14.8'
 readonly DEBUG=0
 
 
@@ -37,14 +37,14 @@ set_view() {
 
 		[normal.date_width]='2'
 		[normal.first_column_width]='35'
-		[normal.first_column_printf_format]='%-25.25s'
+		[normal.first_column_printf_format]='%-35.35s'
 		[normal.data_column_width]='3'
 		[normal.data_column_printf_format]='%3.3s'
 		[normal.days_limit]='26'
 
 		[compact.date_width]='1'
 		[compact.first_column_width]='35'
-		[compact.first_column_printf_format]='%-25.25s'
+		[compact.first_column_printf_format]='%-35.35s'
 		[compact.data_column_width]='1'
 		[compact.data_column_printf_format]='%1.1s'
 		[compact.days_limit]='38'
