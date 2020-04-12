@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.14'
+readonly script_version='0.14.15'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -433,9 +433,9 @@ install_antminer_bmminer_ro () {
 		/etc/rcS.d/S69hive -f
 	fi
 
-	wait_for_file '/hive/share/zzz/EOF' 60
+	wait_for_file '/hive/share/zzz/EOF' # max 5 min
 
-	echo "Downloaded build: $( cat /hive/etc/build )"
+	echo "Installed build: $( cat /hive/etc/build )"
 
 	#sleep 10 # ??? do we still need this? we can put a marker file at the end of archive and then wait_for_file() --DONE!
 }
@@ -941,7 +941,7 @@ parse_arguments "$@"
 set_package_url_and_file
 print_update_info
 set_temp_dir
-remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download"
+remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download" /nvdata/nohup.out
 
 execute_install_routine
 
