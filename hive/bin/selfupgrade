@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.15'
+readonly script_version='0.14.16'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -398,10 +398,10 @@ wait_for_file () {
 
 	if [ "$is_file_found" -ne 1 ]; then
 		[ -t 1 ] && echo -n -e '\r'
-		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s. '${file_to_wait}' still not found."
+		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s: '${file_to_wait}' still not found."
 	elif [ "$waiting_time" -ne 0 ]; then
 		[ -t 1 ] && echo -n -e '\r'
-		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s. '${file_to_wait}' found!"
+		echo "> $script_basename has been waiting for $(( waiting_time + 1 ))s: '${file_to_wait}' found!"
 	fi
 
 	return $(( is_file_found==0 ))
