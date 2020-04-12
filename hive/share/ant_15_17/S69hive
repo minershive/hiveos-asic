@@ -4,94 +4,126 @@
 # functions
 
 get_random_number_between () {
-    awk -v min="$1" -v max="$2" 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
+	awk -v min="$1" -v max="$2" 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
 }
 
-boot_h () {
-    #$FARM_HASH can be defined externally
-    if [ -e /config/FARM_HASH ]; then
-        FARM_HASH=$( cat /config/FARM_HASH )
-        [ ! -z "$FARM_HASH" ] && /hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
-        rm /config/FARM_HASH
-    fi
-
-    /hive/bin/hive > /tmp/hive-boot.log
+echo_action () {
+	echo "${script_basename}> ${*}..."
 }
 
-check_h () {
-    cd /nvdata
-    if [ -z "$URL" ]; then
-        URL="hiveos.farm"
-    fi
+echo_info () {
+	echo "${script_basename}: ${*}"
+}
 
-    if [ -s /config/HIVE_HOST_URL ]; then
-        URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
-    fi
+boot_hive () {
+	#$FARM_HASH can be defined externally
+	if [ -s /config/FARM_HASH ]; then
+		FARM_HASH=$( cat /config/FARM_HASH )
+		echo_info "External FARM_HASH found in /config/FARM_HASH: $FARM_HASH"
+		/hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
+		rm /config/FARM_HASH
+	fi
 
-    if ! echo "$URL" | grep -q -s -F "download"; then
-        URL='http://download.hiveos.farm'
-    fi
+	/hive/bin/hive > /tmp/hive-boot.log
+}
 
-    if [ "$force_download" = 1 ] || [ ! -e /nvdata/latest.tar.gz ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
+deploy_hive () {
+	cd /nvdata
+
+	if [ -z "$URL" ]; then
+		URL="hiveos.farm"
+	fi
+
+	if [ -s /config/HIVE_HOST_URL ]; then
+		URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
+		echo_info "External HIVE_HOST_URL found in /config/HIVE_HOST_URL: $HIVE_HOST_URL"
+	fi
+
+	case "$URL" in
+		*'download'*)
+			true
+			;;
+		*)	echo_info "Invalid URL: $URL, using http://download.hiveos.farm"
+			URL='http://download.hiveos.farm'
+			;;
+	esac
+
+	if [ "$force_download" = 1 ] || [ ! -e /nvdata/latest.tar.gz ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
 		snooze_time="$( get_random_number_between 5 30 )"
-		echo "> ${snooze_time}s random pause (for better bulk update)"
+		echo_info "${snooze_time}s random pause (for better bulk update)"
 		sleep "$snooze_time"
 		retries_counter=0
-		until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/repo/s9/latest -o latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
+		until echo_action "Downloading from ${URL}" && curl -f -L --insecure "$URL/asic/repo/s9/latest" -o latest_new.tar.gz && echo_action 'Checking integrity' && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
 			retries_counter=$(( retries_counter + 1 ))
 			snooze_time="$( get_random_number_between 15 60 )"
-			echo "Error. Try #${retries_counter} in $snooze_time seconds..."
+			echo_info "Error. Try #${retries_counter} in $snooze_time seconds..."
 			sleep "$snooze_time"
 		done
 		cp -rf latest_new.tar.gz latest.tar.gz
 		sync
 		[ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
-    fi
+	fi
 
-    echo "> Extracting latest.tar.gz"
-    if [ ! -d /config/hive ]; then
-        mkdir -p /config/hive/hive-config
-    fi
+	if [ ! -d /config/hive ]; then
+		mkdir -p /config/hive/hive-config
+	fi
 
-    tar -xzv -f latest.tar.gz
-    [ -L /hive ] && rm /hive
-    rm -rf hiveos-asic-*/hive/sbin/teleconsole
-    cp -rf hiveos-asic-*/hive /
-    [ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
+	echo_action 'Extracting latest.tar.gz'
+	tar -xzv -f latest.tar.gz || { echo_info 'Error extracting latest.tar.gz, exiting'; exit 1; }
 
-    #rm latest.tar.gz
-    rm -rf hiveos-asic*
-    sleep 2
+	[ -L /hive ] && rm /hive
+	rm -rf hiveos-asic-*/hive/sbin/teleconsole
 
-    [ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
-    [ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
-    #cp -rf /hive/share/S9/S69hive /etc/rcS.d/
-    cp -rf /hive/share/S9/.profile /home/root/
-    boot_h & # second run, should refactor?
+	echo_action 'Copying extracted files to /hive'
+	cp -rf hiveos-asic-*/hive / || { echo_info 'Error copying files to /hive, exiting'; exit 1; }
+
+	echo_info 'Copying finished'
+	#rm latest.tar.gz
+	rm -rf hiveos-asic*
+	sleep 2
+
+	[ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
+	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+	#cp -rf /hive/share/S9/S69hive /etc/rcS.d/
+	cp -rf /hive/share/S9/.profile /home/root/
+	boot_hive &
 }
 
 
-# code
+# consts
 
-if [ -s /etc/hive-url ]; then
-    URL=$( cat /etc/hive-url )
-fi
+readonly script_basename="$( basename "$0" )"
 
-if [ -s /config/hive-url ]; then
-    URL=$( cat /config/hive-url )
-fi
 
-if [ "$1" = '-f' ]; then
-    force_download=1
-fi
+# exports
 
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
-if [ -e /hive ]; then
-    echo 'boot'
-    boot_h &
+
+# code
+
+trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
+
+if [ -s /etc/hive-url ]; then
+	URL=$( cat /etc/hive-url )
+fi
+
+if [ -s /config/hive-url ]; then
+	URL=$( cat /config/hive-url )
+fi
+
+if [ "$1" = '-f' ]; then
+	echo_info 'Force download mode ON'
+	force_download=1
 else
-    echo 'check'
-    check_h &
+	force_download=0
+fi
+
+if [ -e /hive ]; then
+	echo_action 'Booting Hive'
+	boot_hive &
+else
+	echo_action 'Deploying Hive'
+	deploy_hive &
 fi
