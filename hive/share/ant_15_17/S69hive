@@ -16,7 +16,7 @@ echo_info () {
 }
 
 boot_hive () {
-	#$FARM_HASH can be defined externally
+	# $FARM_HASH can be defined externally
 	if [ -s /config/FARM_HASH ]; then
 		FARM_HASH=$( cat /config/FARM_HASH )
 		echo_info "External FARM_HASH found in /config/FARM_HASH: $FARM_HASH"
@@ -30,20 +30,28 @@ boot_hive () {
 deploy_hive () {
 	cd /nvdata
 
-	if [ -z "$URL" ]; then
-		URL="hiveos.farm"
-	fi
+	#
+	# commented out bc it's redundant
+	#
+	#if [ -z "$URL" ]; then
+	#	URL='http://download.hiveos.farm'
+	#fi
 
 	if [ -s /config/HIVE_HOST_URL ]; then
 		URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
-		echo_info "External HIVE_HOST_URL found in /config/HIVE_HOST_URL: $HIVE_HOST_URL"
+		echo_info "External URL found in /config/HIVE_HOST_URL: $URL"
 	fi
 
 	case "$URL" in
 		*'download'*)
 			true
 			;;
-		*)	echo_info "Invalid URL: $URL, using http://download.hiveos.farm"
+		'')
+			echo_info 'Empty URL, using http://download.hiveos.farm'
+			URL='http://download.hiveos.farm'
+			;;
+		*)
+			echo_info "Invalid URL: $URL, using http://download.hiveos.farm"
 			URL='http://download.hiveos.farm'
 			;;
 	esac
@@ -77,9 +85,9 @@ deploy_hive () {
 	echo_action 'Copying extracted files to /hive'
 	cp -rf hiveos-asic-*/hive / || { echo_info 'Error copying files to /hive, exiting'; exit 1; }
 
-	echo_info 'Copying finished'
+	echo_action 'Copying finished, removing temporary files'
 	#rm latest.tar.gz
-	rm -rf hiveos-asic*
+	rm -rf hiveos-asic* && echo_info 'Temporary files removed' || echo_info 'Temporary files removing error'
 	sleep 2
 
 	[ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
