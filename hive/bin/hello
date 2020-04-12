@@ -84,14 +84,14 @@ fi
 
 # collect system information
 
-boot_POSIX_time=$(( $( date +%s ) - $( cat /proc/uptime | awk '{printf "%d", $1}' ) ))
+boot_POSIX_time=$(( $( date +%s ) - $( cat /proc/uptime | awk '{printf "%u", $1}' ) ))
 
 if [[ "$mb_product" == 'Toddminer C1' ]]; then
-    ips_json="[\""`ifconfig eth0 | grep 'inet ' | awk '{ print $2 }'`"\"]"
+	ips_json="[\""`ifconfig eth0 | grep 'inet ' | awk '{ print $2 }'`"\"]"
 else
-    ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
+	ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
 fi
-net_interfaces_json=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{  printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2)  }' | jq -sc .`
+net_interfaces_json=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq -sc .`
 
 cpu_model="$( grep -m1 '^model name' /proc/cpuinfo | sed 's/model name[ :\t]*//g' )"
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'
@@ -112,25 +112,38 @@ fi
 hive_version="$( < /hive/etc/VERSION )"
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
-[[ -e /usr/bin/compile_ver && -e /var/log/log ]] && MODELH="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
-if [[ -e /usr/bin/compile_ver ]] && $( grep -q 'TEST' /usr/bin/compile_ver ); then
-    rm /hive-config/model > /dev/null 2>&1
-    MODELH=''
+[[ -e /usr/bin/compile_ver && -e /var/log/log ]] && MODELH_detected="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
+
+# ???
+if [[ -s /usr/bin/compile_ver ]] && grep -Fqsm1 -e 'TEST' /usr/bin/compile_ver; then
+	rm /hive-config/model > /dev/null 2>&1
+	MODELH_detected=''
 fi
-if [[ -n "$MODELH" ]]; then
-	if [[ ! -e /hive-config/model ]]; then
-		echo "$MODELH" > /hive-config/model
+
+if [[ -n "$MODELH_detected" ]]; then
+	if [[ ! -s /hive-config/model ]]; then
+		# if model not saved -- save detected model to file
+		echo "$MODELH_detected" > /hive-config/model
 	else
-		if [[ "$MODELH" != "$( < /hive-config/model )" ]]; then
-			echo "$MODELH" > /hive-config/model
+		# if model saved but detected model is different -- save detected to file
+		if [[ -s /hive-config/model ]]; then
+			# get saved model
+			MODELH_saved="$( < /hive-config/model )"
+		else
+			MODELH_saved=''
+		fi
+		if [[ "$MODELH_saved" != "$MODELH_detected" && "$MODELH_detected" != 'Antminer X17' ]]; then
+			# save new model only if not X17
+			echo "$MODELH_detected" > /hive-config/model
 		fi
 	fi
 fi
 
-[[ -e /hive-config/model ]] && MODELH="$( < /hive-config/model)"
-if [[ -n "$MODELH" ]]; then
-	sed "2s/.*/$MODELH Hiveon/" -i /usr/bin/compile_ver
-	sed "2s/.*/$MODELH/" -i /usr/bin/compile_time
+[[ -s /hive-config/model ]] && MODELH_detected="$( < /hive-config/model )"
+
+if [[ -n "$MODELH_detected" ]]; then
+	sed "2s/.*/${MODELH_detected} Hiveon/" -i /usr/bin/compile_ver
+	sed "2s/.*/${MODELH_detected}/" -i /usr/bin/compile_time
 fi
 
 
