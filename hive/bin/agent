@@ -326,7 +326,6 @@ miner_stats () {
 		;;
 		
 		"Toddminer C1")
-				. /hive/bin/todd_api
 				khs=0
 				stats="null"
 
@@ -344,8 +343,10 @@ miner_stats () {
 				local fan=( "$((${fan_rpm[0]} * 100 / $max_fan_rpm))" "$((${fan_rpm[1]} * 100 / $max_fan_rpm))")
 				local freq=( 500 500 500 )
 				local acn=(30 30 30)
-				local status=( "`todd_get_board_status /home/sm/miner/build/0mlog`" "`todd_get_board_status /home/sm/miner/build/1mlog`" "`todd_get_board_status /home/sm/miner/build/3mlog`" )
-				local power=(460 460 460) # 1380W
+				#local status=( "`todd_get_board_status /home/sm/miner/build/0mlog`" "`todd_get_board_status /home/sm/miner/build/1mlog`" "`todd_get_board_status /home/sm/miner/build/3mlog`" )
+				local status=() # chip status
+				IFS=$'\n' read -rd '' -a status <<< "`/home/sm/minerlog.sh status`"
+				local power=() # 1380W
 				local hw_errors=()
 				local ac=0
 				local rj=0
@@ -363,7 +364,6 @@ miner_stats () {
 						local hs_tmp=`echo ${hs[$i]} | awk '{ printf "%.0f",$1 }'`
 						if [[ "$hs_tmp" -gt 750 ]]; then # board not mining
 							hs[$i]=0
-							power[$i]=30
 						fi
 						acc[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'ACC=' | sed -e 's/.*=//'`
 						rej[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'REJ=' | sed -e 's/.*=//'`
@@ -389,7 +389,7 @@ miner_stats () {
 					--argjson temp "`echo ${temp[@]} | tr " " "\n" | jq -cs '.'`"  \
 					--argjson fan "`echo ${fan[@]} | tr " " "\n" | jq -cs '.'`"  \
 					--argjson fan_rpm "`echo ${fan_rpm[@]} | tr " " "\n" | jq -cs '.'`"  \
-					--argjson power "`echo ${power[@]} | tr " " "\n" | jq -cs '.'`"  \
+					--argjson power "`/hive/bin/todd_api power | jq -cs '.'`"  \
 					--argjson status "`printf '%s\n' "${status[@]}" | jq -R . | jq -cs '.'`"  \
 					--arg uptime "$uptime" \
 					'{$algo, $hs, $hs_units, ar: ['$ac', '$rj'], $hw_errors, $acn, $freq, $temp, $fan, $fan_rpm, $power, $status, $uptime}')

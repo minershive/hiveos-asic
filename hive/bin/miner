@@ -67,8 +67,8 @@ function start {
 					break
 				elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 					python3.4 /home/inno_tools/start_miner.py &
-				elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
-					/home/sm/miner/build/miner.sh &
+				elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+					/hive/bin/todd_api minerStart
 				else
 					nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
 				fi
@@ -93,8 +93,8 @@ function stop {
 			pidof miner | xargs kill -9
 		elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 			killall innominer_T4
-		elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
-			echo "Miner stop not implemented yet"
+		elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+			/hive/bin/todd_api minerStop
 		else
 			/etc/init.d/$THIS_MINER_NAME.sh stop
 		fi
@@ -153,6 +153,8 @@ function log_tail { # TODO should refactor to smth like print_log()
 		log_basename=`miner_log_basename $MINER`
 		if [[ $ASIC_MODEL =~ ".g19" ]]; then
 			journalctl -n "$TAIL_LINE"
+		elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+			/hive/bin/todd_api logMiner
 		else
 			#logname="${log_basename}.log"
 			logname="${log_basename}"

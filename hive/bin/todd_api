@@ -1,21 +1,110 @@
 #!/bin/bash
 # Todek 
 
-function todd_get_board_status(){
-    log_file=$1
-    board_data=( `cat ${log_file} | tail -n 100 | grep -m 1 -A 29 "chip 0 hashrate " | awk '{ print $6 }'` )
-    board_status=""
-    for (( i=0; i < 30; i++ )); do
-        chip_hash=${board_data[$i]}
-	if [[ "$chip_hash" -gt 0 ]]; then
-	    chip_status="o"
-	else
-	    chip_status="x"
-	fi
+. colors
 
-	board_status="`echo $board_status`$chip_status"
-    done
+LOG_LINES=250
+CHIPS=`cat /flask/sysconf/factory/config.json | jq -r '.chip_num'`
+POWER_BASE=10
+POWER_CHIP=15
 
-    echo $board_status
+function show_log(){
+   local num=$1
+   local log_file="/home/sm/miner/build/${num}mlog"
+   echo "${YELLOW}==${NOCOLOR} ${log_file} ${YELLOW}====================${NOCOLOR}"
+   cat $log_file | tail -n $LOG_LINES
 }
 
+
+function board_status(){
+   local num=$1
+   local log_file="/home/sm/miner/build/${num}mlog"
+   local brd_status="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   LOG=`tac $log_file | grep -m1 -A $CHIPS "board \(0\|1\) hashrate" | tac`
+   if [[ ! -z $LOG ]]; then
+      LOGTIME=`echo "${LOG}" | head -n 1 | awk '{print $1,$2}' | sed 's/^\[//' | sed 's/\]//' | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"`
+      TIME_NOW=`date -u "+%s"`
+      TIME_LOG=`date -u -d "$LOGTIME" "+%s"`
+      LOG_FRESHNESS=$(( $TIME_NOW - $TIME_LOG ))
+      if [[ $LOG_FRESHNESS -lt 120 ]]; then
+         board_data=( `cat ${log_file} | grep -m 1 -A $((CHIPS-1)) "chip 0 hashrate " | awk '{ print $6 }'` )
+         brd_status=""
+         for (( i=0; i < $CHIPS; i++ )); do
+            chip_hash=${board_data[$i]}
+            if [[ "$chip_hash" -gt 0 ]]; then
+               chip_status="o"
+            else
+               chip_status="x"
+            fi
+            brd_status="${brd_status}${chip_status}"
+         done
+      fi
+   fi
+   echo $brd_status
+}
+
+
+function board_power(){
+   local num=$1
+   local log_file="/home/sm/miner/build/${num}mlog"
+   local brd_power=$POWER_BASE
+   LOG=`tac $log_file | grep -m1 -A $CHIPS "board \(0\|1\) hashrate" | tac`
+   if [[ ! -z $LOG ]]; then
+      LOGTIME=`echo "${LOG}" | head -n 1 | awk '{print $1,$2}' | sed 's/^\[//' | sed 's/\]//' | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g"`
+      TIME_NOW=`date -u "+%s"`
+      TIME_LOG=`date -u -d "$LOGTIME" "+%s"`
+      LOG_FRESHNESS=$(( $TIME_NOW - $TIME_LOG ))
+      if [[ $LOG_FRESHNESS -lt 120 ]]; then
+         board_data=( `cat ${log_file} | grep -m 1 -A $((CHIPS-1)) "chip 0 hashrate " | awk '{ print $6 }'` )
+         for (( i=0; i < $CHIPS; i++ )); do
+            chip_hash=${board_data[$i]}
+            if [[ "$chip_hash" -gt 0 ]]; then
+               chip_power=$POWER_CHIP
+            else
+               chip_power=0
+            fi
+            brd_power=$(( $brd_power + $chip_power ))
+         done
+      fi
+   fi
+   echo $brd_power
+}
+
+case "$1" in
+   "logMiner")
+      show_log 0
+      show_log 1
+#      show_log 2
+      show_log 3
+   ;;
+   "power")
+      board_power 0
+      board_power 1
+      board_power 3
+   ;;
+   "status")
+      board_status 0
+      board_status 1
+      board_status 3
+   ;;
+   "startMiner")
+      /home/sm/miner/build/miner.sh &
+   ;;
+   "stopMiner")
+      systemctl stop miner0.timer
+      systemctl disable miner0.timer
+      systemctl stop miner1.timer
+      systemctl disable miner1.timer
+      systemctl stop miner2.timer
+      systemctl disable miner2.timer
+      systemctl stop miner3.timer
+      systemctl disable miner3.timer
+      sudo killall cpuminer
+      sudo killall cpuminer
+      sudo killall cpuminer
+      sudo killall cpuminer
+   ;;
+   "configMiner")
+#      /home/sm/miner/build/setconfig.py
+   ;;
+esac

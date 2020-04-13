@@ -371,6 +371,8 @@ set_asic_constants() {
 			MOUNT=''
 			ASIC_ALGO='eaglesong'
 			THIS_MINER_NAME='cpuminer'
+			GPIO_LED_RED='168'
+			GPIO_PATH='value'
 			LOG_PATH=''
 			CONFIG_PATH='/flask/sysconf/config/config.json'
 			HASH='ghs'

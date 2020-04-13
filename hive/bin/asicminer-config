@@ -502,7 +502,7 @@ elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
 "fbdiv":        102,
 "vid": 0,
 
-"worknamemode": "allip",
+"worknamemode": "noip",
 "worknameplace1": "user",
 "worknameplace2": "user",
 "worknameplace3": "user"
