@@ -50,6 +50,10 @@ function start {
 	elif [ -e "/www/pages/cgi-bin/resume_miner.cgi" ]; then
 		config-gen
 		sh /www/pages/cgi-bin/resume_miner.cgi
+	elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+		config-gen
+		/hive/bin/todd_api mstart
+#		/home/sm/miner/build/miner.sh &
 	else
 		for i in {1..15}; do
 			test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep' | grep -v 'systemctl')"
@@ -67,8 +71,6 @@ function start {
 					break
 				elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 					python3.4 /home/inno_tools/start_miner.py &
-				elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-					/hive/bin/todd_api minerStart
 				else
 					nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
 				fi
@@ -94,7 +96,7 @@ function stop {
 		elif [[ $ASIC_MODEL == "T4.G19" ]]; then
 			killall innominer_T4
 		elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-			/hive/bin/todd_api minerStop
+			/hive/bin/todd_api mstop
 		else
 			/etc/init.d/$THIS_MINER_NAME.sh stop
 		fi
@@ -110,6 +112,8 @@ function restart {
 	elif [ -e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
 		config-gen
 		sh /www/pages/cgi-bin/restart_miner.cgi
+	elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+		start
 	else
 		stop
 		start
@@ -154,7 +158,7 @@ function log_tail { # TODO should refactor to smth like print_log()
 		if [[ $ASIC_MODEL =~ ".g19" ]]; then
 			journalctl -n "$TAIL_LINE"
 		elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-			/hive/bin/todd_api logMiner
+			/hive/bin/todd_api mlog
 		else
 			#logname="${log_basename}.log"
 			logname="${log_basename}"

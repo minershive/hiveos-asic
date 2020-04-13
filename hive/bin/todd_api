@@ -71,7 +71,7 @@ function board_power(){
 }
 
 case "$1" in
-   "logMiner")
+   "mlog")
       show_log 0
       show_log 1
 #      show_log 2
@@ -87,10 +87,10 @@ case "$1" in
       board_status 1
       board_status 3
    ;;
-   "startMiner")
+   "mstart"|"restart")
       /home/sm/miner/build/miner.sh &
    ;;
-   "stopMiner")
+   "mstop")
       systemctl stop miner0.timer
       systemctl disable miner0.timer
       systemctl stop miner1.timer
@@ -104,7 +104,8 @@ case "$1" in
       sudo killall cpuminer
       sudo killall cpuminer
    ;;
-   "configMiner")
-#      /home/sm/miner/build/setconfig.py
+   "mconfig")
+      cat /flask/sysconf/config/config.json
+      cat /home/sm/miner/build//config*.json
    ;;
 esac
