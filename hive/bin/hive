@@ -17,7 +17,7 @@ date
 #ls -l /var/volatile/tmp/
 
 function echo2 {
-#	echo -e "$1" >> /tmp/hive.boot.log
+	#echo -e "$1" >> /tmp/hive.boot.log
 	echo -e "$1"
 }
 
@@ -67,44 +67,56 @@ echo2 "$msg"
 
 
 if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL == "Antminer S9 SE" || $ASIC_MODEL == "Antminer S9k" ]]; then
-    echo2 "> Applying crontab"
-    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+	echo2 "> Applying crontab"
+	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
-    echo2 "> Applying crontab"
-    [[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
-    crontab /hive/etc/crontab.root
-    [[ $(ps aux | grep "crond" | grep -v grep | wc -l) -eq 0 ]] &&
-            /usr/sbin/crond
+	echo2 "> Applying crontab"
+	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
+	crontab /hive/etc/crontab.root
+	[[ $(ps aux | grep "crond" | grep -v grep | wc -l) -eq 0 ]] &&
+	/usr/sbin/crond
 
-    #hosts patch
-    touch /tmp/hosts
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
-    cp /lib/libnss_files.so.2 /hive/share/S9/lib/libnss_files.so.2
-    sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
+	#hosts patch
+	touch /tmp/hosts
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
+	cp /lib/libnss_files.so.2 /hive/share/S9/lib/libnss_files.so.2
+	sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
 
-    echo2 "> Patching upgrade"
-    cd /www/pages/cgi-bin/
-    patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch
-    sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
-    if [[ -d /hive-config && ! -L /hive-config ]]; then
-        mkdir -p /config/hive/hive-config
-        mv -f /hive-config /config/hive/
-        ln -s /config/hive/hive-config/ /hive-config
-    fi
+	echo2 "> Patching upgrade"
+	cd /www/pages/cgi-bin/
+	patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch
+	sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
+	if [[ -d /hive-config && ! -L /hive-config ]]; then
+		mkdir -p /config/hive/hive-config
+		mv -f /hive-config /config/hive/
+		ln -s /config/hive/hive-config/ /hive-config
+	fi
+	#ramdisk
+	if ! mount | grep ramdisk > /dev/null; then
+		mkdir -p /mnt/ramdisk
+		mount -t tmpfs -o size=100m tmpfs /mnt/ramdisk
+	fi
 elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL == "Antminer X17" ]]; then
-    echo2 "> Applying crontab"
-    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-    #nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+	echo2 "> Applying crontab"
+	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
-    #hosts patch
-    touch /tmp/hosts
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
-    cp /lib/libnss_files.so.2 /hive/share/S9/lib/libnss_files.so.2
-    sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
+	#hosts patch
+	touch /tmp/hosts
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
+	cp /lib/libnss_files.so.2 /hive/share/S9/lib/libnss_files.so.2
+	sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
 
-    #enable dmesg timestaps
-    echo Y > /sys/module/printk/parameters/time
+	#enable dmesg timestaps
+	echo Y > /sys/module/printk/parameters/time
+fi
+
+#test disable avachi-daemon
+if [[ $ASIC_MODEL =~ "Antminer" ]]; then
+	[ -e /etc/init.d/avahi ] && /etc/init.d/avahi stop
+	[ -e /usr/sbin/avahi-daemon ] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon_back
+	ps w | grep avahi | grep -v grep | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1 #/etc/init.d/avahi stop - does not work on some models
 fi
 
 
