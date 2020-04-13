@@ -112,6 +112,13 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_
 	echo Y > /sys/module/printk/parameters/time
 fi
 
+#test disable avachi-daemon
+if [[ $ASIC_MODEL =~ "Antminer" ]]; then
+	[ -e /etc/init.d/avahi ] && /etc/init.d/avahi stop
+	[ -e /usr/sbin/avahi-daemon ] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon_back
+	ps w | grep avahi | grep -v grep | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1 #/etc/init.d/avahi stop - does not work on some models
+fi
+
 
 echo2 "> Caching host resolve"
 cache-hive-ip
