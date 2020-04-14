@@ -74,7 +74,7 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |Toddminer C1, C1 PRO|•|•|•|•|
 **HashAltCoin**
 |Blackminer F1, F1+, F1-MINI|•|•|•|•|
-|Blackminer F1-Ultra,F1-MINI+|•|•|•|•|
+|Blackminer F1-Ultra, F1-MINI+|•|•|•|•|
 **Zig**
 |Z1, Z1+|•|•|•|•|
 
