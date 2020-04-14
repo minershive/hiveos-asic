@@ -507,6 +507,18 @@ elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
 "worknameplace2": "user",
 "worknameplace3": "user"
 }'
+elif [[ $ASIC_MODEL =~ "Blackminer F1" ]]; then
+	config_global='{
+"api-listen" : true,
+"api-network" : true,
+"fan-ctrl" : true,
+"fan-pwm" : "0",
+"use-vil" : true,
+"freq" : "420",
+"coin-type" : "ckb",
+"api-groups" : "A:stats:pools:devs:summary:version",
+"api-allow" : "A:0/0,W:*"
+}'
 fi
 
 	#merge user config options into main config

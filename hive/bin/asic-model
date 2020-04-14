@@ -379,6 +379,18 @@ set_asic_constants() {
 			MAX_FAN_RPM='7000'
 			;;
 
+		'Blackminer F1'* )
+			[[ `mount | grep "/sdcard"` ]] && MOUNT="/sdcard" || MOUNT="/fpgabit"
+			ASIC_ALGO="eaglesong"
+			THIS_MINER_NAME="cgminer"
+			LOG_PATH="/var/volatile/log/messages"
+			CONFIG_PATH="/config/cgminer.conf"
+			HASH="ghs"
+			MAX_FAN_RPM="1500"
+			GPIO_LED_RED="23"
+			GPIO_PATH="direction"
+			;;
+
 		* )
 			MOUNT=''
 			ASIC_ALGO='unknown'

@@ -859,8 +859,10 @@ execute_install_routine () {
 		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig					;;
 
 		# Todek Toddminer C1 and C1 PRO eaglesong ASICs
+		'Toddminer C1'*)			echo "$ASIC_MODEL"; 			install_todd				;;
 
-		'Toddminer C1'*)			echo "$ASIC_MODEL"; 			install_todd					;;
+                # HashAltCoin FPGA Blackminer F1 series (multialgo)
+                'Blackminer F1'* )			echo "$ASIC_MODEL";			install_antminer_cgminer		;;
 
 		# unknown
 

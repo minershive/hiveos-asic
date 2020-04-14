@@ -1,0 +1,67 @@
+{
+	"ckb": {
+		"algo": "eaglesong",
+		"freq": "420",
+		"power": "47"
+	},
+	"lyra2rev3": {
+		"algo": "lyra2v3",
+		"freq": "390",
+		"power": "40"	
+	},
+	"lyra2z": {
+		"algo": "lyra2z",
+		"freq": "390",
+		"power": "52"	
+	},
+	"nexus": {
+		"algo": "nexushash",
+		"freq": "430",
+		"power": "44"	
+	},
+	"sha3d": {
+		"algo": "sha3d",
+		"freq": "380",
+		"power": "56"	
+	},
+	"bmw512": {
+		"algo": "bmw512",
+		"freq": "380",
+		"power": "24"	
+	},
+	"k12": {
+		"algo": "k12",
+		"freq": "420",
+		"power": "50"	
+	},
+	"tribus": {
+		"algo": "tribus",
+		"freq": "490",
+		"power": "48"	
+	},
+        "kadena": {
+		"algo": "blake2s_256",
+		"freq": "514",
+		"power": "40"
+        },
+        "handshake": {
+		"algo": "bl2bsha3",
+		"freq": "360",
+		"power": "30"
+        },
+	"bcx": {
+		"algo": "blake2b",
+		"freq": "486",
+		"power": "40"
+	},
+	"c11": {
+		"algo": "c11",
+		"freq": "348",
+		"power": "31"
+	},
+	"keccak": {
+		"algo": "keccak",
+		"freq": "486",
+		"power": "59"
+	}
+}

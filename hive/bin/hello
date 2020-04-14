@@ -80,6 +80,9 @@ elif [[ ! -e /etc/hwrevision && -e /tmp/type ]]; then
 elif [[ -e /var/www/html/src/Template/Layout/signin.twig ]]; then
 	mb_manufacturer='Dayun'
 	mb_product="$( cat /var/www/html/src/Template/Layout/signin.twig | grep -Ese 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g' )"
+elif [[ $ASIC_MODEL =~ "Blackminer F1" && -e /usr/bin/compile_time ]]; then
+	mb_manufacturer='HashAltCoin'
+	mb_product="$( sed -n 2p /usr/bin/compile_time )"
 fi
 
 # collect system information
