@@ -345,7 +345,7 @@ miner_stats () {
 				local acn=(30 30 30)
 				#local status=( "`todd_get_board_status /home/sm/miner/build/0mlog`" "`todd_get_board_status /home/sm/miner/build/1mlog`" "`todd_get_board_status /home/sm/miner/build/3mlog`" )
 				local status=() # chip status
-				IFS=$'\n' read -rd '' -a status <<< "`/home/sm/minerlog.sh status`"
+				IFS=$'\n' read -rd '' -a status <<< "`/hive/bin/todd_api status`"
 				local power=() # 1380W
 				local hw_errors=()
 				local ac=0
