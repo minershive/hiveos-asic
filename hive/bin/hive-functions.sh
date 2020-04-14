@@ -97,6 +97,41 @@ is_function_exist() {
 
 
 #
+# text
+#
+
+strip_ansi() {
+	#
+	# Usage: strip_ansi 'text'
+	#        cat file | strip_ansi
+	#
+	# strips ANSI codes from text
+	#
+	# < or $1: The text to strip
+	# >: ANSI stripped text
+	#
+
+	# args
+
+	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
+
+	# vars
+
+	local line=''
+
+	# code
+
+	while IFS='' read -r line || [[ -n "$line" ]]; do
+		(
+			shopt -s extglob
+			printf '%s\n' "${line//$'\e'[\[(]*([0-9;])[@-n]/}"
+		)
+	done <<< "$input_text"
+}
+
+
+#
 # math
 #
 
