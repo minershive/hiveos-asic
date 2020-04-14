@@ -2,7 +2,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.16'
+readonly script_version='0.14.17'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -338,7 +338,7 @@ install_todd () {
     sudo /etc/init.d/cron restart
     sudo apt update
     sudo apt install -y curl screen jq dnsutils
-    sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' /hive/bin/selfupgrade
+    sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' "/hive/bin/$script_basename"
     export PATH=$PATH:/hive/bin:/hive/sbin
     export LD_LIBRARY_PATH=/hive/lib
 
@@ -856,11 +856,11 @@ execute_install_routine () {
 		# Zig
 
 		'Zig Z1+'				|\
-		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig						;;
+		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig					;;
 
-		# Todek
+		# Todek Toddminer C1 and C1 PRO eaglesong ASICs
 
-		'Toddminer C1')			echo "$ASIC_MODEL"; 			install_todd					;;
+		'Toddminer C1'*)			echo "$ASIC_MODEL"; 			install_todd					;;
 
 		# unknown
 

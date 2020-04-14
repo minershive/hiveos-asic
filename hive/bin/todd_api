@@ -99,13 +99,17 @@ case "$1" in
       systemctl disable miner2.timer
       systemctl stop miner3.timer
       systemctl disable miner3.timer
-      sudo killall cpuminer
-      sudo killall cpuminer
-      sudo killall cpuminer
-      sudo killall cpuminer
+      killall cpuminer
    ;;
    "mconfig")
       cat /flask/sysconf/config/config.json
       cat /home/sm/miner/build//config*.json
+   ;;
+   *)
+      if [[ -z $1 ]]; then
+         echo "todd_api mlog|power|status|mstart|mrestart|mstop"
+      else
+        echo "Command $1 not implemented"
+      fi
    ;;
 esac
