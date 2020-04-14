@@ -71,10 +71,10 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |T3 BTCMiner|•|•|•|•|
 |T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T|•|•|•|•|
 **Todek**
-|Toddminer C1|•|•|•|•|
-|Toddminer C1 PRO|•|•|•|•|
+|Toddminer C1, C1 PRO|•|•|•|•|
 **HashAltCoin**
-|Blackminer F1, F1+, F1-MINI, F1-Ultra,F1-MINI+|•|•|•|•|
+|Blackminer F1, F1+, F1-MINI|•|•|•|•|
+|Blackminer F1-Ultra,F1-MINI+|•|•|•|•|
 **Zig**
 |Z1, Z1+|•|•|•|•|
 
