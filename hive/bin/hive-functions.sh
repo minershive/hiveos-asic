@@ -420,7 +420,7 @@ declare -r -i exitcode_ERROR_NOT_FOUND=1
 if ! ( return 0 2>/dev/null ); then # not sourced
 
 	declare -r script_mission='Client for ASICs: Oh my handy little functions'
-	declare -r script_version='0.1.2'
+	declare -r script_version='0.1.3'
 
 	case "$*" in
 		'')
