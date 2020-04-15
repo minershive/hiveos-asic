@@ -6,6 +6,11 @@
 #
 
 
+# !!! bash strict mode, no unbound variables
+
+#set -o nounset # !!! this is a library, so we don't want to break the other's scripts
+
+
 #
 # script infrastructure
 #
@@ -17,14 +22,37 @@ function print_script_version {
 
 function errcho {
 	#
-	# Usage: errcho [args...]
+	# Usage: errcho [arg...]
 	#
 	# uniform error logging to stderr
 	#
 
 	echo -e -n "${BRED-}$0"
 	for (( i=${#FUNCNAME[@]} - 2; i >= 1; i-- )); { echo -e -n "${RED-}:${BRED-}${FUNCNAME[i]}"; }
-	echo -e " error:${NOCOLOR-} $@"
+	echo -e " error:${NOCOLOR-} $*"
+
+} 1>&2
+
+function debugcho {
+	#
+	# Usage: debugcho [arg...]
+	#
+	# uniform debug logging to stderr
+	#
+
+	# vars
+
+	local this_argument
+
+	# code
+
+	echo -e -n "${DGRAY-}DEBUG $0"
+	for (( i=${#FUNCNAME[@]} - 2; i >= 1; i-- )); { echo -e -n ":${FUNCNAME[i]}"; }
+	for this_argument in "$@"; do
+		printf " %b'%b%q%b'" "${CYAN-}" "${DGRAY-}" "${this_argument}" "${CYAN-}"
+	done
+	echo "${NOCOLOR-}"
+
 } 1>&2
 
 
@@ -76,25 +104,6 @@ function iif_pipe {
 	fi
 }
 
-is_function_exist() {
-	#
-	# Usage: is_function_exist 'function_name'
-	#
-	# stdin: none
-	# stdout: none
-	# exit code: boolean
-	#
-
-	# args
-
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r function_name="$1"
-
-	# code
-
-	declare -F -- "$function_name" >/dev/null
-}
-
 
 #
 # text
@@ -139,7 +148,7 @@ function calculate_percent_from_number {
 	#
 	# Usage: calculate_percent_from_number 'percent' 'number'
 	#
-	# gives result rounded to *nearest* integer, not the frac part as in the bash builtin arithmetics
+	# gives result rounded to the *nearest* integer, not the frac part as in the bash builtin arithmetics
 	#
 
 	# args
@@ -233,6 +242,7 @@ function set_variable_to_current_system_time_in_seconds {
 
 	# code
 
+	# shellcheck disable=SC2034
 	variable_to_set_by_ref="$( get_current_system_time_in_seconds )"
 }
 
@@ -263,7 +273,7 @@ function seconds2dhms {
 	(( days > 0 ))					&&	printf '%ud%s'	"$days" "$delimiter"
 	(( hours > 0 ))					&&	printf '%uh%s'	"$hours" "$delimiter"
 	(( minutes > 0 ))				&&	printf '%um%s'	"$minutes"
-	(( minutes > 0 && days < 1 ))	&&	printf '%s'	"$delimiter"
+	(( minutes > 0 && days < 1 ))	&&	printf '%s'		"$delimiter"
 	(( days < 1 ))					&&	printf '%us'	"$seconds" # no seconds if days > 0
 										printf '\n'
 }
@@ -325,6 +335,38 @@ function get_system_uptime_in_seconds {
 
 
 #
+# strings
+#
+
+function get_substring_position_in_string {
+	#
+	# Usage: get_substring_position_in_string
+	#
+	
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r substring="$1"
+	local -r string="$2"
+
+	# vars
+
+	local prefix
+
+	# code
+
+	prefix="${string%%${substring}*}"
+
+	if (( ${#prefix} != ${#string} )); then
+		echo "${#prefix}"
+		return $(( exitcode_OK ))
+	else
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+}
+
+
+#
 # processes
 #
 
@@ -332,7 +374,7 @@ function pgrep_count {
 	#
 	# Usage: pgrep_count 'pattern'
 	#
-	# pgrep --count emulator
+	# pgrep --count naive emulator
 	#
 	
 	# args
@@ -340,16 +382,23 @@ function pgrep_count {
 	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
 
+	# vars
+
+	local marker self
+
 	# code
 
-	ps w | grep -E "$pattern" | grep -Fcv 'grep'
+	printf -v marker '%(%s)T-%s-%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
+	self="${$}[[:space:]].+${FUNCNAME}"
+
+	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evc -e "$marker" -e "$self" --
 }
 
 function pgrep_quiet {
 	#
 	# Usage: pgrep_quiet 'pattern'
 	#
-	# pgrep --quiet emulator
+	# pgrep --quiet naive emulator
 	#
 	
 	# args
@@ -357,15 +406,41 @@ function pgrep_quiet {
 	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
 
+	# vars
+
+	local marker self
+
 	# code
 
-	ps w | grep -E "$pattern" | grep -Fsvq 'grep'
+	printf -v marker '%(%s)T:%s:%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
+	self="${$}[[:space:]].+${FUNCNAME}"
+
+	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evq -e "$marker" -e "$self" --
 }
 
 
 #
 # the last: function lister
 #
+
+is_function_exist() {
+	#
+	# Usage: is_function_exist 'function_name'
+	#
+	# stdin: none
+	# stdout: none
+	# exit code: boolean
+	#
+
+	# args
+
+	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r function_name="$1"
+
+	# code
+
+	declare -F -- "$function_name" >/dev/null
+}
 
 function __list_functions {
 	#
@@ -411,8 +486,12 @@ function __list_functions {
 
 # consts
 
-declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
+# shellcheck disable=SC2034
+declare -r -i exitcode_OK=0
 declare -r -i exitcode_ERROR_NOT_FOUND=1
+declare -r -i exitcode_ERROR_IN_ARGUMENTS=127
+# shellcheck disable=SC2034
+declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 
 
 # main
@@ -420,10 +499,11 @@ declare -r -i exitcode_ERROR_NOT_FOUND=1
 if ! ( return 0 2>/dev/null ); then # not sourced
 
 	declare -r script_mission='Client for ASICs: Oh my handy little functions'
-	declare -r script_version='0.1.3'
+	declare -r script_version='0.1.4'
 
 	case "$*" in
 		'')
+			source colors
 			print_script_version
 			__list_functions
 			;;
