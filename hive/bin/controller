@@ -1,9 +1,11 @@
 #!/hive/sbin/bash
+#!/usr/bin/env bash
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='1.3.10'
+readonly script_version='2.0.0'
 readonly script_basename="$( basename "$0" )"
+readonly script_debug=0
 
 
 # !!! bash strict mode, no unbound variables
@@ -13,112 +15,66 @@ set -o nounset
 
 # functions
 
-function print_script_version {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
-	echo
-}
+function print_script_usage {																		(( script_debug )) && debugcho "$@"
 
-function print_script_usage {
+	# code
+
 	echo -e "Usage: ${CYAN-}${script_basename} [log]${NOCOLOR-}"
 	echo
 	echo -e "       ${WHITE-}log${NOCOLOR-} - show last $log_lines_to_tail lines from log and exit"
 	echo
 }
 
-function calculate_percent_from_number {
-	#
-	# calculate_percent_from_number 'percent' 'number'
-	#
-	# gives result rounded to nearest integer
-	#
+function parse_arguments {																			(( script_debug )) && debugcho "$@"
 
 	# args
 
-	(( $# != 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	local -r -i percent=${1-}
-	local -r -i number=${2-}
+	local -r argument="${1-}"
 
 	# code
 
-	printf '%.0f\n' "$((10**9 * (number * percent) / 100 ))e-9" # yay, neat trick
+	case "$argument" in
+		'log')
+			print_script_version
+			print_last_lines_from_own_log
+			# shellcheck disable=SC2154
+			exit $(( exitcode_OK ))
+			;;
+		'')
+			: 'do nothing special'
+			;;
+		'-h' | '--help')
+			print_script_version
+			print_script_usage
+			# shellcheck disable=SC2154
+			exit $(( exitcode_OK ))
+			;;
+		*)
+			print_script_version
+			print_script_usage
+			# shellcheck disable=SC2154
+			exit $(( exitcode_ERROR_IN_ARGUMENTS ))
+			;;
+	esac
 }
 
-function get_file_size_in_bytes {
-	#
-	# get_file_size_in_bytes 'file_name'
-	#
-	# highly portable, uses ls
-	#
+function initialize_dictionaries {																	(( script_debug )) && debugcho "$@"
 
-	# args
+	# local consts
 
-	(( $# != 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	local -r file_name="${1-}"
-
-	# arrays
-
-	local -a ls_output_field=()
-
-	# code
-
-	# parse ls output to array
-	# -rwxr-xr-x 1 0 0 4745 Apr  3 16:03 log-watcher.sh
-	# 0          1 2 3 4    5    6 7     8
-	if [[ -f "$file_name" ]] && ls_output_field=( $( ls -dn "$file_name" ) ); then
-		# print 5th field
-		echo "${ls_output_field[4]}"
-	else
-		return $(( exitcode_ERROR_NOT_FOUND ))
-	fi
-}
-
-function pgrep_count {
-	#
-	# pgrep_count 'pattern'
-	#
-	# pgrep --count emulator
-	#
-	
-	# args
-
-	(( $# != 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	local -r pattern="$1"
-
-	# code
-
-	ps w | grep -E "$pattern" | grep -cv 'grep'
-}
-
-function pgrep_quiet {
-	#
-	# pgrep_quiet 'pattern'
-	#
-	# pgrep --quiet emulator
-	#
-	
-	# args
-
-	(( $# != 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	local -r pattern="$1"
-
-	# code
-
-	ps w | grep -E "$pattern" | grep -qv 'grep'
-}
-
-function initialize_dictionaries {
-	# consts
-
-	# for assembling regexes for various date formats
+	# assembling regexes for various date formats
 	# named as strftime() conversion specifier characters
 	local -r Y='[12][0-9]{3}' m='[01][0-9]' d='[0123][0-9]' e='[ 123][0-9]' # %e: space padded month's day
 	local -r a='(Mon|Tue|Wed|Thu|Fri|Sat|Sun)' b='(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
 	local -r H='[012][0-9]' M='[0-5][0-9]' S='[0-5][0-9]'
 	local -r F="$Y-$m-$d" T="$H:$M:$S"
+	# shellcheck disable=SC2034
 	local -r z='[+-][01][0-9]{3}' # %z: +hhmm numeric time zone (e.g., -0400)
 	local -r Z="[A-Z][A-Za-z]*" # %Z: alphabetic time zone abbreviation (e.g., EDT)
 
-	# unsupported formats:
+	# global const hashtables
+
+	# unsupported formats (yet):
 	#
 	# ISO_8601	2020-04-03T05:38:26
 	# RFC 3339	2020-04-03T05:38:26.123456-0000
@@ -139,70 +95,203 @@ function initialize_dictionaries {
 
 		['BusyBox'.RE]="^$a $b $e $T $Z $Y"	# Fri Apr  3 07:29:28 Europe 2020	(31 char)
 		['BusyBox'.pattern]='a b e T Z Y'
-	)										# in use in: split_log_line_to_date_and_message
+	)										# in use in:	split_log_line_to_date_and_message
 
 	declare -r -A -g translate_month_name_to_number_dictionary=(
 		['Jan']=1 ['Feb']=2 ['Mar']=3 ['Apr']=4  ['May']=5 ['Jun']=6
 		['Jul']=7 ['Aug']=8 ['Sep']=9 ['Oct']=10 ['Nov']=11 ['Dec']=12
 		['unknown']=0
-	)										# in use in: split_log_line_to_date_and_message
+	)										# in use in:	split_log_line_to_date_and_message
+
+	# global var hashtables
+
+	declare -A -g logs_counters				# in use in:	get_new_lines_from_log
+
+	declare -A -g checkup_counters			# in use in:	is_checkup_counter_set
+											#				get_checkup_counter
+											#				set_checkup_counter
+											#				increment_checkup_counter
+											#				reset_checkup_counter
+											#				list_checkup_counters
+											#
+											#				print_checkup_summary_report
+
+}
+
+
+#
+# all about checkup_counters:
+#
+# is_checkup_counter_set
+# get_checkup_counter
+# set_checkup_counter
+# increment_checkup_counter
+# reset_checkup_counter
+# list_checkup_counters
+#
+
+function is_checkup_counter_set {																	(( script_debug )) && debugcho "$@"
+	#
+	# Usage: is_checkup_counter_set 'checkup_name' 'counter_name'
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r checkup_name="${1-}"
+	local -r counter_name="${2-}"
 
 	# vars
 
-	declare -A -g logs_counters				# in use in: get_new_lines_from_log
-	declare -A -g routine_checkups_counters	# in use in: routine_checkups, print_summary_report
-	declare -A -g time_counter=(
-		['minutes']=0
-		['hours']=0
-		['days']=0
-	)										# in use in: tick_tock, every_nth_minute, every_nth_hour, every_nth_day
+	local key
+
+	# code
+
+	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	[[ -n "${checkup_counters[${key}]-}" ]]
 }
 
-# time functions
+function get_checkup_counter {																		(( script_debug )) && debugcho "$@"
+	#
+	# Usage: get_checkup_counter 'checkup_name' 'counter_name'
+	#
 
-function tick_tock {
-	# advance running d h m time counters
-	if (( time_counter[minutes]++ >= 59 )); then
-		time_counter[minutes]=0
-		if (( time_counter[hours]++ >= 23 )); then
-			time_counter[hours]=0
-			(( time_counter[days]++ ))
-		fi
-	fi
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r checkup_name="${1-}"
+	local -r counter_name="${2-}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	echo "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
 }
 
-function every_nth_minute {
-	# every_nth_minute 'minute' 'command' ['options'...]
-	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	(( time_counter[minutes] == 0 && time_counter[hours] == 0 && time_counter[days] == 0 )) && return
-	(( time_counter[minutes] % $1 == 0 )) && "${@:2}"
+function set_checkup_counter {																		(( script_debug )) && debugcho "$@"
+	#
+	# Usage: set_checkup_counter 'checkup_name' 'counter_name' ['value_to_set'(DEFAULT=1)]
+	#
+
+	# args
+
+	(( $# < 2 || $# > 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r checkup_name="${1-}"
+	local -r counter_name="${2-}"
+	local -r -i value_to_set_DEFAULT=1
+	local -r value_to_set="${3-${value_to_set_DEFAULT}}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	checkup_counters["${key}"]="$value_to_set"
 }
 
-function every_nth_hour {
-	# every_nth_hour 'hour' 'command' ['options'...]
-	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	(( time_counter[minutes] == 0 && time_counter[hours] == 0 && time_counter[days] == 0 )) && return
-	(( time_counter[hours] % $1 == 0 && time_counter[minutes] == 0 )) && "${@:2}"
+function increment_checkup_counter {																(( script_debug )) && debugcho "$@"
+	#
+	# Usage: increment_checkup_counter 'checkup_name' 'counter_name'
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r checkup_name="${1-}"
+	local -r counter_name="${2-}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	: "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
+	# shellcheck disable=SC2149
+	(( checkup_counters["${key}"]++ ))
 }
 
-function every_nth_day {
-	# every_nth_day 'day' 'command' ['options'...]
-	(( $# < 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
-	(( time_counter[minutes] == 0 && time_counter[hours] == 0 && time_counter[days] == 0 )) && return
-	(( time_counter[days] != 0 && time_counter[days] % $1 == 0 && time_counter[hours] == 0 && time_counter[minutes] == 0 )) && "${@:2}"
+function reset_checkup_counter {																	(( script_debug )) && debugcho "$@"
+	#
+	# Usage: reset_checkup_counter 'checkup_name' 'counter_name'
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r checkup_name="${1-}"
+	local -r counter_name="${2-}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	: "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
+	# shellcheck disable=SC2149
+	(( checkup_counters["${key}"]=0 ))
 }
 
-function split_log_line_to_date_and_message {
+function list_checkup_counters {																	(( script_debug )) && debugcho "$@"
+	#
+	# Usage: list_checkup_counters
+	#
+	# print list of all checkups whose counters are set
+	# list is unique by design
+	#
+
+	# vars
+
+	local -A checkups_list=()
+	local this_checkup_counter this_checkup_name
+
+	# code
+
+	# get unique keys to hashtable
+	for this_checkup_counter in "${!checkup_counters[@]}"; do
+		this_checkup_name="${this_checkup_counter%%${hashtable_method_delimiter}*}" # cut all after delimiter (and delimiter too), leave only chekup name
+		checkups_list["$this_checkup_name"]='' # ...or any char you want, doesn't matter
+	done
+
+	# print hashtable keys sorted
+	while read -r -t 0.1 this_checkup_name; do
+		echo "$this_checkup_name"
+	done < <( printf '%s\n' "${!checkups_list[@]}" | sort )
+}
+
+
+#
+# logs processing:
+#
+# split_log_line_to_date_and_message
+# filter_lines_send_messages
+# get_new_lines_from_log
+# print_last_lines_from_own_log
+# print_controller_log_entry
+# shrink_system_logs
+#
+
+function split_log_line_to_date_and_message {														(( script_debug )) && debugcho "$@"
 	#
 	# split_log_line_to_date_and_message 'log_line' 'date_var_by_ref' 'message_var_by_ref'
 	#
 
 	# args
 
-	(( $# != 3 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	# shellcheck disable=SC2154
+	(( $# != 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r log_line="${1-}"
-	local -r -n _log_date="${2-}" # get var by ref
-	local -r -n _log_message="${3-}" # get var by ref
+	local -r -n _log_date_by_ref="${2-}" # get var by ref
+	local -r -n _log_message_by_ref="${3-}" # get var by ref
 
 	# vars
 
@@ -210,24 +299,27 @@ function split_log_line_to_date_and_message {
 
 	# code
 
-	_log_date='--empty-timestamp--'
-	_log_message="${log_line}"
+	_log_date_by_ref='--empty-timestamp--'
+	_log_message_by_ref="${log_line}"
 
 	for this_format in ${date_formats_dictionary['list_by_incidence']}; do
 		if [[ "$log_line" =~ ${date_formats_dictionary[${this_format}.RE]} ]]; then
+			# shellcheck disable=SC2086
 			read -r -t 0.1 ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line"
 			[[ -z "${F-}" && -z "${d-}" ]] && printf -v d '%02u' "$(( 10#$e ))" # drop any leading zeros before printf %u
 			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02u' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
 			[[ -z "${F-}" && -z "${Y-}" ]] && printf -v Y '%(%Y)T' -1
 			[[ -z "${F-}" ]] && F="$Y-$m-$d"
-			printf -v _log_date '%-10.10s %-8.8s' "$F" "$T"
-			_log_message="${message}"
+			# shellcheck disable=SC2034
+			printf -v _log_date_by_ref '%-10.10s %-8.8s' "$F" "$T"
+			# shellcheck disable=SC2034
+			_log_message_by_ref="${message}"
 			break
 		fi
 	done
 }
 
-function filter_lines_send_messages {
+function filter_lines_send_messages {																(( script_debug )) && debugcho "$@"
 	#
 	# get lines from stdin, parse them and send message, if necessary
 	#
@@ -258,7 +350,8 @@ function filter_lines_send_messages {
 			'ERROR_'*			)	event_type='error'		;;
 			'WARN_'*			)	event_type='warning'	;;
 			*'domains fixed'*	)	event_type='ok'			;;
-			*					)	event_type='error'		;;
+			'Chain '*'found '*	)	event_type='info'		;; # f.e. 'Chain 1: found 1 bad domains'
+			*					)	event_type='warning'	;; # do not frighten the user please
 		esac
 
 		if [[ "$event_type" != 'skip' ]]; then
@@ -272,7 +365,7 @@ function filter_lines_send_messages {
 	done
 }
 
-function get_new_lines_from_log {
+function get_new_lines_from_log {																	(( script_debug )) && debugcho "$@"
 	#
 	# get_new_lines_from_log 'log_name' ['log_name'...]
 	#
@@ -282,7 +375,7 @@ function get_new_lines_from_log {
 
 	# args
 
-	(( $# < 1 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( $# < 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -a logs_list=( "$@" )
 
 	# vars
@@ -303,26 +396,26 @@ function get_new_lines_from_log {
 			# don't waste resources to count lines on every iteration, check file size first
 			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
 
-			if [[ -z "${logs_counters[${log_to_check}:size]-}" ]]; then # first time, init vars
+			if [[ -z "${logs_counters[${log_to_check}${hashtable_method_delimiter}size]-}" ]]; then # first time, init vars
 				current_lines_quantity="$( wc -l < "$log_to_check" )"
 				previous_log_size="$current_log_size"
 			else # not a first time
-				previous_log_size="${logs_counters[${log_to_check}:size]}"
+				previous_log_size="${logs_counters[${log_to_check}${hashtable_method_delimiter}size]}"
 			fi
 
 			if (( current_log_size > previous_log_size )); then # log file has changed
 				is_something_found=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				current_lines_quantity="$( wc -l < "$log_to_check" )" # get current lines count
-				previous_lines_quantity="${logs_counters[${log_to_check}:lines]}" # get previous lines count
+				previous_lines_quantity="${logs_counters[${log_to_check}${hashtable_method_delimiter}lines]}" # get previous lines count
 				(( tail_from_line = previous_lines_quantity + 1 ))
 				(( how_much_new_lines = current_lines_quantity - previous_lines_quantity ))
 				tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines"
 			fi
 
 			# save current values to previous values
-			logs_counters["${log_to_check}:size"]="$current_log_size"
+			logs_counters["${log_to_check}${hashtable_method_delimiter}size"]="$current_log_size"
 			if [[ -n "$current_lines_quantity" ]]; then
-				logs_counters["${log_to_check}:lines"]="$current_lines_quantity"
+				logs_counters["${log_to_check}${hashtable_method_delimiter}lines"]="$current_lines_quantity"
 			fi
 		fi
 	done
@@ -330,38 +423,20 @@ function get_new_lines_from_log {
 	return $(( is_something_found ))
 }
 
-function print_last_lines_from_own_log {
+function print_last_lines_from_own_log {															(( script_debug )) && debugcho "$@"
 	if [[ -s "$controller_log_file" ]]; then
 		tail -n "$log_lines_to_tail" "$controller_log_file"
 	fi
 }
 
-function parse_arguments {
-	case "${1-}" in
-		'log')
-			print_script_version
-			print_last_lines_from_own_log
-			exit 0
-			;;
-		'')
-			: 'do nothing special'
-			;;
-		*)
-			print_script_version
-			print_script_usage
-			exit 0
-			;;
-	esac
-}
-
-function print_log_entry {
+function print_controller_log_entry {																(( script_debug )) && debugcho "$@"
 	#
-	# print_log_entry 'event_type' 'log_message'
+	# print_controller_log_entry 'event_type' 'log_message'
 	#
 
 	# args
 
-	(( $# != 2 )) && return $(( exitcode_ERROR_IN_ARGUMENTS ))
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local event_type="${1-<undefined>}"
 	local log_message="${2-<undefined>}"
 
@@ -370,16 +445,11 @@ function print_log_entry {
 	printf '%(%F %T)T %-13.13s %b\n' -1 "[${event_type^^}]" "$log_message"
 }
 
-function drop_caches {
-	sync && echo 3 > /proc/sys/vm/drop_caches
-}
+function shrink_system_logs {																		(( script_debug )) && debugcho "$@"
 
-function wipe_memory {
-	drop_caches
-	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
-}
+	# consts
 
-function truncate_logs {
+	local -r -i log_lines_shrink_limit=1000
 
 	# vars
 
@@ -389,21 +459,54 @@ function truncate_logs {
 	# code
 
 	for this_file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
-		if [[ -s $this_file ]]; then
+		if [[ -s "$this_file" ]]; then
 			current_number_of_lines_in_log="$( wc -l < "$this_file" )"
-			if $(( current_number_of_lines_in_log > log_lines_truncate_limit )); then
-				print_log_entry 'info' "Truncate log $this_file, $current_number_of_lines_in_log to $log_lines_truncate_limit"
-				echo "$( tail -n "$log_lines_truncate_limit" "$this_file" )" > "$this_file"
+			if (( current_number_of_lines_in_log > log_lines_shrink_limit )); then
+				print_controller_log_entry 'info' "Shrink log $this_file, $current_number_of_lines_in_log to $log_lines_shrink_limit"
+				# shellcheck disable=SC2005,SC2094
+				echo "$( tail -n "$log_lines_shrink_limit" "$this_file" )" > "$this_file" # !!! there could be a race condition someday
 			fi
 		fi
 	done
 }
 
+
 #
-# check_for_* functions executed once in a minute
+# auxillary
 #
 
-function check_for_1970_year {
+function drop_caches {																				(( script_debug )) && debugcho "$@"
+	# warning: frequent use of this function may increase NAND wear and tear
+
+	# code
+
+	sync && echo 3 > /proc/sys/vm/drop_caches
+}
+
+function wipe_memory {																				(( script_debug )) && debugcho "$@"
+
+	# code
+
+	drop_caches
+	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
+}
+
+
+#
+# routine functions executed by cron
+#
+# checkup:is_it_1970_year
+# checkup:is_memory_full
+# checkup:is_build_updated
+# checkup:is_virus_found
+# checkup:is_NAND_in_RO_mode
+# checkup:are_logs_updated
+# execute:cache_hive_ip
+# execute:agent_screen_dontattach
+# print_checkup_summary_report
+#
+
+function checkup:is_it_1970_year {																	(( script_debug )) && debugcho "$@"
 
 	# vars
 
@@ -420,69 +523,84 @@ function check_for_1970_year {
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
 		date_from_server_in_seconds="$( curl -I "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
-		print_log_entry 'warning' "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+		print_controller_log_entry 'warning' "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
 	fi
 
 	return $(( is_something_happened ))
 }
 
-function check_for_free_memory {
+function checkup:is_memory_full {																	(( script_debug )) && debugcho "$@"
 
 	# consts
 
-	local -r -i low_memory_limit=5000
+	local -r -i low_memory_limit=5000 # 5 Mb
 	local -r -i top_lines_count=10
 
 	# vars
 
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
-	local free_memory="$( cat /proc/meminfo | grep -Fi 'memfree' | sed 's/[^0-9]//g' )"
-	local print_top
+	local free_memory print_top a
 
 	# code
 
+	free_memory="$( grep -Fi 'memfree' /proc/meminfo | sed 's/[^0-9]//g' )"
+
 	if (( free_memory < low_memory_limit )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		print_log_entry 'warning' "Memory low: $free_memory Mb"
+		print_controller_log_entry 'warning' "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
 		echo -e "$print_top" | tee >( message warn "Low memory detected, trying to clean the logs" payload; echo )
 
 		wipe_memory
-		truncate_logs
+		shrink_system_logs
 	fi
 
 	return $(( is_something_happened ))
 }
 
-function check_for_updated_build_version {
+function checkup:is_build_updated {																	(( script_debug )) && debugcho "$@"
+
+	# consts
+
+	local -r actual_VERSION_file='/hive/etc/VERSION'
+	local -r actual_build_file='/hive/etc/build'
+	local -r saved_build_file='/hive-config/build'
 
 	# vars
 
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
-	local message_header new_build_version previous_build_version
+	local actual_VERSION actual_build saved_build
+	local message_header actual_Client_version saved_Client_version
 
 	# code
 
-	if ! cmp -s /hive/etc/build /hive-config/build; then
-		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		new_build_version="$( cat /hive/etc/VERSION )-$( cat /hive/etc/build 2> /dev/null || echo 'release' )"
-		previous_build_version="$( cat /hive/etc/VERSION )-$( cat /hive-config/build 2> /dev/null || echo 'release' )"
-		cp -rf /hive/etc/build /hive-config/build
+	if ! cmp -s "$actual_build_file" "$saved_build_file"; then # TODO potential bug: if one of the files (or both) doesn't exist
+		
+		actual_VERSION="$(	cat "$actual_VERSION_file"	2> /dev/null )" || actual_VERSION='?.??'
+		actual_build="$(	cat "$actual_build_file"	2> /dev/null )" || actual_build='release'
+		saved_build="$(		cat "$saved_build_file"		2> /dev/null )" || saved_build='release'
 
-		message_header="Client updated from $previous_build_version to $new_build_version"
-		print_log_entry 'info' "$message_header"
+		actual_Client_version="${actual_VERSION}-${actual_build}"
+		saved_Client_version="${actual_VERSION}-${saved_build}"
+
+		message_header="Client updated from $saved_Client_version to $actual_Client_version"
+		print_controller_log_entry 'info' "$message_header"
 		message ok "$message_header"
 		echo
+
+		[[ -e "$actual_build_file" ]] && cp -f "$actual_build_file" "$saved_build_file"
+		
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
 
 	return $(( is_something_happened ))
 }
 
-function check_for_virii {
+function checkup:is_virus_found {																	(( script_debug )) && debugcho "$@"
 
 	# consts
 
-	local -r message_header='Virus found!'
+	local -r message_header='Virus signature found. Click to see detailed info'
 
 	# vars
 
@@ -493,7 +611,8 @@ function check_for_virii {
 	# code
 
 	if ! which virus-check > /dev/null; then
-		print_log_entry 'warning' "'virus-check' program not found"
+		print_controller_log_entry 'warning' "'virus-check' program not found"
+		# shellcheck disable=SC2154
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
 
@@ -502,44 +621,44 @@ function check_for_virii {
 
 	if (( is_virus_found )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		print_log_entry 'error' "$message_header"
-		if (( ! message_about_virus_was_sent )); then
+		print_controller_log_entry 'error' "$message_header"
+		if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
 			echo -e "$virus_report" | tee >( message err "$message_header" payload; echo )
 			if (( assign_tag_to_worker )); then
 				message tag 'virus found'
 				echo
 			fi
-			message_about_virus_was_sent=1
+			set_checkup_counter "$FUNCNAME" 'message_sent' 1
 		fi
 	fi
 
 	return $(( is_something_happened ))
 }
 
-function check_for_flash_in_ro_mode {
+function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debugcho "$@"
 
 	# consts
 
-	local -r -a directories_on_flash=( '/nvdata' '/config' )
+	local -r -a directories_on_NAND=( '/nvdata' '/config' )
 
 	# vars
 
-	local directory message_header temp_file
+	local directory_to_check message_header temp_file
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# code
 
-	for directory in "${directories_on_flash[@]}"; do
-		if [[ -d "$directory" ]]; then
-			if temp_file="$( mktemp -p "$directory" 2> /dev/null )"; then
+	for directory_to_check in "${directories_on_NAND[@]}"; do
+		if [[ -d "$directory_to_check" ]]; then
+			if temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
 				rm -rf "$temp_file"
 			else
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-				message_header="$directory switched to read-only mode, please check"
-				print_log_entry 'error' "$message_header"
-				if (( ! message_about_ro_was_sent )); then
+				message_header="$directory_to_check switched to read-only mode, please check"
+				print_controller_log_entry 'error' "$message_header"
+				if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
 					message err "$message_header"
-					message_about_ro_was_sent=1
+					set_checkup_counter "$FUNCNAME" 'message_sent' 1
 				fi
 			fi
 		fi
@@ -548,11 +667,11 @@ function check_for_flash_in_ro_mode {
 	return $(( is_something_happened ))
 }
 
-function check_for_errors_in_logs {
+function checkup:are_logs_updated {																	(( script_debug )) && debugcho "$@"
 
 	# consts
 
-	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' )
+	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' ) # /tmp/tune_log.txt /tmp/fault.log
 
 	# vars
 
@@ -571,105 +690,231 @@ function check_for_errors_in_logs {
 	return $(( is_something_happened ))
 }
 
-function routine_checkups {
-
-	# vars
-
-	local check_function
+function execute:cache_hive_ip {																	(( script_debug )) && debugcho "$@"
 
 	# code
 
-  	# execute check_for_* functions in alphabetical order
-	for check_function in $( compgen -A function 'check_for_' | sort ); do
-		"$check_function"
-		if (( $? == 0 )); then
-			: "${routine_checkups_counters[${check_function}:idle]:=0}" # take care of unbound var, haven't figured out a pretty way
-			(( routine_checkups_counters[${check_function}:idle]++ ))
-		else
-			: "${routine_checkups_counters[${check_function}:alarm]:=0}" # take care of unbound var, haven't figured out a pretty way
-			(( routine_checkups_counters[${check_function}:alarm]++ ))
-		fi
-	done
+	/hive/bin/cache-hive-ip > /dev/null
 }
 
-function agent_screen_dontattach {
+function execute:agent_screen_dontattach {															(( script_debug )) && debugcho "$@"
+
+	# code
 
 	/hive/bin/agent-screen dontattach
 }
 
-function print_summary_report {
+
+function print_checkup_summary_report {																(( script_debug )) && debugcho "$@"
 
 	# vars
 	
-	local -A functions_list
-	local function_name this_function
+	local -a checkups_list=()
+	local this_checkup
 	local -i alarm_counter idle_counter total_counter
-	local -i number_of_alarmed_checkup_functions=0 total_number_of_checkup_functions=0
+	local -i number_of_alarmed_checkups=0 total_number_of_checkups=0
 
 	# code
 
-	# get unique list of function names
-	for this_function in "${!routine_checkups_counters[@]}"; do
-		function_name="${this_function%%:*}" # cut .* from string
-		functions_list["$function_name"]=1 # any char you want, even ''
-	done
+	readarray -t checkups_list < <( list_checkup_counters )
 
-	for this_function in "${!functions_list[@]}"; do
-		alarm_counter="${routine_checkups_counters[${this_function}:alarm]-0}"
+	# get number_of_alarmed_checkups
+	for this_checkup in "${checkups_list[@]}"; do
+		alarm_counter="$( get_checkup_counter "$this_checkup" 'alarm' )"
 		if (( alarm_counter != 0 )); then
-			(( number_of_alarmed_checkup_functions++ ))
+			(( number_of_alarmed_checkups++ ))
 		fi
 	done
 
-	total_number_of_checkup_functions="${#functions_list[@]}"
+	total_number_of_checkups="${#checkups_list[@]}"
 
-	if (( number_of_alarmed_checkup_functions > 0 )); then
-		print_log_entry 'info' "Daily controller report. Checkup functions involved: $number_of_alarmed_checkup_functions/$total_number_of_checkup_functions"
-
-		printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup function' 'Alarms' 'Total'
-		for this_function in $( printf '%s\n' "${!functions_list[@]}" | sort ); do
-			alarm_counter="${routine_checkups_counters[${this_function}:alarm]-0}"
-			if (( alarm_counter != 0 )); then
-				idle_counter="${routine_checkups_counters[${this_function}:idle]-0}"
-				(( total_counter = alarm_counter + idle_counter ))
-				printf '%33.33s %-35.35s %7.7s %7.7s\n'	'' "$this_function" "$alarm_counter" "$total_counter"
-			fi
-			routine_checkups_counters["${this_function}:idle"]=0
-			routine_checkups_counters["${this_function}:alarm"]=0
-		done
+	if (( number_of_alarmed_checkups == 0 )); then
+		print_controller_log_entry 'info' 'Daily controller report: everything was OK over the past 24h'
 	else
-		print_log_entry 'info' 'Daily controller report: everything was OK over the past 24h'
+		print_controller_log_entry 'info' "Daily controller report, $number_of_alarmed_checkups/$total_number_of_checkups checkups involved:"
+
+		#printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup' 'Alarms' 'Total'
+		for this_checkup in "${checkups_list[@]}"; do
+			alarm_counter="$( get_checkup_counter "$this_checkup" 'alarm' )"
+			if (( alarm_counter != 0 )); then
+				idle_counter="$( get_checkup_counter "$this_checkup" 'idle' )"
+				(( total_counter = alarm_counter + idle_counter ))
+				printf '%33.33s %-35.35s triggered %u times of %u\n' '' "$this_checkup" "$alarm_counter" "$total_counter"
+			fi
+			reset_checkup_counter "${this_checkup}" 'alarm'
+			reset_checkup_counter "${this_checkup}" 'idle'
+		done
 	fi
+}
+
+
+#
+# cron
+#
+# print_actual_cron_jobs
+# do_crontab_jobs_indefinitely
+#
+
+function print_actual_cron_jobs {																	(( script_debug )) && debugcho "$@"
+	#
+	# Usage: print_actual_cron_jobs 'crontab_array_name'
+	#
+	# Get crontab array, print command(s) to run atm separated by '\n'
+	#
+	# crontab array example:
+	#
+	#		 +------------- minute (0 - 59)
+	#		 | +------------- hour (0 - 23)
+	#		 | | +------------- day of the month (1 - 31)
+	#		 | | | +------------- month (1 - 12)
+	#		 | | | | +------------- day of week (1..7); 1 is Monday
+	#		 | | | | |
+	#		 * * * * *		command to execute
+	#
+	#	crontab=(
+	#		'* * * * *		every-minute-job'
+	#		'*/2 * * * *	every-2-minute-job'
+	#		'13 * * * *		13th-minute-of-every-hour-job'
+	#		'@hourly		hourly-job'
+	#		'* * * * */2	tuesday-thursday-saturday-job'
+	#	)
+	#
+	# cron fields should be delimited by space(s) or tab(s)
+	# supports @hourly, @daily, @midnight and @weekly specials
+	#
+
+	# args
+
+	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n _crontab_array="${1-}" # by ref
+
+	# consts
+
+	local -r -i                           M=0       H=1       d=2       m=3       u=4       CMD=5			# field order
+	local -r -a cron_fields_dictionary=( [M]='%-M' [H]='%-H' [d]='%-d' [m]='%-m' [u]='%-u' [CMD]='CMD' )	# field strftime() format
+	local -r asterisk_RE='^[*]/[0-9]{1,2}$'
+	local -r number_RE='^[0-9]{1,2}$'
+	local -r valid_crontab_line_RE='^((([*]|[0-9]{1,2})(/[0-9]{1,2})?[[:space:]]+){5}|(@hourly|@daily|@midnight|@weekly)[[:space:]]+)[^[:space:]]+'
+	#                               ^(((   |          )(           )             )   |(       |      |         |       )            )
+	local -i -r start_time="$( get_current_system_time_in_seconds )"
+
+	# vars
+
+	local crontab_line_raw
+	local -a crontab_line_splitted
+	local -i index
+	local cmd_to_exec
+	local this_field
+	local this_field_time_value
+
+	# code
+
+	# for each crontab line
+	for crontab_line_raw in "${_crontab_array[@]}"; do
+		if [[ ! "$crontab_line_raw" =~ $valid_crontab_line_RE ]]; then
+			errcho "invalid crontab line '$crontab_line_raw'"
+			continue
+		fi
+
+		read -r -a crontab_line_splitted -t 0.1 <<< "$crontab_line_raw"
+
+		# transform specials
+		case "${crontab_line_splitted[M]}" in
+			'@hourly')					crontab_line_splitted=( '0' '*' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
+			'@daily' | '@midnight')		crontab_line_splitted=( '0' '0' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
+			'@weekly')					crontab_line_splitted=( '0' '0' '*' '*' '0' "${crontab_line_splitted[@]:$H}" );;
+			'@monthly')					crontab_line_splitted=( '0' '0' '1' '*' '*' "${crontab_line_splitted[@]:$H}" );;
+		esac
+
+		# for each field in line
+		for (( index=0; index <= "${#crontab_line_splitted[@]}"; index++ )); do
+			if (( index >= CMD )); then # print a command
+				cmd_to_exec="${crontab_line_splitted[*]:$CMD}" # note: *, not @
+				echo "$cmd_to_exec"
+				break
+			fi
+
+			this_field="${crontab_line_splitted[index]}"
+
+			printf -v this_field_time_value "%(${cron_fields_dictionary[index]})T" "$start_time"
+
+			if [[ "$this_field" =~ $asterisk_RE ]] && (( this_field_time_value % ${this_field##*/} != 0 )); then # handle * and */num
+				break
+			elif [[ "$this_field" =~ $number_RE ]] && (( this_field_time_value != this_field )); then # handle numbers
+				break
+			fi
+		done
+	done
+}
+
+function do_crontab_jobs_indefinitely {																(( script_debug )) && debugcho "$@"
+
+	# consts
+
+	local -r -i every_n_seconds=60 # for debug purposes, 60 in production
+
+	# vars
+
+	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s remaining_s_to_00
+	local command_to_execute
+
+	# code
+
+	while true; do
+		time_before_execution_in_s="$( get_current_system_time_in_seconds )"
+
+		if (( time_before_execution_in_s % every_n_seconds == 0 )); then
+			if pgrep_quiet 'selfupgrade|S69hive'; then
+				# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
+				print_controller_log_entry 'info' "selfupgrade and/or S69hive running, skipping checks..."
+				increment_checkup_counter 'selfupgrade_running' 'alarm'
+			else
+				# do cron work
+				while IFS= read -r -t 0.1 command_to_execute; do
+					eval "$command_to_execute"
+					if (( $? == 0 )); then
+						increment_checkup_counter "$command_to_execute" 'idle'
+					else
+						increment_checkup_counter "$command_to_execute" 'alarm'
+					fi
+				done < <( print_actual_cron_jobs 'crontab' ) # you know, <<< $() operators are slower than < <()
+			fi
+		fi
+
+		time_after_execution_in_s="$( get_current_system_time_in_seconds )"
+
+		(( execution_time_in_s = time_after_execution_in_s - time_before_execution_in_s ))
+		(( remaining_s_to_00 = every_n_seconds - ( time_after_execution_in_s % every_n_seconds ) ))
+
+		if (( execution_time_in_s > $( calculate_percent_from_number 80 "$every_n_seconds" ) )); then
+			print_controller_log_entry 'warning' "Controller lagging: routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${every_n_seconds}s )"
+			increment_checkup_counter 'controller_lagging' 'alarm'
+		fi
+
+		#sleep $(( remaining_s_to_00 ))
+		sleep 1 # just in case
+	done
 }
 
 
 # global consts
 
-declare -r -i sleep_time=60
-declare -r -i assign_tag_to_worker=1
+declare -r -i assign_tag_to_worker=1 # can be in config file
 declare -r -i log_lines_to_tail=200
-declare -r -i log_lines_truncate_limit=1000
 declare -r controller_log_file='/config/hive-controller.log'
+declare -r hashtable_method_delimiter=":${RANDOM}:"
+
 declare -r -i exitcode_OK_NOTHING_HAPPENED=0
 declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
-declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
-declare -r -i exitcode_ERROR_NOT_FOUND=100
-
-
-# global vars
-
-declare check_function=''
-declare -i actual_sleep_time
-declare -i execution_time
-declare -i message_about_virus_was_sent=0
-declare -i message_about_ro_was_sent=0
 
 
 # global sources
 
-[[ -s /hive/bin/asic-model ]] && source asic-model
-[[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
-[[ -s /hive/bin/colors ]] && source colors
+source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
+source /hive-config/rig.conf || echo 'ERROR: /hive-config/rig.conf not found' # ??? should we source it from time to time
+source colors || echo 'ERROR: /hive/bin/colors not found'
+source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+#source hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh library not found'; exit 1; }
 
 
 # global exports
@@ -678,47 +923,37 @@ export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
 
+# crontab
+
+# shellcheck disable=SC2034
+declare -r -a crontab=(
+	'* * * * *		checkup:is_it_1970_year'
+	'* * * * *		checkup:is_memory_full'
+	'* * * * *		checkup:is_build_updated'
+	'* * * * *		checkup:is_virus_found'
+	'* * * * *		checkup:are_logs_updated'
+	'*/5 * * * *	execute:agent_screen_dontattach'
+	'@hourly		checkup:is_NAND_in_RO_mode'
+	'@hourly		execute:cache_hive_ip'
+	'@midnight		print_checkup_summary_report'
+)
+
+
 # main()
 
 #TODO:
-#logs problem
 #watchdog alert
 #pool checks
 #DNS checks
 #wd
 # warn unsigned fw owners
+# extended virus checks
 
 parse_arguments "$@"
 initialize_dictionaries
+print_controller_log_entry 'info' "Controller $script_version started"
 
-print_log_entry 'info' "Controller $script_version started"
+do_crontab_jobs_indefinitely
 
-# main loop
-while true; do
-	printf -v before_execution '%(%s)T' -1
-
-	if pgrep_quiet 'selfupgrade|S69hive'; then
-		# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
-		print_log_entry 'info' "selfupgrade running, skipping checks..."
-	else
-		# routine
-		routine_checkups
-		# cron-like stuff
-		every_nth_minute 10 /hive/bin/agent-screen dontattach
-		every_nth_hour 1 /hive/bin/cache-hive-ip > /dev/null
-		every_nth_day 1 print_summary_report
-	fi
-
-	printf -v after_execution '%(%s)T' -1
-
-	(( execution_time = after_execution - before_execution ))
-  	(( actual_sleep_time = sleep_time - execution_time ))
-	if (( execution_time > $( calculate_percent_from_number 80 "$sleep_time" ) )); then
-		: "${routine_checkups_counters[controller_lagging:idle]:=0}" # take care of unbound var, haven't figured out a pretty way
-		(( routine_checkups_counters[controller_lagging]++ ))
-		print_log_entry 'warning' "Lagging. Routine checkups took $execution_time seconds ( >80% of an idle time )"
-	fi
-
-	sleep $(( actual_sleep_time <= 0 ? 0 : actual_sleep_time ))
-	tick_tock # advance dhm timer
-done
+# shellcheck disable=SC2154
+exit $(( exitcode_ERROR_SOMETHING_WEIRD )) # you should never see that they said
