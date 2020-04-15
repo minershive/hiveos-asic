@@ -109,6 +109,9 @@ function restart {
 		config-gen
 		rm -f /tmp/norespawn
 		echo "ok" > /config/restart
+	elif [ -e "/www/pages/cgi-bin/resume_miner.cgi" ]; then
+		config-gen
+		sh /www/pages/cgi-bin/resume_miner.cgi
 	elif [ -e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
 		config-gen
 		sh /www/pages/cgi-bin/restart_miner.cgi
