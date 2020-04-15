@@ -1,6 +1,13 @@
 #!/hive/sbin/bash
 
 
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+#
+
+
 #readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
 #readonly script_version='1.0'
 #readonly script_basename="$( basename "$0" )"
@@ -8,7 +15,7 @@
 
 # !!! bash strict mode, no unbound variables
 
-#set -o nounset # !!! this script being sourced constantly, so turninng this off for a while -- we don't want to break the other not-yet-refactored scripts
+#set -o nounset # !!! this script being sourced constantly, so turning this off for a while -- we don't want to break the other not-yet-refactored scripts
 
 
 # functions

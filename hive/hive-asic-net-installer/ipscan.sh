@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
 
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+#
+
+
 readonly script_mission='Client for ASICs: Network ASIC scanner'
 readonly script_version='1.2.0'
 

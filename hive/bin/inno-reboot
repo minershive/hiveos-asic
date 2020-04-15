@@ -1,6 +1,13 @@
 #!/hive/sbin/bash
 
 
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+#
+
+
 function cron_enable() {
 	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
 	systemctl is-enabled $1.timer > /dev/null

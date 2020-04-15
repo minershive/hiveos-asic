@@ -1,5 +1,13 @@
 #!/bin/sh
 
+
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+#
+
+
 if [ ! -e /hive ]; then
 	ln -s /config/hive/hive/ /hive
 	ln -s /config/hive/hive-config/ /hive-config
