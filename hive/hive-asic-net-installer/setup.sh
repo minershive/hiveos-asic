@@ -44,12 +44,10 @@ from_web=0
 
 case "$1" in
 	'ssh')
-		apply_farm_hash_b=$(sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'")
-		apply_farm_hash=$(shpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &)
+		from_ssh=1
 		;;
 	'web')
-		apply_farm_hash_b=$(curl -s -X GET --connect-timeout 3 --digest --user $WEB_LOGIN:$WEB_PASS "http://$ip/cgi-bin/farmConfig.cgi?new_farmhash=$FARM_HASH&new_api=$HIVE_HOST_URL")
-		apply_farm_hash=$apply_farm_hash_b
+		from_web=1
 		;;
 	*)
 		script_usage
@@ -66,10 +64,13 @@ for ip in $IPS; do
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if is_on_busybox; then
 		$apply_farm_hash_b
+		[ $from_web -eq 1 ] && curl -X GET --connect-timeout 5 --digest --user $WEB_LOGIN:$WEB_PASS "http://$ip/cgi-bin/farmConfig.cgi?new_farmhash=$FARM_HASH&new_api=$HIVE_HOST_URL"
+		[ $from_ssh -eq 1 ] && sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
 		#sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
 		exit_code=$?
 	else
-		$apply_farm_hash
+		[ $from_web -eq 1 ] && curl -X GET --connect-timeout 5 --digest --user $WEB_LOGIN:$WEB_PASS "http://$ip/cgi-bin/farmConfig.cgi?new_farmhash=$FARM_HASH&new_api=$HIVE_HOST_URL"
+		[ $from_ssh -eq 1 ] && shpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &
 		#sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &
 		exit_code=$?
 		sleep 1
