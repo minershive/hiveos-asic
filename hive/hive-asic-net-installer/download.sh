@@ -14,7 +14,6 @@ readonly script_version='1.0'
 
 # consts
 
-. colors
 readonly bulk_install_dir='/tmp/hive-bulk-install'
 readonly github_path='https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer'
 
@@ -47,7 +46,7 @@ echo -e "Creating ${WHITE}${bulk_install_dir}...${NOCOLOR}"
 mkdir -p "$bulk_install_dir" || ( echo -e "${RED}ERROR${NOCOLOR}"; exit 1 )
 cd "$bulk_install_dir"
 
-for file in config.txt ips.txt install.sh ipscan.sh firmware.sh setup.sh firmware-upgrade ipscan_model.sh; do
+for file in config.txt ips.txt install.sh ipscan.sh firmware.sh setup.sh firmware-upgrade ipscan_model.sh firmware-L3.sh firmware-upgrade-L3; do
 	echo -e "${NOCOLOR}Downloading ${WHITE}$file...${DGRAY}"
 	if ! curl -L --insecure -O "${github_path}/$file"; then
 		fail=1
