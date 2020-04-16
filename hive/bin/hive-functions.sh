@@ -111,12 +111,46 @@ function iif_pipe {
 	fi
 }
 
+function is_program_in_the_PATH {
+	#
+	# Usage: is_program_in_the_PATH 'program_name'
+	#
+
+	# args
+
+	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r program_name="$1"
+
+	# code
+
+	type -p "$program_name" &> /dev/null
+}
+
+function is_function_exist {
+	#
+	# Usage: is_function_exist 'function_name'
+	#
+	# stdin: none
+	# stdout: none
+	# exit code: boolean
+	#
+
+	# args
+
+	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r function_name="$1"
+
+	# code
+
+	declare -F -- "$function_name" >/dev/null
+}
+
 
 #
 # text
 #
 
-strip_ansi() {
+function strip_ansi {
 	#
 	# Usage: strip_ansi 'text'
 	#        cat file | strip_ansi
@@ -289,13 +323,14 @@ function format_date_in_seconds {
 	#
 	# Usage: format_date_in_seconds 'time_in_seconds' ['date_format']
 	#
+	# 'time_in_seconds' can be -1 for a current time
 	# 'date_format' as in strftime(3) OR special 'dhms' format
 	#
 
 	# args
 
 	(( $# < 1 || $# > 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS
+	local -i -r time_in_seconds="${1-}"
 	local -r date_format_DEFAULT='%F %T'
 	local -r date_format="${2-${date_format_DEFAULT}}"
 
@@ -340,6 +375,29 @@ function get_system_uptime_in_seconds {
 	printf '%u\n' "$system_uptime_in_seconds"
 }
 
+function snore {
+	#
+	# Usage: snore 1
+	#        snore 0.2
+	#
+	# pure bash 'sleep'
+	# https://blog.dhampir.no/content/sleeping-without-a-subprocess-in-bash-and-how-to-sleep-forever
+
+	# args
+
+	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r sleep_time="${1-}"
+
+	# vars
+
+	local IFS
+
+	# code
+
+	[[ -n "${__snore_fd:-}" ]] || exec {__snore_fd}<> <(:)
+	read -r -t "${sleep_time}" -u "$__snore_fd" || :
+}
+
 
 #
 # strings
@@ -349,7 +407,7 @@ function get_substring_position_in_string {
 	#
 	# Usage: get_substring_position_in_string
 	#
-	
+
 	# args
 
 	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
@@ -430,25 +488,6 @@ function pgrep_quiet {
 # the last: function lister
 #
 
-is_function_exist() {
-	#
-	# Usage: is_function_exist 'function_name'
-	#
-	# stdin: none
-	# stdout: none
-	# exit code: boolean
-	#
-
-	# args
-
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r function_name="$1"
-
-	# code
-
-	declare -F -- "$function_name" >/dev/null
-}
-
 function __list_functions {
 	#
 	# List all functions but started with '_'
@@ -506,7 +545,7 @@ declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 if ! ( return 0 2>/dev/null ); then # not sourced
 
 	declare -r script_mission='Client for ASICs: Oh my handy little functions'
-	declare -r script_version='0.1.4'
+	declare -r script_version='0.1.5'
 
 	case "$*" in
 		'')
