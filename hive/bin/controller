@@ -10,7 +10,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.0.0'
+readonly script_version='2.0.1'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -22,7 +22,7 @@ set -o nounset
 
 # functions
 
-function print_script_usage {																		(( script_debug )) && debugcho "$@"
+function print_script_usage {																		(( script_debug )) && debugcho
 
 	# code
 
@@ -65,7 +65,7 @@ function parse_arguments {																			(( script_debug )) && debugcho "$@"
 	esac
 }
 
-function initialize_dictionaries {																	(( script_debug )) && debugcho "$@"
+function initialize_dictionaries {																	(( script_debug )) && debugcho
 
 	# local consts
 
@@ -248,7 +248,7 @@ function reset_checkup_counter {																	(( script_debug )) && debugcho 
 	(( checkup_counters["${key}"]=0 ))
 }
 
-function list_checkup_counters {																	(( script_debug )) && debugcho "$@"
+function list_checkup_counters {																	(( script_debug )) && debugcho
 	#
 	# Usage: list_checkup_counters
 	#
@@ -270,7 +270,7 @@ function list_checkup_counters {																	(( script_debug )) && debugcho 
 	done
 
 	# print hashtable keys sorted
-	while read -r -t 0.1 this_checkup_name; do
+	while read -r this_checkup_name; do
 		echo "$this_checkup_name"
 	done < <( printf '%s\n' "${!checkups_list[@]}" | sort )
 }
@@ -312,7 +312,7 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 	for this_format in ${date_formats_dictionary['list_by_incidence']}; do
 		if [[ "$log_line" =~ ${date_formats_dictionary[${this_format}.RE]} ]]; then
 			# shellcheck disable=SC2086
-			read -r -t 0.1 ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line"
+			read -r ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line"
 			[[ -z "${F-}" && -z "${d-}" ]] && printf -v d '%02u' "$(( 10#$e ))" # drop any leading zeros before printf %u
 			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02u' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
 			[[ -z "${F-}" && -z "${Y-}" ]] && printf -v Y '%(%Y)T' -1
@@ -326,7 +326,7 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 	done
 }
 
-function filter_lines_send_messages {																(( script_debug )) && debugcho "$@"
+function filter_lines_send_messages {																(( script_debug )) && debugcho
 	#
 	# get lines from stdin, parse them and send message, if necessary
 	#
@@ -341,7 +341,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 	# code
 
-	while read -r -t 0.1 log_line; do
+	while read -r log_line; do
 		if [[ -z "${log_line-}" ]]; then
 			# skip empty log_lines
 			continue
@@ -362,8 +362,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 		esac
 
 		if [[ "$event_type" != 'skip' ]]; then
-				printf -v message_body '%-19.19s %-13.13s %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_message"
-				echo "$message_body"
+			printf -v message_body '%-19.19s %-13.13s %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_message"
+			echo "$message_body"
 			if (( send_messages_enabled )); then
 				printf -v message_body 'Date: %s\nType: %s\n\n%b' "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
 				echo "$message_body" | message "$event_type" "$log_message" payload
@@ -430,7 +430,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 	return $(( is_something_found ))
 }
 
-function print_last_lines_from_own_log {															(( script_debug )) && debugcho "$@"
+function print_last_lines_from_own_log {															(( script_debug )) && debugcho
 	if [[ -s "$controller_log_file" ]]; then
 		tail -n "$log_lines_to_tail" "$controller_log_file"
 	fi
@@ -452,7 +452,7 @@ function print_controller_log_entry {																(( script_debug )) && debug
 	printf '%(%F %T)T %-13.13s %b\n' -1 "[${event_type^^}]" "$log_message"
 }
 
-function shrink_system_logs {																		(( script_debug )) && debugcho "$@"
+function shrink_system_logs {																		(( script_debug )) && debugcho
 
 	# consts
 
@@ -482,7 +482,7 @@ function shrink_system_logs {																		(( script_debug )) && debugcho "$
 # auxillary
 #
 
-function drop_caches {																				(( script_debug )) && debugcho "$@"
+function drop_caches {																				(( script_debug )) && debugcho
 	# warning: frequent use of this function may increase NAND wear and tear
 
 	# code
@@ -490,7 +490,7 @@ function drop_caches {																				(( script_debug )) && debugcho "$@"
 	sync && echo 3 > /proc/sys/vm/drop_caches
 }
 
-function wipe_memory {																				(( script_debug )) && debugcho "$@"
+function wipe_memory {																				(( script_debug )) && debugcho
 
 	# code
 
@@ -513,7 +513,7 @@ function wipe_memory {																				(( script_debug )) && debugcho "$@"
 # print_checkup_summary_report
 #
 
-function checkup:is_it_1970_year {																	(( script_debug )) && debugcho "$@"
+function checkup:is_it_1970_year {																	(( script_debug )) && debugcho
 
 	# vars
 
@@ -536,7 +536,7 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 	return $(( is_something_happened ))
 }
 
-function checkup:is_memory_full {																	(( script_debug )) && debugcho "$@"
+function checkup:is_memory_full {																	(( script_debug )) && debugcho
 
 	# consts
 
@@ -565,7 +565,7 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_build_updated {																	(( script_debug )) && debugcho "$@"
+function checkup:is_build_updated {																	(( script_debug )) && debugcho
 
 	# consts
 
@@ -603,7 +603,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 	return $(( is_something_happened ))
 }
 
-function checkup:is_virus_found {																	(( script_debug )) && debugcho "$@"
+function checkup:is_virus_found {																	(( script_debug )) && debugcho
 
 	# consts
 
@@ -617,7 +617,7 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 
 	# code
 
-	if ! which virus-check > /dev/null; then
+	if ! is_program_in_the_PATH 'virus-check' > /dev/null; then
 		print_controller_log_entry 'warning' "'virus-check' program not found"
 		# shellcheck disable=SC2154
 		return $(( exitcode_ERROR_NOT_FOUND ))
@@ -642,7 +642,7 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debugcho "$@"
+function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debugcho
 
 	# consts
 
@@ -674,7 +674,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 	return $(( is_something_happened ))
 }
 
-function checkup:are_logs_updated {																	(( script_debug )) && debugcho "$@"
+function checkup:are_logs_updated {																	(( script_debug )) && debugcho
 
 	# consts
 
@@ -697,14 +697,14 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 	return $(( is_something_happened ))
 }
 
-function execute:cache_hive_ip {																	(( script_debug )) && debugcho "$@"
+function execute:cache_hive_ip {																	(( script_debug )) && debugcho
 
 	# code
 
 	/hive/bin/cache-hive-ip > /dev/null
 }
 
-function execute:agent_screen_dontattach {															(( script_debug )) && debugcho "$@"
+function execute:agent_screen_dontattach {															(( script_debug )) && debugcho
 
 	# code
 
@@ -712,7 +712,7 @@ function execute:agent_screen_dontattach {															(( script_debug )) && d
 }
 
 
-function print_checkup_summary_report {																(( script_debug )) && debugcho "$@"
+function print_checkup_summary_report {																(( script_debug )) && debugcho
 
 	# vars
 	
@@ -746,7 +746,7 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 			if (( alarm_counter != 0 )); then
 				idle_counter="$( get_checkup_counter "$this_checkup" 'idle' )"
 				(( total_counter = alarm_counter + idle_counter ))
-				printf '%33.33s %-35.35s triggered %u times of %u\n' '' "$this_checkup" "$alarm_counter" "$total_counter"
+				printf '%33.33s %-35.35s %u/%u alarms\n' '' "$this_checkup" "$alarm_counter" "$total_counter"
 			fi
 			reset_checkup_counter "${this_checkup}" 'alarm'
 			reset_checkup_counter "${this_checkup}" 'idle'
@@ -759,6 +759,7 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 # cron
 #
 # print_actual_cron_jobs
+# wait_for_next_minute
 # do_crontab_jobs_indefinitely
 #
 
@@ -803,18 +804,20 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 	local -r number_RE='^[0-9]{1,2}$'
 	local -r valid_crontab_line_RE='^((([*]|[0-9]{1,2})(/[0-9]{1,2})?[[:space:]]+){5}|(@hourly|@daily|@midnight|@weekly)[[:space:]]+)[^[:space:]]+'
 	#                               ^(((   |          )(           )             )   |(       |      |         |       )            )
-	local -i -r start_time="$( get_current_system_time_in_seconds )"
 
 	# vars
 
+	local -i start_time
 	local crontab_line_raw
 	local -a crontab_line_splitted
 	local -i index
 	local cmd_to_exec
 	local this_field
-	local this_field_time_value
+	local -i this_field_time_value
 
 	# code
+
+	start_time="$( get_current_system_time_in_seconds )"
 
 	# for each crontab line
 	for crontab_line_raw in "${_crontab_array[@]}"; do
@@ -823,10 +826,10 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 			continue
 		fi
 
-		read -r -a crontab_line_splitted -t 0.1 <<< "$crontab_line_raw"
+		read -r -a crontab_line_splitted <<< "$crontab_line_raw"
 
 		# transform specials
-		case "${crontab_line_splitted[M]}" in
+		case "${crontab_line_splitted}" in
 			'@hourly')					crontab_line_splitted=( '0' '*' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
 			'@daily' | '@midnight')		crontab_line_splitted=( '0' '0' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
 			'@weekly')					crontab_line_splitted=( '0' '0' '*' '*' '0' "${crontab_line_splitted[@]:$H}" );;
@@ -834,16 +837,15 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 		esac
 
 		# for each field in line
-		for (( index=0; index <= "${#crontab_line_splitted[@]}"; index++ )); do
-			if (( index >= CMD )); then # print a command
+		for (( index=0; index <= CMD; index++ )); do
+			if (( index == CMD )); then # print a command
 				cmd_to_exec="${crontab_line_splitted[*]:$CMD}" # note: *, not @
 				echo "$cmd_to_exec"
 				break
 			fi
 
 			this_field="${crontab_line_splitted[index]}"
-
-			printf -v this_field_time_value "%(${cron_fields_dictionary[index]})T" "$start_time"
+			this_field_time_value="$( format_date_in_seconds "$start_time" "${cron_fields_dictionary[index]}" )"
 
 			if [[ "$this_field" =~ $asterisk_RE ]] && (( this_field_time_value % ${this_field##*/} != 0 )); then # handle * and */num
 				break
@@ -854,15 +856,27 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 	done
 }
 
-function do_crontab_jobs_indefinitely {																(( script_debug )) && debugcho "$@"
+function wait_for_next_minute {																		(( script_debug )) && debugcho
+
+	while (( $( format_date_in_seconds -1 '%-S' ) % 60 == 0 )); do
+		snore 0.1
+	done
+
+	while (( $( format_date_in_seconds -1 '%-S' ) % 60 != 0 )); do
+		snore 0.1
+	done
+
+}
+
+function do_crontab_jobs_indefinitely {																(( script_debug )) && debugcho
 
 	# consts
 
-	local -r -i every_n_seconds=60 # for debug purposes, 60 in production
+	local -r -i loop_duration_in_s=60 # for debug purposes, 60 in production
 
 	# vars
 
-	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s remaining_s_to_00
+	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s
 	local command_to_execute
 
 	# code
@@ -870,36 +884,32 @@ function do_crontab_jobs_indefinitely {																(( script_debug )) && deb
 	while true; do
 		time_before_execution_in_s="$( get_current_system_time_in_seconds )"
 
-		if (( time_before_execution_in_s % every_n_seconds == 0 )); then
-			if pgrep_quiet 'selfupgrade|S69hive'; then
-				# waiting for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
-				print_controller_log_entry 'info' "selfupgrade and/or S69hive running, skipping checks..."
-				increment_checkup_counter 'selfupgrade_running' 'alarm'
-			else
-				# do cron work
-				while IFS= read -r -t 0.1 command_to_execute; do
-					eval "$command_to_execute"
-					if (( $? == 0 )); then
-						increment_checkup_counter "$command_to_execute" 'idle'
-					else
-						increment_checkup_counter "$command_to_execute" 'alarm'
-					fi
-				done < <( print_actual_cron_jobs 'crontab' ) # you know, <<< $() operators are slower than < <()
-			fi
+		if pgrep_quiet 'selfupgrade|S69hive'; then
+			# do wait for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
+			print_controller_log_entry 'info' "selfupgrade and/or S69hive running, skipping checks..."
+			increment_checkup_counter 'selfupgrade_running' 'alarm'
+		else
+			# do cron work
+			while IFS= read -r command_to_execute; do
+				eval "$command_to_execute"
+				if (( $? == 0 )); then
+					increment_checkup_counter "$command_to_execute" 'idle'
+				else
+					increment_checkup_counter "$command_to_execute" 'alarm'
+				fi
+			done < <( print_actual_cron_jobs 'crontab' ) # you know, <<< $() operator is slower than < <()
 		fi
 
 		time_after_execution_in_s="$( get_current_system_time_in_seconds )"
 
 		(( execution_time_in_s = time_after_execution_in_s - time_before_execution_in_s ))
-		(( remaining_s_to_00 = every_n_seconds - ( time_after_execution_in_s % every_n_seconds ) ))
 
-		if (( execution_time_in_s > $( calculate_percent_from_number 80 "$every_n_seconds" ) )); then
-			print_controller_log_entry 'warning' "Controller lagging: routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${every_n_seconds}s )"
+		if (( execution_time_in_s > $( calculate_percent_from_number 80 "$loop_duration_in_s" ) )); then
+			print_controller_log_entry 'warning' "Controller lagging: routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${loop_duration_in_s}s )"
 			increment_checkup_counter 'controller_lagging' 'alarm'
 		fi
 
-		#sleep $(( remaining_s_to_00 ))
-		sleep 1 # just in case
+		wait_for_next_minute
 	done
 }
 
@@ -918,10 +928,9 @@ declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
 # global sources
 
 source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
-source /hive-config/rig.conf || echo 'ERROR: /hive-config/rig.conf not found' # ??? should we source it from time to time
+source /hive-config/rig.conf || echo 'ERROR: /hive-config/rig.conf not found' # sourced for $HIVE_HOST_URL ??? should we source it from time to time?
 source colors || echo 'ERROR: /hive/bin/colors not found'
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
-#source hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh library not found'; exit 1; }
 
 
 # global exports
