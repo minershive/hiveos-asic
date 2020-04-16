@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.4.7'
+readonly script_version='0.4.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -68,7 +68,7 @@ function check_ntpd_size {
 	local -i ntpd_size=0
 
 	if [[ -s "$ntpd_file" ]]; then
-		ntpd_size="$( stat -c '%s' "$ntpd_file" )"
+		ntpd_size="$( get_file_size_in_bytes "$ntpd_file" )"
 		#if cksum /usr/bin/ntpd  | grep -q '892955227 358832 /usr/bin/ntpd'; then # T9+
 		if (( ntpd_size < 500000 )); then
 			pretty_print "$label_text" "${GREEN-}" "looks ok, size $ntpd_size less than 0.5 Mb"
@@ -127,7 +127,7 @@ function check_antbuild {
 	fi
 
 	# old2
-	if { which cksum > /dev/null; }; then
+	if is_program_in_the_PATH 'cksum'; then
 		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
 			pretty_print "$label_text" "${BRED-}" "v1 (cured) found. It's ok -- virus blocked by firmware."
 			is_virus_found=1
