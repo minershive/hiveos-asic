@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 
-
-#
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
-#
-
+readonly script_basename="$( basename "$0" )"
 
 # functions
 
+function script_usage {
+	echo -e "Usage: ${CYAN}$script_basename [ssh|web]${NOCOLOR}"
+}
+
 is_on_busybox() {
-    [[ -f "/usr/bin/compile_time" ]]
+	[[ -f "/usr/bin/compile_time" ]]
 }
 
 
@@ -36,21 +34,43 @@ echo -e "FARM_HASH ${GREEN}$FARM_HASH${NOCOLOR}"
 
 echo -e "IPs count `echo "$IPS" | wc -l`"
 
-#sleep 1
 
 install_cmd="export PATH=$PATH:/hive/bin:/hive/sbin; export LD_LIBRARY_PATH=/hive/lib; HIVE_HOST_URL=$HIVE_HOST_URL firstrun $FARM_HASH -f"
 #install_cmd="pwd; ls" #for testing
 #install_cmd="[ -d /hive ] && (echo Already_installed) || ($install_cmd)"
+
+from_ssh=0
+from_web=0
+
+case "$1" in
+	'ssh')
+		apply_farm_hash_b=$(sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'")
+		apply_farm_hash=$(shpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &)
+		;;
+	'web')
+		apply_farm_hash_b=$(curl -s -X GET --connect-timeout 3 --digest --user $WEB_LOGIN:$WEB_PASS "http://$ip/cgi-bin/farmConfig.cgi?new_farmhash=$FARM_HASH&new_api=$HIVE_HOST_URL")
+		apply_farm_hash=$apply_farm_hash_b
+		;;
+	*)
+		script_usage
+		exit 0
+		;;
+esac
+
+
+
 
 for ip in $IPS; do
 	[ -z "$ip" ] && echo "Empty line on ips.txt" && continue
 	echo
 	echo -e "> Processing $LOGIN@${CYAN}$ip${NOCOLOR}"
 	if is_on_busybox; then
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
+		$apply_farm_hash_b
+		#sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -y "su -l -c '$install_cmd'"
 		exit_code=$?
 	else
-		sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &
+		$apply_farm_hash
+		#sshpass -p$PASS ssh -t $LOGIN@$ip -p 22 -oConnectTimeout=15 -oStrictHostKeyChecking=no "su -l -c '$install_cmd'" &
 		exit_code=$?
 		sleep 1
 	fi
