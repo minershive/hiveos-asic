@@ -58,10 +58,10 @@ deploy_hive () {
 
 	if [ "$force_download" = 1 ] || [ ! -e /nvdata/latest.tar.gz ] || ! gunzip -tvf /nvdata/latest.tar.gz >/dev/null 2>&1; then
 		snooze_time="$( get_random_number_between 5 30 )"
-		echo_info "${snooze_time}s random pause (for better bulk update)"
+		echo_info "${snooze_time}s random pause (make it easier for a bulk update)"
 		sleep "$snooze_time"
 		retries_counter=0
-		until echo_action "Downloading from ${URL}" && curl -f -L --insecure "$URL/asic/repo/s9/latest" -o latest_new.tar.gz && echo_action 'Checking integrity' && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
+		until echo_action "Downloading from ${URL}..." && curl --insecure --location --fail --silent --show-error "$URL/asic/repo/s9/latest" --output latest_new.tar.gz && echo_action 'Checking integrity' && gunzip -tvf /nvdata/latest_new.tar.gz >/dev/null 2>&1; do
 			retries_counter=$(( retries_counter + 1 ))
 			snooze_time="$( get_random_number_between 15 60 )"
 			echo_info "Error. Try #${retries_counter} in $snooze_time seconds..."
