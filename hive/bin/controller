@@ -10,7 +10,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.3'
+readonly script_version='2.1.4'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -26,9 +26,10 @@ function print_script_usage {																		(( script_debug )) && debugcho
 
 	# code
 
-	echo -e "Usage: ${CYAN-}${script_basename} [log]${NOCOLOR-}"
+	echo -e "Usage: ${CYAN-}${script_basename} [log [all]]${NOCOLOR-}"
 	echo
-	echo -e "       ${WHITE-}log${NOCOLOR-} - show last $log_lines_to_tail lines from log and exit"
+	echo -e "       ${WHITE-}log${NOCOLOR-}     - show only errors/warnings from log and exit"
+	echo -e "       ${WHITE-}log all${NOCOLOR-} - show all last $log_lines_to_tail lines from log and exit"
 	echo
 }
 
@@ -37,13 +38,14 @@ function parse_arguments {																			(( script_debug )) && debugcho "$@"
 	# args
 
 	local -r argument="${1-}"
+	local -r option="${2-}"
 
 	# code
 
 	case "$argument" in
 		'log')
 			print_script_version
-			print_last_lines_from_own_log
+			print_last_lines_from_own_log "$option"
 			# shellcheck disable=SC2154
 			exit $(( exitcode_OK ))
 			;;
@@ -53,7 +55,6 @@ function parse_arguments {																			(( script_debug )) && debugcho "$@"
 		'-h' | '--help')
 			print_script_version
 			print_script_usage
-			# shellcheck disable=SC2154
 			exit $(( exitcode_OK ))
 			;;
 		*)
@@ -112,6 +113,7 @@ function initialize_dictionaries {																	(( script_debug )) && debugch
 
 	# global var hashtables
 
+	# shellcheck disable=SC2034
 	declare -A -g logs_counters				# in use in:	get_new_lines_from_log
 
 	declare -A -g checkup_counters			# in use in:	is_checkup_counter_set
@@ -127,7 +129,14 @@ function initialize_dictionaries {																	(( script_debug )) && debugch
 
 
 #
-# all about checkup_counters:
+# all about hashtables
+#
+# generate_hash_key
+# is_hash_key_set
+# get_hash_value
+# set_hash_value
+#
+# TODO refactor underlying functions to be a more uniform?
 #
 # is_checkup_counter_set
 # get_checkup_counter
@@ -136,6 +145,107 @@ function initialize_dictionaries {																	(( script_debug )) && debugch
 # reset_checkup_counter
 # list_checkup_counters
 #
+
+function generate_hash_key {																		(( script_debug )) && debugcho "$@"
+	#
+	# Usage: generate_hash_key 'key_name' 'method_name'
+	#
+	# generate fully qualified hash key: "key<delimiter>method"
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r key_name="${1-}"
+	local -r method_name="${2-}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="${key_name}${unique_delimiter}${method_name}"
+	echo "$key"
+}
+
+function is_hash_key_set {																			(( script_debug )) && debugcho "$@"
+	#
+	# Usage: is_hash_key_set 'hashtable_by_ref' 'key_name' 'method_name'
+	#
+
+	# args
+
+	(( $# != 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n hashtable_by_ref="${1-}" # by ref
+	local -r key_name="${2-}"
+	local -r method_name="${3-}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="$( generate_hash_key "$key_name" "$method_name" )"
+	[[ -n "${hashtable_by_ref[${key}]-}" ]]
+}
+
+function get_hash_value {																			(( script_debug )) && debugcho "$@"
+	#
+	# Usage: get_hash_value 'hashtable_by_ref' 'key_name' 'method_name'
+	#
+	# if key isn't set, return exitcode_ERROR_NOT_FOUND
+	#
+
+	# args
+
+	(( $# != 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n hashtable_by_ref="${1-}" # by ref
+	local -r key_name="${2-}"
+	local -r method_name="${3-}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="$( generate_hash_key "$key_name" "$method_name" )"
+
+	if [[ -z "${hashtable_by_ref[${key}]-}" ]]; then
+		# shellcheck disable=SC2154
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	else
+		echo "${hashtable_by_ref[${key}]}"
+	fi
+}
+
+function set_hash_value {																			(( script_debug )) && debugcho "$@"
+	#
+	# Usage: set_hash_value 'hashtable_by_ref' 'key_name' 'method_name' ['value_to_set'(DEFAULT=0)]
+	#
+	# !!! if value_to_set isn't provided, set to '0'. should refactor later?
+	#
+
+	# args
+
+	(( $# < 3 || $# > 4 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n hashtable_by_ref="${1-}" # by ref
+	local -r key_name="${2-}"
+	local -r method_name="${3-}"
+	local -r value_to_set_DEFAULT=0
+	local -r value_to_set="${4-${value_to_set_DEFAULT}}"
+
+	# vars
+
+	local key
+
+	# code
+
+	key="$( generate_hash_key "$key_name" "$method_name" )"
+	hashtable_by_ref["${key}"]="$value_to_set"
+}
 
 function is_checkup_counter_set {																	(( script_debug )) && debugcho "$@"
 	#
@@ -154,7 +264,7 @@ function is_checkup_counter_set {																	(( script_debug )) && debugcho
 
 	# code
 
-	key="${checkup_name}${unique_delimiter}${counter_name}"
+	key="$( generate_hash_key "$checkup_name" "$counter_name" )"
 	[[ -n "${checkup_counters[${key}]-}" ]]
 }
 
@@ -175,7 +285,7 @@ function get_checkup_counter {																		(( script_debug )) && debugcho "
 
 	# code
 
-	key="${checkup_name}${unique_delimiter}${counter_name}"
+	key="$( generate_hash_key "$checkup_name" "$counter_name" )"
 	echo "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
 }
 
@@ -198,7 +308,7 @@ function set_checkup_counter {																		(( script_debug )) && debugcho "
 
 	# code
 
-	key="${checkup_name}${unique_delimiter}${counter_name}"
+	key="$( generate_hash_key "$checkup_name" "$counter_name" )"
 	checkup_counters["${key}"]="$value_to_set"
 }
 
@@ -219,9 +329,8 @@ function increment_checkup_counter {																(( script_debug )) && debugc
 
 	# code
 
-	key="${checkup_name}${unique_delimiter}${counter_name}"
+	key="$( generate_hash_key "$checkup_name" "$counter_name" )"
 	: "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
-	# shellcheck disable=SC2149
 	(( checkup_counters["${key}"]++ ))
 }
 
@@ -242,9 +351,8 @@ function reset_checkup_counter {																	(( script_debug )) && debugcho 
 
 	# code
 
-	key="${checkup_name}${unique_delimiter}${counter_name}"
+	key="$( generate_hash_key "$checkup_name" "$counter_name" )"
 	: "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
-	# shellcheck disable=SC2149
 	(( checkup_counters["${key}"]=0 ))
 }
 
@@ -265,7 +373,7 @@ function list_checkup_counters {																	(( script_debug )) && debugcho
 
 	# get unique keys to hashtable
 	for this_checkup_counter in "${!checkup_counters[@]}"; do
-		this_checkup_name="${this_checkup_counter%%${unique_delimiter}*}" # cut all after delimiter (and delimiter too), leave only chekup name
+		this_checkup_name="${this_checkup_counter%%${unique_delimiter}*}" # cut all after delimiter (and delimiter too), leave only checkup name
 		checkups_list["$this_checkup_name"]='' # ...or any char you want, doesn't matter
 	done
 
@@ -296,7 +404,6 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 
 	# args
 
-	# shellcheck disable=SC2154
 	(( $# != 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r log_line="${1-}"
 	local -r -n _log_date_by_ref="${2-}" # get var by ref
@@ -336,7 +443,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 	# consts
 
 	local -r -i send_messages_enabled=1
-	local -r message_body_template='Log:  <strong>%b</strong>\nDate: <strong>%s</strong>\nType: <strong>%s</strong><hr><h3>%b</h3>'
+	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>'
 
 	# vars
 
@@ -396,9 +503,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 		esac
 
 		if [[ "$event_type" != 'skip' ]]; then
-			printf -v message_body '%-19.19s %-13.13s %b: %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_name" "$log_message"
-			echo "$message_body"
+			print_controller_log_entry "LOG_${event_type^^}" "${log_name}: $log_message" "$log_timestamp"
 			if (( send_messages_enabled )); then
+				# shellcheck disable=SC2059
 				printf -v message_body "$message_body_template" "$log_name" "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
 				echo "$message_body" | message "$event_type" "$log_message" payload
 			fi
@@ -433,21 +540,22 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 	for log_to_check in "${logs_list[@]}"; do
 		current_lines_quantity=''
 
-		if [[ -f "$log_to_check" ]]; then
+		if [[ -s "$log_to_check" ]]; then
+			# file is exist and not empty
 			# don't waste resources to count lines on every iteration, check file size first
 			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
 
-			if [[ -z "${logs_counters[${log_to_check}${unique_delimiter}size]-}" ]]; then # first time, init vars
+			# is it first time run?
+			if ! previous_log_size="$( get_hash_value 'logs_counters' "$log_to_check" 'size' )"; then
+				# first run, init vars
 				current_lines_quantity="$( wc -l < "$log_to_check" )"
 				previous_log_size="$current_log_size"
-			else # not a first time
-				previous_log_size="${logs_counters[${log_to_check}${unique_delimiter}size]}"
 			fi
 
-			if (( current_log_size != previous_log_size )); then # log file has changed
+			if (( current_log_size != previous_log_size )); then # log file was changed
 
-				if (( current_log_size > previous_log_size )); then # a few lines had added
-					previous_lines_quantity="${logs_counters[${log_to_check}${unique_delimiter}lines]}" # get previous lines count
+				if (( current_log_size > previous_log_size )); then # a few lines was added
+					previous_lines_quantity="$( get_hash_value 'logs_counters' "$log_to_check" 'lines' )" # get previous lines count
 				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
 					previous_lines_quantity=0
 				fi
@@ -458,48 +566,90 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 				(( how_much_new_lines = current_lines_quantity - previous_lines_quantity ))
 				printf -v log_to_check_sanitized '%q' "$log_to_check"
 
-				if (( current_log_size > previous_log_size )); then # a few lines had added
+				if (( current_log_size > previous_log_size )); then # a few lines was added
 					tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines" 
 				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
-					tail -n 100 "$log_to_check"
-				fi |
-					sed 's|$|'"${unique_delimiter}${log_to_check_sanitized}"'|' --
+					tail -n 100 "$log_to_check" # tail not cat -- better be safe than sorry
+				fi | {
+						sed 's|$|'"${unique_delimiter}${log_to_check_sanitized}"'|' --
+					}
 			fi
 
-			# save current values to previous values
-			logs_counters["${log_to_check}${unique_delimiter}size"]="$current_log_size"
+			# save current values
+			set_hash_value 'logs_counters' "$log_to_check" 'size' "$current_log_size"
 			if [[ -n "$current_lines_quantity" ]]; then
-				logs_counters["${log_to_check}${unique_delimiter}lines"]="$current_lines_quantity"
+				set_hash_value 'logs_counters' "$log_to_check" 'lines' "$current_lines_quantity"
 			fi
+		else
+			# file not found or empty
+			set_hash_value 'logs_counters' "$log_to_check" 'size' 0
 		fi
 	done
 
 	return $(( is_something_found ))
 }
 
-function print_last_lines_from_own_log {															(( script_debug )) && debugcho
+function print_last_lines_from_own_log {															(( script_debug )) && debugcho "$@"
+	#
+	# print_last_lines_from_own_log [all]
+	#
+
+	# args
+
+	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r filter="${1-}"
+
+	# consts
+
+	local -r filter_RE='ERROR\]|WARNING\]|Shrink log|Truncate log|selfupgrade|updated from|New date'
+	#                                    | patterns from the legacy versions
+
+	# code
+
 	if [[ -s "$controller_log_file" ]]; then
-		tail -n "$log_lines_to_tail" "$controller_log_file"
+		case "$filter" in
+			'all')
+				tail -n "$log_lines_to_tail" "$controller_log_file"
+				;;
+			''|*)
+				grep -E -e "$filter_RE" -- "$controller_log_file" | grep -Fv -e '> Sending ' --
+				;;
+		esac
+	else
+		echo "$controller_log_file not found or empty"
 	fi
 }
 
 function print_controller_log_entry {																(( script_debug )) && debugcho "$@"
 	#
-	# print_controller_log_entry 'event_type' 'log_message'
+	# print_controller_log_entry 'event_type' 'log_message' ['timestamp_in_plaintext']
 	#
 
 	# args
 
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# < 2 && $# > 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local event_type="${1-<undefined>}"
 	local log_message="${2-<undefined>}"
+	local timestamp_in_plaintext="${3-}"
 
 	# code
 
-	printf '%(%F %T)T %-13.13s %b\n' -1 "[${event_type^^}]" "$log_message"
+	event_type="[${event_type^^}]"
+
+	if [[ -z "$timestamp_in_plaintext" ]]; then
+		printf '%(%F %T)T %-13.13s %b\n' -1 "$event_type" "$log_message"
+	else
+		printf  '%-19.19s %-13.13s %b\n' "$timestamp_in_plaintext" "$event_type" "$log_message"
+	fi
+
 }
 
 function shrink_system_logs {																		(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message=''			# error|warning|info|success
 
 	# consts
 
@@ -507,18 +657,18 @@ function shrink_system_logs {																		(( script_debug )) && debugcho
 
 	# vars
 
-	local this_file
+	local this_log
 	local -i current_number_of_lines_in_log
 
 	# code
 
-	for this_file in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
-		if [[ -s "$this_file" ]]; then
-			current_number_of_lines_in_log="$( wc -l < "$this_file" )"
+	for this_log in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
+		if [[ -s "$this_log" ]]; then
+			current_number_of_lines_in_log="$( wc -l < "$this_log" )"
 			if (( current_number_of_lines_in_log > log_lines_shrink_limit )); then
-				print_controller_log_entry 'info' "Shrink log $this_file, $current_number_of_lines_in_log to $log_lines_shrink_limit"
+				print_controller_log_entry "$event_type_for_log" "Shrink log $this_log, $current_number_of_lines_in_log to $log_lines_shrink_limit"
 				# shellcheck disable=SC2005,SC2094
-				echo "$( tail -n "$log_lines_shrink_limit" "$this_file" )" > "$this_file" # !!! there could be a race condition someday
+				echo "$( tail -n "$log_lines_shrink_limit" "$this_log" )" > "$this_log" # !!! there could be a race condition someday
 			fi
 		fi
 	done
@@ -530,7 +680,9 @@ function shrink_system_logs {																		(( script_debug )) && debugcho
 #
 
 function drop_caches {																				(( script_debug )) && debugcho
+	#
 	# warning: frequent use of this function may increase NAND wear and tear
+	#
 
 	# code
 
@@ -562,6 +714,11 @@ function wipe_memory {																				(( script_debug )) && debugcho
 
 function checkup:is_it_1970_year {																	(( script_debug )) && debugcho
 
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message=''			# error|warning|info|success
+
 	# vars
 
 	local -i current_year date_from_server_in_seconds
@@ -577,13 +734,18 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
 		date_from_server_in_seconds="$( curl --head "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
-		print_controller_log_entry 'warning' "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+		print_controller_log_entry "$event_type_for_log" "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
 	fi
 
 	return $(( is_something_happened ))
 }
 
 function checkup:is_memory_full {																	(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message='warning'	# error|warning|info|success
 
 	# consts
 
@@ -601,9 +763,9 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 
 	if (( free_memory < low_memory_limit )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		print_controller_log_entry 'warning' "Memory low: $free_memory Mb"
+		print_controller_log_entry "$event_type_for_log" "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
-		echo -e "$print_top" | tee >( message warn "Low memory detected, trying to clean the logs" payload; echo )
+		echo -e "$print_top" | tee >( message "$event_type_for_message" "Low memory detected, trying to clean the logs" payload; echo )
 
 		wipe_memory
 		shrink_system_logs
@@ -613,6 +775,11 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 }
 
 function checkup:is_build_updated {																	(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message='success'	# error|warning|info|success
 
 	# consts
 
@@ -629,7 +796,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 	# code
 
 	if ! cmp -s "$actual_build_file" "$saved_build_file"; then # TODO potential bug: if one of the files (or both) doesn't exist
-		
+
 		actual_VERSION="$(	cat "$actual_VERSION_file"	2> /dev/null )" || actual_VERSION='?.??'
 		actual_build="$(	cat "$actual_build_file"	2> /dev/null )" || actual_build='release'
 		saved_build="$(		cat "$saved_build_file"		2> /dev/null )" || saved_build='release'
@@ -638,12 +805,12 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 		saved_Client_version="${actual_VERSION}-${saved_build}"
 
 		message_header="Client updated from $saved_Client_version to $actual_Client_version"
-		print_controller_log_entry 'info' "$message_header"
-		message ok "$message_header"
+		print_controller_log_entry "$event_type_for_log" "$message_header"
+		message "$event_type_for_message" "$message_header"
 		echo
 
 		[[ -e "$actual_build_file" ]] && cp -f "$actual_build_file" "$saved_build_file"
-		
+
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
 
@@ -651,6 +818,11 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 }
 
 function checkup:is_virus_found {																	(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='error'			# error|warning|info
+	local -r event_type_for_message='error'		# error|warning|info|success
 
 	# consts
 
@@ -665,8 +837,7 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 	# code
 
 	if ! is_program_in_the_PATH 'virus-check' > /dev/null; then
-		print_controller_log_entry 'warning' "'virus-check' program not found"
-		# shellcheck disable=SC2154
+		print_controller_log_entry "$event_type_for_log" "'virus-check' program not found"
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
 
@@ -675,9 +846,9 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 
 	if (( is_virus_found )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		print_controller_log_entry 'error' "$message_header"
+		print_controller_log_entry "$event_type_for_log" "$message_header"
 		if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
-			echo -e "$virus_report" | tee >( message err "$message_header" payload; echo )
+			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" payload; echo )
 			if (( assign_tag_to_worker )); then
 				message tag 'virus found'
 				echo
@@ -690,6 +861,11 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 }
 
 function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='error'			# error|warning|info
+	local -r event_type_for_message='error'		# error|warning|info|success
 
 	# consts
 
@@ -709,9 +885,9 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 			else
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				message_header="$directory_to_check switched to read-only mode, please check"
-				print_controller_log_entry 'error' "$message_header"
+				print_controller_log_entry "$event_type_for_log" "$message_header"
 				if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
-					message err "$message_header"
+					message "$event_type_for_message" "$message_header"
 					set_checkup_counter "$FUNCNAME" 'message_sent' 1
 				fi
 			fi
@@ -760,8 +936,13 @@ function execute:agent_screen_dontattach {															(( script_debug )) && d
 
 function print_checkup_summary_report {																(( script_debug )) && debugcho
 
+	# templates
+
+	local -r event_type_for_log='info'			# error|warning|info
+	local -r event_type_for_message=''			# error|warning|info|success
+
 	# vars
-	
+
 	local -a checkups_list=()
 	local this_checkup
 	local -i alarm_counter idle_counter total_counter
@@ -782,9 +963,9 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 	total_number_of_checkups="${#checkups_list[@]}"
 
 	if (( number_of_alarmed_checkups == 0 )); then
-		print_controller_log_entry 'info' 'Controller daily report: everything was OK over the past 24h'
+		print_controller_log_entry "$event_type_for_log" 'Controller daily report: everything was OK over the past 24h'
 	else
-		print_controller_log_entry 'info' "Controller daily report, $number_of_alarmed_checkups/$total_number_of_checkups checkups involved:"
+		print_controller_log_entry "$event_type_for_log" "Controller daily report, $number_of_alarmed_checkups/$total_number_of_checkups checkups involved:"
 
 		#printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup' 'Alarms' 'Total'
 		for this_checkup in "${checkups_list[@]}"; do
@@ -918,6 +1099,11 @@ function wait_for_next_minute {																		(( script_debug )) && debugcho
 
 function do_cron_jobs_indefinitely {																(( script_debug )) && debugcho
 
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message=''			# error|warning|info|success
+
 	# consts
 
 	local -r -i loop_duration_in_s=60 # for debug purposes, 60 in production
@@ -935,7 +1121,7 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 
 		if pgrep_quiet 'selfupgrade|S69hive'; then
 			# do wait for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
-			print_controller_log_entry 'info' "selfupgrade and/or S69hive running, skipping checks..."
+			print_controller_log_entry "$event_type_for_log" "selfupgrade and/or S69hive running, skipping checks..."
 			increment_checkup_counter 'selfupgrade_running' 'alarm'
 		else
 			# do cron work
@@ -956,7 +1142,7 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 		(( execution_time_in_s = time_after_execution_in_s - time_before_execution_in_s ))
 
 		if (( execution_time_in_s > $( calculate_percent_from_number 80 "$loop_duration_in_s" ) )); then
-			print_controller_log_entry 'warning' "Controller lagging: routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${loop_duration_in_s}s )"
+			print_controller_log_entry "$event_type_for_log" "Controller lagging: routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${loop_duration_in_s}s )"
 			increment_checkup_counter 'controller_lagging' 'alarm'
 		fi
 
