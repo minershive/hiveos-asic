@@ -10,7 +10,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.0.1'
+readonly script_version='2.1.2'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -154,7 +154,7 @@ function is_checkup_counter_set {																	(( script_debug )) && debugcho
 
 	# code
 
-	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	key="${checkup_name}${unique_delimiter}${counter_name}"
 	[[ -n "${checkup_counters[${key}]-}" ]]
 }
 
@@ -175,7 +175,7 @@ function get_checkup_counter {																		(( script_debug )) && debugcho "
 
 	# code
 
-	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	key="${checkup_name}${unique_delimiter}${counter_name}"
 	echo "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
 }
 
@@ -198,7 +198,7 @@ function set_checkup_counter {																		(( script_debug )) && debugcho "
 
 	# code
 
-	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	key="${checkup_name}${unique_delimiter}${counter_name}"
 	checkup_counters["${key}"]="$value_to_set"
 }
 
@@ -219,7 +219,7 @@ function increment_checkup_counter {																(( script_debug )) && debugc
 
 	# code
 
-	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	key="${checkup_name}${unique_delimiter}${counter_name}"
 	: "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
 	# shellcheck disable=SC2149
 	(( checkup_counters["${key}"]++ ))
@@ -242,7 +242,7 @@ function reset_checkup_counter {																	(( script_debug )) && debugcho 
 
 	# code
 
-	key="${checkup_name}${hashtable_method_delimiter}${counter_name}"
+	key="${checkup_name}${unique_delimiter}${counter_name}"
 	: "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
 	# shellcheck disable=SC2149
 	(( checkup_counters["${key}"]=0 ))
@@ -265,14 +265,16 @@ function list_checkup_counters {																	(( script_debug )) && debugcho
 
 	# get unique keys to hashtable
 	for this_checkup_counter in "${!checkup_counters[@]}"; do
-		this_checkup_name="${this_checkup_counter%%${hashtable_method_delimiter}*}" # cut all after delimiter (and delimiter too), leave only chekup name
+		this_checkup_name="${this_checkup_counter%%${unique_delimiter}*}" # cut all after delimiter (and delimiter too), leave only chekup name
 		checkups_list["$this_checkup_name"]='' # ...or any char you want, doesn't matter
 	done
 
 	# print hashtable keys sorted
-	while read -r this_checkup_name; do
-		echo "$this_checkup_name"
-	done < <( printf '%s\n' "${!checkups_list[@]}" | sort )
+	#while read -r this_checkup_name; do
+	#	echo "$this_checkup_name"
+	#done < <( printf '%s\n' "${!checkups_list[@]}" | sort ) # oh man, why so complex?
+
+	printf '%s\n' "${!checkups_list[@]}" | sort
 }
 
 
@@ -312,7 +314,7 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 	for this_format in ${date_formats_dictionary['list_by_incidence']}; do
 		if [[ "$log_line" =~ ${date_formats_dictionary[${this_format}.RE]} ]]; then
 			# shellcheck disable=SC2086
-			read -r ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line"
+			read -r ${date_formats_dictionary[${this_format}.pattern]} message <<< "$log_line" # split line by pattern
 			[[ -z "${F-}" && -z "${d-}" ]] && printf -v d '%02u' "$(( 10#$e ))" # drop any leading zeros before printf %u
 			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02u' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
 			[[ -z "${F-}" && -z "${Y-}" ]] && printf -v Y '%(%Y)T' -1
@@ -334,10 +336,11 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 	# consts
 
 	local -r -i send_messages_enabled=1
+	local -r message_body_template='Log:  <strong>%b</strong>\nDate: <strong>%s</strong>\nType: <strong>%s</strong><hr><h3>%b</h3>'
 
 	# vars
 
-	local event_type log_line log_message log_timestamp message_body
+	local log_line log_timestamp log_message_combined_with_log_name log_name event_type message_body
 
 	# code
 
@@ -347,25 +350,56 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			continue
 		fi
 
-		split_log_line_to_date_and_message "$log_line" 'log_timestamp' 'log_message' # !! last two vars passed by reference, not by value
+		split_log_line_to_date_and_message "$log_line" 'log_timestamp' 'log_message_combined_with_log_name' # !! last two vars passed by reference, not by value
 
-		# cut milliseconds from watchdog messages like 'Total rate is 0 after 1870.000000 seconds, restart'
-		log_message="${log_message//\.000000 seconds/ seconds}"
+		if [[ "$log_message_combined_with_log_name" =~ $unique_delimiter ]]; then
+			# split log_message_combined_with_log_name to message and logname
+			log_message="${log_message_combined_with_log_name%%${unique_delimiter}*}"
+			log_name="${log_message_combined_with_log_name##*${unique_delimiter}}"
+		else
+			log_message="$log_message_combined_with_log_name"
+			log_name=''
+		fi
 
-		case "$log_message" in
-			'STATUS_'*			)	event_type='skip'		;;
-			'ERROR_'*			)	event_type='error'		;;
-			'WARN_'*			)	event_type='warning'	;;
-			*'domains fixed'*	)	event_type='ok'			;;
-			'Chain '*'found '*	)	event_type='info'		;; # f.e. 'Chain 1: found 1 bad domains'
-			*					)	event_type='warning'	;; # do not frighten the user please
+		case "$log_name" in
+			'/nvdata/miner_status.log'	)
+
+				case "$log_message" in
+					'STATUS_'*					)	event_type='skip'		;;
+					'ERROR_'*					)	event_type='error'		;;
+					'WARN_'*					)	event_type='warning'	;;
+					*							)	event_type='warning'	;;
+				esac														;;
+
+			'/config/watchdog.log'		)
+
+				case "$log_message" in
+					*'domains fixed'*			)	event_type='ok'			;;
+					*'Chain '*'found '*			)	event_type='info'		;; # f.e. 'Chain 1: found 1 bad domains'
+					*							)	event_type='warning'	;;
+				esac
+				# cut milliseconds from watchdog messages like 'Total rate is 0 after 1870.000000 seconds, restart'
+				log_message="${log_message//\.000000 seconds/ seconds}"		;;
+
+			'/tmp/tune_log.txt'			)
+
+				case "$log_message" in
+					'Tune started'*				)	event_type='ok'			;;
+					'All is ok'*				)	event_type='ok'			;; # All is ok, tune is done
+					'Achieved '*				)	event_type='warning'	;; # Achieved maximum number of restarts
+					*							)	event_type='skip'		;;
+				esac														;;
+
+			'/tmp/fault.log'			)			event_type='warning'	;;
+
+			*							)			event_type='warning'	;; # do not frighten the user with 'oh no, the error!'
 		esac
 
 		if [[ "$event_type" != 'skip' ]]; then
-			printf -v message_body '%-19.19s %-13.13s %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_message"
+			printf -v message_body '%-19.19s %-13.13s %b: %b' "$log_timestamp" "[LOG_${event_type^^}]" "$log_name" "$log_message"
 			echo "$message_body"
 			if (( send_messages_enabled )); then
-				printf -v message_body 'Date: %s\nType: %s\n\n%b' "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
+				printf -v message_body "$message_body_template" "$log_name" "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
 				echo "$message_body" | message "$event_type" "$log_message" payload
 			fi
 		fi
@@ -387,7 +421,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 
 	# vars
 
-	local previous_lines_quantity current_lines_quantity log_to_check
+	local previous_lines_quantity current_lines_quantity log_to_check log_to_check_sanitized
 	local -i previous_log_size=0
 	local -i current_log_size=0
 	local -i tail_from_line=0
@@ -399,30 +433,43 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 	for log_to_check in "${logs_list[@]}"; do
 		current_lines_quantity=''
 
-		if [[ -s "$log_to_check" ]]; then
+		if [[ -f "$log_to_check" ]]; then
 			# don't waste resources to count lines on every iteration, check file size first
 			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
 
-			if [[ -z "${logs_counters[${log_to_check}${hashtable_method_delimiter}size]-}" ]]; then # first time, init vars
+			if [[ -z "${logs_counters[${log_to_check}${unique_delimiter}size]-}" ]]; then # first time, init vars
 				current_lines_quantity="$( wc -l < "$log_to_check" )"
 				previous_log_size="$current_log_size"
 			else # not a first time
-				previous_log_size="${logs_counters[${log_to_check}${hashtable_method_delimiter}size]}"
+				previous_log_size="${logs_counters[${log_to_check}${unique_delimiter}size]}"
 			fi
 
-			if (( current_log_size > previous_log_size )); then # log file has changed
+			if (( current_log_size != previous_log_size )); then # log file has changed
+
+				if (( current_log_size > previous_log_size )); then # a few lines had added
+					previous_lines_quantity="${logs_counters[${log_to_check}${unique_delimiter}lines]}" # get previous lines count
+				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
+					previous_lines_quantity=0
+				fi
+
 				is_something_found=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				current_lines_quantity="$( wc -l < "$log_to_check" )" # get current lines count
-				previous_lines_quantity="${logs_counters[${log_to_check}${hashtable_method_delimiter}lines]}" # get previous lines count
 				(( tail_from_line = previous_lines_quantity + 1 ))
 				(( how_much_new_lines = current_lines_quantity - previous_lines_quantity ))
-				tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines"
+				printf -v log_to_check_sanitized '%q' "$log_to_check"
+
+				if (( current_log_size > previous_log_size )); then # a few lines had added
+					tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines" 
+				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
+					tail -n 100 "$log_to_check"
+				fi |
+					sed 's|$|'"${unique_delimiter}${log_to_check_sanitized}"'|' --
 			fi
 
 			# save current values to previous values
-			logs_counters["${log_to_check}${hashtable_method_delimiter}size"]="$current_log_size"
+			logs_counters["${log_to_check}${unique_delimiter}size"]="$current_log_size"
 			if [[ -n "$current_lines_quantity" ]]; then
-				logs_counters["${log_to_check}${hashtable_method_delimiter}lines"]="$current_lines_quantity"
+				logs_counters["${log_to_check}${unique_delimiter}lines"]="$current_lines_quantity"
 			fi
 		fi
 	done
@@ -678,7 +725,7 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 
 	# consts
 
-	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' ) # /tmp/tune_log.txt /tmp/fault.log
+	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' '/tmp/tune_log.txt' '/tmp/fault.log' )
 
 	# vars
 
@@ -686,7 +733,6 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 
 	# code
 
-	# TODO add logname before date
 	get_new_lines_from_log "${logs_to_check[@]}" > >( filter_lines_send_messages )
 
 	# ??? could that be the exitcode will come from the last command in chain? I think not, there's a simple redirection
@@ -723,7 +769,7 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 
 	# code
 
-	readarray -t checkups_list < <( list_checkup_counters )
+	readarray -t checkups_list < <( list_checkup_counters ) # you know, <<< $() operator is slower than < <()
 
 	# get number_of_alarmed_checkups
 	for this_checkup in "${checkups_list[@]}"; do
@@ -736,9 +782,9 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 	total_number_of_checkups="${#checkups_list[@]}"
 
 	if (( number_of_alarmed_checkups == 0 )); then
-		print_controller_log_entry 'info' 'Daily controller report: everything was OK over the past 24h'
+		print_controller_log_entry 'info' 'Controller daily report: everything was OK over the past 24h'
 	else
-		print_controller_log_entry 'info' "Daily controller report, $number_of_alarmed_checkups/$total_number_of_checkups checkups involved:"
+		print_controller_log_entry 'info' "Controller daily report, $number_of_alarmed_checkups/$total_number_of_checkups checkups involved:"
 
 		#printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup' 'Alarms' 'Total'
 		for this_checkup in "${checkups_list[@]}"; do
@@ -746,7 +792,7 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 			if (( alarm_counter != 0 )); then
 				idle_counter="$( get_checkup_counter "$this_checkup" 'idle' )"
 				(( total_counter = alarm_counter + idle_counter ))
-				printf '%33.33s %-35.35s %u/%u alarms\n' '' "$this_checkup" "$alarm_counter" "$total_counter"
+				printf '%33.33s %-35.35s %u/%u events\n' '' "$this_checkup" "$alarm_counter" "$total_counter"
 			fi
 			reset_checkup_counter "${this_checkup}" 'alarm'
 			reset_checkup_counter "${this_checkup}" 'idle'
@@ -758,16 +804,16 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 #
 # cron
 #
-# print_actual_cron_jobs
+# populate_array_with_actual_cron_jobs
 # wait_for_next_minute
-# do_crontab_jobs_indefinitely
+# do_cron_jobs_indefinitely
 #
 
-function print_actual_cron_jobs {																	(( script_debug )) && debugcho "$@"
+function populate_array_with_actual_cron_jobs {														(( script_debug )) && debugcho "$@"
 	#
-	# Usage: print_actual_cron_jobs 'crontab_array_name'
+	# Usage: populate_array_with_actual_cron_jobs 'crontab_array_name' 'jobs_to_do_array'
 	#
-	# Get crontab array, print command(s) to run atm separated by '\n'
+	# Get crontab array, put command(s) to run atm to jobs_to_do_array
 	#
 	# crontab array example:
 	#
@@ -793,8 +839,9 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n _crontab_array="${1-}" # by ref
+	local -r -n _jobs_to_do_array="${2-}" # by ref
 
 	# consts
 
@@ -807,20 +854,20 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 
 	# vars
 
-	local -i start_time
-	local crontab_line_raw
 	local -a crontab_line_splitted
-	local -i index
-	local cmd_to_exec
-	local this_field
-	local -i this_field_time_value
+	local -i start_time line_iterator field_iterator this_field_time_value
+	local crontab_line_raw cmd_to_exec this_field
 
 	# code
 
 	start_time="$( get_current_system_time_in_seconds )"
 
+	_jobs_to_do_array=() # reset jobs_to_do
+
 	# for each crontab line
-	for crontab_line_raw in "${_crontab_array[@]}"; do
+	for (( line_iterator=0; line_iterator < ${#_crontab_array[@]}; line_iterator++ )); do
+		crontab_line_raw="${_crontab_array[line_iterator]}"
+
 		if [[ ! "$crontab_line_raw" =~ $valid_crontab_line_RE ]]; then
 			errcho "invalid crontab line '$crontab_line_raw'"
 			continue
@@ -837,15 +884,15 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 		esac
 
 		# for each field in line
-		for (( index=0; index <= CMD; index++ )); do
-			if (( index == CMD )); then # print a command
+		for (( field_iterator=0; field_iterator <= CMD; field_iterator++ )); do
+			if (( field_iterator == CMD )); then # add a command to array
 				cmd_to_exec="${crontab_line_splitted[*]:$CMD}" # note: *, not @
-				echo "$cmd_to_exec"
+				_jobs_to_do_array+=( "$cmd_to_exec" )
 				break
 			fi
 
-			this_field="${crontab_line_splitted[index]}"
-			this_field_time_value="$( format_date_in_seconds "$start_time" "${cron_fields_dictionary[index]}" )"
+			this_field="${crontab_line_splitted[field_iterator]}"
+			this_field_time_value="$( format_date_in_seconds "$start_time" "${cron_fields_dictionary[field_iterator]}" )"
 
 			if [[ "$this_field" =~ $asterisk_RE ]] && (( this_field_time_value % ${this_field##*/} != 0 )); then # handle * and */num
 				break
@@ -858,6 +905,7 @@ function print_actual_cron_jobs {																	(( script_debug )) && debugcho
 
 function wait_for_next_minute {																		(( script_debug )) && debugcho
 
+	# if seconds is 00 at the start, wait for a full minute
 	while (( $( format_date_in_seconds -1 '%-S' ) % 60 == 0 )); do
 		snore 0.1
 	done
@@ -868,7 +916,7 @@ function wait_for_next_minute {																		(( script_debug )) && debugcho
 
 }
 
-function do_crontab_jobs_indefinitely {																(( script_debug )) && debugcho
+function do_cron_jobs_indefinitely {																(( script_debug )) && debugcho
 
 	# consts
 
@@ -876,8 +924,9 @@ function do_crontab_jobs_indefinitely {																(( script_debug )) && deb
 
 	# vars
 
-	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s
-	local command_to_execute
+	local -a jobs_to_do=()
+	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s job_iterator
+	local job_to_execute
 
 	# code
 
@@ -890,14 +939,16 @@ function do_crontab_jobs_indefinitely {																(( script_debug )) && deb
 			increment_checkup_counter 'selfupgrade_running' 'alarm'
 		else
 			# do cron work
-			while IFS= read -r command_to_execute; do
-				eval "$command_to_execute"
+			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
+			for (( job_iterator=0; job_iterator < ${#jobs_to_do[@]}; job_iterator++ )); do
+				job_to_execute="${jobs_to_do[job_iterator]}"
+				eval "$job_to_execute"
 				if (( $? == 0 )); then
-					increment_checkup_counter "$command_to_execute" 'idle'
+					increment_checkup_counter "$job_to_execute" 'idle'
 				else
-					increment_checkup_counter "$command_to_execute" 'alarm'
+					increment_checkup_counter "$job_to_execute" 'alarm'
 				fi
-			done < <( print_actual_cron_jobs 'crontab' ) # you know, <<< $() operator is slower than < <()
+			done
 		fi
 
 		time_after_execution_in_s="$( get_current_system_time_in_seconds )"
@@ -919,7 +970,7 @@ function do_crontab_jobs_indefinitely {																(( script_debug )) && deb
 declare -r -i assign_tag_to_worker=1 # can be in config file
 declare -r -i log_lines_to_tail=200
 declare -r controller_log_file='/config/hive-controller.log'
-declare -r hashtable_method_delimiter=":${RANDOM}:"
+declare -r unique_delimiter="d${RANDOM}e${RANDOM}l${RANDOM}i${RANDOM}m"
 
 declare -r -i exitcode_OK_NOTHING_HAPPENED=0
 declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
@@ -969,7 +1020,7 @@ parse_arguments "$@"
 initialize_dictionaries
 print_controller_log_entry 'info' "Controller $script_version started"
 
-do_crontab_jobs_indefinitely
+do_cron_jobs_indefinitely
 
 # shellcheck disable=SC2154
 exit $(( exitcode_ERROR_SOMETHING_WEIRD )) # you should never see that they said
