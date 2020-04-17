@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.18'
+readonly script_version='0.14.19'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -429,6 +429,7 @@ install_antminer_bmminer_ro () {
 	sync
 
 	if [ "$github_FLAG" -eq 1 ]; then
+		echo "> Downloading ${package_file_url}..."
 		curl --insecure --location --fail --silent --show-error "$package_file_url" --output /nvdata/latest.tar.gz
 		# ??? have to talk with Pasha about this
 		#if [ $? -ne 0 ]; then
@@ -443,8 +444,6 @@ install_antminer_bmminer_ro () {
 	wait_for_file '/hive/share/zzz/EOF' # max 5 min
 
 	echo "Installed build: $( cat /hive/etc/build )"
-
-	#sleep 10 # ??? do we still need this? we can put a marker file at the end of archive and then wait_for_file() --DONE!
 }
 
 get_asic_model () {
