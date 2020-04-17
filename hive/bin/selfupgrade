@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.17'
+readonly script_version='0.14.18'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -40,7 +40,7 @@ download_url () { #download from github
 			wget "$package_file_url"
 			;;
 		*)
-			curl -L --insecure -O "$package_file_url"
+			curl --insecure --location --fail --silent --show-error --remote-name "$package_file_url"
 			;;
 	esac
 
@@ -429,7 +429,7 @@ install_antminer_bmminer_ro () {
 	sync
 
 	if [ "$github_FLAG" -eq 1 ]; then
-		curl -L --insecure "$package_file_url" -o /nvdata/latest.tar.gz
+		curl --insecure --location --fail --silent --show-error "$package_file_url" --output /nvdata/latest.tar.gz
 		# ??? have to talk with Pasha about this
 		#if [ $? -ne 0 ]; then
 		#	echo "Error downloading $package_file_url"
@@ -537,7 +537,7 @@ get_remote_version_of () {
 	local release_url="$repo_url/hive/etc/VERSION"
 	local build_url="$repo_url/hive/etc/build"
 	local wget_cmd='wget -q -O-'
-	local curl_cmd='curl -f --silent -L --insecure'
+	local curl_cmd='curl --insecure --location --fail --silent --show-error'
 
 	# vars
 
