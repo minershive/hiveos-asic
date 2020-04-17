@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.19'
+readonly script_version='0.14.20'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -32,7 +32,6 @@ print_script_usage () {
 }
 
 download_url () { #download from github
-	echo "$package_file_url"
 	echo "> Downloading $package_file_url"
 	
 	case "$ASIC_MODEL" in
@@ -44,8 +43,10 @@ download_url () { #download from github
 			;;
 	esac
 
-	if [ $? -ne 0 ]; then
-		echo "Error downloading $package_file_url"
+	if [ $? -eq 0 ]; then
+		echo '  Downloaded OK.'
+	else
+		echo "  Error downloading $package_file_url"
 		exit "$exitcode_NOT_OK"
 	fi
 
@@ -62,7 +63,7 @@ install_antminer_bmminer () { # bmminer, / - rw, cron
 	tar -xzv -f "$package_file_to_download"
 	[ -L /hive ] && rm /hive
 	cp -rf hiveos-asic-${release_version_to_install}/hive /
-	[ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
 
@@ -98,7 +99,7 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 	fi
 	tar -xzv -f "$package_file_to_download"
 	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
-	[ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
 
@@ -114,7 +115,7 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 	fi
 
 	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ -n "$HIVEON_VER" ]; then
-		echo '/config/network.conf skip'
+		echo '> /config/network.conf skipped'
 	else
 		cat >> /config/network.conf <<FILEEOF
 
@@ -153,7 +154,7 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 	fi
 	tar -xzv -f "$package_file_to_download"
 	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
-	[ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
 
@@ -169,7 +170,7 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 	fi
 
 	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf; then
-		echo '/config/network.conf skip'
+		echo '> /config/network.conf skipped'
 	else
 		cat >> /config/network.conf <<FILEEOF
 
@@ -209,7 +210,7 @@ install_innosilicon () {
 	cp -rf hiveos-asic-${release_version_to_install}/hive/lib /hive/
 	cp -rf hiveos-asic-${release_version_to_install}/home/root/.profile /etc/profile.d/hive.sh
 	cp -rf hiveos-asic-${release_version_to_install}/hive/share/innosilicon/* /etc/systemd/system/
-	[ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
 
@@ -254,14 +255,14 @@ install_innosilicon_innominer () {
 	cp -rf hiveos-asic-${release_version_to_install}/hive-config /innocfg/
 	cp -rf hiveos-asic-${release_version_to_install}/hive /
 #	cp -rf hiveos-asic-${release_version_to_install}/home/root/.profile /etc/profile.d/hive.sh
-	[ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 	rm "$package_file_to_download"
 
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /innocfg/hive-config/ /hive-config
 
 	#autorun
 	if grep -F '### HIVE AUTORUN ###' /etc/init.d/rcS; then
-		echo '/etc/init.d/rcS skip'
+		echo '> /etc/init.d/rcS skipped'
 	else
 		cat >> /etc/init.d/rcS <<FILEEOF
 
@@ -275,7 +276,7 @@ FILEEOF
 
 	#PATH
 	if grep -F '### HIVE PROFILE ###' /etc/profile; then
-		echo '/etc/profile skip'
+		echo '> /etc/profile skipped'
 	else
 		cat >> /etc/profile <<FILEEOF
 
@@ -303,7 +304,7 @@ install_zig () {
 	echo "> Extracting $package_file_to_download"
 	tar -xzv -f "$package_file_to_download"
 	cp -rf hiveos-asic-${release_version_to_install}/* /
-	[ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
 
@@ -328,33 +329,33 @@ install_zig () {
 }
 
 install_todd () {
-    download_url
-    echo ""
-    echo "> Extracting $package_file_to_download"
-    tar -xzv -f "$package_file_to_download"
+	download_url
+	echo
+	echo "> Extracting $package_file_to_download"
+	tar -xzv -f "$package_file_to_download"
 
-    cp -rf hiveos-asic-${release_version_to_install}/* /
-    [ $? -ne 0 ] && echo "Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	cp -rf hiveos-asic-${release_version_to_install}/* /
+	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
-    rm "$package_file_to_download"
+	rm "$package_file_to_download"
 
-    sleep 2
+	sleep 2
 
-    sudo cp -rf /hive/share/zig/crontab.root /etc/cron.d/hive
-    cp -rf /home/root/.profile /etc/profile.d/hive.sh
-    sudo /etc/init.d/cron restart
-    sudo apt update
-    sudo apt install -y curl screen jq dnsutils
-    sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' "/hive/bin/$script_basename"
-    export PATH=$PATH:/hive/bin:/hive/sbin
-    export LD_LIBRARY_PATH=/hive/lib
+	sudo cp -rf /hive/share/zig/crontab.root /etc/cron.d/hive
+	cp -rf /home/root/.profile /etc/profile.d/hive.sh
+	sudo /etc/init.d/cron restart
+	sudo apt update
+	sudo apt install -y curl screen jq dnsutils
+	sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' "/hive/bin/$script_basename"
+	export PATH=$PATH:/hive/bin:/hive/sbin
+	export LD_LIBRARY_PATH=/hive/lib
 
-    /hive/bin/hive
+	/hive/bin/hive
 
-    sleep 2
+	sleep 2
 
-    #$FARM_HASH can be defined externally
-    bash -c "/hive/bin/firstrun $FARM_HASH"
+	#$FARM_HASH can be defined externally
+	bash -c "/hive/bin/firstrun $FARM_HASH"
 }
 
 wait_for_file () {
@@ -431,11 +432,12 @@ install_antminer_bmminer_ro () {
 	if [ "$github_FLAG" -eq 1 ]; then
 		echo "> Downloading ${package_file_url}..."
 		curl --insecure --location --fail --silent --show-error "$package_file_url" --output /nvdata/latest.tar.gz
-		# ??? have to talk with Pasha about this
-		#if [ $? -ne 0 ]; then
-		#	echo "Error downloading $package_file_url"
-		#	exit "$exitcode_NOT_OK"
-		#fi
+		if [ $? -eq 0 ]; then
+			echo '  Downloaded OK.'
+		else
+			echo "  Error downloading $package_file_url"
+			exit "$exitcode_NOT_OK"
+		fi
 		/etc/rcS.d/S69hive
 	else
 		/etc/rcS.d/S69hive -f
@@ -443,7 +445,7 @@ install_antminer_bmminer_ro () {
 
 	wait_for_file '/hive/share/zzz/EOF' # max 5 min
 
-	echo "Installed build: $( cat /hive/etc/build )"
+	echo "  Installed build: $( cat /hive/etc/build )"
 }
 
 get_asic_model () {
@@ -613,9 +615,9 @@ get_remote_and_local_versions () {
 }
 
 print_info () {
-	echo "ASIC model: $ASIC_MODEL"
+	echo "  ASIC model: $ASIC_MODEL"
 
-	echo -n 'Client local version: '
+	echo -n '  Client local version: '
 	if [ "$local_release_version" = '0' ]; then
 		echo '<not installed>'
 	else
@@ -627,7 +629,7 @@ print_info () {
 		fi
 	fi
 
-	echo -n 'Client latest version: '
+	echo -n '  Client latest version: '
 	if [ "$repo_connectivity_status_exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
 		echo '<no connection>'
 	else
@@ -710,14 +712,14 @@ set_package_url_and_file () {
 
 print_update_info () {
 	if [ "$master_FLAG" -eq 1 ]; then
-		echo -n '> Master mode, using dev build '
+		echo -n '> Master mode ON, using dev build '
 		if [ "$github_FLAG" -eq 1 ]; then
 			echo -n '(latest from Github)'
 		fi
 		echo
 	fi
 
-	echo -n 'Update to version: '
+	echo -n '  Update to version: '
 	if [ "$dont_have_to_update_FLAG" -eq 1 ]; then
 		if [ "$force_FLAG" -eq 1 ]; then
 			echo "$release_version_to_install (forced)"
@@ -862,13 +864,13 @@ execute_install_routine () {
 		# Zig
 
 		'Zig Z1+'				|\
-		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig					;;
+		'Zig Z1')				echo "$ASIC_MODEL"; 			install_zig						;;
 
 		# Todek Toddminer C1 and C1 PRO eaglesong ASICs
-		'Toddminer C1'*)			echo "$ASIC_MODEL"; 			install_todd				;;
+		'Toddminer C1'*)		echo "$ASIC_MODEL"; 			install_todd					;;
 
-                # HashAltCoin FPGA Blackminer F1 series (multialgo)
-                'Blackminer F1'* )			echo "$ASIC_MODEL";			install_antminer_cgminer		;;
+		# HashAltCoin FPGA Blackminer F1 series (multialgo)
+		'Blackminer F1'* )		echo "$ASIC_MODEL";				install_antminer_cgminer		;;
 
 		# unknown
 
@@ -903,7 +905,9 @@ delayed_agent_screen_restart () {
 		echo "> Sleeping 5s..."
 		sleep 5
 		agent-screen restart
-		echo "Done"' > /tmp/selfupgrade-agent-screen-restart.log 2>&1 & # have to see what's going on
+		echo "Done"' > /dev/null 2>&1 &
+		
+		[ -f /tmp/selfupgrade-agent-screen-restart.log ] && rm -rf /tmp/selfupgrade-agent-screen-restart.log # delete file created by legacy selfupgrade
 }
 
 
@@ -911,6 +915,10 @@ delayed_agent_screen_restart () {
 
 readonly exitcode_OK=0
 readonly exitcode_NOT_OK=1
+
+
+# global sources
+
 [ -s /hive/bin/colors ] && source /hive/bin/colors
 
 
@@ -953,6 +961,7 @@ remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_di
 
 execute_install_routine
 
+# ??? do we still need this
 #Don't restart it...
 #echo -e '> Saying hello to server again'
 #hello restartminer
