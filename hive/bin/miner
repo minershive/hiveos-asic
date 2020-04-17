@@ -50,7 +50,7 @@ function config {
 # start/stop/restart functions
 
 function start {
-	echo -e "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
+	echo -e "Starting ${CYAN}$MINER${NOCOLOR} - ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		config-gen
 		rm -f /tmp/norespawn
@@ -90,7 +90,7 @@ function start {
 }
 
 function stop {
-	echo -e "Stopping ${CYAN}$MINER${NOCOLOR}"
+	echo -e "Stopping ${CYAN}$MINER${NOCOLOR} - ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
 		echo "ok" > /tmp/norespawn
 	elif [[ -e "/www/pages/cgi-bin/stop_miner.cgi" ]]; then

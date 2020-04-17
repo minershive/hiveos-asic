@@ -504,6 +504,8 @@ loop () {
 	. "$RIG_CONF"
 	. "$WALLET_CONF"
 
+	# If rig config contains PUSH_INTERVAL then change default to custom
+	[[ ! -z "$PUSH_INTERVAL" ]] && INTERVAL=$PUSH_INTERVAL
 
 	[[ -z $MINER ]] && MINER="asicminer"
 	HIVE_URL="$HIVE_HOST_URL/worker/api"
