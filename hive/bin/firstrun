@@ -8,39 +8,37 @@
 #
 
 
-#Checks if config exists, ask for rig if no config found
-export PATH=$PATH:/hive/bin:/hive/sbin
-export LD_LIBRARY_PATH=/hive/lib
+readonly script_mission='Client for ASICs: Your First Run'
+readonly script_version='0.1'
+readonly script_basename="$( basename "$0" )"
+readonly script_debug=0
 
 
-HELLO_OK="/tmp/.hive-hello-ok"
-RIG_CONF="/hive-config/rig.conf"
-mkdir -p "/hive-config"
+# functions
 
-[[ -t 1 ]] && . colors
+print_script_version() {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
 
+function set_BRANDING_LOGO {
+	BRANDING_LOGO=$( cat <<-EOF
+		 _______ _______ ___ ___ _______
+		|   |   |_     _|   |   |    ___|
+		|       |_|   |_|   |   |    ___|
+		|___|___|_______|\_____/|_______|
+		EOF
+	)
+	BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
+}
 
-#FARM_HASH=
-FORCE=0
-if [[ $1 == "-f" ]]; then
-	echo "Forcing reconfig"
-	FORCE=1
-elif [[ ! -z $1 ]]; then
-	FARM_HASH="$1"
-#	if [[ $2 == "-f" ]]; then
-	FORCE=1
-#	fi
-fi
-
-
-#eval `cat /hive-config/rig.conf | dos2unix | grep '^HIVE_HOST_URL='`
 
 # read, check (rough sanity check) and set HIVE_HOST_URL
 # 
 # todo: connectivity test
 # todo: valid api answer test (curl -v $url/worker/api?a=b)
 
-read_HIVE_HOST_URL_from_RIG_CONF() {
+function read_HIVE_HOST_URL_from_RIG_CONF {
 	#
 	# read_HIVE_HOST_URL_from_RIG_CONF
 	#
@@ -51,14 +49,14 @@ read_HIVE_HOST_URL_from_RIG_CONF() {
 	local HIVE_HOST_URL_from_RIG_CONF
 
 	if [[ -s "$RIG_CONF" ]]; then
-		HIVE_HOST_URL_from_RIG_CONF="$( . "$RIG_CONF"; echo "$HIVE_HOST_URL" )"
+		HIVE_HOST_URL_from_RIG_CONF="$( source "$RIG_CONF"; echo "$HIVE_HOST_URL" )"
 		echo "$HIVE_HOST_URL_from_RIG_CONF"
 	fi
 
 	[[ -n "$HIVE_HOST_URL_from_RIG_CONF" ]] # set exit code
 }
 
-sanitize_HIVE_HOST_URL() {
+function sanitize_HIVE_HOST_URL {
 	(( $# < 1 || $# > 2 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
 	#
 	# sanitize_HIVE_HOST_URL 'url_to_sanitize' ['fallback_url'] -> 'sanitized_url'
@@ -86,7 +84,7 @@ sanitize_HIVE_HOST_URL() {
 	return $(( is_fallback_happen ))
 }
 
-validate_and_set_HIVE_HOST_URL() {
+function validate_and_set_HIVE_HOST_URL {
 	(( $# != 1 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
 	#
 	# validate_and_set_HIVE_HOST_URL 'url_to_validate_and_set'
@@ -104,9 +102,84 @@ validate_and_set_HIVE_HOST_URL() {
 	HIVE_HOST_URL="$validated_url"
 }
 
-HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
-WHITELABEL_HOST_URL_file_in_FW='/etc/hive-url'
-WHITELABEL_HOST_URL_file_in_NVRAM='/config/hive-url'
+function read_url {
+	while true; do
+		read url
+		[[ -z "$url" ]] && break
+		if [[ $url =~ ^(http|https)://.+$ ]]; then
+			HIVE_HOST_URL="$url"
+			echo -e "New server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
+			break
+		fi
+		echo "Invalid URL: '$url'"
+	done
+}
+
+function read_id {
+	while true; do
+		echo -n 'RIG ID: '
+		read id
+		echo "$id" | grep -qE '^[0-9]+$' && break
+		echo "Invalid input: '$id'"
+	done
+}
+
+function read_passwd {
+	while true; do
+		echo -n 'Password: '
+		read passwd
+		#any chars no spaces
+		#[[ ! $passwd =~ [[:blank:]] ]] && break
+		#[[ ! "$passwd" =~ \"|\'|[[:blank:]] ]] && break #if does not match \" or \' space - break cycle
+		echo "$passwd" | grep -qE "\"|'|\s" || break
+		echo "Invalid input: '$passwd'"
+	done
+}
+
+
+# global consts
+
+declare -r HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
+declare -r WHITELABEL_HOST_URL_file_in_FW='/etc/hive-url'
+declare -r WHITELABEL_HOST_URL_file_in_NVRAM='/config/hive-url'
+declare -r HELLO_OK='/tmp/.hive-hello-ok'
+declare -r RIG_CONF='/hive-config/rig.conf'
+
+
+# global vars
+
+declare BRANDING_LOGO
+
+
+# global exports
+
+export PATH=$PATH:/hive/bin:/hive/sbin
+export LD_LIBRARY_PATH=/hive/lib
+
+
+# main
+
+print_script_version
+
+#Checks if config exists, ask for rig if no config found
+
+mkdir -p '/hive-config'
+
+[[ -t 1 ]] && source colors
+
+#FARM_HASH=
+FORCE=0
+if [[ $1 == '-f' || $1 == '--force' ]]; then
+	echo "Forcing reconfig"
+	FORCE=1
+elif [[ -n "$1" ]]; then
+	FARM_HASH="$1"
+#	if [[ $2 == '-f' ]]; then
+	FORCE=1
+#	fi
+fi
+
+
 
 #
 # 1. try to get a whitelabel default from a config file embedded in firmware
@@ -115,7 +188,7 @@ WHITELABEL_HOST_URL_file_in_NVRAM='/config/hive-url'
 if [ -s "$WHITELABEL_HOST_URL_file_in_FW" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_FW" )"
 	echo "Default HIVE_HOST_URL found in firmware: $WHITELABEL_HOST_URL_file_in_FW"
-   else
+else
 	HIVE_HOST_URL_default='http://api.hiveos.farm'
 fi
 
@@ -126,7 +199,7 @@ fi
 if [ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_NVRAM" )"
 	echo "Default HIVE_HOST_URL found in NVRAM: $WHITELABEL_HOST_URL_file_in_NVRAM"
-   else
+else
 	HIVE_HOST_URL_default='http://api.hiveos.farm'
 fi
 
@@ -136,7 +209,7 @@ echo "Default HIVE_HOST_URL set to $HIVE_HOST_URL_default"
 # 3. try to read it from environment
 #
 if [[ -n "$HIVE_HOST_URL" ]]; then
-	echo -n "HIVE_HOST_URL variable is set, checking... "
+	echo -n 'HIVE_HOST_URL variable is set, checking... '
 	validate_and_set_HIVE_HOST_URL "$HIVE_HOST_URL"
 else
 	# then try to read from config
@@ -161,58 +234,49 @@ if [[ -s "$HIVE_HOST_URL_file" ]]; then
 fi
 
 
+set_BRANDING_LOGO
 
-BRANDING_LOGO="
- _______ _______ ___ ___ _______
-|   |   |_     _|   |   |    ___|
-|       |_|   |_|   |   |    ___|
-|___|___|_______|\_____/|_______|
-
-"
-BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
-
-if [[ ! -f $RIG_CONF || $FORCE -eq 1 ]]; then
+if [[ ! -f "$RIG_CONF" || $FORCE -eq 1 ]]; then
 #	selfupgrade
 
-	if [[ -z $FARM_HASH ]]; then
-		msg=$(cat <<EOF
-${BRANDING_LOGO}
-$CYAN
-Welcome to Miners Hive.
-This is your first boot, no config found at "$RIG_CONF".
-Please add your rig in your profile on the web, set the name and password for it.
-Then get rig id and give it to me.
+	if [[ -z "$FARM_HASH" ]]; then
+		message=$( cat <<-EOF
+			${BRANDING_LOGO}
+			$CYAN
+			Welcome to Miners Hive.
+			This is your first boot, no config found at "$RIG_CONF".
+			Please add your rig in your profile on the web, set the name and password for it.
+			Then get rig id and give it to me.
 
-$NOCOLOR
-EOF
-)
+			$NOCOLOR
+			EOF
+		)
 	else
-		msg=$(cat <<EOF
-${BRANDING_LOGO}
-$CYAN
-Adding worker to your farm...${NOCOLOR}
-Hive Farm Hash (FARM_HASH) is '${FARM_HASH:-<not set>}'
-Hive Server URL (HIVE_HOST_URL) is '${HIVE_HOST_URL:-<not set>}'
+		message=$( cat <<-EOF
+			${BRANDING_LOGO}
+			$CYAN
+			Adding worker to your farm...${NOCOLOR}
+			Hive Farm Hash (FARM_HASH) is '${FARM_HASH:-<not set>}'
+			Hive Server URL (HIVE_HOST_URL) is '${HIVE_HOST_URL:-<not set>}'
 
-$NOCOLOR
-EOF
-)
+			$NOCOLOR
+			EOF
+		)
 	fi
+	echo -e "$message"
 
-
-	echo -e "$msg"
-elif [[ ! -f $HELLO_OK ]]; then
-	msg=$(cat <<EOF
-${BRANDING_LOGO}
-$YELLOW
-Config "$RIG_CONF" exists but during boot the connection to hive server failed.
-Either the server or your network is temporary down.
-If you have changed the password for this rig, then you need to enter credentials again.$NOCOLOR
-Run ${CYAN}hello${NOCOLOR} to try again. Or run ${CYAN}firstrun -f${NOCOLOR} to enter new ID and password.
-$NOCOLOR
-EOF
-)
-	echo -e "$msg"
+elif [[ ! -f "$HELLO_OK" ]]; then
+	message=$( cat <<-EOF
+		${BRANDING_LOGO}
+		$YELLOW
+		Config "$RIG_CONF" exists but during boot the connection to hive server failed.
+		Either the server or your network is temporary down.
+		If you have changed the password for this rig, then you need to enter credentials again.$NOCOLOR
+		Run ${CYAN}hello${NOCOLOR} to try again. Or run ${CYAN}firstrun -f${NOCOLOR} to enter new ID and password.
+		$NOCOLOR
+		EOF
+	)
+	echo -e "$message"
 
 	sleep 5
 
@@ -220,101 +284,61 @@ EOF
 	hello
 
 	exit 0
-
 else
 	exit 0
 fi
 
 
-
-
-
+# check/set HIVE_HOST_URL, RIG_ID, RIG_PASSWD
 
 url=
 id=
 passwd=
 
-read_url () {
-	while true; do
-		read url
-		[[ -z $url ]] && break
-		[[ $url =~ ^(http|https)://.+$ ]] &&
-			HIVE_HOST_URL="$url" &&
-			echo -e "New server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}" &&
-			break
-		echo "Invalid URL"
-	done
-}
-
-read_id () {
-	while true; do
-		echo -n "RIG ID: "
-		read id
-		echo "$id" | grep -qE '^[0-9]+$' && break
-		echo "Invalid input"
-	done
-}
-
-read_passwd () {
-	while true; do
-		echo -n "Password: "
-		read passwd
-		#any chars no spaces
-		#[[ ! $passwd =~ [[:blank:]] ]] && break
-		#[[ ! "$passwd" =~ \"|\'|[[:blank:]] ]] && break #if does not match \" or \' space - break cycle
-		echo "$passwd" | grep -qE "\"|'|\s" || break
-		echo "Invalid input \"$passwd\""
-	done
-}
-
-
-
 while true; do
-	if [[ -z $FARM_HASH ]]; then
+	if [[ -z "$FARM_HASH" ]]; then
 		echo -e "Server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
-		echo "Press ENTER to continue with this URL or type a new one"
+		echo 'Press ENTER if OK (or type a new one)'
 		read_url
-
 		read_id
 		read_passwd
 
-		cat > "$RIG_CONF" <<FILEEOF
-HIVE_HOST_URL="$HIVE_HOST_URL"
-RIG_ID="$id"
-RIG_PASSWD="$passwd"
-FILEEOF
+		cat > "$RIG_CONF" <<-FILEEOF
+			HIVE_HOST_URL="$HIVE_HOST_URL"
+			RIG_ID="$id"
+			RIG_PASSWD="$passwd"
+			FILEEOF
 	else #$FARM_HASH is set
-		cat > "$RIG_CONF" <<FILEEOF
-HIVE_HOST_URL="$HIVE_HOST_URL"
-FARM_HASH="$FARM_HASH"
-FILEEOF
+		cat > "$RIG_CONF" <<-FILEEOF
+			HIVE_HOST_URL="$HIVE_HOST_URL"
+			FARM_HASH="$FARM_HASH"
+			FILEEOF
 	fi
 
 	sync
-	echo ""
-	echo "Config written to \"$RIG_CONF\"."
+	echo
+	echo "Config written to '$RIG_CONF'"
 
 	#try to connect
 	sleep 5
 	hello restartminer
 
-	if [[ $? -eq 0 ]]; then
+	if (( $? == 0 )); then
 		#Apply OC if configs are available
 		#[[ -f $AMD_OC_CONF ]] && amd-oc-safe
 		#[[ -f $NVIDIA_OC_CONF ]] && nvidia-oc-log
 
-		echo -e "\n${BGREEN}Login OK. Happy mining!${NOCOLOR}\n"
+		echo
+		echo -e "${BGREEN}Login OK. Happy mining!${NOCOLOR}"
+		echo
+
 		exit 0
 	fi
 
 	echo -e "${RED}Sorry, id and password did not work, check and try again${NOCOLOR}\n"
 
-	if [[ ! -z $FARM_HASH ]]; then
+	if [[ -n "$FARM_HASH" ]]; then
 		#break while loop
 		exit 1
 	fi
-
 done
-
-
-
