@@ -10,7 +10,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.4'
+readonly script_version='2.1.5'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -601,8 +601,8 @@ function print_last_lines_from_own_log {															(( script_debug )) && deb
 
 	# consts
 
-	local -r filter_RE='ERROR\]|WARNING\]|Shrink log|Truncate log|selfupgrade|updated from|New date'
-	#                                    | patterns from the legacy versions
+	local -r filter_RE='(error|warning|Shrink log|Truncate log|selfupgrade|updated from|New date)'
+	#                                         | patterns from the legacy versions
 
 	# code
 
@@ -612,7 +612,7 @@ function print_last_lines_from_own_log {															(( script_debug )) && deb
 				tail -n "$log_lines_to_tail" "$controller_log_file"
 				;;
 			''|*)
-				grep -E -e "$filter_RE" -- "$controller_log_file" | grep -Fv -e '> Sending ' --
+				grep -Ev -e '^[[:space:]]' -- "$controller_log_file" | grep -Fv -e '> Sending ' -- | grep -Ei -e "$filter_RE" --
 				;;
 		esac
 	else
