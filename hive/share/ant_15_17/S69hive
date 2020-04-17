@@ -94,6 +94,7 @@ deploy_hive () {
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
 	#cp -rf /hive/share/S9/S69hive /etc/rcS.d/
 	cp -rf /hive/share/S9/.profile /home/root/
+	cp -rf /hive/share/S9/.screenrc /home/root/
 
 	echo_action 'Booting Hive'
 	boot_hive &
