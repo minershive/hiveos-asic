@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.20'
+readonly script_version='0.14.21'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -62,7 +62,7 @@ install_antminer_bmminer () { # bmminer, / - rw, cron
 	fi
 	tar -xzv -f "$package_file_to_download"
 	[ -L /hive ] && rm /hive
-	cp -rf hiveos-asic-${release_version_to_install}/hive /
+	cp -rf "hiveos-asic-${release_version_to_install}/hive" /
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
@@ -98,7 +98,7 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 		mkdir /config/hive
 	fi
 	tar -xzv -f "$package_file_to_download"
-	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
@@ -153,7 +153,7 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 		mkdir /config/hive
 	fi
 	tar -xzv -f "$package_file_to_download"
-	cp -rf hiveos-asic-${release_version_to_install}/* /config/hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
@@ -203,13 +203,13 @@ install_innosilicon () {
 		mkdir /hive
 	fi
 	tar -xzv -f "$package_file_to_download"
-	cp -rf hiveos-asic-${release_version_to_install}/hive-config /config/hive/
-	cp -rf hiveos-asic-${release_version_to_install}/hive/bin /config/hive/
-	cp -rf hiveos-asic-${release_version_to_install}/hive/etc /config/hive/
-	cp -rf hiveos-asic-${release_version_to_install}/hive/sbin /hive/
-	cp -rf hiveos-asic-${release_version_to_install}/hive/lib /hive/
-	cp -rf hiveos-asic-${release_version_to_install}/home/root/.profile /etc/profile.d/hive.sh
-	cp -rf hiveos-asic-${release_version_to_install}/hive/share/innosilicon/* /etc/systemd/system/
+	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /config/hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/bin" /config/hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/etc" /config/hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/sbin" /hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/lib" /hive/
+	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/innosilicon/"* /etc/systemd/system/
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
@@ -252,9 +252,9 @@ install_innosilicon_innominer () {
 	echo "> Extracting $package_file_to_download"
 	[ ! -d /hive ] && mkdir /hive
 	tar -xzv -f "$package_file_to_download"
-	cp -rf hiveos-asic-${release_version_to_install}/hive-config /innocfg/
-	cp -rf hiveos-asic-${release_version_to_install}/hive /
-#	cp -rf hiveos-asic-${release_version_to_install}/home/root/.profile /etc/profile.d/hive.sh
+	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /innocfg/
+	cp -rf "hiveos-asic-${release_version_to_install}/hive" /
+#	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 	rm "$package_file_to_download"
 
@@ -303,7 +303,7 @@ install_zig () {
 	echo
 	echo "> Extracting $package_file_to_download"
 	tar -xzv -f "$package_file_to_download"
-	cp -rf hiveos-asic-${release_version_to_install}/* /
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
@@ -334,7 +334,7 @@ install_todd () {
 	echo "> Extracting $package_file_to_download"
 	tar -xzv -f "$package_file_to_download"
 
-	cp -rf hiveos-asic-${release_version_to_install}/* /
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /
 	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
 
 	rm "$package_file_to_download"
@@ -416,31 +416,35 @@ wait_for_file () {
 }
 
 install_antminer_bmminer_ro () {
-	local sleep_counter=0
-	local sleep_interval=5
+	local system_S69hive='/etc/rcS.d/S69hive'
+	local updated_S69hive='/hive/share/ant_15_17/S69hive'
 
 	sync && echo 3 > /proc/sys/vm/drop_caches
 
-	if ! cmp -s /etc/rcS.d/S69hive /hive/share/ant_15_17/S69hive; then
-		cp -rf /hive/share/ant_15_17/S69hive /etc/rcS.d/S69hive > /dev/null 2>&1 # hide this: cp: can't stat /etc/rcS.d/S69hive
+	if [ ! -f "$system_S69hive" ] || ! cmp -s "$system_S69hive" "$updated_S69hive"; then
+		cp -f "$updated_S69hive" "$system_S69hive" # > /dev/null 2>&1 # hide this: cp: can't stat /etc/rcS.d/S69hive
 	fi
-
-	[ -e /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
-	[ -e /hive ] && rm -rf /hive
-	sync
 
 	if [ "$github_FLAG" -eq 1 ]; then
 		echo "> Downloading ${package_file_url}..."
-		curl --insecure --location --fail --silent --show-error "$package_file_url" --output /nvdata/latest.tar.gz
-		if [ $? -eq 0 ]; then
-			echo '  Downloaded OK.'
+		if curl --insecure --location --fail --silent --show-error --output /nvdata/latest.tar.gz "$package_file_url"; then
+			echo '  Downloaded OK'
 		else
-			echo "  Error downloading $package_file_url"
+			echo "  Downloading error"
 			exit "$exitcode_NOT_OK"
 		fi
+
+		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
+		[ -e /hive ] && rm -rf /hive
+		sync
+
 		/etc/rcS.d/S69hive
 	else
-		/etc/rcS.d/S69hive -f
+		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
+		[ -e /hive ] && rm -rf /hive
+		sync
+
+		/etc/rcS.d/S69hive --force-download
 	fi
 
 	wait_for_file '/hive/share/zzz/EOF' # max 5 min
@@ -510,7 +514,7 @@ get_hiveon_version () {
 	local HIVEON_VER=''
 
 	if [ -s /usr/bin/compile_ver ]; then 
-		HIVEON_VER="$( cat /usr/bin/compile_ver | awk -F'@' 'NR==3 {print $1; exit}' )"
+		HIVEON_VER="$( awk -F'@' 'NR==3 {print $1; exit}' /usr/bin/compile_ver )"
 		echo "$HIVEON_VER"
 	fi
 }
@@ -773,7 +777,7 @@ remove_needless_files () {
 		# iterate over the arguments
 		for f in $file_to_remove; do
 			# auxiliary loop is just for expanding the glob--note 'break' statement
-			if [[ -e "$f" ]]; then
+			if [ -e "$f" ]; then
 				echo -n "$file_to_remove"
 				if rm -rf "$file_to_remove" > /dev/null 2>&1; then
 					something_removed_FLAG=1
@@ -919,7 +923,7 @@ readonly exitcode_NOT_OK=1
 
 # global sources
 
-[ -s /hive/bin/colors ] && source /hive/bin/colors
+[ -s /hive/bin/colors ] && . /hive/bin/colors
 
 
 # global vars
