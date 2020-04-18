@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.21'
+readonly script_version='0.14.22'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -21,13 +21,14 @@ print_script_version () {
 }
 
 print_script_usage () {
-	echo -e "Usage examples: ${CYAN}${script_basename}${NOCOLOR}                - update to the latest release version"
-	echo -e "                ${CYAN}${script_basename} --force${NOCOLOR}        - force update to the latest release version"
-	echo -e "                ${CYAN}${script_basename} 0.1-13${NOCOLOR}         - update to release 0.1-13"
-	echo -e "                ${CYAN}${script_basename} 0.1-13 --force${NOCOLOR} - force update to release 0.1-13"
-	echo -e "                ${CYAN}${script_basename} master${NOCOLOR}         - force update to the latest stable dev build (beta)"
-	echo -e "                ${CYAN}${script_basename} master dev347${NOCOLOR}  - force update to the latest stable dev build (beta), but do nothing if local build is the same as dev347"
-	echo -e "                ${CYAN}${script_basename} master github${NOCOLOR}  - force update Antminer Series 15/17 and S9k/S9SE to the latest build from Github (alpha)"
+	echo -e "Usage: ${CYAN}${script_basename}${NOCOLOR}                          update to the latest release version"
+	echo -e "       ${CYAN}${script_basename} --force${NOCOLOR}                  force update to the latest release version"
+	echo -e "       ${CYAN}${script_basename} 0.1-13${NOCOLOR}                   update to release 0.1-13"
+	echo -e "       ${CYAN}${script_basename} 0.1-13 --force${NOCOLOR}           force update to release 0.1-13"
+	echo -e "       ${CYAN}${script_basename} master${NOCOLOR}                   force update to the latest stable dev build (beta)"
+	echo -e "       ${CYAN}${script_basename} master dev347${NOCOLOR}            force update to the latest stable dev build (beta), but do nothing if local build is the same as dev347"
+	echo -e "       ${CYAN}${script_basename} master -g|--github${NOCOLOR}       force update Antminer 15/17 and S9k/S9SE to the latest build from Github (alpha)"
+	echo -e "       ${CYAN}${script_basename} master -d|--dev-build${NOCOLOR}    force update Antminer 15/17 and S9k/S9SE to the latest build from Hive server (alpha)"
 	echo
 }
 
@@ -439,6 +440,16 @@ install_antminer_bmminer_ro () {
 		sync
 
 		/etc/rcS.d/S69hive
+
+	elif [ "$dev_build_FLAG" -eq 1 ]; then
+
+		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
+		[ -e /hive ] && rm -rf /hive
+		sync
+
+		touch '/nvdata/dev-build'
+		/etc/rcS.d/S69hive --force-download --force-deploy
+
 	else
 		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
 		[ -e /hive ] && rm -rf /hive
@@ -657,8 +668,11 @@ parse_arguments () {
 			master_FLAG=1
 			case "$2" in
 				# 'master github' or 'master devNNN'
-				'github')
+				'-g'|'--github'|'github')
 					github_FLAG=1
+					;;
+				'-d'|'--dev-build')
+					dev_build_FLAG=1
 					;;
 				"${local_build_version}")
 					dont_have_to_update_FLAG=1
@@ -719,6 +733,8 @@ print_update_info () {
 		echo -n '> Master mode ON, using dev build '
 		if [ "$github_FLAG" -eq 1 ]; then
 			echo -n '(latest from Github)'
+		elif [ "$dev_build_FLAG" -eq 1 ]; then
+			echo -n '(latest from Hive server)'
 		fi
 		echo
 	fi
@@ -940,6 +956,7 @@ repo_connectivity_status_exitcode=0
 dont_have_to_update_FLAG=0
 force_FLAG=0
 github_FLAG=0
+dev_build_FLAG=0
 master_FLAG=0
 
 user_defined_version_ARG=''
