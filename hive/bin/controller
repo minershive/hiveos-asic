@@ -10,7 +10,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.5'
+readonly script_version='2.1.6'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -602,7 +602,7 @@ function print_last_lines_from_own_log {															(( script_debug )) && deb
 	# consts
 
 	local -r filter_RE='(error|warning|Shrink log|Truncate log|selfupgrade|updated from|New date)'
-	#                                         | patterns from the legacy versions
+	#                                 | patterns from the legacy versions
 
 	# code
 
