@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.23'
+readonly script_version='0.14.24'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1016,7 +1016,12 @@ parse_arguments "$@"
 set_package_url_and_file
 print_update_info
 set_temp_dir
-remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download" /nvdata/nohup.out
+
+remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" /nvdata/nohup.out
+# temporary fix, might work this out later
+if [ "$github_FLAG" -eq 0 ] && [ "$dev_build_FLAG" -eq 0 ]; then
+	remove_needless_files "$package_file_to_download"	
+fi
 
 execute_install_routine
 
