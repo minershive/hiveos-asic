@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.19'
+readonly script_version='1.0.20'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -204,7 +204,7 @@ set_download_server_URL () {
 	# try HIVE_HOST_URL file
 	if [ -s "$HIVE_HOST_URL_file" ]; then
 		# replace 'api.' with 'download.'
-		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )"
+		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
 		echo_info "Server URL found in $HIVE_HOST_URL_file: $download_server_URL"
 	fi
 
@@ -259,6 +259,7 @@ deploy_hive () {
 	tar -xzv -f "$persistent_package_filename" || die "Error extracting $persistent_package_filename, exiting"
 
 	[ -L /hive ] && rm /hive
+	[ -f "$dev_build_file" ] && rm "$dev_build_file"
 	rm -rf hiveos-asic-*/hive/sbin/teleconsole
 
 	echo_action 'Copying extracted files to /hive'
@@ -308,6 +309,7 @@ boot_hive () {
 readonly NVRAM_path='/nvdata'
 readonly temporary_package_filename="${NVRAM_path}/latest_new.tar.gz"
 readonly persistent_package_filename="${NVRAM_path}/latest.tar.gz"
+readonly dev_build_file="${NVRAM_path}/dev-build"
 
 readonly FARM_HASH_file='/config/FARM_HASH'
 readonly HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
@@ -315,7 +317,7 @@ readonly HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
 readonly whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url'
 readonly default_download_server_URL='http://download.hiveos.farm'
 
-if [ -f "${NVRAM_path}/dev-build" ]; then
+if [ -f "$dev_build_file" ]; then
 	readonly remote_package_filename='/_asic/repo/client/master-dev.tar.gz'
 	echo_info 'good to know that the reptilians controlling the world, eh?'
 else
