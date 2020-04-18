@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.20'
+readonly script_version='1.0.21'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -39,7 +39,7 @@ echo_info () {
 die () {
 	echo_action "${*}"
 	exit 1
-}
+} 2>&1
 
 get_random_number_between () {
 	#
