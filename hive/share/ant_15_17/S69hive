@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.21'
+readonly script_version='1.0.22'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -237,13 +237,14 @@ deploy_hive () {
 
 	echo_action 'Hive deployment started in the background'
 
-	set_download_server_URL
-	full_URL="${download_server_URL}${remote_package_filename}"
-
 	if [ "$force_download" -eq 1 ] || [ ! -e "$persistent_package_filename" ] || ! gunzip -tf "$persistent_package_filename" >/dev/null 2>&1; then
+		set_download_server_URL
+		full_URL="${download_server_URL}${remote_package_filename}"
+
 		if ! get_file_at_any_cost "$full_URL" "$temporary_package_filename"; then
 			die "Error downloading $temporary_package_filename, exiting"
 		fi
+
 		cp -rf "$temporary_package_filename" "$persistent_package_filename"
 		sync
 		[ -f "$temporary_package_filename" ] && rm "$temporary_package_filename"
