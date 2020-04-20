@@ -489,7 +489,7 @@ elif [[ $ASIC_MODEL == "Zig Z1" ]]; then
 "lyra2rev2-cutoffenable": false,
 "lyra2rev2-fan-check": true
 }'
-elif [[ $ASIC_MODEL == "Toddminer C1" ]]; then
+elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
         config_global='{
 "algo" : "ckb",
 "api-bind":"0.0.0.0:4049",
@@ -540,7 +540,7 @@ fi
 	fi
 
 	config_global=$(echo "$config_global" | sed s/\"true\"/true/g | sed s/\"false\"/false/g)
-        if [[ $ASIC_MODEL == "Toddminer C1" ]]; then
+        if [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
                 pools=$(jq -n --argjson g "$config_global" \
                         --arg url1 "`echo $pools | jq -r '.pools[0].url'`" \
                         --arg user1 "`echo $pools | jq -r '.pools[0].user'`" \
