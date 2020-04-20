@@ -11,10 +11,12 @@ if [[ "$ASIC_MODEL" == "Toddminer C1" ]]; then
 	CHIPS=30
 	POWER_BASE=40
 	POWER_CHIP=14
+	ERROR_HS=800
 else
 	CHIPS=57
 	POWER_BASE=45
 	POWER_CHIP=15
+	ERROR_HS=1600
 fi
 
 
@@ -29,7 +31,7 @@ function show_log(){
 function board_status(){
    local num=$1
    local log_file="/home/sm/miner/build/${num}mlog"
-   brd_status="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   brd_status=""
    brd_power=$POWER_BASE
    LOG=`tac $log_file | grep -m1 -A $CHIPS "board \(0\|1\) hashrate" | tac`
    if [[ ! -z $LOG ]]; then
@@ -103,9 +105,9 @@ miner_stat(){
 		else
 			hs[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'Gh/s=' | sed -e 's/.*=//'`
 			local hs_tmp=`echo ${hs[$i]} | awk '{ printf "%.0f",$1 }'`
-			#if [[ "$hs_tmp" -gt 750 ]]; then # board not mining
-			#	hs[$i]=0
-			#fi
+			if [[ "$hs_tmp" -eq $ERROR_HS ]]; then # board not mining
+			    hs[$i]=0
+			fi
 			acc[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'ACC=' | sed -e 's/.*=//'`
 			rej[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'REJ=' | sed -e 's/.*=//'`
 
@@ -116,8 +118,17 @@ miner_stat(){
 		ac=`expr $ac + ${acc[$i]}`
 		rj=`expr $rj + ${rej[$i]}`
 		total_hs=`echo $total_hs ${hs[$i]} | awk '{ printf "%.2f",$1+$2 }'`
-		
-		board_status ${API_offset[$i]}
+
+		local brd_status=""
+		if [[ "$hs_tmp" -eq 0 ]]; then
+		   for (( smb=0; smb < $CHIPS; smb++ )); do
+		      brd_status="${brd_status}x"
+		   done
+		   brd_power=$POWER_BASE
+		else
+		   board_status ${API_offset[$i]}
+		fi
+
 		status+=($brd_status)
 		power+=($brd_power)
 	done
