@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.0.1'
+readonly script_version='1.0.2'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -380,13 +380,13 @@ case "$1" in
 	'config-gen')		config-gen				;;
 	'kernel-log')		print_kernel_log		;;		# deprecated
 	'log')
-		case "$2" in									# TODO miner log [kernel|tuning|watchdog|all [filter=regex_pattern] [sort=none|date]]
-			'all')			collate_all_logs			;;
-			'kernel')		print_kernel_log			;;
-			'status')		tail_miner_status_log		;;
-			'tuning')		print_tune_log				;;
-			'watchdog')		tail_watchdog_log			;;
-			*)				log_tail $2 $3				;; # supports args for tail. do we still need this???
+		case "$2" in											# TODO miner log [kernel|tuning|watchdog|all [filter=regex_pattern] [sort=none|date]]
+			'all'|'a')				collate_all_logs			;;
+			'kernel'|'k')			print_kernel_log			;;
+			'status'|'s')			tail_miner_status_log		;;
+			'tuning'|'tune'|'t')	print_tune_log				;;
+			'watchdog'|'w')			tail_watchdog_log			;;
+			*)						log_tail $2 $3				;; # supports args for tail. do we still need this???
 		esac									;;
 	'restart')			restart					;;
 	'start')			start					;;

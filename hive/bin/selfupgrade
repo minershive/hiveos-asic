@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.22'
+readonly script_version='0.14.24'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -21,51 +21,114 @@ print_script_version () {
 }
 
 print_script_usage () {
-	echo -e "Usage: ${CYAN}${script_basename}${NOCOLOR}                          update to the latest release version"
-	echo -e "       ${CYAN}${script_basename} --force${NOCOLOR}                  force update to the latest release version"
-	echo -e "       ${CYAN}${script_basename} 0.1-13${NOCOLOR}                   update to release 0.1-13"
-	echo -e "       ${CYAN}${script_basename} 0.1-13 --force${NOCOLOR}           force update to release 0.1-13"
-	echo -e "       ${CYAN}${script_basename} master${NOCOLOR}                   force update to the latest stable dev build (beta)"
-	echo -e "       ${CYAN}${script_basename} master dev347${NOCOLOR}            force update to the latest stable dev build (beta), but do nothing if local build is the same as dev347"
-	echo -e "       ${CYAN}${script_basename} master -g|--github${NOCOLOR}       force update Antminer 15/17 and S9k/S9SE to the latest build from Github (alpha)"
-	echo -e "       ${CYAN}${script_basename} master -d|--dev-build${NOCOLOR}    force update Antminer 15/17 and S9k/S9SE to the latest build from Hive server (alpha)"
+	echo
+	echo 'Usage examples:'
+	echo
+	echo -e "  ${CYAN}${script_basename}${NOCOLOR}                               update to the latest release version"
+	echo -e "  ${CYAN}${script_basename} -f|--force${NOCOLOR}                    force update to the latest release version"
+	echo -e "  ${CYAN}${script_basename} 0.1-13${NOCOLOR}                        update to release 0.1-13"
+	echo -e "  ${CYAN}${script_basename} 0.1-13 -f|--force${NOCOLOR}             force update to release 0.1-13"
+	echo
+	echo -e "  ${CYAN}${script_basename} master${NOCOLOR}                        force update to the latest stable dev build (beta)"
+	echo -e "  ${CYAN}${script_basename} master --skip-version=dev347${NOCOLOR}  force update to the latest stable dev build (beta), skip if local build == dev347"
+	echo -e "  ${CYAN}${script_basename} master -g|--github${NOCOLOR}            force update Antminer 15/17 and S9k/S9SE to the latest build from Github (alpha)"
+	echo -e "  ${CYAN}${script_basename} master -d|--dev-build${NOCOLOR}         force update Antminer 15/17 and S9k/S9SE to the latest build from Hive server (alpha)"
+	echo
+	echo -e "  ${CYAN}${script_basename} master github${NOCOLOR}                 DEPRECATED"
+	echo -e "  ${CYAN}${script_basename} master dev347${NOCOLOR}                 DEPRECATED"
 	echo
 }
 
-download_url () { #download from github
-	echo "> Downloading $package_file_url"
-	
-	case "$ASIC_MODEL" in
-		'Zig Z1+' | 'Zig Z1' | 'Toddminer C1' )
-			wget "$package_file_url"
-			;;
-		*)
-			curl --insecure --location --fail --silent --show-error --remote-name "$package_file_url"
-			;;
-	esac
+die () {
+	local incoming_exitcode=$?
 
-	if [ $? -eq 0 ]; then
-		echo '  Downloaded OK.'
+	# args
+
+	local message="$1"
+	local exitcode="$2"
+
+	# code
+
+	echo "$message"
+	if [ -n "$exitcode" ]; then
+		exit "$exitcode"
 	else
-		echo "  Error downloading $package_file_url"
-		exit "$exitcode_NOT_OK"
+		exit "$incoming_exitcode"
+	fi
+} 2>&1
+
+is_curl_available () {
+	case "$ASIC_MODEL" in
+		'Zig Z1' | 'Zig Z1+' | 'Toddminer C1')	false	;;
+		*)										true	;;
+	esac
+}
+
+download_from_url () {
+	#
+	# Usage: download_from_url 'URL' 'local_file_name'
+	#
+	# download using curl or wget
+	# 
+	# TODO bulletproof download + multiple sources
+
+	# args
+
+	local URL="$1"
+	local local_file_name="$2"
+
+	# vars
+
+	local reported_item=''
+	local downloader_exitcode="$exitcode_OK"
+	local downloader_output=''
+
+	# code
+
+# I don't think we have to have so many choices
+#	if [ -n "$local_file_name" ]; then
+		reported_item="$local_file_name"
+		echo "> Downloading ${reported_item}..."
+		if is_curl_available; then
+			downloader_output="$( curl --insecure --location --fail --silent --show-error --output "$local_file_name" "$URL" 2>&1 )"
+		else
+			downloader_output="$( wget --quiet --output-document="$local_file_name" "$URL" 2>&1 )"
+		fi
+#	else
+#		reported_item="$URL"
+#		echo "> Downloading ${reported_item}..."
+#		if is_curl_available; then
+#			downloader_output="$( curl --insecure --location --fail --silent --show-error --remote-name "$URL" 2>&1 )"
+#		else
+#			downloader_output="$( wget --quiet "$URL" 2>&1 )"
+#		fi
+#	fi
+
+	downloader_exitcode=$?
+	if [ "$downloader_exitcode" -eq 0 ]; then
+		echo '  Downloaded OK'
+		#return 0
+	else
+		echo "$downloader_output"
+		die "Error downloading $reported_item" "$downloader_exitcode"
+		#echo "Error downloading $reported_item"
+		#echo "$downloader_output"
+		#return 1
 	fi
 
-	sleep 2
+	sleep 2 # ???
 }
 
 install_antminer_bmminer () { # bmminer, / - rw, cron
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
 	echo
 	echo "> Extracting $package_file_to_download"
 	if [ ! -d /config/hive/hive-config ]; then
 		mkdir -p /config/hive/hive-config
 	fi
-	tar -xzv -f "$package_file_to_download"
+	tar -xzv -f "$package_file_to_download"						|| die "  Error extracting $package_file_to_download"
 	[ -L /hive ] && rm /hive
-	cp -rf "hiveos-asic-${release_version_to_install}/hive" /
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
-
+	cp -rf "hiveos-asic-${release_version_to_install}/hive" /	|| die '  Error copying to /'
 	rm "$package_file_to_download"
 
 	sleep 2
@@ -92,16 +155,14 @@ install_antminer_bmminer () { # bmminer, / - rw, cron
 }
 
 install_antminer_cgminer () { # cgminer, / - ro, no cron
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
 	echo
 	echo "> Extracting $package_file_to_download"
 	if [ ! -d /config/hive ]; then
 		mkdir /config/hive
 	fi
-	tar -xzv -f "$package_file_to_download"
-	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
-
+	tar -xzv -f "$package_file_to_download"								|| die "  Error extracting $package_file_to_download"
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/	|| die '  Error copying to /config/hive/'
 	rm "$package_file_to_download"
 
 	sleep 2
@@ -118,11 +179,11 @@ install_antminer_cgminer () { # cgminer, / - ro, no cron
 	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ -n "$HIVEON_VER" ]; then
 		echo '> /config/network.conf skipped'
 	else
-		cat >> /config/network.conf <<FILEEOF
+		cat >> /config/network.conf <<-FILEEOF
 
-### HIVE AUTORUN ###
-[ -e /config/hive_autorun ] && nohup /bin/sh -c '/config/hive_autorun' > /dev/null 2>&1 &
-FILEEOF
+			### HIVE AUTORUN ###
+			[ -e /config/hive_autorun ] && nohup /bin/sh -c '/config/hive_autorun' > /dev/null 2>&1 &
+		FILEEOF
 	fi
 	cp -rf /hive/bin/hive_autorun /config/hive_autorun
 	/hive/bin/hive
@@ -138,7 +199,8 @@ FILEEOF
 }
 
 install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
+	echo
 	if [ -e /hive ] && [ ! -L /hive ]; then
 		mkdir -p /config/hive
 		mv -f /hive /config/hive/
@@ -148,15 +210,13 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 		ln -s /config/hive/hive-config/ /hive-config
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
-	echo
 	echo "> Extracting $package_file_to_download"
 	if [ ! -d /config/hive ]; then
 		mkdir /config/hive
 	fi
-	tar -xzv -f "$package_file_to_download"
-	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
-
+	tar -xzv -f "$package_file_to_download"								|| die "  Error extracting $package_file_to_download"
+	[ -e "hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole" ] && rm -rf "hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole" #for old release
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/	|| die '  Error copying to /config/hive/'
 	rm "$package_file_to_download"
 
 	sleep 2
@@ -173,11 +233,11 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf; then
 		echo '> /config/network.conf skipped'
 	else
-		cat >> /config/network.conf <<FILEEOF
+		cat >> /config/network.conf <<-FILEEOF
 
-### HIVE AUTORUN ###
-[ -e /config/hive_autorun ] && nohup /bin/sh -c '/config/hive_autorun' > /dev/null 2>&1 &
-FILEEOF
+			### HIVE AUTORUN ###
+			[ -e /config/hive_autorun ] && nohup /bin/sh -c '/config/hive_autorun' > /dev/null 2>&1 &
+		FILEEOF
 	fi
 	cp -rf /hive/bin/hive_autorun /config/hive_autorun
 	/hive/bin/hive
@@ -193,7 +253,7 @@ FILEEOF
 }
 
 install_innosilicon () {
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
 	echo
 	mount -o remount,rw,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs /
 	echo "> Extracting $package_file_to_download"
@@ -203,16 +263,14 @@ install_innosilicon () {
 	if [ ! -d /hive ]; then
 		mkdir /hive
 	fi
-	tar -xzv -f "$package_file_to_download"
-	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /config/hive/
-	cp -rf "hiveos-asic-${release_version_to_install}/hive/bin" /config/hive/
-	cp -rf "hiveos-asic-${release_version_to_install}/hive/etc" /config/hive/
-	cp -rf "hiveos-asic-${release_version_to_install}/hive/sbin" /hive/
-	cp -rf "hiveos-asic-${release_version_to_install}/hive/lib" /hive/
-	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh
-	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/innosilicon/"* /etc/systemd/system/
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
-
+	tar -xzv -f "$package_file_to_download"																|| die "  Error extracting $package_file_to_download"
+	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /config/hive/						|| die '  Error copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/bin" /config/hive/							|| die '  Error copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/etc" /config/hive/							|| die '  Error copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/sbin" /hive/									|| die '  Error copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/lib" /hive/									|| die '  Error copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh		|| die '  Error copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/innosilicon/"* /etc/systemd/system/	|| die '  Error copying'
 	rm "$package_file_to_download"
 
 	sleep 2
@@ -246,17 +304,16 @@ install_innosilicon () {
 }
 
 install_innosilicon_innominer () {
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
 	echo
 	mount -o remount,rw,relatime -t jffs2 /dev/root /
 
 	echo "> Extracting $package_file_to_download"
 	[ ! -d /hive ] && mkdir /hive
-	tar -xzv -f "$package_file_to_download"
-	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /innocfg/
-	cp -rf "hiveos-asic-${release_version_to_install}/hive" /
-#	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
+	tar -xzv -f "$package_file_to_download"															|| die "  Error extracting $package_file_to_download"
+	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /innocfg/						|| die '  Error copying to /innocfg/'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive" /										|| die '  Error copying to /'
+#	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh	|| die ' Error copying to /etc/profile.d/hive.sh'
 	rm "$package_file_to_download"
 
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /innocfg/hive-config/ /hive-config
@@ -265,26 +322,26 @@ install_innosilicon_innominer () {
 	if grep -F '### HIVE AUTORUN ###' /etc/init.d/rcS; then
 		echo '> /etc/init.d/rcS skipped'
 	else
-		cat >> /etc/init.d/rcS <<FILEEOF
+		cat >> /etc/init.d/rcS <<-FILEEOF
 
-### HIVE AUTORUN ###
-[ -e /hive/bin/hive ] && nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running hive..."' > /dev/null 2>&1 &
-[ -e /hive/bin/hello ] && nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
-[ -e /hive/bin/cron1 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-[ -e /hive/bin/cron2 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
-FILEEOF
+			### HIVE AUTORUN ###
+			[ -e /hive/bin/hive ] && nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log; echo "Running Hive..."' > /dev/null 2>&1 &
+			[ -e /hive/bin/hello ] && nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
+			[ -e /hive/bin/cron1 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+			[ -e /hive/bin/cron2 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+		FILEEOF
 	fi
 
 	#PATH
 	if grep -F '### HIVE PROFILE ###' /etc/profile; then
 		echo '> /etc/profile skipped'
 	else
-		cat >> /etc/profile <<FILEEOF
+		cat >> /etc/profile <<-FILEEOF
 
-### HIVE PROFILE ###
-export PATH=$PATH:/hive/bin:/hive/sbin
-export LD_LIBRARY_PATH=/hive/lib
-FILEEOF
+			### HIVE PROFILE ###
+			export PATH=$PATH:/hive/bin:/hive/sbin
+			export LD_LIBRARY_PATH=/hive/lib
+		FILEEOF
 	fi
 
 	export PATH=$PATH:/hive/bin:/hive/sbin
@@ -300,13 +357,11 @@ FILEEOF
 }
 
 install_zig () {
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
 	echo
 	echo "> Extracting $package_file_to_download"
-	tar -xzv -f "$package_file_to_download"
-	cp -rf "hiveos-asic-${release_version_to_install}/"* /
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
-
+	tar -xzv -f "$package_file_to_download"					|| die "  Error extracting $package_file_to_download"
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /	|| die ' Error copying to /'
 	rm "$package_file_to_download"
 
 	sleep 2
@@ -330,14 +385,11 @@ install_zig () {
 }
 
 install_todd () {
-	download_url
+	download_from_url "$package_file_url" "$package_file_to_download"
 	echo
 	echo "> Extracting $package_file_to_download"
-	tar -xzv -f "$package_file_to_download"
-
-	cp -rf "hiveos-asic-${release_version_to_install}/"* /
-	[ $? -ne 0 ] && echo "  Error extracting $package_file_to_download" && exit "$exitcode_NOT_OK"
-
+	tar -xzv -f "$package_file_to_download"					|| die "  Error extracting $package_file_to_download"
+	cp -rf "hiveos-asic-${release_version_to_install}/"* /	|| die '  Error copying to /'
 	rm "$package_file_to_download"
 
 	sleep 2
@@ -426,35 +478,17 @@ install_antminer_bmminer_ro () {
 		cp -f "$updated_S69hive" "$system_S69hive" # > /dev/null 2>&1 # hide this: cp: can't stat /etc/rcS.d/S69hive
 	fi
 
-	if [ "$github_FLAG" -eq 1 ]; then
-		echo "> Downloading ${package_file_url}..."
-		if curl --insecure --location --fail --silent --show-error --output /nvdata/latest.tar.gz "$package_file_url"; then
-			echo '  Downloaded OK'
-		else
-			echo "  Downloading error"
-			exit "$exitcode_NOT_OK"
-		fi
+	if [ "$github_FLAG" -eq 1 ] || [ "$dev_build_FLAG" -eq 1 ]; then
+		download_from_url "$package_file_url" "$package_file_to_download"
 
 		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
 		[ -e /hive ] && rm -rf /hive
 		sync
-
 		/etc/rcS.d/S69hive
-
-	elif [ "$dev_build_FLAG" -eq 1 ]; then
-
-		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
-		[ -e /hive ] && rm -rf /hive
-		sync
-
-		touch '/nvdata/dev-build'
-		/etc/rcS.d/S69hive --force-download --force-deploy
-
 	else
 		[ -f /nvdata/latest_new.tar.gz ] && rm /nvdata/latest_new.tar.gz
 		[ -e /hive ] && rm -rf /hive
 		sync
-
 		/etc/rcS.d/S69hive --force-download
 	fi
 
@@ -500,7 +534,7 @@ get_asic_model () {
 		)"
 		# Zig new firmware
 		if [ -s /var/www/html/TYPE ]; then
-			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )"
+			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )" #"# syntax highliting fix
 		fi
 	fi
 
@@ -552,13 +586,10 @@ get_remote_version_of () {
 	local repo_url='https://raw.githubusercontent.com/minershive/hiveos-asic/master'
 	local release_url="$repo_url/hive/etc/VERSION"
 	local build_url="$repo_url/hive/etc/build"
-	local wget_cmd='wget -q -O-'
-	local curl_cmd='curl --insecure --location --fail --silent --show-error'
 
 	# vars
 
 	local download_url=''
-	local download_cmd=''
 
 	# code
 
@@ -571,16 +602,11 @@ get_remote_version_of () {
 			;;
 	esac
 
-	case "$ASIC_MODEL" in
-		'Zig Z1+' | 'Zig Z1')
-			download_cmd="$wget_cmd"
-			;;
-		*)
-			download_cmd="$curl_cmd"
-			;;
-	esac
-
-	$download_cmd "$download_url" # stdout and exit code in one package!
+	if is_curl_available; then
+		curl --insecure --location --fail --silent --show-error "$download_url"
+	else
+		wget --quiet --output-document=file- "$download_url"
+	fi # stdout and exit code in one package!
 }
 
 get_local_version_of () {
@@ -668,13 +694,13 @@ parse_arguments () {
 			master_FLAG=1
 			case "$2" in
 				# 'master github' or 'master devNNN'
-				'-g'|'--github'|'github')
+				'-g' | '--github' | 'github' )
 					github_FLAG=1
 					;;
-				'-d'|'--dev-build')
+				'-d' | '--dev-build' )
 					dev_build_FLAG=1
 					;;
-				"${local_build_version}")
+				"$local_build_version" | "--skip-version=$local_build_version")
 					dont_have_to_update_FLAG=1
 					;;
 			esac
@@ -702,12 +728,16 @@ parse_arguments () {
 		'--help' | '-h' | *)
 			# here goes all other incorrect stuff
 			print_script_usage
-			exit "$exitcode_NOT_OK"
+			die
 			;;
 	esac
 }
 
 set_package_url_and_file () {
+	local github_download_url='http://github.com/minershive/hiveos-asic/archive/'
+	local our_server_download_url='http://download.hiveos.farm/_asic/repo/client/'
+
+	# holy guacamole
 	if [ "$master_FLAG" -eq 1 ]; then
 		release_version_to_install='master'
 		package_file_to_download='master.tar.gz'
@@ -725,7 +755,19 @@ set_package_url_and_file () {
 		release_version_to_install="$remote_release_version"
 		package_file_to_download="v${release_version_to_install}.tar.gz"
 	fi
-	package_file_url="http://github.com/minershive/hiveos-asic/archive/${package_file_to_download}"
+
+	package_file_url="${github_download_url}${package_file_to_download}"
+
+	if [ "$github_FLAG" -eq 1 ]; then
+		package_file_to_download='/nvdata/latest.tar.gz'
+		# package_file_url already defined up there in master_FLAG section
+	fi
+
+	if [ "$dev_build_FLAG" -eq 1 ]; then
+		package_file_to_download='/nvdata/latest.tar.gz'
+		package_file_url="${our_server_download_url}master-dev.tar.gz"
+	fi
+
 }
 
 print_update_info () {
@@ -749,8 +791,7 @@ print_update_info () {
 			echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
 			echo
 			echo -e "${WHITE}Hint:${NOCOLOR} you can run ${CYAN}$script_basename --force${NOCOLOR} or ${CYAN}$script_basename 0.1-13 --force${NOCOLOR} to force update"
-			echo
-			exit $repo_connectivity_status_exitcode
+			exit "$repo_connectivity_status_exitcode" # die() isn't suitable here
 		fi
 	else
 		if [ -z "$user_defined_version_ARG" ]; then
@@ -903,16 +944,14 @@ execute_install_routine () {
 			echo '                   https://t.me/hiveonasic'
 			echo '                   bee@hiveos.farm'
 			echo
-			exit "$exitcode_NOT_OK"
+			die '' "$exitcode_NOT_OK"
 			;;
 	esac
 }
 
 exit_if_no_repository_available () {
 	if [ "$repo_connectivity_status_exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
-		echo
-		echo "ERROR: Can't get current version from repository. Check your internet connection."
-		exit $repo_connectivity_status_exitcode
+		die "ERROR: Can't get current version from repository. Check your internet connection." "$repo_connectivity_status_exitcode"
 	fi
 }
 
@@ -978,7 +1017,12 @@ parse_arguments "$@"
 set_package_url_and_file
 print_update_info
 set_temp_dir
-remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" "$package_file_to_download" /nvdata/nohup.out
+
+remove_needless_files "${temp_dir}/hive/*" "${temp_dir}/hiveos-asic*" "${temp_dir}/$script_basename" "${temp_dir}/master.tar.gz" "${temp_dir}/v*.tar.gz" /nvdata/nohup.out
+# temporary fix, might work this out later
+if [ "$github_FLAG" -eq 0 ] && [ "$dev_build_FLAG" -eq 0 ]; then
+	remove_needless_files "$package_file_to_download"	
+fi
 
 execute_install_routine
 
