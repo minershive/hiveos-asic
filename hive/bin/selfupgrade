@@ -215,6 +215,7 @@ install_antminer_Z9_cgminer () { # cgminer, / - rw, no cron
 		mkdir /config/hive
 	fi
 	tar -xzv -f "$package_file_to_download"								|| die "  Error extracting $package_file_to_download"
+	[ -e "hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole" ] && rm -rf "hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole" #for old release
 	cp -rf "hiveos-asic-${release_version_to_install}/"* /config/hive/	|| die '  Error copying to /config/hive/'
 	rm "$package_file_to_download"
 
