@@ -64,6 +64,7 @@ get_asic_model () {
 	# Todek Toddminer C1
 	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
 		ASIC_MODEL='Toddminer C1'
+		[[ "`/home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c pro`" -eq 1 ]] && ASIC_MODEL="$ASIC_MODEL PRO"
 	fi
 
 	# final
@@ -384,6 +385,7 @@ set_asic_constants() {
 			CONFIG_PATH='/flask/sysconf/config/config.json'
 			HASH='ghs'
 			MAX_FAN_RPM='7000'
+			[[ "$ASIC_MODEL" =~ "PRO" ]] && FANS_COUNT_DEFAULT='4'
 			;;
 
 		'Blackminer F1'* )

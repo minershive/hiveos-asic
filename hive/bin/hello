@@ -71,7 +71,7 @@ mb_manufacturer=
 
 if [[ -e /home/sm/miner/build/cpuminer && -e /flask/setHashinJson ]]; then
 	mb_manufacturer='Todek'
-	mb_product='Toddminer C1'
+	mb_product=$ASIC_MODEL
 elif [[ -e /usr/bin/compile_time ]]; then
 	mb_manufacturer='Bitmain'
 	mb_product="$( sed -n 2p /usr/bin/compile_time )"
@@ -96,7 +96,7 @@ fi
 
 boot_POSIX_time=$(( $( date +%s ) - $( cat /proc/uptime | awk '{printf "%u", $1}' ) ))
 
-if [[ "$mb_product" == 'Toddminer C1' ]]; then
+if [[ "$mb_product" =~ 'Toddminer C1' ]]; then
 	ips_json="[\""`ifconfig eth0 | grep 'inet ' | awk '{ print $2 }'`"\"]"
 	net_interfaces_json=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | grep -v sit0 | awk '{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq -sc .`
 else
@@ -217,7 +217,11 @@ case "$mb_product" in
 	'Toddminer C1')
 		asic_chain_count=3
 		asic_json="$( /home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $3}' |
-												  jq -R . | jq -s '{"firmware": .[0], "model": "Toddminer C1", "logic_version": .[0]}'			)";;
+					jq -R . | jq -s '{"firmware": .[0], "model": "Toddminer C1", "logic_version": .[0]}'			)";;
+	'Toddminer C1 PRO')
+		asic_chain_count=3
+		asic_json="$( /home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $4}' |
+					 jq -R . | jq -s '{"firmware": .[0], "model": "Toddminer C1 PRO", "logic_version": .[0]}'			)";;
 esac
 
 
