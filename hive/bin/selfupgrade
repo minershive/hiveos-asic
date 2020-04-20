@@ -396,11 +396,11 @@ install_todd () {
 
 	sleep 2
 
-	sudo cp -rf /hive/share/zig/crontab.root /etc/cron.d/hive
+	cp -rf /hive/share/zig/crontab.root /etc/cron.d/hive
 	cp -rf /home/root/.profile /etc/profile.d/hive.sh
-	sudo /etc/init.d/cron restart
-	sudo apt update
-	sudo apt install -y curl screen jq dnsutils
+	/etc/init.d/cron restart
+	apt update
+	apt install -y curl screen jq dnsutils
 	sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' "/hive/bin/$script_basename"
 	export PATH=$PATH:/hive/bin:/hive/sbin
 	export LD_LIBRARY_PATH=/hive/lib
