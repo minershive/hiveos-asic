@@ -107,6 +107,7 @@ miner_stat(){
 			local hs_tmp=`echo ${hs[$i]} | awk '{ printf "%.0f",$1 }'`
 			if [[ "$hs_tmp" -eq $ERROR_HS ]]; then # board not mining
 			    hs[$i]=0
+			    hs_tmp=0
 			fi
 			acc[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'ACC=' | sed -e 's/.*=//'`
 			rej[$i]=`echo "$stats_raw" | tr ';' '\n' | grep -m1 'REJ=' | sed -e 's/.*=//'`
