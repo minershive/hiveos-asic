@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.14.24'
+readonly script_version='0.14.25'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -59,8 +59,10 @@ die () {
 
 is_curl_available () {
 	case "$ASIC_MODEL" in
-		'Zig Z1' | 'Zig Z1+' | 'Toddminer C1')	false	;;
-		*)										true	;;
+		'Zig Z1' | 'Zig Z1+' )
+			false	;;
+		*)
+			true	;;
 	esac
 }
 
@@ -538,9 +540,10 @@ get_asic_model () {
 		fi
 	fi
 
-	# Todek Toddminer C1
+	# Todek Toddminer C1 / C1 PRO
 	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
 		ASIC_MODEL='Toddminer C1'
+		[[ "`/home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c pro`" -eq 1 ]] && ASIC_MODEL="$ASIC_MODEL PRO"
 	fi
 
 	# final
