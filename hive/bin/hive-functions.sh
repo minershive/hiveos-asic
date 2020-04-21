@@ -6,11 +6,12 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
 #
+# Linted by shellcheck 0.3.7
+#
 
 
-#
-# Client for ASICs: Oh my handy little functions
-#
+declare -r library_mission='Client for ASICs: Oh my handy little functions'
+declare -r library_version='0.1.7'
 
 
 # !!! bash strict mode, no unbound variables
@@ -19,7 +20,7 @@
 
 
 #
-# script infrastructure
+# functions: script infrastructure
 #
 
 function print_script_version {
@@ -64,7 +65,41 @@ function debugcho {
 
 
 #
-# conditionals
+# functions: audit
+#
+# we need to audit externally--does the script work as intended or not (like the system returns exitcode "file not found")
+# [[ $( script_to_audit ) != 'I AM FINE' ]] && echo "Something wrong with $script_to_check"
+#
+
+function print_i_am_doing_fine_then_exit () {
+	#
+	# Usage: print_i_am_fine_and_exit
+	#
+
+	# code
+
+	echo "$__audit_ok_string"
+	exit $(( exitcode_OK ))
+}
+
+function is_script_exist_and_doing_fine {
+	#
+	# Usage: is_script_exist_and_doing_fine
+	#
+
+	# args
+
+	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r script_name="${1-}"
+
+	# code
+
+	is_program_in_the_PATH "$script_name" && [[ "$( "$script_name" --audit )" == "$__audit_ok_string" ]]
+}
+
+
+#
+# functions: conditionals
 #
 
 function iif {
@@ -147,7 +182,7 @@ function is_function_exist {
 
 
 #
-# text
+# functions: text
 #
 
 function strip_ansi {
@@ -182,7 +217,7 @@ function strip_ansi {
 
 
 #
-# math
+# functions: math
 #
 
 function calculate_percent_from_number {
@@ -203,9 +238,25 @@ function calculate_percent_from_number {
 	printf '%.0f\n' "$((10**9 * (number * percent) / 100 ))e-9" # yay, neat trick
 }
 
+function set_bits_by_mask {
+	#
+	# Usage: set_bits_by_mask 'variable_by_ref' 'bitmask_by_ref'
+	#
+	
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n variable_by_ref="${1-}"
+	local -r -n bitmask_by_ref="${2-}"
+
+	# code
+
+	(( variable_by_ref |= bitmask_by_ref )) # bitwise OR
+}
+
 
 #
-# files
+# functions: files
 #
 
 function get_file_last_modified_time_in_seconds {
@@ -260,7 +311,7 @@ function get_file_size_in_bytes {
 
 
 #
-# date & time
+# functions: date & time
 #
 
 function get_current_system_time_in_seconds {
@@ -394,13 +445,16 @@ function snore {
 
 	# code
 
+	# shellcheck disable=SC1083
+	# ...man bash:
+	# Each redirection that may be preceded by a file descriptor number may instead be preceded by a word of the form {varname}.
 	[[ -n "${__snore_fd:-}" ]] || exec {__snore_fd}<> <(:)
 	read -r -t "${sleep_time}" -u "$__snore_fd" || :
 }
 
 
 #
-# strings
+# functions: strings
 #
 
 function get_substring_position_in_string {
@@ -432,7 +486,7 @@ function get_substring_position_in_string {
 
 
 #
-# processes
+# functions: processes
 #
 
 function pgrep_count {
@@ -485,7 +539,7 @@ function pgrep_quiet {
 
 
 #
-# the last: function lister
+# the last: functions lister
 #
 
 function __list_functions {
@@ -532,6 +586,7 @@ function __list_functions {
 
 # consts
 
+declare -r __audit_ok_string='I AM DOING FINE'
 # shellcheck disable=SC2034
 declare -r -i exitcode_OK=0
 declare -r -i exitcode_ERROR_NOT_FOUND=1
@@ -544,8 +599,8 @@ declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 
 if ! ( return 0 2>/dev/null ); then # not sourced
 
-	declare -r script_mission='Client for ASICs: Oh my handy little functions'
-	declare -r script_version='0.1.5'
+	declare -r script_mission="$library_mission"
+	declare -r script_version="$library_version"
 
 	case "$*" in
 		'')
