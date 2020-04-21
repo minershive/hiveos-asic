@@ -6,10 +6,12 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
 #
+# Linted by shellcheck 0.3.7
+#
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.22'
+readonly script_version='1.0.23'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -65,11 +67,11 @@ parse_arguments () {
 		case "$argument" in
 			'-f'|'--force-download')
 				echo_info 'Force download mode ON'
-				force_download=1
+				force_download_FLAG=1
 				;;
 			'-d'|'--force-deploy')
 				echo_info 'Force deployment mode ON'
-				force_deploy=1
+				force_deploy_FLAG=1
 				;;
 			'')
 				: ok good to go
@@ -82,6 +84,15 @@ parse_arguments () {
 		esac
 		shift
 	done
+
+	if [ -f "$dev_build_file" ]; then # how'd you like a secret stuff
+		# unconditional deploy with latest dev build
+		remote_package_filename="$dev_build_package_filename"
+		dev_build_FLAG=1
+		force_download_FLAG=1
+		force_deploy_FLAG=1
+		echo_info 'good to know that the reptilians controlling the world, eh?'
+	fi
 }
 
 download_from_URL_to_file () {
@@ -96,14 +107,14 @@ download_from_URL_to_file () {
 
 	# vars
 
-	curl_output=''
+	local curl_output=''
 
 	# code
 
 	echo_action "Downloading $output_file"
 	if ! curl_output="$( curl --insecure --location --fail --silent --show-error --output "$output_file" "$URL" 2>&1 )"; then
-		echo_info "$URL failed to download"
 		echo_info "$curl_output"
+		echo_info "$URL failed to download"
 		return 1
 	else
 		echo_info "Downloaded OK"
@@ -136,9 +147,11 @@ check_gz_integrity () {
 	fi
 }
 
-get_file_at_any_cost () {
+get_tar_gz_at_any_cost () {
 	#
-	# Usage: get_file_at_any_cost 'URL' 'output_file'
+	# Usage: get_tar_gz_at_any_cost 'URL' 'output_file'
+	#
+	# overwrites output file only on success
 	#
 
 	# args
@@ -149,6 +162,7 @@ get_file_at_any_cost () {
 	# consts
 
 	local retries_limit=15 # max.time from 10m to 60m
+	local temporary_file="${output_file}.S69download"
 
 	# vars
 
@@ -162,11 +176,13 @@ get_file_at_any_cost () {
 	base_snooze_time="$( get_random_number_between 5 30 )"
 	echo_action "Wait for random ${base_snooze_time}s (make it easier for a bulk update)"
 	sleep "$base_snooze_time"
-	base_snooze_time="$( get_random_number_between 5 30 )" # srand() again -- more random
+	base_snooze_time="$( get_random_number_between 5 30 )" # srand() again -- a better randomness
 
-	until download_from_URL_to_file "$URL" "$output_file" && check_gz_integrity "$output_file"; do
+	until download_from_URL_to_file "$URL" "$temporary_file" && check_gz_integrity "$temporary_file"; do
 		if [ "$retries_counter" -ge "$retries_limit" ]; then
+			# return false
 			echo_info "No success, $retries_counter attempts were made in ${snooze_counter}s"
+			[ -f "$temporary_file" ] && rm "$temporary_file"
 			return 1
 		fi
 		# shellcheck disable=SC2039
@@ -176,6 +192,10 @@ get_file_at_any_cost () {
 		echo_info "Take a break. Attempt #${retries_counter} in ${snooze_time}s..."
 		sleep "$snooze_time"
 	done
+
+	cp -rf "$temporary_file" "$output_file"
+	rm "$temporary_file"
+	sync
 
 	return 0
 }
@@ -193,7 +213,9 @@ set_download_server_URL () {
 
 	# code
 
-	# try whitelabel file
+	[ "$dev_build_FLAG" -eq 1 ] && return
+	
+	# 1. try whitelabel file
 	for whitelabel_download_server_URL_file in $whitelabel_download_server_URL_files_collection; do
 		if [ -s "$whitelabel_download_server_URL_file" ]; then
 			download_server_URL="$( cat "$whitelabel_download_server_URL_file" )"
@@ -201,14 +223,15 @@ set_download_server_URL () {
 		fi
 	done
 
-	# try HIVE_HOST_URL file
+	# 2. try HIVE_HOST_URL file
 	if [ -s "$HIVE_HOST_URL_file" ]; then
 		# replace 'api.' with 'download.'
+		# !!! potential problem: API server with a pure IP address
 		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
 		echo_info "Server URL found in $HIVE_HOST_URL_file: $download_server_URL"
 	fi
 
-	# refining
+	# url refining
 	case "$download_server_URL" in
 		*'download'*)
 			: ok good to go
@@ -218,7 +241,7 @@ set_download_server_URL () {
 			download_server_URL="$default_download_server_URL"
 			;;
 		*)
-			echo_info "Invalid server URL: $download_server_URL, using default $default_download_server_URL"
+			echo_info "Invalid server URL '$download_server_URL', using default $default_download_server_URL"
 			download_server_URL="$default_download_server_URL"
 			;;
 	esac
@@ -232,22 +255,16 @@ deploy_hive () {
 	# vars
 
 	local full_URL=''
+	local tar_output=''
 
 	# code
 
-	echo_action 'Hive deployment started in the background'
+	echo_action 'Hive deployment launched in the background'
 
-	if [ "$force_download" -eq 1 ] || [ ! -e "$persistent_package_filename" ] || ! gunzip -tf "$persistent_package_filename" >/dev/null 2>&1; then
+	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename" ] || ! gunzip -tf "$persistent_package_filename" >/dev/null 2>&1; then
 		set_download_server_URL
 		full_URL="${download_server_URL}${remote_package_filename}"
-
-		if ! get_file_at_any_cost "$full_URL" "$temporary_package_filename"; then
-			die "Error downloading $temporary_package_filename, exiting"
-		fi
-
-		cp -rf "$temporary_package_filename" "$persistent_package_filename"
-		sync
-		[ -f "$temporary_package_filename" ] && rm "$temporary_package_filename"
+		get_tar_gz_at_any_cost "$full_URL" "$persistent_package_filename" || die "Error downloading $persistent_package_filename, exiting"
 	fi
 
 	if [ ! -d /config/hive ]; then
@@ -257,7 +274,7 @@ deploy_hive () {
 	echo_action "Extracting $persistent_package_filename"
 
 	cd "$NVRAM_path"
-	tar -xzv -f "$persistent_package_filename" || die "Error extracting $persistent_package_filename, exiting"
+	tar_output="$( tar -xzv -f "$persistent_package_filename" 2>&1 )" || die "${tar_output}\n\nError extracting $persistent_package_filename, exiting"
 
 	[ -L /hive ] && rm /hive
 	[ -f "$dev_build_file" ] && rm "$dev_build_file"
@@ -268,9 +285,7 @@ deploy_hive () {
 
 	echo_action 'Copying finished, removing temporary files'
 	#rm "$persistent_package_filename"
-	if rm -rf hiveos-asic* ; then
-		echo_info 'Temporary files removed'
-	else
+	if ! rm -rf hiveos-asic* ; then
 		echo_info 'Temporary files removing error'
 	fi
 
@@ -290,7 +305,7 @@ boot_hive () {
 	# Usage: boot_hive &
 	#
 
-	echo_action 'Hive boot started in the background'
+	echo_action 'Hive boot launched in the background'
 
 	# $FARM_HASH can be defined externally
 	if [ -s "$FARM_HASH_file" ]; then
@@ -300,7 +315,7 @@ boot_hive () {
 		rm "$FARM_HASH_file"
 	fi
 
-	/hive/bin/hive > /tmp/hive-boot.log
+	/hive/bin/hive > /tmp/hive-boot.log 2>&1
 	echo_info 'Hive boot starting done'
 }
 
@@ -308,29 +323,25 @@ boot_hive () {
 # global consts
 
 readonly NVRAM_path='/nvdata'
-readonly temporary_package_filename="${NVRAM_path}/latest_new.tar.gz"
 readonly persistent_package_filename="${NVRAM_path}/latest.tar.gz"
 readonly dev_build_file="${NVRAM_path}/dev-build"
 
 readonly FARM_HASH_file='/config/FARM_HASH'
 readonly HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
 
-readonly whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url'
+readonly whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url' # space-delimited collection
 readonly default_download_server_URL='http://download.hiveos.farm'
 
-if [ -f "$dev_build_file" ]; then
-	readonly remote_package_filename='/_asic/repo/client/master-dev.tar.gz'
-	echo_info 'good to know that the reptilians controlling the world, eh?'
-else
-	readonly remote_package_filename='/asic/repo/s9/latest'
-fi
+readonly stable_package_filename='/asic/client/latest.tar.gz'
+readonly dev_build_package_filename='/_asic/client/latest.tar.gz'
 
 
 # global vars
 
 download_server_URL="$default_download_server_URL"
-force_download=0
-force_deploy=0
+remote_package_filename="$stable_package_filename"
+force_download_FLAG=0
+force_deploy_FLAG=0
 
 
 # global exports
@@ -345,7 +356,9 @@ trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
 
 parse_arguments "$@"
 
-if [ -e /hive ] && [ "$force_deploy" -ne 1 ]; then
+echo_action "${script_version} started"
+
+if [ -e /hive ] && [ "$force_deploy_FLAG" -ne 1 ]; then
 	boot_hive &
 else
 	deploy_hive &
