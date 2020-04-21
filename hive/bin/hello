@@ -124,6 +124,7 @@ fi
 hive_version="$( < /hive/etc/VERSION )"
 #hive_version=`dpkg -s hive | grep '^Version: ' | sed 's/Version: //'`
 
+#Hiveon only
 [[ -e /usr/bin/compile_ver && -e /var/log/log ]] && MODELH_detected="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
 
 # ???
@@ -155,7 +156,7 @@ fi
 
 if [[ -n "$MODELH_detected" ]]; then
 	sed "2s/.*/${MODELH_detected} Hiveon/" -i /usr/bin/compile_ver
-	sed "2s/.*/${MODELH_detected}/" -i /usr/bin/compile_time
+	sed "2s/.*/${MODELH_detected} Hiveon/" -i /usr/bin/compile_time
 fi
 
 
