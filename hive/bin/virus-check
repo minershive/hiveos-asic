@@ -6,11 +6,14 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
 #
+# Linted by shellcheck 0.3.7
+#
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.4.8'
+readonly script_version='0.4.9'
 readonly script_basename="$( basename "$0" )"
+readonly DEBUG=0
 
 
 # !!! bash strict mode, no unbound variables
@@ -20,22 +23,20 @@ set -o nounset
 
 # functions
 
-function print_script_version {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
-	echo
-}
-
 function print_script_usage {
 	echo -e "Usage: ${CYAN-}${script_basename} [--nocolor] [-s|--silent]${NOCOLOR-}"
 	echo
-	echo -e "       ${WHITE-}--nocolor${NOCOLOR-}       b/w mode"
-	echo -e "       ${WHITE-}-s${NOCOLOR-}, ${WHITE-}--silent${NOCOLOR-}    prints nothing, returns exit code"
+	echo -e "  ${WHITE-}--nocolor${NOCOLOR-}       b/w mode"
+	echo -e "  ${WHITE-}-s${NOCOLOR-}, ${WHITE-}--silent${NOCOLOR-}    prints nothing, returns exit code"
 	echo
 }
 
 function parse_arguments {
 	for ARG in "$@"; do
 		case "$ARG" in
+			'--audit')
+				print_i_am_doing_fine_then_exit
+				;;
 			'--nocolor')
 				is_colors=0
 				;;
@@ -46,7 +47,8 @@ function parse_arguments {
 				source colors
 				print_script_version
 				print_script_usage
-				exit 0
+				# shellcheck disable=SC2154
+				exit $(( exitcode_OK ))
 				;;
 		esac
 	done
@@ -73,8 +75,8 @@ function check_ntpd_size {
 		if (( ntpd_size < 500000 )); then
 			pretty_print "$label_text" "${GREEN-}" "looks ok, size $ntpd_size less than 0.5 Mb"
 		else
-			pretty_print "$label_text" "${BRED-}" "very suspicious! size $ntpd_size greater than 0.5 Mb"
-			is_virus_found=1
+			pretty_print "$label_text" "${BYELLOW-}" "very suspicious! size $ntpd_size greater than 0.5 Mb"
+			set_bits_by_mask audit_status status_WARNING
 		fi
 	else
 		pretty_print "$label_text" "${GRAY-}" "/usr/bin/ntpd not found (it's ok)"
@@ -86,30 +88,49 @@ function check_nightswitcher {
 
 	if [[ -e /config/bNminer.conf ]]; then
 		pretty_print "$label_text" "${BRED-}" 'virus signature found: /config/bNminer.conf'
-		is_virus_found=1
+		set_bits_by_mask audit_status status_DANGER
 	else
 		pretty_print "$label_text" "${GREEN-}" 'not found'
 	fi
 }
 
-function check_antbuild_old {
-	# deprecated
+function check_antbuild_old { # not used
+
+	# consts
+
 	local -r label_text='Virus: Antbuild'
+
+	# vars
+
+	local -i status_bitmask
+	local message_color
+
+	# code
+
+	if [[ -n "$HIVEON_VER" ]]; then
+		status_bitmask=$(( status_WARNING ))
+		message_color="${BYELLOW-}"
+	else
+		status_bitmask=$(( status_DANGER ))
+		message_color="${BRED-}"
+	fi
 
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
 		# old1
-		pretty_print "$label_text" "${BRED-}" "v2 (uncured) found"
-		is_virus_found=1
+		pretty_print "$label_text" "$message_color" "v2 (uncured) found"
+		# shellcheck disable=SC2034
+		set_bits_by_mask audit_status status_bitmask
 	else
 		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
 				# old2
-				pretty_print "$label_text" "${BRED-}" "v1 (cured) found"
-				is_virus_found=1
+				pretty_print "$label_text" "$message_color" "v1 (cured) found"
+				set_bits_by_mask audit_status status_bitmask
 		else
+			# shellcheck disable=SC2076
 			if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
 				# new
-				pretty_print "$label_text" "${BRED-}" "v2 found"
-				is_virus_found=1
+				pretty_print "$label_text" "$message_color" "v2 found"
+				set_bits_by_mask audit_status status_bitmask
 			else
 				pretty_print "$label_text" "${GREEN-}" "not found"
 			fi
@@ -118,29 +139,51 @@ function check_antbuild_old {
 }
 
 function check_antbuild {
+
+	# consts
+
 	local -r label_text='Virus: Antbuild'
+
+	# vars
+
+	local -i status_bitmask
+	local message_color hiveon_specific_message
+
+	# code
+
+	if [[ -n "$HIVEON_VER" ]]; then
+		status_bitmask=$(( status_WARNING ))
+		message_color="${BYELLOW-}"
+		hiveon_specific_message="Virus blocked by Hiveon firmware."
+	else
+		# shellcheck disable=SC2034
+		status_bitmask=$(( status_DANGER ))
+		message_color="${BRED-}"
+		hiveon_specific_message=''
+	fi
 
 	# old1
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
-		pretty_print "$label_text" "${BRED-}" "v2 (uncured) found"
-		is_virus_found=1
+		pretty_print "$label_text" "$message_color" "v2 (uncured) found. $hiveon_specific_message"
+		set_bits_by_mask audit_status status_bitmask
 	fi
 
 	# old2
 	if is_program_in_the_PATH 'cksum'; then
 		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
-			pretty_print "$label_text" "${BRED-}" "v1 (cured) found. It's ok -- virus blocked by firmware."
-			is_virus_found=1
+			pretty_print "$label_text" "$message_color" "v1 (cured) found. $hiveon_specific_message"
+			set_bits_by_mask audit_status status_bitmask
 		fi
 	fi
 
 	# new
+	# shellcheck disable=SC2076
 	if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
-		pretty_print "$label_text" "${BRED-}" "v2 found"
-		is_virus_found=1
+		pretty_print "$label_text" "$message_color" "v2 found. $hiveon_specific_message"
+		set_bits_by_mask audit_status status_bitmask
 	fi
 
-	if (( ! is_virus_found )); then
+	if (( ! audit_status )); then
 		pretty_print "$label_text" "${GREEN-}" "not found"
 	fi
 }
@@ -151,7 +194,7 @@ function check_bitmsfser_info {
 
 	if grep -Fqsm 1 "$virus_signature" /etc/hosts; then
 		pretty_print "$label_text" "${BRED-}" 'virus signature found in /etc/hosts'
-		is_virus_found=1
+		set_bits_by_mask audit_status status_DANGER
 	else
 		pretty_print "$label_text" "${GREEN-}" 'not found'
 	fi
@@ -169,13 +212,13 @@ function check_shady_files {
 
 	for file in "${shady_files[@]}"; do
 		if [[ -e "$file" ]]; then
-			pretty_print "$label_text" "${BRED-}" "$file found"
+			pretty_print "$label_text" "${BYELLOW-}" "$file found"
 			(( shady_counter++ ))
 		fi
 	done
 
 	if (( shady_counter )); then
-		is_virus_found=1
+		set_bits_by_mask audit_status status_WARNING
 	else
 		pretty_print "$label_text" "${GREEN-}" "not found"
 	fi
@@ -195,7 +238,7 @@ function print_diagnostic {
 		if [[ -s "$file" ]]; then
 			size="$( get_file_size_in_bytes "$file" )"
 			md5_string=( $( md5sum "$file" ) )
-			printf '%bmd5 %s, size %ub, file %-30.30s%b\n' "${GRAY-}" "${md5_string}" "${size}" "${file}" "${NOCOLOR-}"
+			printf '%bmd5 %s, size %ub, file %-30.30s%b\n' "${GRAY-}" "${md5_string[0]}" "${size}" "${file}" "${NOCOLOR-}"
 		fi
 	done
 	echo
@@ -208,10 +251,12 @@ function print_diagnostic {
 
 function bottom_line {
 	echo
-	if (( is_virus_found )); then
-		pretty_print "ASIC STATUS" "${BRED-}" "IN DANGER"
+	if (( audit_status == status_OK)); then
+		pretty_print "ASIC STATUS" "${BGREEN-}" 'OK'
+	elif (( audit_status == status_WARNING )); then
+		pretty_print "ASIC STATUS" "${BYELLOW-}" 'VULNERABILITY DETECTED'
 	else
-		pretty_print "ASIC STATUS" "${BGREEN-}" "OK"
+		pretty_print "ASIC STATUS" "${BRED-}" 'IN DANGER'
 	fi
 	echo
 	echo
@@ -221,17 +266,24 @@ function bottom_line {
 # global consts
 
 declare -r label_format='-25.25'
+declare -r -i status_OK=0
+declare -r -i status_WARNING=$(( 10#01 )) # 10#1
+declare -r -i status_DANGER=$(( 10#10 )) # 10#2, status_DANGER+status_WARNING=3
 
 
 # global sources
 
 source asic-model
-source /hive/bin/hive-functions.sh
+if (( DEBUG )); then
+	source hive-functions.sh
+else
+	source /hive/bin/hive-functions.sh
+fi
 
 
 # global vars
 
-declare -i is_virus_found=0
+declare -i audit_status=$(( status_OK ))
 declare -i is_silent=0
 declare -i is_colors=1
 
@@ -245,7 +297,7 @@ if (( ! is_silent )); then
 	print_script_version
 fi
 
-case "$ASIC_MODEL" in
+case "${ASIC_MODEL-}" in
 	'Antminer'* |'Minecenter S'*)
 		check_ntpd_size
 		check_nightswitcher
@@ -263,7 +315,7 @@ case "$ASIC_MODEL" in
 		;;
 esac
 
-exit $(( is_virus_found ))
+exit $(( audit_status ))
 
 #
 # md5 library
