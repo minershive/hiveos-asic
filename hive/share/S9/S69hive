@@ -49,4 +49,4 @@ if [ ! -e /hive ]; then
 fi
 
 
-/hive/bin/hive > /tmp/hive-boot.log
+/hive/bin/hive > /tmp/hive-boot.log 2>&1

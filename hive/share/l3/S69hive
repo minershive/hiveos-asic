@@ -20,7 +20,7 @@ boot_h () {
         rm /config/FARM_HASH
     fi
 
-    /hive/bin/hive > /tmp/hive-boot.log
+    /hive/bin/hive > /tmp/hive-boot.log 2>&1
 }
 
 check_h () {
