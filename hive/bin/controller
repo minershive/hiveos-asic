@@ -7,10 +7,12 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
 #
+# Linted by shellcheck 0.3.7
+#
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.6'
+readonly script_version='2.1.7'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -28,8 +30,8 @@ function print_script_usage {																		(( script_debug )) && debugcho
 
 	echo -e "Usage: ${CYAN-}${script_basename} [log [all]]${NOCOLOR-}"
 	echo
-	echo -e "       ${WHITE-}log${NOCOLOR-}     - show only errors/warnings from log and exit"
-	echo -e "       ${WHITE-}log all${NOCOLOR-} - show all last $log_lines_to_tail lines from log and exit"
+	echo -e "  ${WHITE-}log${NOCOLOR-}        show only errors/warnings from log and exit"
+	echo -e "  ${WHITE-}log all${NOCOLOR-}    show *all* last $log_lines_to_tail lines from log and exit"
 	echo
 }
 
@@ -821,23 +823,55 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 
 	# templates
 
-	local -r event_type_for_log='error'			# error|warning|info
-	local -r event_type_for_message='error'		# error|warning|info|success
+	local -r event_type_for_log_DANGER='error'			# error|warning|info
+	local -r event_type_for_message_DANGER='error'		# error|warning|info|success
+
+	local -r event_type_for_log_WARNING='warning'		# error|warning|info
+	local -r event_type_for_message_WARNING='warning'	# error|warning|info|success
 
 	# consts
 
-	local -r message_header='Virus signature found. Click to see detailed info'
+	local -r message_header_WARNING='Vulnerability report. Click to see detailed info'
+	local -r message_header_DANGER='Virus signature found. Click to see detailed info'
+
+	local -r tag_label_WARNING='vulnerability found'
+	local -r tag_label_DANGER='virus found'
 
 	# vars
 
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 	local -i is_virus_found=0
-	local virus_report
+	local virus_report message_header tag_label event_type_for_log event_type_for_message
 
 	# code
 
-	if ! is_program_in_the_PATH 'virus-check' > /dev/null; then
-		print_controller_log_entry "$event_type_for_log" "'virus-check' program not found"
+	if is_program_in_the_PATH 'virus-check'; then
+		if (( $( get_checkup_counter "$FUNCNAME" 'program_not_found' ) > 0 )); then
+			# one time action
+			print_controller_log_entry 'info' "'virus-check' program found again"
+			set_checkup_counter "$FUNCNAME" 'program_not_found' 0
+		fi
+	else
+		if (( $( get_checkup_counter "$FUNCNAME" 'program_not_found' ) == 0 )); then
+			# one time action
+			print_controller_log_entry 'error' "'virus-check' program not found"
+			set_checkup_counter "$FUNCNAME" 'program_not_found' 1
+		fi
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+
+	if is_script_exist_and_doing_fine 'virus-check'; then
+		if (( $( get_checkup_counter "$FUNCNAME" 'program_goes_bananas' ) > 0 )); then
+			# one time action
+			print_controller_log_entry 'info' "'virus-check' program back from bananaland"
+			set_checkup_counter "$FUNCNAME" 'program_goes_bananas' 0
+		fi
+	else
+		if (( $( get_checkup_counter "$FUNCNAME" 'program_goes_bananas' ) == 0 )); then
+			# one time action
+			print_controller_log_entry 'error' "'virus-check' program goes bananas"
+			set_checkup_counter "$FUNCNAME" 'program_goes_bananas' 1
+		fi
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
 
@@ -845,16 +879,32 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 	is_virus_found=$?
 
 	if (( is_virus_found )); then
-		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		print_controller_log_entry "$event_type_for_log" "$message_header"
-		if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
+		case $(( is_virus_found )) in
+			1) # warning
+				event_type_for_message="$event_type_for_message_WARNING"
+				event_type_for_log="$event_type_for_log_WARNING"
+				message_header="$message_header_WARNING"
+				tag_label="$tag_label_WARNING"
+				;;
+			2|3) # danger | warning+danger
+				event_type_for_message="$event_type_for_message_DANGER"
+				event_type_for_log="$event_type_for_log_DANGER"
+				message_header="$message_header_DANGER"
+				tag_label="$tag_label_DANGER"
+				;;
+		esac
+		if (( $( get_checkup_counter "$FUNCNAME" 'message_sent' ) == 0 )); then
+			# !!! flaw: if another virus will arise, no message will be sent till reboot
+			# one time action
+			print_controller_log_entry "$event_type_for_log" "$message_header"
 			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" payload; echo )
 			if (( assign_tag_to_worker )); then
-				message tag 'virus found'
+				message tag "$tag_label"
 				echo
 			fi
 			set_checkup_counter "$FUNCNAME" 'message_sent' 1
 		fi
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
 
 	return $(( is_something_happened ))
@@ -878,21 +928,24 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 
 	# code
 
-	for directory_to_check in "${directories_on_NAND[@]}"; do
-		if [[ -d "$directory_to_check" ]]; then
-			if temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
-				rm -rf "$temp_file"
-			else
-				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-				message_header="$directory_to_check switched to read-only mode, please check"
-				print_controller_log_entry "$event_type_for_log" "$message_header"
-				if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
+	if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
+		# one time action
+		for directory_to_check in "${directories_on_NAND[@]}"; do
+			if [[ -d "$directory_to_check" ]]; then
+				if temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
+					rm -rf "$temp_file"
+				else
+					message_header="$directory_to_check switched to read-only mode, please check"
+					print_controller_log_entry "$event_type_for_log" "$message_header"
 					message "$event_type_for_message" "$message_header"
 					set_checkup_counter "$FUNCNAME" 'message_sent' 1
+					is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				fi
 			fi
-		fi
-	done
+		done
+	else
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+	fi
 
 	return $(( is_something_happened ))
 }
