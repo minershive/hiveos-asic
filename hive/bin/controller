@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.7'
+readonly script_version='2.1.8'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -644,6 +644,7 @@ function print_controller_log_entry {																(( script_debug )) && debug
 		printf  '%-19.19s %-13.13s %b\n' "$timestamp_in_plaintext" "$event_type" "$log_message"
 	fi
 
+	return $(( exitcode_OK ))
 }
 
 function shrink_system_logs {																		(( script_debug )) && debugcho
@@ -925,6 +926,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 
 	local directory_to_check message_header temp_file
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+	local -i write_failed_FLAG=0
 
 	# code
 
@@ -932,9 +934,18 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 		# one time action
 		for directory_to_check in "${directories_on_NAND[@]}"; do
 			if [[ -d "$directory_to_check" ]]; then
-				if temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
-					rm -rf "$temp_file"
+				# 1st check
+				if [[ ! -w "$directory_to_check" ]]; then
+					write_failed_FLAG=1
 				else
+					# 2nd check, just for sure
+					if ! temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
+						write_failed_FLAG=1
+					else
+						rm -rf "$temp_file"
+					fi
+				fi
+				if (( write_failed_FLAG )); then
 					message_header="$directory_to_check switched to read-only mode, please check"
 					print_controller_log_entry "$event_type_for_log" "$message_header"
 					message "$event_type_for_message" "$message_header"
@@ -1032,6 +1043,8 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 			reset_checkup_counter "${this_checkup}" 'idle'
 		done
 	fi
+
+	return $(( exitcode_OK )) # FIX: should not affect checkup_counters in any way
 }
 
 
