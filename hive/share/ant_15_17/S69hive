@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.23'
+readonly script_version='1.0.24'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -66,11 +66,9 @@ parse_arguments () {
 	for argument in "$@"; do
 		case "$argument" in
 			'-f'|'--force-download')
-				echo_info 'Force download mode ON'
 				force_download_FLAG=1
 				;;
 			'-d'|'--force-deploy')
-				echo_info 'Force deployment mode ON'
 				force_deploy_FLAG=1
 				;;
 			'')
@@ -82,11 +80,10 @@ parse_arguments () {
 				exit 1
 				;;
 		esac
-		shift
 	done
 
 	if [ -f "$dev_build_file" ]; then # how'd you like a secret stuff
-		# unconditional deploy with latest dev build
+		# unconditional download & deploy with latest dev build
 		remote_package_filename="$dev_build_package_filename"
 		dev_build_FLAG=1
 		force_download_FLAG=1
@@ -111,7 +108,7 @@ download_from_URL_to_file () {
 
 	# code
 
-	echo_action "Downloading $output_file"
+	echo_action "Downloading package to $output_file"
 	if ! curl_output="$( curl --insecure --location --fail --silent --show-error --output "$output_file" "$URL" 2>&1 )"; then
 		echo_info "$curl_output"
 		echo_info "$URL failed to download"
@@ -226,7 +223,7 @@ set_download_server_URL () {
 	# 2. try HIVE_HOST_URL file
 	if [ -s "$HIVE_HOST_URL_file" ]; then
 		# replace 'api.' with 'download.'
-		# !!! potential problem: API server with a pure IP address
+		# !!! potential problem: API server with a pure IP address + firewalled *.hiveos.farm
 		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
 		echo_info "Server URL found in $HIVE_HOST_URL_file: $download_server_URL"
 	fi
@@ -277,25 +274,25 @@ deploy_hive () {
 	tar_output="$( tar -xzv -f "$persistent_package_filename" 2>&1 )" || die "${tar_output}\n\nError extracting $persistent_package_filename, exiting"
 
 	[ -L /hive ] && rm /hive
-	[ -f "$dev_build_file" ] && rm "$dev_build_file"
-	rm -rf hiveos-asic-*/hive/sbin/teleconsole
+	rm -rf hiveos-asic-*/hive/sbin/teleconsole # remove the legacy before copying
 
-	echo_action 'Copying extracted files to /hive'
+	echo_action 'Copying extracted files to /hive and /home'
 	cp -rf hiveos-asic-*/hive / || die 'Error copying files to /hive, exiting'
+	cp -rf hiveos-asic-*/home / || die 'Error copying files to /home, exiting'
 
 	echo_action 'Copying finished, removing temporary files'
-	#rm "$persistent_package_filename"
-	if ! rm -rf hiveos-asic* ; then
-		echo_info 'Temporary files removing error'
-	fi
+	rm -rf hiveos-asic*  || echo_info 'Temporary files removing error'
+	[ -f "$dev_build_file" ] && rm "$dev_build_file"
 
 	sleep 2
 
 	[ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+
+	# took care of it a few lines up
 	#cp -rf /hive/share/S9/S69hive /etc/rcS.d/
-	cp -rf /hive/share/S9/.profile /home/root/
-	cp -rf /hive/share/S9/.screenrc /home/root/
+	#cp -rf /hive/share/S9/.profile /home/root/
+	#cp -rf /hive/share/S9/.screenrc /home/root/
 
 	boot_hive &
 }
@@ -340,6 +337,7 @@ readonly dev_build_package_filename='/_asic/client/latest.tar.gz'
 
 download_server_URL="$default_download_server_URL"
 remote_package_filename="$stable_package_filename"
+dev_build_FLAG=0
 force_download_FLAG=0
 force_deploy_FLAG=0
 
@@ -356,10 +354,12 @@ trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
 
 parse_arguments "$@"
 
-echo_action "${script_version} started"
+echo_action "$script_mission $script_version started"
 
 if [ -e /hive ] && [ "$force_deploy_FLAG" -ne 1 ]; then
 	boot_hive &
 else
+	[ "$force_download_FLAG" -eq 1 ] && echo_info 'Force download mode ON'
+	[ "$force_deploy_FLAG" -eq 1 ] && echo_info 'Force deployment mode ON'
 	deploy_hive &
 fi
