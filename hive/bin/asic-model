@@ -6,10 +6,13 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
 #
+# Linted by shellcheck 0.3.7
+#
 
 
+# defined in the main()
 #readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-#readonly script_version='1.0'
+#readonly script_version='1.1.0'
 #readonly script_basename="$( basename "$0" )"
 
 
@@ -20,33 +23,39 @@
 
 # functions
 
-get_asic_model () {
+function set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables {
 	#
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, please keep it in sync
 	#
-	local ASIC_MODEL=''
+	ASIC_MODEL='<unknown>'
+	ASIC_MANUFACTURER='<unknown>'
 
-	# Antminer
+	# Bitmain Antminer
 	if [ -s /usr/bin/compile_time ]; then
+		ASIC_MANUFACTURER='Bitmain'
 		ASIC_MODEL="$( sed -n '2p' /usr/bin/compile_time )"
 	fi
 
-	# Ebit
+	# Ebang Ebit
 	if [ -e /opt/system/bank.conf ]; then
+		ASIC_MANUFACTURER='Ebang'
 		ASIC_MODEL='ebit'
 	fi
 
 	# Innosilicon
 	if [ -e /etc/hwrevision ]; then
+		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cut -d' ' -f 2 /etc/hwrevision )"
 	elif [ -s /tmp/type ]; then
 		# Innosilicon A5/8
+		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cat /tmp/type ).$( cat /tmp/hwver )"
 	fi
 
-	# Zig
+	# Dayun Zig
 	if [ -s /var/www/html/src/Template/Layout/signin.twig ]; then
+		ASIC_MANUFACTURER='Dayun'
 		# Zig old firmware
 		ASIC_MODEL="$(
 			{
@@ -57,38 +66,41 @@ get_asic_model () {
 		)"
 		# Zig new firmware
 		if [ -s /var/www/html/TYPE ]; then
-			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )"
+			# shellcheck disable=SC2001
+			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )" #"# syntax highliting fix
 		fi
 	fi
 
 	# Todek Toddminer C1
 	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
+		ASIC_MANUFACTURER='Todek'
 		ASIC_MODEL='Toddminer C1'
-		[[ "`/home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c pro`" -eq 1 ]] && ASIC_MODEL="$ASIC_MODEL PRO"
+		[ "$( /home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c 'pro' )" -eq 1 ] && ASIC_MODEL="$ASIC_MODEL PRO"
 	fi
 
-	# final
-	if [ -n "$ASIC_MODEL" ]; then
-		echo "$ASIC_MODEL"
-	else
-		echo '<unknown model>'
-	fi
+	# Blackminer?
+	# ...
+	# ...
+	# ...
+	# ...
 }
 
-get_hiveon_version () {
+function set_HIVEON_VERSION_variable {
 	#
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, please keep it in sync
 	#
-	local HIVEON_VER=''
+	HIVEON_VER='' # deprecated in favor of the more clear HIVEON_VERSION
+	HIVEON_VERSION=''
 
 	if [ -s /usr/bin/compile_ver ]; then 
-		HIVEON_VER="$( cat /usr/bin/compile_ver | awk -F'@' 'NR==3 {print $1; exit}' )"
-		echo "$HIVEON_VER"
+		HIVEON_VERSION="$( awk -F'@' 'NR==3 {print $1; exit}' < /usr/bin/compile_ver )"
+		# shellcheck disable=SC2034
+		HIVEON_VER="$HIVEON_VERSION"
 	fi
 }
 
-set_asic_constants() {
+function set_ASIC_constants {
 	local -r ASIC_MODEL="${1-}"
 
 	case "$ASIC_MODEL" in
@@ -296,7 +308,8 @@ set_asic_constants() {
 			LOG_PATH=''
 			CONFIG_PATH=''
 			HASH='ghs'
-			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
+			# shellcheck disable=SC2034
+			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # seems unused. will we need it later?
 			MAX_FAN_RPM='6000'
 			;;
 
@@ -351,6 +364,8 @@ set_asic_constants() {
 			HASH='mhs'
 			MAX_FAN_RPM='6000'
 			STAT_TOKEN='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ'
+			# shellcheck disable=SC2034,SC2046
+			# TODO get rid of the unquoted variables to prevent accidental word splitting
 			TEMP_TOKEN=$( echo -n $STAT_TOKEN.$( echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $( cat /tmp/jwtK ) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$// ) )
 			FANS_COUNT_DEFAULT='3'
 			;;
@@ -385,30 +400,39 @@ set_asic_constants() {
 			CONFIG_PATH='/flask/sysconf/config/config.json'
 			HASH='ghs'
 			MAX_FAN_RPM='7000'
-			[[ "$ASIC_MODEL" =~ "PRO" ]] && FANS_COUNT_DEFAULT='4'
+			# shellcheck disable=SC2076,SC2034
+			[[ "$ASIC_MODEL" =~ 'PRO' ]] && FANS_COUNT_DEFAULT='4'
 			;;
 
 		'Blackminer F1'* )
-			[[ `mount | grep "/sdcard"` ]] && MOUNT="/sdcard" || MOUNT="/fpgabit"
-			ASIC_ALGO="eaglesong"
-			THIS_MINER_NAME="cgminer"
-			LOG_PATH="/var/volatile/log/messages"
-			CONFIG_PATH="/config/cgminer.conf"
-			HASH="ghs"
-			MAX_FAN_RPM="1500"
-			GPIO_LED_RED="23"
-			GPIO_PATH="direction"
+			if mount | grep -q '/sdcard'; then
+				MOUNT='/sdcard'
+			else
+				MOUNT='/fpgabit'
+			fi
+			ASIC_ALGO='eaglesong'
+			THIS_MINER_NAME='cgminer'
+			LOG_PATH='/var/volatile/log/messages'
+			CONFIG_PATH='/config/cgminer.conf'
+			HASH='ghs'
+			MAX_FAN_RPM='1500'
+			GPIO_LED_RED='23'
+			# shellcheck disable=SC2034
+			GPIO_PATH='direction'
 			;;
 
 		* )
-			MOUNT=''
-			ASIC_ALGO='unknown'
-			THIS_MINER_NAME='na'
-			LOG_PATH=''
-			CONFIG_PATH=''
-			HASH=''
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED=''
+			# shellcheck disable=SC2034
+			{
+				MOUNT=''
+				ASIC_ALGO='unknown'
+				THIS_MINER_NAME='na'
+				LOG_PATH=''
+				CONFIG_PATH=''
+				HASH=''
+				MAX_FAN_RPM='6000'
+				GPIO_LED_RED=''
+			}
 			;;
 	esac
 }
@@ -416,20 +440,19 @@ set_asic_constants() {
 
 # code
 
-ASIC_MODEL="$( get_asic_model )"
-HIVEON_VER="$( get_hiveon_version )"
-
-set_asic_constants "$ASIC_MODEL"
+set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables
+set_HIVEON_VERSION_variable
+set_ASIC_constants "$ASIC_MODEL"
 
 # check if we're sourced
 if ! ( return 0 2>/dev/null ); then
 	# not sourced
 
 	readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-	readonly script_version='1.0'
+	readonly script_version='1.1.0'
 	readonly script_basename="$( basename "$0" )"
 
-	. colors
+	source colors
 
 	#print_script_version() {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
@@ -441,16 +464,15 @@ if ! ( return 0 2>/dev/null ); then
 	#echo
 	#}
 
-	echo "ASIC model: ${WHITE}$ASIC_MODEL${NOCOLOR}"
+	echo "ASIC manufacturer: ${WHITE-}${ASIC_MANUFACTURER}${NOCOLOR-}"
+	echo "ASIC model: ${WHITE-}${ASIC_MODEL}${NOCOLOR-}"
 	echo
-	echo 'Model configuration:'
+	echo 'ASIC configuration:'
 	echo
 	for variable_name in MOUNT ASIC_ALGO THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM FANS_COUNT_DEFAULT GPIO_PATH GPIO_LED_RED; do
 		variable_value="${!variable_name-}"
-		if [[ -z "$variable_value" ]]; then
-			echo -e -n "${DGRAY}"
-		fi
-		echo -e "$variable_name=${GREEN}$variable_value${NOCOLOR}"
+		[[ -z "$variable_value" ]] && echo -e -n "${GRAY-}"
+		echo -e "     $variable_name=${GREEN-}${variable_value}${NOCOLOR-}"
 	done
 	echo
 fi
