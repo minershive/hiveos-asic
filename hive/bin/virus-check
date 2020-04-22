@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.5.1'
+readonly script_version='0.5.2'
 readonly script_basename="$( basename "$0" )"
 readonly DEBUG=0
 
@@ -269,6 +269,7 @@ function check_for_suspicious_files {
 		'/usr/antfalg'
 		'/usr/antfalgZ'
 		'/usr/bin/antminers'
+		'/nvdata/.shadow'
 	)
 
 	# vars
