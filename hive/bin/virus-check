@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.5.0'
+readonly script_version='0.5.1'
 readonly script_basename="$( basename "$0" )"
 readonly DEBUG=0
 
@@ -263,7 +263,7 @@ function check_for_suspicious_files {
 	# consts
 
 	local -r label_text='suspicious file'
-	local -r persistent_storage_file_name="/config/${script_basename}.list"
+	local -r persistent_storage_file_name="/hive-config/${script_basename}.list"
 	local -r -a suspicious_files_list=(
 		'/config/.antminers'
 		'/usr/antfalg'
