@@ -595,7 +595,7 @@ do_command () {
 		;;
 		exec)
 			exec=$(echo "$body" | jq '.exec' --raw-output)
-			if [[ $ASIC_MODEL == "Zig Z1+" ]] || [[ $ASIC_MODEL == "Toddminer C1" ]]; then
+			if [[ $ASIC_MODEL == "Zig Z1+" ]] || [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
 				exectimeout='nohup timeout 360 bash -c'
 			else
 				exectimeout='nohup timeout -t 360 bash -c'
