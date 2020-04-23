@@ -147,7 +147,7 @@ You can install Hive OS Client via firmware file download or via SSH.
 
 #### 1. ASIC web interface
 
-##### Antminer Series 15 and Series 9 models S9k and S9SE
+##### Antminer Series 15/17 and S9k / S9SE
 These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by upgrading ASIC with a special firmware file. That file contains stock Bitmain firmware with built-in Hive OS client:
 
 - [Antminer S9k](https://download.hiveos.farm/asic/S9k/stock%2Bclient/S9k-stock%2Bclient-20190929.tar.gz)
@@ -157,6 +157,14 @@ These models are special. They're loading OS right to the RAM in read-only mode.
 
 - [Antminer S15](https://download.hiveos.farm/asic/S15/stock%2Bclient/S15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
 - [Antminer T15](http://download.hiveos.farm/asic/T15/stock%2Bclient/T15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
+
+- [Antminer S17, S17 pro](http://download.hiveos.farm/asic/s17/stock%2Bclient/)
+- [Antminer S17+](http://download.hiveos.farm/asic/S17%2B/stock%2Bclient/)
+- [Antminer S17E](http://download.hiveos.farm/asic/S17E/stock%2Bclient/)
+
+- [Antminer T17](http://download.hiveos.farm/asic/T17/stock%2Bclient/)
+- [Antminer T17+](http://download.hiveos.farm/asic/T17%2B/stock%2Bclient/)
+- [Antminer T17E](http://download.hiveos.farm/asic/T17E/stock%2Bclient/)
 
 >After successful flashing, you have to open up ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button. The page will refresh itself. Wait a minute and worker will appear in the Hive dashboard.
 
@@ -270,8 +278,8 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 ### Antminer S9 (mskminer), S10 (mskminer)
 You don't need to unlock SSH or do anything complicated. For any ASIC with mskminer custom firmware, you have to download [Hive OS Client Installer for mskminer firmware](http://download.hiveos.farm/asic/repo/s9/hive-msk-installer.tar.gz) and then flash the ASIC with it. That's all.
 
-### Antminer S17, S17 Pro, T17  *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
-[Hive OS Client Installation Manual for S17/T17](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
+### Antminer S17, S17 Pro, T17
+[Hiveon ASIC Firmware installation manual](https://hiveos.farm/hiveon-asic-firmware-S17-S17-Pro-s17installation)
 
 ### Innosilicon new models
 [Hive OS Client Installation Manual for Innosilicon](https://forum.hiveos.farm/t/innosilicon-t2t-t3-series/13610)
