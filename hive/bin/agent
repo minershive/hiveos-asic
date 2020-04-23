@@ -113,6 +113,7 @@ miner_stats () {
 				local freq_new=$((jq '.[1] | with_entries( select(.key | test("freq\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
 				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
+				local chain_voltage=$(	 (jq '.[1] | with_entries( select(.key | test("chain_voltage\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local hw_errors=$((jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local asicboost=$((jq '[.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]') <<< "$STATS")
@@ -130,10 +131,10 @@ miner_stats () {
 				stats=$(jq -nc \
 						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
 						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
-						--argjson freq "$freq" --argjson acn "$acn" --argjson power "$power" \
+						--argjson freq "$freq" --argjson chain_voltage "$chain_voltage" --argjson acn "$acn" --argjson power "$power" \
 						--argjson hw_errors "$hw_errors" --argjson status "$status" \
 						--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
-						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
+						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
 			fi
 		;;
 		
