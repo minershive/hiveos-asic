@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.8'
+readonly script_version='2.1.9'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -439,7 +439,7 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 
 function filter_lines_send_messages {																(( script_debug )) && debugcho
 	#
-	# get lines from stdin, parse them and send message, if necessary
+	# get lines from stdin, parse them and send a message, if necessary
 	#
 
 	# consts
@@ -787,33 +787,111 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 	# consts
 
 	local -r actual_VERSION_file='/hive/etc/VERSION'
+	local -r saved_VERSION_file='/hive-config/VERSION'
 	local -r actual_build_file='/hive/etc/build'
 	local -r saved_build_file='/hive-config/build'
 
 	# vars
 
+	local actual_VERSION=''			saved_VERSION=''
+	local actual_build=''			saved_build=''
+	local actual_Client_version=''	saved_Client_version=''
+	local message_header 
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
-	local actual_VERSION actual_build saved_build
-	local message_header actual_Client_version saved_Client_version
+	local -i is_saved_build_file_exist=0 is_actual_build_file_exist=0 should_report_to_user=0
 
 	# code
 
-	if ! cmp -s "$actual_build_file" "$saved_build_file"; then # TODO potential bug: if one of the files (or both) doesn't exist
+	if [[ -f "$actual_VERSION_file" ]]; then
 
-		actual_VERSION="$(	cat "$actual_VERSION_file"	2> /dev/null )" || actual_VERSION='?.??'
-		actual_build="$(	cat "$actual_build_file"	2> /dev/null )" || actual_build='release'
-		saved_build="$(		cat "$saved_build_file"		2> /dev/null )" || saved_build='release'
+		actual_VERSION="$( < "$actual_VERSION_file" )"
+		if [[ -f "$saved_VERSION_file" ]]; then
+			saved_VERSION="$( < "$saved_VERSION_file" )"
+		else
+			saved_VERSION="0.0-00"
+		fi
 
-		actual_Client_version="${actual_VERSION}-${actual_build}"
-		saved_Client_version="${actual_VERSION}-${saved_build}"
+		# 1. checking and comparing the builds
 
-		message_header="Client updated from $saved_Client_version to $actual_Client_version"
-		print_controller_log_entry "$event_type_for_log" "$message_header"
-		message "$event_type_for_message" "$message_header"
-		echo
+		if [[ -f "$actual_build_file" ]]; then
+			actual_build="-$( < "$actual_build_file" )" # note '-'
+			is_actual_build_file_exist=1
+		fi
 
-		[[ -e "$actual_build_file" ]] && cp -f "$actual_build_file" "$saved_build_file"
+		if [[ -f "$saved_build_file" ]]; then
+			saved_build="-$( < "$saved_build_file" )" # note '-'
+			is_saved_build_file_exist=1
+		fi
 
+		if (( is_saved_build_file_exist && ! is_actual_build_file_exist )); then
+			# only saved exists			-> build degraded to release	-> report to user, remove saved to reflect the changes
+			should_report_to_user=1
+			rm -f "$saved_build_file"
+		elif (( ! is_saved_build_file_exist && is_actual_build_file_exist )); then
+			# only actual exists		-> release updated to build		-> report to user, save actual to saved_
+			should_report_to_user=1
+			cp -f "$actual_build_file" "$saved_build_file"
+		elif (( ! is_saved_build_file_exist && ! is_actual_build_file_exist )); then
+			# both not exist			-> nothing happened				-> nothing to do
+			:
+		elif (( is_saved_build_file_exist && is_actual_build_file_exist )); then
+			if ! cmp -s "$actual_build_file" "$saved_build_file"; then
+				# both exist and not equal		-> build updated		-> report to user, save actual to saved
+				should_report_to_user=1
+				cp -f "$actual_build_file" "$saved_build_file"
+			else
+				# both exist and equal	-> nothing happened				-> nothing to do
+				:
+			fi
+		fi
+
+		# 2. and now the VERSIONs
+
+		if [[ ! -f "$saved_VERSION_file" ]]; then
+			# saved_ not found, let's begin to store it
+			cp -f "$actual_VERSION_file" "$saved_VERSION_file"
+		else
+			# compare VERSIONs
+			if ! cmp -s "$actual_VERSION_file" "$saved_VERSION_file"; then
+				# VERSIONs differ
+				should_report_to_user=1
+				cp -f "$actual_VERSION_file" "$saved_VERSION_file"
+			else
+				# VERSIONs are the same
+				:
+			fi
+		fi
+
+		# final step
+
+		if (( should_report_to_user )); then
+
+			actual_Client_version="${actual_VERSION}${actual_build}"
+			saved_Client_version="${saved_VERSION}${saved_build}"
+
+			# shellcheck disable=SC2154
+			case "$( is_first_version_equal_to_second "$actual_Client_version" "$saved_Client_version"; echo $? )" in
+				$(( exitcode_GREATER_THAN ))	)	what_happened='updated' 	;;
+				$(( exitcode_LESS_THAN ))		)	what_happened='degraded'	;;
+				*								)	what_happened='changed' 	;; # wtf? maybe is_first_version_equal_to_second() error
+			esac
+			
+			message_header="Client $what_happened from $saved_Client_version to $actual_Client_version"
+			print_controller_log_entry "$event_type_for_log" "$message_header"
+			message "$event_type_for_message" "$message_header"
+			echo
+
+			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+		fi
+	else
+		if (( $( get_checkup_counter "$FUNCNAME" 'actual_VERSION_file_missed' ) == 0 )); then
+			# one time action
+			message_header="$actual_VERSION_file missed, please check"
+			print_controller_log_entry 'warning' "$message_header"
+			# shellcheck disable=SC2012
+			ls -ALl /hive/etc /hive-config | message 'warning' "$message_header" payload
+			set_checkup_counter "$FUNCNAME" 'actual_VERSION_file_missed' 1
+		fi
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
 
