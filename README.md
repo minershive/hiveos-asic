@@ -32,7 +32,7 @@ All the features above plus:
 - More control of overclocking and adjustment to voltage.
 - Auto-tune to optimize overclocking almost automagically.
 
-It's a *custom firmware* that does replace the stock one. Supports only selected models: **Antminer S17, S17 Pro, S9, S9i, S9j and T9+**. Hiveon Firmware for other ASIC models like S9k/S9SE/T17 are coming soon, so stay tuned!
+It's a *custom firmware* that does replace the stock one. Supports only selected models: **Antminer L3+, L3++, S10 (S9 Dual), S17, S17+, S17E, S17 Pro, T17, T17+, T17E, S9, S9i, S9j and T9+**. Hiveon Firmware for other ASIC models like S9k/S9SE are coming soon, so stay tuned!
 
 Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/hiveon-asic-firmware-general-asic_faq), [Step-by-step installation manual for S17/S17 Pro](https://medium.com/hiveon/hiveon-asic-firmware-installation-guide-s17-s17-pro-1d45a5d59a06)
 
@@ -48,20 +48,18 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |D3, D3 (Blissz)|•|•|•|•|
 |DR3|•|•|•|•|
 |E3|•|•|•|•|
-|L3+, L3++|•|•|•|•|
+|L3+, L3++|•|•|•|•|•|•|•|•|•|
 |S7|•|•|•|•|
 |S9, S9i, S9j|•|•|•|•|•|•|•|•|•|
 |S9k, S9SE, S9-Hydro|•|•|•|•|soon|soon|soon|soon|soon|
-|[S10 (mskminer)](#antminer-s9-mskminer-s10-mskminer)|•|•|•|•|
+|[S10 (S9 Dual mskminer)](#antminer-s9-mskminer-s10-mskminer)|•|•|•|•|•|•|•|•|•|
 |S11|•|•|•|•|
 |S15|•|•|•|•|
-|S17, S17 Pro|•|•|•|•|•|•|•|•|•|
-|S17+|•|•|•|•|soon|soon|soon|soon|soon|
+|S17, S17+, S17E, S17 Pro|•|•|•|•|•|•|•|•|•|
 |T9|•|•|•|•|
 |T9+|•|•|•|•|•|•|•|•|•|
 |T15|•|•|•|•|
-|T17|•|•|•|•|beta|beta|beta|beta|beta|
-|T17+|•|•|•|•|soon|soon|soon|soon|soon|
+|T17, T17+, T17E|•|•|•|•|•|•|•|•|•|
 |X3|•|•|•|•|
 |Z9, Z9-Mini|•|•|•|•|
 |Z11|•|•|•|•|
@@ -89,12 +87,13 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
   - D3, D3 (Blissz)
   - DR3
   - E3
-  - L3+, L3++
+  - L3+, L3++ *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
   - S7
   - S9, S9i, S9j, S9k, S9SE, S9-Hydro, S9 (VNISH), [S9 (mskminer)](#antminer-s9-mskminer-s10-mskminer), S11
   - [S10 (mskminer)](#antminer-s9-mskminer-s10-mskminer)
   - S15, T15
-  - S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
+  - S17, S17+, S17E, S17 Pro *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
+  - T17, T17+, T17E *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
   - T9, T9+
   - X3
   - Z9, Z9-Mini
@@ -148,7 +147,7 @@ You can install Hive OS Client via firmware file download or via SSH.
 
 #### 1. ASIC web interface
 
-##### Antminer Series 15, Series 17 and Series 9 models S9k and S9SE
+##### Antminer Series 15 and Series 9 models S9k and S9SE
 These models are special. They're loading OS right to the RAM in read-only mode. Hive OS Client installation is possible only by upgrading ASIC with a special firmware file. That file contains stock Bitmain firmware with built-in Hive OS client:
 
 - [Antminer S9k](https://download.hiveos.farm/asic/S9k/stock%2Bclient/S9k-stock%2Bclient-20190929.tar.gz)
@@ -158,9 +157,6 @@ These models are special. They're loading OS right to the RAM in read-only mode.
 
 - [Antminer S15](https://download.hiveos.farm/asic/S15/stock%2Bclient/S15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
 - [Antminer T15](http://download.hiveos.farm/asic/T15/stock%2Bclient/T15-%28stock%2Bclient%29-v19.08.12-ln.tar.gz)
-
-- [Antminer S17/S17Pro](https://download.hiveos.farm/asic/s17/stock%2Bclient/)
-- [Antminer T17](https://download.hiveos.farm/asic/T17/stock%2Bclient/)
 
 >After successful flashing, you have to open up ASIC web interface, click *Hive OS* tab, enter your *FARM_HASH* and then click *Apply&Save* button. The page will refresh itself. Wait a minute and worker will appear in the Hive dashboard.
 
@@ -267,14 +263,14 @@ A `cron` jobs might have to be removed manually with ```crontab -e``` even if th
 &nbsp;
 
 ## Other models
-### Antminer S9 signed *(deprecated in favor of Hiveon firmware)*
+### Antminer S9 signed  *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
 [Hiveon ASIC installation - Antminer S9 Cannot Find Signature Fix](https://forum.hiveos.farm/t/hiveon-asic-installation-antminer-s9-cannot-find-signature-fix/12466)\
 [Hiveon ASIC Firmware 1.02 for S9 Installation Manual](https://forum.hiveos.farm/t/hiveon-asic-s9-firmware-v1-02/13944)
 
 ### Antminer S9 (mskminer), S10 (mskminer)
 You don't need to unlock SSH or do anything complicated. For any ASIC with mskminer custom firmware, you have to download [Hive OS Client Installer for mskminer firmware](http://download.hiveos.farm/asic/repo/s9/hive-msk-installer.tar.gz) and then flash the ASIC with it. That's all.
 
-### Antminer S17, S17 Pro, T17 *(deprecated in favor of Hiveon firmware)*
+### Antminer S17, S17 Pro, T17  *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
 [Hive OS Client Installation Manual for S17/T17](https://forum.hiveos.farm/t/antminer-s17-t17/12415)
 
 ### Innosilicon new models
