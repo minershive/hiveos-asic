@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.9'
+readonly script_version='2.1.10'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1039,6 +1039,46 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 	return $(( is_something_happened ))
 }
 
+function checkup:is_overclock_profile_exist {														(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message='warning'	# error|warning|info|success
+	local -r message_header='For maximum power efficiency you only have to apply an Overclocking profile'
+
+	# consts
+
+	local -r oc_profile_file='/config/profile.txt'
+	local -r asic_model_RE='Antminer.+17.+Hiveon'
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	if [[ $ASIC_MODEL =~ $asic_model_RE ]]; then
+		if [[ ! -f "$oc_profile_file" ]]; then
+			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
+				# one time action
+				print_controller_log_entry "$event_type_for_log" 'OC profile not found'
+				message "$event_type_for_message" "$message_header"
+				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 1
+				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+			fi
+		else
+			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) > 0 )); then
+				# one time action
+				print_controller_log_entry 'info' 'OC profile returns back'
+				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 0
+			fi
+		fi
+	fi
+
+	return $(( is_something_happened ))
+}
+
 function checkup:are_logs_updated {																	(( script_debug )) && debugcho
 
 	# consts
@@ -1329,6 +1369,7 @@ declare -r -a crontab=(
 	'* * * * *		checkup:is_build_updated'
 	'* * * * *		checkup:is_virus_found'
 	'* * * * *		checkup:are_logs_updated'
+	'* * * * *		checkup:is_overclock_profile_exist'
 	'*/5 * * * *	execute:agent_screen_dontattach'
 	'@hourly		checkup:is_NAND_in_RO_mode'
 	'@hourly		execute:cache_hive_ip'
