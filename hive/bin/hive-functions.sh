@@ -11,7 +11,7 @@
 
 
 declare -r library_mission='Client for ASICs: Oh my handy little functions'
-declare -r library_version='0.1.8'
+declare -r library_version='0.1.9'
 
 
 # !!! bash strict mode, no unbound variables
@@ -180,6 +180,74 @@ function is_function_exist {
 	declare -F -- "$function_name" >/dev/null
 }
 
+function is_first_floating_number_bigger_than_second {
+	#
+	# Usage: is_first_floating_number_bigger_than_second 'first_number' 'second_number'
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r first_number="${1-}"
+	local -r second_number="${2-}"
+
+	# code
+
+	# 1. trivial test based on string comparison
+	if [[ "$first_number" == "$second_number" ]]; then
+		 false
+	# 2. compare a part before the dot as numbers
+	elif (( ${first_number%.*} == ${second_number%.*} )); then
+		[[ "${first_number#*.}" > "${second_number#*.}" ]] # intentional text compare
+	else
+		(( ${first_number%.*} > ${second_number%.*} ))
+	fi
+}
+
+function is_first_version_equal_to_second {
+	#
+	# Usage: is_first_version_equal_to_second 'first_version' 'second_version'
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local first_version="${1-}"
+	local second_version="${2-}"
+
+	# vars
+
+	local IFS=.-
+	local -i idx
+	local -a first_version_array second_version_array
+
+	# code
+
+	if [[ "$first_version" != "$second_version" ]]; then
+		first_version="${first_version//dev/}"
+		second_version="${second_version//dev/}"
+
+		first_version_array=( $first_version )
+		second_version_array=( $second_version )
+
+		# fill empty fields in first_version_array with zeros
+		for (( idx=${#first_version_array[@]}; idx < ${#second_version_array[@]}; idx++ )); do
+			first_version_array[idx]=0
+		done
+		for (( idx=0; idx < ${#first_version_array[@]}; idx++ )); do
+			# you don't need double quotes here but we need to fix a syntax highlighting issue
+			(( "10#${first_version_array[idx]}" > "10#${second_version_array[idx]-0}" )) && return $(( exitcode_GREATER_THAN ))
+			(( "10#${first_version_array[idx]}" < "10#${second_version_array[idx]-0}" )) && return $(( exitcode_LESS_THAN ))
+		done
+	fi
+
+	return $(( exitcode_IS_EQUAL ))
+	declare -r -i exitcode_IS_EQUAL=0
+declare -r -i exitcode_GREATER_THAN=1
+declare -r -i exitcode_LESS_THAN=2
+
+}
+
 
 #
 # functions: text
@@ -219,29 +287,6 @@ function strip_ansi {
 #
 # functions: math
 #
-
-function is_first_floating_number_bigger {
-	#
-	# Usage: calculate_percent_from_number 'percent' 'number'
-	#
-	# gives result rounded to the *nearest* integer, not the frac part as in the bash builtin arithmetics
-	#
-
-	# args
-
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r first_number="${1-}"
-	local -r second_number="${2-}"
-
-	# code
-
-	# first we compare a part before the dot as numbers
-	if (( ${first_number%.*} == ${second_number%.*} )); then
-		[[ "${first_number#*.}" > "${second_number#*.}" ]] # intentional text compare
-	else
-		(( ${first_number%.*} > ${second_number%.*} ))
-	fi
-}
 
 function calculate_percent_from_number {
 	#
@@ -616,6 +661,10 @@ declare -r -i exitcode_ERROR_NOT_FOUND=1
 declare -r -i exitcode_ERROR_IN_ARGUMENTS=127
 # shellcheck disable=SC2034
 declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
+
+declare -r -i exitcode_IS_EQUAL=0
+declare -r -i exitcode_GREATER_THAN=1
+declare -r -i exitcode_LESS_THAN=2
 
 
 # main
