@@ -11,7 +11,7 @@
 
 
 declare -r library_mission='Client for ASICs: Oh my handy little functions'
-declare -r library_version='0.1.7'
+declare -r library_version='0.1.8'
 
 
 # !!! bash strict mode, no unbound variables
@@ -220,6 +220,29 @@ function strip_ansi {
 # functions: math
 #
 
+function is_first_floating_number_bigger {
+	#
+	# Usage: calculate_percent_from_number 'percent' 'number'
+	#
+	# gives result rounded to the *nearest* integer, not the frac part as in the bash builtin arithmetics
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r first_number="${1-}"
+	local -r second_number="${2-}"
+
+	# code
+
+	# first we compare a part before the dot as numbers
+	if (( ${first_number%.*} == ${second_number%.*} )); then
+		[[ "${first_number#*.}" > "${second_number#*.}" ]] # intentional text compare
+	else
+		(( ${first_number%.*} > ${second_number%.*} ))
+	fi
+}
+
 function calculate_percent_from_number {
 	#
 	# Usage: calculate_percent_from_number 'percent' 'number'
@@ -230,8 +253,8 @@ function calculate_percent_from_number {
 	# args
 
 	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r -i percent=${1-}
-	local -r -i number=${2-}
+	local -r -i percent="${1-}"
+	local -r -i number="${2-}"
 
 	# code
 
