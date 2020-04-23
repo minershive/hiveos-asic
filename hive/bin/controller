@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.10'
+readonly script_version='2.1.11'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -483,6 +483,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/config/watchdog.log'		)
 
 				case "$log_message" in
+					*'Tune is in progress'*		)	event_type='skip'		;; # S9, 'Tune is in progress, wait 30 seconds...'
+					*'Found'*'red chips'*		)	event_type='ok'			;; # S9, 'Found 1 red chips, restart'
 					*'domains fixed'*			)	event_type='ok'			;;
 					*'Chain '*'found '*			)	event_type='info'		;; # f.e. 'Chain 1: found 1 bad domains'
 					*							)	event_type='warning'	;;
@@ -709,6 +711,7 @@ function wipe_memory {																				(( script_debug )) && debugcho
 # checkup:is_build_updated
 # checkup:is_virus_found
 # checkup:is_NAND_in_RO_mode
+# checkup:is_overclock_profile_exist
 # checkup:are_logs_updated
 # execute:cache_hive_ip
 # execute:agent_screen_dontattach
@@ -1083,6 +1086,7 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 
 	# consts
 
+	# TODO add S9 /tmp/auto-tune
 	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' '/tmp/tune_log.txt' '/tmp/fault.log' )
 
 	# vars
