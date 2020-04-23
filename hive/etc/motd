@@ -177,7 +177,12 @@ fs_name="$( get_fs_name )"
 if [[ -n "$HIVEON_VER" ]]; then
 	fw_version="$( sed -n 3p /usr/bin/compile_ver )"
 elif [[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]]; then
-	fw_version=`/home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $3}'`
+	fw_version=`/home/sm/miner/build/cpuminer -V | head -n 1`
+	if [[ "$ASIC_MODEL" == "Toddminer C1" ]]; then
+		fw_version=`echo $fw_version | awk '{ print $3}'`
+	else
+		fw_version=`echo $fw_version | awk '{ print $4}'`
+	fi
 else
 	fw_version="$( sed -n 1p /usr/bin/compile_time )"
 fi
