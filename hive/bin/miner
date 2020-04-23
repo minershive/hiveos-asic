@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.0.2'
+readonly script_version='1.0.3'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -370,8 +370,8 @@ fi
 #sgminer-gm is deprecated...
 miners_avail=("asicminer")
 if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
-	echo -e "${RED}Please apply Flight Sheet to start mining ${NOCOLOR}"
-	message warn "Please apply Flight Sheet to start mining"
+	echo -e "${RED}To start mining, you only have to apply a Flight Sheet${NOCOLOR}"
+	message warn 'To start mining, you only have to apply a Flight Sheet'
 	exit 1
 fi
 
