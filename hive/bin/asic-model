@@ -12,7 +12,7 @@
 
 # defined in the main()
 #readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-#readonly script_version='1.1.0'
+#readonly script_version='1.1.1'
 #readonly script_basename="$( basename "$0" )"
 
 
@@ -23,7 +23,7 @@
 
 # functions
 
-function set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables {
+set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	#
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, please keep it in sync
@@ -71,11 +71,13 @@ function set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables {
 		fi
 	fi
 
-	# Todek Toddminer C1
+	# Todek Toddminer C1 / C1 PRO
 	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
 		ASIC_MANUFACTURER='Todek'
 		ASIC_MODEL='Toddminer C1'
-		[ "$( /home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c 'pro' )" -eq 1 ] && ASIC_MODEL="$ASIC_MODEL PRO"
+		if [ "$( /home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c 'pro' )" -eq 1 ]; then
+			ASIC_MODEL="$ASIC_MODEL PRO"
+		fi
 	fi
 
 	# Blackminer?
@@ -85,7 +87,7 @@ function set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables {
 	# ...
 }
 
-function set_HIVEON_VERSION_variable {
+set_HIVEON_VERSION_variable () {
 	#
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, please keep it in sync
