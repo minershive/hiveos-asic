@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.15.0'
+readonly script_version='0.15.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -949,6 +949,9 @@ set_package_URL_and_file () {
 		# GLOBAL release_version_to_install
 		release_version_to_install='master'
 		package_file_to_download="${release_version_to_install}.tar.gz"
+		if [ "$local_release_version" = "$remote_release_version" ] && [ "$local_build_version" = "$remote_build_version" ]; then
+			dont_have_to_update_FLAG=1 # TODO REFACTOR relocate to a separate function like do_we_have_to_update_or_not()
+		fi
 	elif [ -n "$user_defined_version_ARG" ]; then
 		release_version_to_install="$user_defined_version_ARG"
 		package_file_to_download="v${release_version_to_install}.tar.gz"
@@ -971,11 +974,12 @@ print_update_info () {
 	else
 		echo -n '  Update to version:    '
 	fi
+
 	if [ "$dont_have_to_update_FLAG" -eq 1 ]; then
 		if [ "$force_update_FLAG" -eq 1 ]; then
-			echo "$release_version_to_install (forced)"
+			echo "$release_version_to_install (forced update)"
 		else
-			echo "$release_version_to_install (no need to update)"
+			echo "$release_version_to_install"
 			echo
 			echo -e "${GREEN}Hive is up to date already${NOCOLOR}"
 			echo
@@ -988,8 +992,10 @@ print_update_info () {
 		else
 			echo "$user_defined_version_ARG (user-defined)"
 		fi
-		echo
 	fi
+
+	echo
+
 	if [ "$bulk_download_FLAG" -eq 1 ]; then
 		echo -e "${BYELLOW}"
 		echo '  WARNING: Bulk update optimization ON'
