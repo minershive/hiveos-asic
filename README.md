@@ -1,5 +1,3 @@
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-
 # Hive OS Client for ASICs
 Simple yet powerful monitoring agent.
 
@@ -14,6 +12,7 @@ Simple yet powerful monitoring agent.
 1. [Other models](#other-models)
 1. [Recovery boot images](#recovery-boot-images)
 1. [Useful commands](#useful-commands)
+1. [License](#license)
 
 &nbsp;
 
@@ -362,3 +361,9 @@ To rename the workers in the Hive web interface as the hostname, run the command
 ```sh
 hello hostname
 ```
+
+## License
+
+Hive OS Client for ASICs is released under the GPL 2.0 license. See [LICENSE.txt](LICENSE.txt)
+
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
