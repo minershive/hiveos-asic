@@ -362,6 +362,8 @@ To rename the workers in the Hive web interface as the hostname, run the command
 hello hostname
 ```
 
+&nbsp;
+
 ## License
 
 Hive OS Client for ASICs is released under the GPL 2.0 license. See [LICENSE.txt](LICENSE.txt)

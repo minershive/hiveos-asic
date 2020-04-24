@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.12'
+readonly script_version='2.1.13'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -498,10 +498,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					'Config parse:'*			)	event_type='ok'					# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
 													message_tagline='Tune started'
 													;;
-					'Auto tune is done'*		)	event_type='ok'		 			# Auto tune is done, exit
-													message_tagline='Tune done'
-													;;
-#					'Achieved '*				)	event_type='warning'	;;		# Achieved maximum number of restarts
+#					'Auto tune is done'*		)	event_type='ok'		 			# Auto tune is done, exit
+#													message_tagline='Tune done'
+#													;;
 					*							)	event_type='skip'		;;
 				esac														;;
 
@@ -509,7 +508,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 				case "$log_message" in
 					'Tune started'*				)	event_type='ok'			;;
-					'All is ok'*				)	event_type='ok'			;;		# All is ok, tune is done
+#					'All is ok'*				)	event_type='ok'			;;		# All is ok, tune is done
 					'Achieved '*				)	event_type='warning'	;;		# Achieved maximum number of restarts
 					*							)	event_type='skip'		;;
 				esac														;;
