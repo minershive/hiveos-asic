@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.0.3'
+readonly script_version='1.0.4'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -336,8 +336,8 @@ function collate_all_logs {
 	{	# !!! temporary
 		print_kernel_log | tail -n 100
 		print_tune_log | tail -n 100
-		tail -n 100 /nvdata/miner_status.log
-		tail -n 100 /config/watchdog.log
+		[[ -s /nvdata/miner_status.log ]]	&& tail -n 100 /nvdata/miner_status.log
+		[[ -s /config/watchdog.log ]]		&& tail -n 100 /config/watchdog.log
 	} |
 		tail_any_log -t 100 -s -r '^[0-9]'
 }
