@@ -21,9 +21,9 @@ if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL
 	sleep 1
 	rm -f /config/yellow-step
 	killall tune-yellow > /dev/null 2>&1
-	nohup /usr/bin/auto-tune
+	nohup su - www -c "/usr/bin/auto-tune"
 	if grep "enable_auto_chip=1" /config/autoTune.conf; then
-		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
+		nohup su - www -c "/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null" &
 	fi
 	echo -e "Autotune config applied!"
 elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || $ASIC_MODEL == "Antminer T17 Hiveon" ]]; then
@@ -152,9 +152,9 @@ else
 	killall auto-tune > /dev/null 2>&1
 	killall auto-chip-tune > /dev/null 2>&1
 	sleep 1
-	nohup /usr/bin/auto-tune
+	nohup su - www -c "/usr/bin/auto-tune"
 	if grep "enable_auto_chip=1" /config/autoTune.conf; then
-		nohup /usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null &
+		nohup su - www -c "/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null" &
 	fi
 	echo -e "Autotune config applied"
 fi
