@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+
+
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+# Linted by shellcheck 0.3.7
+#
+
+
+readonly script_mission='Client for ASICs: Change Antminer web interface password'
+readonly script_version='0.1.0'
+readonly script_basename="$( basename "$0" )"
+
+
+# !!! bash strict mode, no unbound variables
+
+set -o nounset
+
+
+# functions
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+function print_script_usage {
+	echo -e "  Usage: ${CYAN-}${script_basename} old_password new_password${NOCOLOR-}"
+	echo
+}
+
+function get_md5 {
+	#
+	# Usage: get_md5 'string' 
+	#
+
+	# args
+
+	(( $# == 1 )) || return 1
+	local -r string="$1"
+
+	# vars
+
+	local md5_output
+
+	# code
+
+	md5_output="$( printf '%s' "${string}" | md5sum )"
+	echo "${md5_output::32}"
+}
+
+function change_web_password {
+	#
+	# Usage: change_web_password 'current_password' 'new_password'
+	#
+
+	# args
+
+	(( $# == 2 )) || return 1
+	local -r current_password="$1"
+	local -r new_password="$2"
+
+	# consts
+
+	local -r digest_string_template='root:antMiner Configuration:'
+
+	# vars
+
+	local current_password_md5 current_password_digest_string
+	local new_password_md5 new_password_digest_string
+
+	# code
+
+	if [[ ! -s "$lighttpd_password_file" ]]; then
+		echo "${BRED-}$lighttpd_password_file not found or empty.${NOCOLOR-}"
+		echo
+		return 1
+	fi
+
+	if [[ "$current_password" == "$new_password" ]]; then
+		echo "${BYELLOW-}Passwords are the same, nothing to do${NOCOLOR-}"
+		echo
+		return 1
+	fi
+
+	current_password_md5="$( get_md5 "${digest_string_template}${current_password}" )"
+	current_password_digest_string="${digest_string_template}${current_password_md5}"
+
+	if diff "$lighttpd_password_file" <( echo "$current_password_digest_string" ) > /dev/null; then
+		# create new lighttpd-htdigest.user file
+		new_password_md5="$( get_md5 "${digest_string_template}${new_password}" )"
+		new_password_digest_string="${digest_string_template}${new_password_md5}"
+		if echo "$new_password_digest_string" > "$lighttpd_password_file"; then
+			echo "${GREEN-}Web password changed to '$new_password'${NOCOLOR-}"
+			echo
+		else
+			echo "${BRED-}Something bad happened${NOCOLOR-}"
+			echo
+			return 1
+		fi
+	else
+		echo "${BRED-}Current password '$current_password' is not correct${NOCOLOR-}"
+		echo
+		return 1
+	fi
+
+	return 0
+}
+
+function change_ssh_password {
+	#
+	# Usage: change_ssh_password 'current_password' 'new_password'
+	#
+
+	# args
+
+	(( $# == 2 )) || return 1
+	local -r current_password="$1"
+	local -r new_password="$2"
+
+	# code
+
+	if printf '%s\n%s' "$new_password" "$new_password" | passwd root > /dev/null; then
+		rm -f /config/shadow
+		mv /etc/shadow /config/shadow
+		ln -s /config/shadow /etc/shadow
+	fi
+}
+
+function parse_arguments {
+	#
+	# Usage: parse_arguments "$@"
+	#
+
+	# args
+
+	current_password_ARG="$1"
+	new_password_ARG="$2"
+
+	# code
+
+	if 	[[ -z "$current_password_ARG" || -z "$new_password_ARG" ]]; then
+		print_script_usage
+		exit 1
+	fi
+}
+
+
+# global sources
+
+[ -s /hive/bin/colors ] && . /hive/bin/colors
+
+
+# global consts
+
+declare -r lighttpd_password_file='/config/lighttpd-htdigest.user'
+
+
+# global vars
+
+declare current_password_ARG new_password_ARG
+
+
+# main
+
+print_script_version
+
+(( $# == 2 )) || { print_script_usage; exit 1; }
+
+parse_arguments "$@"
+change_web_password "$current_password_ARG" "$new_password_ARG"
