@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.14'
+readonly script_version='2.1.15'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -116,7 +116,7 @@ function initialize_dictionaries {																	(( script_debug )) && debugch
 	# global var hashtables
 
 	# shellcheck disable=SC2034
-	declare -A -g logs_counters				# in use in:	get_new_lines_from_log
+	declare -A -g file_attribute			# in use in:	get_new_lines_from_log
 
 	declare -A -g checkup_counters			# in use in:	is_checkup_counter_set
 											#				get_checkup_counter
@@ -445,11 +445,12 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 	# consts
 
 	local -r -i send_messages_enabled=1
-	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>'
+	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>%s'
 
 	# vars
 
-	local log_line log_timestamp log_message_combined_with_log_name log_name event_type message_body message_tagline
+	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
+	local message_tagline message_body message_advice
 
 	# code
 
@@ -471,6 +472,17 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 		fi
 
 		case "$log_name" in
+			'/www/logs/lighttpd.error.log' )
+			
+				case "$log_message" in
+					*'auth failed'*				)
+													event_type='warning'
+													message_tagline='Failed login attempt has been made to the ASIC web interface. Click for details'
+													message_advice="Someone or something has tried to login to the ASIC web interface with wrong login and/or password. If it wasn't you -- you MAY have a virus in the local network that tries to brute-force all ASICs in the vicinity. Please be advised."
+													;;
+					*							)	event_type='skip'		;;
+				esac														;;
+
 			'/nvdata/miner_status.log'	)
 
 				case "$log_message" in
@@ -522,8 +534,16 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			print_controller_log_entry "LOG_${event_type^^}" "${log_name}: $log_message" "$log_timestamp"
 			if (( send_messages_enabled )); then
 				[[ -z "${message_tagline-}" ]] && message_tagline="$log_message"
+
 				# shellcheck disable=SC2059
-				printf -v message_body "$message_body_template" "$log_name" "$log_timestamp ${TZ-GMT}" "${event_type^^}" "$log_message"
+				printf -v message_body \
+					"$message_body_template" \
+					"$log_name" \
+					"$log_timestamp ${TZ-GMT}" \
+					"${event_type^^}" \
+					"$log_message" \
+					"${message_advice-}"
+
 				echo "$message_body" | message "$event_type" "$message_tagline" payload
 			fi
 		fi
@@ -563,7 +583,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
 
 			# is it first time run?
-			if ! previous_log_size="$( get_hash_value 'logs_counters' "$log_to_check" 'size' )"; then
+			if ! previous_log_size="$( get_hash_value 'file_attribute' "$log_to_check" 'size' )"; then
 				# first run, init vars
 				current_lines_quantity="$( wc -l < "$log_to_check" )"
 				previous_log_size="$current_log_size"
@@ -572,7 +592,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 			if (( current_log_size != previous_log_size )); then # log file was changed
 
 				if (( current_log_size > previous_log_size )); then # a few lines was added
-					previous_lines_quantity="$( get_hash_value 'logs_counters' "$log_to_check" 'lines' )" # get previous lines count
+					previous_lines_quantity="$( get_hash_value 'file_attribute' "$log_to_check" 'lines' )" # get previous lines count
 				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
 					previous_lines_quantity=0
 				fi
@@ -593,13 +613,13 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 			fi
 
 			# save current values
-			set_hash_value 'logs_counters' "$log_to_check" 'size' "$current_log_size"
+			set_hash_value 'file_attribute' "$log_to_check" 'size' "$current_log_size"
 			if [[ -n "$current_lines_quantity" ]]; then
-				set_hash_value 'logs_counters' "$log_to_check" 'lines' "$current_lines_quantity"
+				set_hash_value 'file_attribute' "$log_to_check" 'lines' "$current_lines_quantity"
 			fi
 		else
 			# file not found or empty
-			set_hash_value 'logs_counters' "$log_to_check" 'size' 0
+			set_hash_value 'file_attribute' "$log_to_check" 'size' 0
 		fi
 	done
 
@@ -740,6 +760,7 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 
 	# vars
 
+	local HIVE_HOST_URL
 	local -i current_year date_from_server_in_seconds
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 
@@ -749,6 +770,9 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 
 	if (( current_year == 1970 )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+
+		HIVE_HOST_URL="$( [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf && echo "${HIVE_HOST_URL-}" )"
+		
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
@@ -926,8 +950,8 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 
 	# consts
 
-	local -r message_header_WARNING='Vulnerability report. Click to see detailed info'
-	local -r message_header_DANGER='Virus signature found. Click to see detailed info'
+	local -r message_header_WARNING='Vulnerability report. Click for details'
+	local -r message_header_DANGER='Virus signature found. Click for details'
 
 	local -r tag_label_WARNING='vulnerability found'
 	local -r tag_label_DANGER='virus found'
@@ -1099,8 +1123,8 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 
 	# consts
 
-	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' '/tmp/tune_log.txt' '/tmp/auto-tune' '/tmp/fault.log' )
-	#                            Hiveon 15/17               Hiveon 9/15/17         Hiveon 15/17        Hiveon 9         Hiveon 15/17
+	local -r -a logs_to_check=( '/nvdata/miner_status.log' '/config/watchdog.log' '/tmp/tune_log.txt' '/tmp/auto-tune' '/tmp/fault.log' '/www/logs/lighttpd.error.log' )
+	#                            Hiveon 15/17               Hiveon 9/15/17         Hiveon 15/17        Hiveon 9         Hiveon 15/17     all Antminers ???
 
 	# vars
 
@@ -1366,7 +1390,6 @@ declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
 # global sources
 
 source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
-source /hive-config/rig.conf || echo 'ERROR: /hive-config/rig.conf not found' # sourced for $HIVE_HOST_URL ??? should we source it from time to time?
 source colors || echo 'ERROR: /hive/bin/colors not found'
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
