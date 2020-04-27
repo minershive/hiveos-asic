@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Change Antminer web interface password'
-readonly script_version='0.1.0'
+readonly script_version='0.1.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -52,9 +52,9 @@ function get_md5 {
 	echo "${md5_output::32}"
 }
 
-function change_web_password {
+function change_antminer_web_password {
 	#
-	# Usage: change_web_password 'current_password' 'new_password'
+	# Usage: change_antminer_web_password 'current_password' 'new_password'
 	#
 
 	# args
@@ -137,6 +137,7 @@ function parse_arguments {
 
 	# args
 
+	(( $# == 2 )) || { print_script_usage; exit 1; }
 	current_password_ARG="$1"
 	new_password_ARG="$2"
 
@@ -151,7 +152,8 @@ function parse_arguments {
 
 # global sources
 
-[ -s /hive/bin/colors ] && . /hive/bin/colors
+[ -s /hive/bin/colors ] && source /hive/bin/colors
+source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
 
 
 # global consts
@@ -167,8 +169,11 @@ declare current_password_ARG new_password_ARG
 # main
 
 print_script_version
-
-(( $# == 2 )) || { print_script_usage; exit 1; }
-
 parse_arguments "$@"
-change_web_password "$current_password_ARG" "$new_password_ARG"
+
+If [[ "$ASIC_MANIUFACTURER" != 'Bitmain' ]]; then
+	echo "${BYELLOW-}Antminer not detected (model: $ASIC_MODEL), exiting...${NOCOLOR-}"
+	exit 1
+fi
+
+change_antminer_web_password "$current_password_ARG" "$new_password_ARG"
