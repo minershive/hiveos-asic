@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.2'
+readonly script_version='0.16.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -203,10 +203,6 @@ parse_arguments () {
 
 	for this_ARG in "$@"; do
 		case "$this_ARG" in
-			*[0-9].[0-9]*)
-				# roughly correct pattern for Client release version: 0.1 / 0.1-13
-				user_defined_version_ARG="$this_ARG"
-				;;
 			'master')
 				master_FLAG=1
 				;;
@@ -237,6 +233,10 @@ parse_arguments () {
 			'--url='*)
 				custom_repo_URL="${this_ARG#*=}"
 				download_from_custom_repo_FLAG=1
+				;;
+			*[0-9].[0-9]*)
+				# roughly correct pattern for Client release version: 0.1 / 0.1-13
+				user_defined_version_ARG="$this_ARG"
 				;;
 			'--help' | '-h' | *)
 				# here goes all other incorrect stuff
