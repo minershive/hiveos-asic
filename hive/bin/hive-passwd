@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Change Antminer web interface password'
-readonly script_version='0.1.1'
+readonly script_version='0.1.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -64,8 +64,9 @@ function change_antminer_web_password {
 	local -r new_password="$2"
 
 	# consts
-
-	local -r digest_string_template='root:antMiner Configuration:'
+	local -r htdigest_username='root'
+	local -r htdigest_realm='antMiner Configuration'
+	local -r htdigest_user_realm="${htdigest_username}:${htdigest_realm}"
 
 	# vars
 
@@ -86,13 +87,13 @@ function change_antminer_web_password {
 		return 1
 	fi
 
-	current_password_md5="$( get_md5 "${digest_string_template}${current_password}" )"
-	current_password_digest_string="${digest_string_template}${current_password_md5}"
+	current_password_md5="$( get_md5 "${htdigest_user_realm}:${current_password}" )"
+	current_password_digest_string="${htdigest_user_realm}:${current_password_md5}"
 
 	if diff "$lighttpd_password_file" <( echo "$current_password_digest_string" ) > /dev/null; then
 		# create new lighttpd-htdigest.user file
-		new_password_md5="$( get_md5 "${digest_string_template}${new_password}" )"
-		new_password_digest_string="${digest_string_template}${new_password_md5}"
+		new_password_md5="$( get_md5 "${htdigest_user_realm}:${new_password}" )"
+		new_password_digest_string="${htdigest_user_realm}:${new_password_md5}"
 		if echo "$new_password_digest_string" > "$lighttpd_password_file"; then
 			echo "${GREEN-}Web password changed to '$new_password'${NOCOLOR-}"
 			echo
