@@ -17,6 +17,12 @@ if [[ $ASIC_MODEL == "Antminer S9k" || $ASIC_MODEL == "Antminer S9 SE" ]]; then
     hostfile="/etc/hosts"
 elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" || $ASIC_MODEL == "Antminer X17" ]]; then
     hostfile="/tmp/hosts"
+    #default for hiveon
+    #127.0.0.1       localhost.localdomain           localhost
+    #
+    if [[ $(md5sum /etc/hosts | awk '{print $1}') != 27acad957c7cded40cd6ac50d23ddc66 ]]; then
+        echo 'MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo=' | base64 -d > /etc/hosts
+    fi
 else
     hostfile="/etc/hosts"
 fi
