@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.3'
+readonly script_version='0.16.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -262,7 +262,7 @@ echo_info () {
 
 echo_error () {
 	echo "${RED}${script_basename}:${NOCOLOR} ${*}"
-}
+} 1>&2
 
 die () {
 	local incoming_exitcode=$? # !!! must be the first line in a function to catch an incoming error code -- do not move
@@ -276,7 +276,7 @@ die () {
 
 	[ -n "$message" ] && echo "${BRED}${script_basename}:${NOCOLOR} $message"
 	exit "$exitcode"
-} 2>&1
+} 1>&2
 
 
 #
@@ -599,7 +599,7 @@ do_install_for () {
 	fi
 	remove_needless_files "hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole" # remove the legacy teleconsole before copying
 
-	install_$install_type
+	"install_$install_type"
 }
 
 execute_install_routine () {
@@ -1313,8 +1313,7 @@ get_remote_version_of () {
 
 	# vars
 
-	local download_URL=''
-
+	local downloader_output='' downloader_exitcode="$exitcode_OK" download_URL='' max_time=''
 	# code
 
 	case "$release_or_build" in
@@ -1323,10 +1322,21 @@ get_remote_version_of () {
 	esac
 
 	if is_curl_available; then
-		curl --insecure --location --fail --silent --show-error "$download_URL"
+		[ "$bulk_download_mode_FLAG" -eq 0 ] && max_time='--max-time 2' # 2 seconds tops
+		downloader_output="$( curl --insecure --location --fail --silent --show-error $max_time "$download_URL" 2>&1 )"
 	else
-		wget --quiet --output-document=file- "$download_URL"
-	fi # stdout and exit code in the one package!
+		downloader_output="$( wget --quiet --output-document=file- "$download_URL" 2>&1 )"
+	fi
+
+	downloader_exitcode=$?
+
+	if [ "$downloader_exitcode" -ne 0 ]; then
+		echo_error "$downloader_output"
+	else
+		echo "$downloader_output"
+	fi
+
+	return "$downloader_exitcode"
 }
 
 get_local_version_of () {
@@ -1371,7 +1381,7 @@ get_local_versions () {
 
 get_remote_versions () {
 	remote_release_version="$( get_remote_version_of 'release' "$repo_version_URL" )"; repo_connectivity_status_exitcode=$?
-	remote_build_version="$( get_remote_version_of 'build' "$repo_version_URL" )"
+	remote_build_version="$( get_remote_version_of 'build' "$repo_version_URL" )" || echo
 }
 
 
@@ -1396,7 +1406,8 @@ get_random_number_between () {
 
 exit_if_no_repository_available () {
 	if [ "$repo_connectivity_status_exitcode" -ne 0 ] || [ -z "$remote_release_version" ]; then
-		die "Can't get current version from repository. Check your internet connection." "$repo_connectivity_status_exitcode"
+		echo
+		die "Can't get files from repository. Check your internet connection." "$repo_connectivity_status_exitcode"
 	fi
 }
 
