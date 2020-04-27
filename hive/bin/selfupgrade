@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.1'
+readonly script_version='0.16.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1005,7 +1005,6 @@ install_antminer_bmminer_ro () {
 	sync && echo 3 > /proc/sys/vm/drop_caches
 
 	remove_needless_files "${NVRAM_path}/latest_new.tar.gz" # delete a file from a legacy selfupgrade
-	remove_needless_files "hiveos-asic-${release_version_to_install}/hive/sbin/teleconsole" # remove the legacy teleconsole before copying
 
 	[ ! -d /config/hive ]	&& mkdir -p /config/hive/hive-config
 	[ -L /hive ]			&& rm /hive
