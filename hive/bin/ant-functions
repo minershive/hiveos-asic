@@ -112,7 +112,6 @@ function __list_functions {
 
 #get status
 function hiveon_status () {
-HIVEON_VERSION="123"
 	#
 	# Usage: hiveon_status '{JSON}'
 	#
@@ -144,9 +143,7 @@ HIVEON_VERSION="123"
 			system_status="tuning"
 		fi
 	fi
-
 	echo $system_status
-
 }
 
 source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
