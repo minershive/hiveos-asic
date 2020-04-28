@@ -139,6 +139,15 @@ function hiveon_status () {
 			tune_chip=$(sh /www/pages/cgi-bin/check-auto-tune-running.cgi)
 		fi
 
+		#L3 without check-auto-tune-running.cgi
+		if [ $ASIC_MODEL =~ "Antminer L3" ]; then
+			if pgrep auto-tune 1>/dev/null; then
+				tune_board=1
+			else
+				tune_board=0
+			fi
+		fi
+
 		if [[ $tune_board -eq 1 || $tune_chip -eq 1 ]]; then
 			system_status="tuning"
 		fi
