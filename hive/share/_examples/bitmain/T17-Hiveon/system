@@ -1,0 +1,49 @@
+Filesystem                Size      Used Available Use% Mounted on
+/dev/root                96.8M     47.5M     49.4M  49% /
+devtmpfs                 93.3M         0     93.3M   0% /dev
+ubi0_0                  572.0K     84.0K    424.0K  17% /config
+ubi1_0                  107.9M     45.6M     57.5M  44% /nvdata
+
+/dev/root on / type ext4 (rw,relatime,block_validity,delalloc,barrier,user_xattr)
+devtmpfs on /dev type devtmpfs (rw,relatime,size=95520k,nr_inodes=23880,mode=755)
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+ubi0_0 on /config type ubifs (rw,relatime)
+ubi1_0 on /nvdata type ubifs (rw,relatime)
+devpts on /dev/pts type devpts (rw,relatime,gid=5,mode=620)
+
+drwxr-xr-x   21 root     root          1024 Apr 27 19:53 .
+drwxr-xr-x   21 root     root          1024 Apr 27 19:53 ..
+drwxr-xr-x    2 root     root          1024 Nov  5 07:28 bin
+drwxr-xr-x    2 root     root          1024 Nov  5 07:28 boot
+drwxr-xr-x    5 root     root          1312 Apr 28 08:00 config
+drwxr-xr-x    5 root     root          3020 Apr 27 19:53 dev
+drwxr-xr-x   24 root     root          3072 Apr 28 07:53 etc
+drwxr-xr-x    8 root     root          1024 Apr 27 19:53 hive
+lrwxrwxrwx    1 root     root            25 Apr 27 19:53 hive-config -> /config/hive/hive-config/
+drwxr-xr-x    3 root     root          1024 Nov  5 07:28 home
+-rw-r--r--    1 root     root             0 Nov  5 07:28 init
+drwxr-xr-x    6 root     root          3072 Apr 27 23:00 lib
+drwx------    2 root     root         12288 Nov  5 07:28 lost+found
+drwxr-xr-x   10 root     root          1024 Nov  5 07:28 media
+drwxr-xr-x    2 root     root          1024 Nov  5 07:28 mnt
+drwxr-xr-x   16 root     root          1208 Apr 28 08:00 nvdata
+dr-xr-xr-x  111 root     root             0 Jan  1  1970 proc
+drwxr-xr-x    3 root     root          1024 Apr 27 19:53 run
+drwxr-xr-x    2 root     root          3072 Dec 13 10:52 sbin
+dr-xr-xr-x   12 root     root             0 Jan  1  1970 sys
+lrwxrwxrwx    1 root     root             8 Jan  1  1970 tmp -> /var/tmp
+drwxr-xr-x    9 root     root          1024 Nov  5 07:28 usr
+drwxr-xr-x    8 root     root          1024 Jan  1  1970 var
+drwxr-xr-x    5 root     root          1024 Apr  3 16:01 www
+
+drwxr-xr-x    2 root     root          1024 Apr 28 08:23 .
+drwxr-xr-x    6 root     root          1024 Nov  5 07:28 ..
+-rw-r--r--    1 root     root         15164 Apr 28 08:23 dmesg.log
+-rw-r--r--    1 root     root           660 Apr 28 08:23 hash
+-rw-r--r--    1 root     root         14640 Apr 28 08:23 hash_rate
+-rw-r--r--    1 root     root         48800 Apr 28 08:20 hash_rate_latest
+-rw-r--r--    1 root     root          1499 Apr 28 08:23 hashrates
+-rw-r--r--    1 root     root         11208 Apr 27 23:04 log
+-rw-r--r--    1 root     root        185944 Apr 28 08:23 temp
+-rw-r--r--    1 root     root        198210 Apr 28 03:50 temp_latest

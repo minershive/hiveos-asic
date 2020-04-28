@@ -1,0 +1,47 @@
+Filesystem                Size      Used Available Use% Mounted on
+ubi0:rootfs             112.8M     31.1M     81.7M  28% /
+devtmpfs                431.7M         0    431.7M   0% /dev
+tmpfs                   100.0M         0    100.0M   0% /mnt/ramdisk
+
+rootfs on / type rootfs (rw)
+ubi0:rootfs on / type ubifs (rw,relatime)
+devtmpfs on /dev type devtmpfs (rw,relatime,size=442052k,nr_inodes=110513,mode=755)
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+debugfs on /sys/kernel/debug type debugfs (rw,relatime)
+devpts on /dev/pts type devpts (rw,relatime,gid=5,mode=620)
+tmpfs on /mnt/ramdisk type tmpfs (rw,relatime,size=102400k)
+
+total 8
+drwxr-xr-x   19 root     root          1648 Apr 27 10:20 .
+drwxr-xr-x   19 root     root          1648 Apr 27 10:20 ..
+-rw-------    1 root     root            55 Apr 27 10:20 .bash_history
+drwxr-xr-x    2 root     root          6200 Apr 19  2017 bin
+drwxr-xr-x    2 root     root           320 Apr 19  2017 boot
+drwxr-xr-x    3 root     root          1240 Apr 28 08:00 config
+drwxr-xr-x    5 root     root         12980 Apr 24 15:40 dev
+drwxr-xr-t   25 root     root          5216 Apr 28 07:41 etc
+drwxr-xr-x    8 root     root           560 Apr 24 15:40 hive
+lrwxrwxrwx    1 root     root            25 Apr 24 15:40 hive-config -> /config/hive/hive-config/
+drwxr-xr-x    3 root     root           224 Apr 19  2017 home
+-rw-r--r--    1 root     root             0 Apr 19  2017 init
+drwxr-xr-x    6 root     root          5400 Apr 19  2017 lib
+lrwxrwxrwx    1 root     root            19 May  4  2019 linuxrc -> /bin/busybox.nosuid
+drwxr-xr-x    2 root     root           160 Apr 19  2017 media
+drwxr-xr-x    3 root     root           224 Apr 24 15:40 mnt
+dr-xr-xr-x   74 root     root             0 Jan  1  1970 proc
+drwxr-xr-x    6 root     root           912 Apr 24 15:40 run
+-rwxr-xr-x    1 root     root           996 Apr 19  2017 s
+drwxr-xr-x    2 root     root          6424 Jan  1  1970 sbin
+dr-xr-xr-x   12 root     root             0 Jan  1  1970 sys
+lrwxrwxrwx    1 root     root             8 Jan  1  1970 tmp -> /var/tmp
+drwxr-xr-x    9 root     root           608 Apr 19  2017 usr
+drwxr-xr-x    8 root     root           808 Jan  1  1970 var
+drwxr-xr-x    5 1000     1000           352 May  4  2019 www
+
+total 24
+drwxr-xr-x    2 root     root           352 Jan  1  1970 .
+drwxr-xr-x    4 root     root           288 Apr 19  2017 ..
+-rw-r-----    1 root     root           342 Jan  1  1970 boot
+-rw-r--r--    1 root     root         11165 Jan  1  1970 dmesg
+-rw-rw-r--    1 root     root          5760 Apr 24 15:41 wtmp
