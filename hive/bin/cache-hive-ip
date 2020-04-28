@@ -5,73 +5,173 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+# Linted by shellcheck 0.3.7
 #
 
 
-#export PATH="./:/hive/bin:/hive/sbin:$PATH"
+readonly script_mission='Client for ASICs: Cache Hive API Server address'
+readonly script_version='0.1.1'
+readonly script_basename="$( basename "$0" )"
+
+
+# !!! bash strict mode, no unbound variables
+
+set -o nounset
+
+
+# functions
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+function gethostbyname {
+	#ent=`getent ahosts $HOST | grep -m 1 STREAM | sed -E 's/(\w+)\s+STREAM\s+(.*)/\1 \2/'`
+	#ping -c1 -t1 -W0 www.example.com &>/dev/null && ping -c1 -t1 -W0 www.example.com 2>&1 | tr -d '():' | awk '/^PING/{print $3}'
+	#ping -q -c1 -t1 your_host_here | grep -Eo "([0-9]+\.?){4}"
+	#nslookup $LINE | awk '/^Address: / { print $1 }'
+
+	# args
+
+	local -r host="$1"
+
+	# code
+
+	nslookup "$host" |
+		grep -A 4 Name |
+			sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' |
+				tail -1 |
+					grep Address |
+						head -n1 |
+							awk -F': ' '{print $2}' |
+								awk '{print $1}'
+}
+
+function set_hostfile {
+	case "$ASIC_MODEL" in
+		'Antminer S9k'			|\
+		'Antminer S9 SE')
+			hostfile='/etc/hosts'
+			;;
+		'Antminer S9'			|\
+		'Antminer T17'*			|\
+		'Antminer S17'*			|\
+		'Antminer T9+'*			|\
+		'Antminer T9'*			|\
+		'Antminer S10'*			|\
+		'Antminer S9i'			|\
+		'Antminer S9j'			|\
+		'Minecenter S9'			|\
+		'Antminer S9 Hydro'		|\
+		'Antminer E3'			|\
+		'Antminer '				|\
+		'Antminer S9 (vnish'*	|\
+		'Antminer S9'*			|\
+		'Antminer S11'*			|\
+		'Antminer X17')
+			hostfile='/tmp/hosts'
+			#default for hiveon
+			#127.0.0.1       localhost.localdomain           localhost
+			#
+			if [[ $( md5sum /etc/hosts | awk '{print $1}' ) != '27acad957c7cded40cd6ac50d23ddc66' ]]; then
+				echo 'MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo=' | base64 -d > /etc/hosts
+			fi
+			;;
+		*)
+			hostfile='/etc/hosts'
+			;;
+	esac
+}
+
+# global sources
 
 . /hive/bin/asic-model
 
-if [[ $ASIC_MODEL == "Antminer S9k" || $ASIC_MODEL == "Antminer S9 SE" ]]; then
-    hostfile="/etc/hosts"
-elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" || $ASIC_MODEL == "Antminer X17" ]]; then
-    hostfile="/tmp/hosts"
-    #default for hiveon
-    #127.0.0.1       localhost.localdomain           localhost
-    #
-    if [[ $(md5sum /etc/hosts | awk '{print $1}') != 27acad957c7cded40cd6ac50d23ddc66 ]]; then
-        echo 'MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo=' | base64 -d > /etc/hosts
-    fi
-else
-    hostfile="/etc/hosts"
-fi
+
+# global exports
+
+#export PATH="./:/hive/bin:/hive/sbin:$PATH"
 
 
-#adds host ip
+# global consts
+
+declare -r RIG_CONF='/hive-config/rig.conf'
+
+
+# global vars
+
+declare hostfile=''
+
+
+# main
+
+print_script_version
+set_hostfile
+
+#add host ip
 #/hive/bin/hostname-check
 
+if [[ -e $RIG_CONF ]]; then
+	source "$RIG_CONF"
+	if [[ -z "$HIVE_HOST_URL" ]]; then
+		echo "HIVE_HOST_URL is empty"
+		exit 1
+	fi
+else
+	echo "No $RIG_CONF"
+	exit 1
+fi
 
-RIG_CONF="/hive-config/rig.conf"
-[[ ! -e $RIG_CONF ]] && echo "No $RIG_CONF" && exit 1
-. "$RIG_CONF"
-[[ -z $HIVE_HOST_URL ]] && echo "HIVE_HOST_URL is empty" && exit 1
+#Resolve host and write it to /etc/hosts
 
-
-#Resolves host and writes it to /etc/hosts
-
-SEPARATOR="#HIVE HOST CACHE BEGIN"
 #HOST="hiveos.farm"
-HOST=`echo "$HIVE_HOST_URL" | awk -F'/' '{print $3}'` # get domain name without trailing slash
-[[ -z $HOST ]] && echo "Unable to parse hostname from $HIVE_HOST_URL" && exit 1
+#HOST="$( awk -F'/' '{print $3}' <<< "$HIVE_HOST_URL" )" # get domain name without trailing slash
+IFS=/ read -r _ _ HOST <<< "$HIVE_HOST_URL" # get domain name without trailing slash (and without awk)
 
-#ent=`getent ahosts $HOST | grep -m 1 STREAM | sed -E 's/(\w+)\s+STREAM\s+(.*)/\1 \2/'`
-ent=`nslookup $HOST | grep -A 4 Name | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
+if [[ -z "$HOST" ]]; then
+	echo "Unable to parse hostname from $HIVE_HOST_URL"
+	exit 1
+fi
+
 for i in {1..30}; do
-    [[ $ent != "127.0.0.1" ]] && break
-    echo "Waiting for nslookup... $i"
-    sleep 2
-    ent=`nslookup $HOST | grep -A 4 Name | sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' | tail -1 | grep Address | head -n1 | awk -F': ' '{print $2}' | awk '{print $1}'`
+	ip_address="$( gethostbyname "$HOST" )"
+	[[ $ip_address != '127.0.0.1' ]] && break
+	echo "Waiting for nslookup... Attempt #$i"
+	sleep 2
 done
 
-if [[ -z $ent ]]; then
-    echo "Unable to resolve $HOST"
-    [[ -e "/hive-config/hosts" ]] && cp -rf /hive-config/hosts $hostfile
-#    message warn "Unable to resolve $HOST"
-    exit 0
-else
-    echo "Writing DNS resolve \"$ent\" to /etc/hosts"
-    ent="$ent $HOST"
+if [[ -z "$ip_address" ]]; then
+	echo "Unable to resolve $HOST"
+	[[ -e "/hive-config/hosts" ]] && cp -rf /hive-config/hosts "$hostfile"
+#	message warn "Unable to resolve $HOST"
+	exit 0
 fi
 
-#Recreate. Because of shitty picky bugs
-echo "127.0.0.1	localhost.localdomain		localhost" > "$hostfile"
 
-echo -e "\n$SEPARATOR" >> "$hostfile"
-echo "$ent" >> "$hostfile"
+old_hosts="$( < "$hostfile" )"
+old_hosts+=$'\n'
+
+new_hosts="# DO NOT EDIT. All changes will be overwritten by $script_basename
+
+127.0.0.1 localhost.localdomain localhost
+
+# HIVE HOST CACHE BEGIN
+$ip_address $HOST
+"
+
+# mind the flash memory wear ant tear
+if [[ "$old_hosts" != "$new_hosts" ]]; then
+	echo "Writing DNS resolve '$ip_address' to $hostfile"
+	echo "$new_hosts" > "$hostfile"
+	sync "$hostfile"
+else
+	echo "Server IP has not been changed, $hostfile update skipped"
+fi
 
 if ! cmp -s "$hostfile" /hive-config/hosts; then
-    cp -rf "$hostfile" /hive-config/hosts
+	cp -rf "$hostfile" /hive-config/hosts
+	sync /hive-config/hosts
 fi
-
-sync
