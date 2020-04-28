@@ -214,13 +214,13 @@ cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/m
 ##### To use another *API Server*, you should fill *HIVE_HOST_URL* variable.
 Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
-cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --hive-host-url='http://your_api_server'
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --hive-host-url=http://your_api_server
 ```
 
 ##### Of course you could set *FARM_HASH* and *API Server* simultaneously.
 Replace `YOUR_FARM_HASH` string you see below with your *FARM_HASH*. Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
-cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --farm-hash='YOUR_FARM_HASH' --hive-host-url='http://your_api_server'
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --farm-hash=YOUR_FARM_HASH --hive-host-url=http://your_api_server
 ```
 
 #### Bulk installation
