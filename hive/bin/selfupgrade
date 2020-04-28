@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.4'
+readonly script_version='0.16.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1325,7 +1325,7 @@ get_remote_version_of () {
 		[ "$bulk_download_mode_FLAG" -eq 0 ] && max_time='--max-time 2' # 2 seconds tops
 		downloader_output="$( curl --insecure --location --fail --silent --show-error $max_time "$download_URL" 2>&1 )"
 	else
-		downloader_output="$( wget --quiet --output-document=file- "$download_URL" 2>&1 )"
+		downloader_output="$( wget --quiet --output-document=- "$download_URL" 2>&1 )"
 	fi
 
 	downloader_exitcode=$?
