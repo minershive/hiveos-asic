@@ -179,7 +179,7 @@ All things you do with an ASIC web interface you could do better with [BTC Tools
 Login with SSH to your miner and run the following command:
 
 ```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade
 ```
 
 >For Antminer D3 **Blissz**, before installation run:
@@ -206,21 +206,21 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 You could add ASIC without entering *RIG_ID*, password and *API Server URL*.
 
 ##### To add ASIC without entering *RIG_ID* and password, you should fill *FARM_HASH* variable.
-Get your *FARM_HASH* from Hive OS dashboard. Replace `your_farm_hash` string you see below with your *FARM_HASH*.  Transform the text below and then run as a single command:
+Get your *FARM_HASH* from Hive OS dashboard. Replace `YOUR_FARM_HASH` string you see below with your *FARM_HASH*.  Transform the text below and then run as a single command:
  ```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' sh selfupgrade
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --farm-hash=YOUR_FARM_HASH
 ```
 
 ##### To use another *API Server*, you should fill *HIVE_HOST_URL* variable.
 Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && HIVE_HOST_URL='http://your_api_server' sh selfupgrade
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --hive-host-url='http://your_api_server'
 ```
 
 ##### Of course you could set *FARM_HASH* and *API Server* simultaneously.
-Replace `your_farm_hash` string you see below with your *FARM_HASH*. Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
+Replace `YOUR_FARM_HASH` string you see below with your *FARM_HASH*. Replace `http://your_api_server` string you see below with your *API Server URL*. Transform the text below and then run as a single command:
 ```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH='your_farm_hash' HIVE_HOST_URL='http://your_api_server' sh selfupgrade
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade --farm-hash='YOUR_FARM_HASH' --hive-host-url='http://your_api_server'
 ```
 
 #### Bulk installation
@@ -230,7 +230,7 @@ You can install Hive OS Client on all the ASICs you have on your local network. 
 1. **Skip this step if you're on the ASIC with Hive OS Client.** Install *sshpass* and *curl*:\
 ```apt-get install -y sshpass curl```
 1. Download script:\
-```cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh```
+```cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/hive-asic-net-installer/download.sh && sh download.sh```
 1. Execute it:\
 ```cd /tmp/hive-bulk-install```
 
@@ -249,14 +249,14 @@ To install firmware on Antminer S9/i/j just run ```firmware.sh```.
 ---
 If you want to install specific version or downgrade to specific version, please append version as an argument to ```selfupgrade```. E.g. 0.1-02:
 ```sh
-cd /tmp && curl -L --insecure -s -O https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade 0.1-02
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade 0.1-02
 ```
 
 Locally on ASIC you can run ```selfupgrade``` command. 
-To install specific version you should run ```selfupgrade 0.1-02```.
-If you want to reinstall version please add ```--force``` to the command like this ```selfupgrade 0.1-02 --force```.
+To install specific version you should run ```selfupgrade 0.1-14```.
+If you want to reinstall current version please add ```--force``` to the command like this ```selfupgrade --force```.
 To install stable development version from repository please run ```selfupgrade master```.
-To install night build development version directly from Github please run ```selfupgrade master github```.
+To install night build development version directly from Github please run ```selfupgrade master --github```.
 
 &nbsp;
 
@@ -299,23 +299,25 @@ inno-reboot status
 sudo su -
 cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade
 ```
-or
+or, if you need to use FARM_HASH
 ```sh
 sudo su -
-cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=replace_with_your_farm_hash bash selfupgrade
+cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade --farm-hash=YOUR_FARM_HASH
 ```
 
 &nbsp;
 
-### Zig Z1+
+### Zig Z1 and Z1+
 [Hive OS Client Installation Manual for Zig Z1+](hive/share/zig/README.md)
 
 ```sh
+sudo su -
 cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && bash selfupgrade
 ```
-or
+or, if you need to use FARM_HASH
 ```sh
-cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && FARM_HASH=replace_with_your_farm_hash bash selfupgrade
+sudo su -
+cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && selfupgrade --farm-hash=YOUR_FARM_HASH
 ```
 
 &nbsp;
