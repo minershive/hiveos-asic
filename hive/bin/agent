@@ -162,6 +162,8 @@ miner_stats () {
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi
 
+				system_status=$( (ant-functions hiveon_status) <<< "$STATS")
+
 				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
 				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
 				#stats=$(jq -nc --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
