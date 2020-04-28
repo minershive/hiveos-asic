@@ -450,7 +450,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 	# vars
 
 	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
-	local message_tagline message_body message_advice
+	local message_header message_body message_advice
 
 	# code
 
@@ -471,13 +471,17 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			log_name=''
 		fi
 
+		event_type='skip'
+		message_header=''
+		message_advice=''
+
 		case "$log_name" in
 			'/www/logs/lighttpd.error.log' )
 			
 				case "$log_message" in
 					*'auth failed'*				)
 													event_type='warning'
-													message_tagline='Failed login attempt has been made to the ASIC web interface. Click for details'
+													message_header='Failed login attempt has been made to the ASIC web interface. Click for details'
 													message_advice="Someone or something has tried to login to the ASIC web interface with wrong login and/or password. If it wasn't you -- you MAY have a virus in the local network that tries to brute-force all ASICs in the vicinity. Please be advised."
 													;;
 					*							)	event_type='skip'		;;
@@ -497,8 +501,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 				case "$log_message" in
 					*'Tune is in progress'*		)	event_type='skip'		;;		# S9, 'Tune is in progress, wait 30 seconds...'
 					*'Found'*'red chips'*		)	event_type='ok'			;;		# S9, 'Found 1 red chips, restart'
+					*'Chain '*'found '*			)	event_type='info'		;;		# 17: 'Chain 1: found 1 bad domains'
 					*'domains fixed'*			)	event_type='ok'			;;
-					*'Chain '*'found '*			)	event_type='info'		;;		# f.e. 'Chain 1: found 1 bad domains'
 					*							)	event_type='warning'	;;
 				esac
 				# cut milliseconds from watchdog messages like 'Total rate is 0 after 1870.000000 seconds, restart'
@@ -508,10 +512,10 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 				case "$log_message" in
 					'Config parse:'*			)	event_type='ok'					# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
-													message_tagline='Tune started'
+													message_header='Tune started'
 													;;
 #					'Auto tune is done'*		)	event_type='ok'		 			# Auto tune is done, exit
-#													message_tagline='Tune done'
+#													message_header='Tune done'
 #													;;
 					*							)	event_type='skip'		;;
 				esac														;;
@@ -533,7 +537,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 		if [[ "$event_type" != 'skip' ]]; then
 			print_controller_log_entry "LOG_${event_type^^}" "${log_name}: $log_message" "$log_timestamp"
 			if (( send_messages_enabled )); then
-				[[ -z "${message_tagline-}" ]] && message_tagline="$log_message"
+				[[ -z "$message_header" ]] && message_header="$log_message"
 
 				# shellcheck disable=SC2059
 				printf -v message_body \
@@ -542,9 +546,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					"$log_timestamp ${TZ-GMT}" \
 					"${event_type^^}" \
 					"$log_message" \
-					"${message_advice-}"
+					"$message_advice"
 
-				echo "$message_body" | message "$event_type" "$message_tagline" payload
+				echo "$message_body" | message "$event_type" "$message_header" payload
 			fi
 		fi
 	done
