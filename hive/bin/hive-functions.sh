@@ -4,14 +4,14 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 # Linted by shellcheck 0.3.7
 #
 
 
-declare -r library_mission='Client for ASICs: Oh my handy little functions'
-declare -r library_version='0.1.9'
+declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
+declare -r hive_functions_lib_version='0.1.10'
 
 
 # !!! bash strict mode, no unbound variables
@@ -671,8 +671,8 @@ declare -r -i exitcode_LESS_THAN=2
 
 if ! ( return 0 2>/dev/null ); then # not sourced
 
-	declare -r script_mission="$library_mission"
-	declare -r script_version="$library_version"
+	declare -r script_mission="$hive_functions_lib_mission"
+	declare -r script_version="$hive_functions_lib_version"
 
 	case "$*" in
 		'')
