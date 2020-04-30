@@ -43,7 +43,7 @@ check_h () {
         echo "> ${snooze_time}s random pause (for better bulk update)"
         sleep "$snooze_time"
         retries_counter=0
-        until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/repo/s9/latest -o /tmp/latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /tmp/latest_new.tar.gz >/dev/null 2>&1; do
+        until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/client/latest.tar.gz -o /tmp/latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /tmp/latest_new.tar.gz >/dev/null 2>&1; do
             retries_counter=$(( retries_counter + 1 ))
             snooze_time="$( get_random_number_between 15 60 )"
             echo "Error. Try #${retries_counter} in $snooze_time seconds..."
