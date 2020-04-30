@@ -90,7 +90,7 @@ miner_stats () {
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi
 
-				system_status=$( (ant-functions hiveon_status) <<< "$STATS")
+				system_status=$( ant-functions hiveon_status <<< "$STATS" )
 
 				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
 				local active_pool=$(echo "$stats_pool" | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
@@ -162,7 +162,7 @@ miner_stats () {
 					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
 				fi
 
-				system_status=$( (ant-functions hiveon_status) <<< "$STATS")
+				system_status=$( ant-functions hiveon_status <<< "$STATS" )
 
 				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
 				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
