@@ -9,7 +9,7 @@
 
 
 declare -r library_mission='Antminer and Hiveon functions'
-declare -r library_version='0.1.0'
+declare -r library_version='0.1.1'
 
 
 # !!! bash strict mode, no unbound variables
@@ -140,7 +140,7 @@ function hiveon_status () {
 		fi
 
 		#L3 without check-auto-tune-running.cgi
-		if [ $ASIC_MODEL =~ "Antminer L3" ]; then
+		if [[ $ASIC_MODEL =~ "Antminer L3" ]]; then
 			if pgrep auto-tune 1>/dev/null; then
 				tune_board=1
 			else
