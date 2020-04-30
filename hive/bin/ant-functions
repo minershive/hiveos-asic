@@ -4,12 +4,12 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-declare -r library_mission='Antminer and Hiveon functions'
-declare -r library_version='0.1.1'
+declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
+declare -r ant_functions_lib_version='0.1.4'
 
 
 # !!! bash strict mode, no unbound variables
@@ -27,6 +27,19 @@ function print_script_version {
 	echo
 }
 
+function errcho {
+	#
+	# Usage: errcho [arg...]
+	#
+	# uniform error logging to stderr
+	#
+
+	echo -e -n "${BRED-}$0"
+	for (( i=${#FUNCNAME[@]} - 2; i >= 1; i-- )); { echo -e -n "${RED-}:${BRED-}${FUNCNAME[i]}"; }
+	echo -e " error:${NOCOLOR-} $*"
+
+} 1>&2
+
 #
 # functions: audit
 #
@@ -34,7 +47,7 @@ function print_script_version {
 # [[ $( script_to_audit ) != 'I AM FINE' ]] && echo "Something wrong with $script_to_check"
 #
 
-function print_i_am_doing_fine_then_exit () {
+function print_i_am_doing_fine_then_exit {
 	#
 	# Usage: print_i_am_fine_and_exit
 	#
@@ -110,8 +123,30 @@ function __list_functions {
 
 #ant functions
 
+function is_hiveon_fw_signed {
+
+	# consts
+
+	local -r upgrade_script='/www/pages/cgi-bin/upgrade.cgi'
+	local -r uncommented_openssl_RE='^[[:space:]]*openssl'
+
+	# vars
+
+	local -i is_certs_exist=0
+	local first_match
+
+	# code
+
+	for first_match in /etc/*.pem; do
+		[ -s "$first_match" ] && is_certs_exist=1
+		break
+	done
+
+	(( is_certs_exist )) && [[ -s "$upgrade_script" ]] && grep -Eqe "$uncommented_openssl_RE" -- "$upgrade_script"
+}
+
 #get status
-function hiveon_status () {
+function hiveon_status {
 	#
 	# Usage: hiveon_status '{JSON}'
 	#
@@ -121,15 +156,15 @@ function hiveon_status () {
 	system_status=$(jq -r '.[0].Type' <<< "$input_text")
 
 	if [[ -n $system_status ]]; then
-		if $(echo "$system_status" | grep -v "S9 6-boards" | grep -q "(" ); then
-			system_status="$(echo $system_status | grep '(' | sed 's/.*(\|).*//g')"
+		if grep -v 'S9 6-boards' <<< "$system_status" | grep -q '\('; then
+			system_status="$( echo $system_status | grep '(' | sed 's/.*(\|).*//g' )"
 		else
 			system_status="mining"
 		fi
 	fi
 
 	#Hiveon before 17 series
-	if [[ $system_status == "mining" && -n "$HIVEON_VERSION" ]]; then
+	if [[ $system_status == 'mining' && -n "$HIVEON_VERSION" ]]; then
 		local tune_board=0
 		local tune_chip=0
 		if [ -e /www/pages/cgi-bin/check-auto-tune-running.cgi ]; then
@@ -140,7 +175,7 @@ function hiveon_status () {
 		fi
 
 		#L3 without check-auto-tune-running.cgi
-		if [[ $ASIC_MODEL =~ "Antminer L3" ]]; then
+		if [[ $ASIC_MODEL =~ 'Antminer L3' ]]; then
 			if pgrep auto-tune 1>/dev/null; then
 				tune_board=1
 			else
@@ -175,8 +210,8 @@ declare -r -i exitcode_LESS_THAN=2
 
 if ! ( return 0 2>/dev/null ); then # not sourced
 
-	declare -r script_mission="$library_mission"
-	declare -r script_version="$library_version"
+	declare -r script_mission="$ant_functions_lib_mission"
+	declare -r script_version="$ant_functions_lib_version"
 
 	case "$*" in
 		'')
