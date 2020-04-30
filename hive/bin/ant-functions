@@ -156,7 +156,7 @@ function hiveon_status {
 	system_status=$(jq -r '.[0].Type' <<< "$input_text")
 
 	if [[ -n $system_status ]]; then
-		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then
+		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '(';  then # )'# syntax highlighting fix
 			system_status="$( echo $system_status | grep '(' | sed 's/.*(\|).*//g' )"
 		else
 			system_status="mining"
