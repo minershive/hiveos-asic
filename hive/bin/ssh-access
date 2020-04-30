@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: ssh access control'
-readonly script_version='0.2.0'
+readonly script_version='0.2.1'
 
 
 # !!! bash strict mode, no unbound variables
@@ -75,12 +75,12 @@ case "$command" in
 		rm /config/dropbear
 		rm /etc/default/dropbear
 		/etc/init.d/dropbear start
-		echo -e "ssh ${BYELLOW-}turned ON${NOCOLOR-} till the next reboot"
+		echo -e "ssh turned ${BRED-}ON${NOCOLOR-} till the next reboot"
 		;;
 	'off')
 		rm /config/dropbear
 		killall dropbear
-		echo -e "ssh ${BGREEN-}turned OFF${NOCOLOR-} permanently"
+		echo -e "ssh turned ${BGREEN-}OFF${NOCOLOR-} permanently"
 		;;
 #	'--permanent')
 #		ln -s /dev/null /config/dropbear -sf; nohup /etc/init.d/dropbear start & # are you sure?
@@ -89,10 +89,10 @@ case "$command" in
 	'status')
 		# shellcheck disable=SC2119
 		if is_ssh_server_listen; then
-			echo -e "Port 22 opened, ${BYELLOW-}ssh is ON${NOCOLOR-}"
+			echo -e "Port 22 opened, ssh is ${BRED-}ON${NOCOLOR-}"
 			exit 22
 		else
-			echo -e "Port 22 closed, ${BGREEN-}ssh is OFF${NOCOLOR-}"
+			echo -e "Port 22 closed, ssh is ${BGREEN-}OFF${NOCOLOR-}"
 			exit 0
 		fi
 		;;
