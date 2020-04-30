@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.4'
+declare -r ant_functions_lib_version='0.1.5'
 
 
 # !!! bash strict mode, no unbound variables
@@ -156,7 +156,7 @@ function hiveon_status {
 	system_status=$(jq -r '.[0].Type' <<< "$input_text")
 
 	if [[ -n $system_status ]]; then
-		if grep -v 'S9 6-boards' <<< "$system_status" | grep -q '\('; then
+		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then
 			system_status="$( echo $system_status | grep '(' | sed 's/.*(\|).*//g' )"
 		else
 			system_status="mining"
