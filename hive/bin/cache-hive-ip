@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.1.1'
+readonly script_version='0.1.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -59,6 +59,7 @@ function set_hostfile {
 		'Antminer S9'			|\
 		'Antminer T17'*			|\
 		'Antminer S17'*			|\
+		'Antminer X17'			|\
 		'Antminer T9+'*			|\
 		'Antminer T9'*			|\
 		'Antminer S10'*			|\
@@ -70,8 +71,7 @@ function set_hostfile {
 		'Antminer '				|\
 		'Antminer S9 (vnish'*	|\
 		'Antminer S9'*			|\
-		'Antminer S11'*			|\
-		'Antminer X17')
+		'Antminer S11'*)
 			hostfile='/tmp/hosts'
 			#default for hiveon
 			#127.0.0.1       localhost.localdomain           localhost
@@ -166,12 +166,12 @@ $ip_address $HOST
 if [[ "$old_hosts" != "$new_hosts" ]]; then
 	echo "Writing DNS resolve '$ip_address' to $hostfile"
 	echo "$new_hosts" > "$hostfile"
-	sync "$hostfile"
+	sync
 else
 	echo "Server IP has not been changed, $hostfile update skipped"
 fi
 
 if ! cmp -s "$hostfile" /hive-config/hosts; then
 	cp -rf "$hostfile" /hive-config/hosts
-	sync /hive-config/hosts
+	sync
 fi
