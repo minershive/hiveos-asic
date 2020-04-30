@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.5'
+declare -r ant_functions_lib_version='0.1.6'
 
 
 # !!! bash strict mode, no unbound variables
@@ -156,10 +156,10 @@ function hiveon_status {
 	system_status=$(jq -r '.[0].Type' <<< "$input_text")
 
 	if [[ -n $system_status ]]; then
-		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '(';  then # )'# syntax highlighting fix
-			system_status="$( echo $system_status | grep '(' | sed 's/.*(\|).*//g' )"
+		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then #)'# syntax highlighting fix
+			system_status="$( echo "$system_status" | grep '(' | sed 's/.*(\|).*//g' )"
 		else
-			system_status="mining"
+			system_status='mining'
 		fi
 	fi
 
@@ -176,7 +176,7 @@ function hiveon_status {
 
 		#L3 without check-auto-tune-running.cgi
 		if [[ $ASIC_MODEL =~ 'Antminer L3' ]]; then
-			if pgrep auto-tune 1>/dev/null; then
+			if ps w | grep -q '[a]uto-tune'; then
 				tune_board=1
 			else
 				tune_board=0
@@ -184,7 +184,7 @@ function hiveon_status {
 		fi
 
 		if [[ $tune_board -eq 1 || $tune_chip -eq 1 ]]; then
-			system_status="tuning"
+			system_status='tuning'
 		fi
 	fi
 	echo $system_status
