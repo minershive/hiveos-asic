@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.15'
+readonly script_version='2.1.16'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -696,6 +696,7 @@ function shrink_system_logs {																		(( script_debug )) && debugcho
 	# consts
 
 	local -r -i log_lines_shrink_limit=1000
+	local -r -a logs_collection=( /var/log/* /tmp/*.log /hive-config/*.log /config/*.log /www/logs/*.log )
 
 	# vars
 
@@ -704,7 +705,7 @@ function shrink_system_logs {																		(( script_debug )) && debugcho
 
 	# code
 
-	for this_log in /var/log/* /tmp/*.log /hive-config/*.log /config/*.log; do
+	for this_log in "${logs_collection[@]}"; do
 		if [[ -s "$this_log" ]]; then
 			current_number_of_lines_in_log="$( wc -l < "$this_log" )"
 			if (( current_number_of_lines_in_log > log_lines_shrink_limit )); then
@@ -736,7 +737,7 @@ function wipe_memory {																				(( script_debug )) && debugcho
 	# code
 
 	drop_caches
-	du -h /tmp/* /var/log/ | grep -F 'M' | awk '{print $2}' | tee >( xargs rm )
+	du -h /tmp/* /var/log/* | grep -Fe 'M'$'\t' -- | awk '{print $2}' | tee >( xargs rm )
 }
 
 
@@ -812,10 +813,10 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		print_controller_log_entry "$event_type_for_log" "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
-		echo -e "$print_top" | tee >( message "$event_type_for_message" "Low memory detected, trying to clean the logs" payload; echo )
+		echo -e "$print_top" | tee >( message "$event_type_for_message" 'System memory low, tried to clean up the logs' payload; echo )
 
-		wipe_memory
 		shrink_system_logs
+		wipe_memory
 	fi
 
 	return $(( is_something_happened ))
