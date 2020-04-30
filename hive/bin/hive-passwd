@@ -10,8 +10,8 @@
 #
 
 
-readonly script_mission='Client for ASICs: Change Antminer web interface password'
-readonly script_version='0.1.3'
+readonly script_mission='Client for ASICs: Set passwords for Antminer web interface and ssh (optional)'
+readonly script_version='0.2.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -23,18 +23,20 @@ set -o nounset
 # functions
 
 function print_script_version {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
 function print_script_usage {
-	echo -e "  Usage: ${CYAN-}${script_basename} old_password new_password${NOCOLOR-}"
+	echo "Usage: ${CYAN-}${script_basename} new_password [-s|--show]${NOCOLOR-}"
+	echo
+	echo "  ${WHITE-}-s, --show${GRAY-}    show passwords${NOCOLOR-}"
 	echo
 }
 
-function get_md5 {
+function md5 {
 	#
-	# Usage: get_md5 'string' 
+	# Usage: md5 'string' 
 	#
 
 	# args
@@ -52,17 +54,16 @@ function get_md5 {
 	echo "${md5_output::32}"
 }
 
-function change_antminer_web_password {
+function set_antminer_web_password {
 	#
-	# Usage: change_antminer_web_password 'current_password' 'new_password'
+	# Usage: set_antminer_web_password 'new_password'
 	#
 	# var names are from RFC 2069
 
 	# args
 
-	(( $# == 2 )) || return 1
-	local -r current_password="$1"
-	local -r new_password="$2"
+	(( $# == 1 )) || return 1
+	local -r new_password="$1"
 
 	# consts
 
@@ -71,64 +72,102 @@ function change_antminer_web_password {
 
 	# vars
 
-	local current_password_HA1 current_password_digest_string
 	local new_password_HA1 new_password_digest_string
 
 	# code
 
+	echo -n "Setting Antminer web interface password to '${WHITE-}${new_password}${NOCOLOR-}'... "
+
 	if [[ ! -s "$lighttpd_password_file" ]]; then
-		echo "${BRED-}$lighttpd_password_file not found or empty.${NOCOLOR-}"
+		echo "${BRED-}FAILED${NOCOLOR-} ($lighttpd_password_file not found or empty)"
 		echo
 		return 1
 	fi
 
-	if [[ "$current_password" == "$new_password" ]]; then
-		echo "${BYELLOW-}Passwords are the same, nothing to do${NOCOLOR-}"
-		echo
-		return 1
+	new_password_HA1="$( md5 "${username_value}:${realm_value}:${new_password}" )"
+	new_password_digest_string="${username_value}:${realm_value}:${new_password_HA1}"
+
+	# compare current password with the new
+	if diff "$lighttpd_password_file" <( echo "$new_password_digest_string" ) > /dev/null; then
+		echo "${BYELLOW-}SKIPPED${NOCOLOR-} (new password is the same as the current one, skipped)"
+		return 2
 	fi
 
-	current_password_HA1="$( get_md5 "${username_value}:${realm_value}:${current_password}" )"
-	current_password_digest_string="${username_value}:${realm_value}:${current_password_HA1}"
-
-	if diff "$lighttpd_password_file" <( echo "$current_password_digest_string" ) > /dev/null; then
-		# create new lighttpd-htdigest.user file
-		new_password_HA1="$( get_md5 "${username_value}:${realm_value}:${new_password}" )"
-		new_password_digest_string="${username_value}:${realm_value}:${new_password_HA1}"
-		if echo "$new_password_digest_string" > "$lighttpd_password_file"; then
-			echo "${GREEN-}Web password changed to '$new_password'${NOCOLOR-}"
-			echo
-		else
-			echo "${BRED-}Something bad happened${NOCOLOR-}"
-			echo
-			return 1
-		fi
+	# create new lighttpd-htdigest.user file
+	if echo "$new_password_digest_string" > "$lighttpd_password_file"; then
+		echo "${GREEN-}OK${NOCOLOR-}"
+		return 0
 	else
-		echo "${BRED-}Current password '$current_password' is not correct${NOCOLOR-}"
-		echo
+		echo "${BRED-}FAILED${NOCOLOR-} (something bad happened)"
 		return 1
 	fi
-
-	return 0
 }
 
-function change_ssh_password {
+function show_ssh_password {
+	local -r admin_string='root:$6$saaYvC9T$PqLC9JWHDZsWYmpB0b0Zf.34b1m5/r9U6A8PPig2qzxAyUN78pyI/vi7OZrCA0T2y1fT5UNFtPiBYuCyBTA610:15975:0:99999:7:::'
+	local -r  root_string='root:$6$K/vQNJUn$ikrUf5YdPElcX5Sp2AUOrOfLVtLdMBp/zYFy1GCQpeOmS2ZcJQ8i5g3XKmf3rigb1sL.9dUxlfXqMdc/j.TBa1:18071:0:99999:7:::'
+
+	local -i is_1st_and_2nd_equal=0 is_1st_and_3rd_equal=0
+	local shadow_files_collection
+
+	cmp -s /etc/shadow /etc/shadow.factory && is_1st_and_2nd_equal=1
+	cmp -s /etc/shadow /config/shadow && is_1st_and_3rd_equal=1
+
+	if (( is_1st_and_2nd_equal && is_1st_and_3rd_equal )); then
+		shadow_files_collection='/etc/shadow'
+	else
+		shadow_files_collection='/etc/shadow /etc/shadow.factory /config/shadow'
+	fi
+
+	for this_file in $shadow_files_collection; do
+		echo -n "ssh password in $this_file: "
+		if grep -Fqse "$admin_string" -- "$this_file"; then
+			echo -n "${BRED-}admin${GRAY-} (default, all viruses know it)${NOCOLOR-}"
+		elif grep -Fqse "$root_string" -- "$this_file"; then
+			echo -n "${BRED-}root${GRAY-} (standard, all viruses know it)${NOCOLOR-}"
+		else
+			echo -n "${BGREEN-}non-standard${GRAY-} (and it's good)${NOCOLOR-}"
+		fi
+		echo
+	done
+}
+
+function show_antminer_web_password {
+	local -r default_htdigest_content='root:antMiner Configuration:23c2a2d78c0d20ec069097d7d20c4392'
+
+	echo -n "web password: "
+	if grep -Fqse "$default_htdigest_content" -- "$lighttpd_password_file"; then
+		echo -n "${BRED}root${GRAY-} (default, all viruses know it)${NOCOLOR-}"
+	else
+		echo -n "${BGREEN}non-standard${GRAY-} (and it's good)${NOCOLOR-}"
+	fi
+	echo
+}
+
+function set_ssh_password {
 	#
-	# Usage: change_ssh_password 'current_password' 'new_password'
+	# Usage: set_ssh_password 'new_password'
 	#
 
 	# args
 
-	(( $# == 2 )) || return 1
-	local -r current_password="$1"
-	local -r new_password="$2"
+	(( $# == 1 )) || return 1
+	local -r new_password="$1"
 
 	# code
 
-	if printf '%s\n%s' "$new_password" "$new_password" | passwd root > /dev/null; then
+	echo -n "Setting ssh password to '$new_password'... "
+
+	if printf '%s\n%s\n' "$new_password" "$new_password" | passwd root > /dev/null; then
 		rm -f /config/shadow
 		mv /etc/shadow /config/shadow
 		ln -s /config/shadow /etc/shadow
+		echo "${GREEN-}OK${NOCOLOR-}"
+		echo
+	else
+		echo "${BRED-}FAILED${NOCOLOR-} (something bad happened)"
+		echo
+		return 1
 	fi
 }
 
@@ -139,16 +178,35 @@ function parse_arguments {
 
 	# args
 
-	(( $# == 2 )) || { print_script_usage; exit 1; }
-	current_password_ARG="$1"
-	new_password_ARG="$2"
+	new_password_ARG="${1-}"
+
+	# vars
+
+	local this_ARG
 
 	# code
 
-	if 	[[ -z "$current_password_ARG" || -z "$new_password_ARG" ]]; then
+	if 	[[ -z "$new_password_ARG" ]]; then
 		print_script_usage
 		exit 1
 	fi
+
+	for this_ARG in "$@"; do
+		case "$this_ARG" in
+			'-s' | '--show' )
+				show_antminer_web_password
+				show_ssh_password
+				exit 0
+				;;
+#			'-s' | '--ssh' )
+#				set_password_for_ssh_FLAG=1
+#				;;
+			'-h'|'--help')
+				print_script_usage
+				exit 1
+				;;
+		esac
+	done
 }
 
 
@@ -165,7 +223,8 @@ declare -r lighttpd_password_file='/config/lighttpd-htdigest.user'
 
 # global vars
 
-declare current_password_ARG new_password_ARG
+declare new_password_ARG
+declare -i set_password_for_ssh_FLAG=0
 
 
 # main
@@ -173,9 +232,11 @@ declare current_password_ARG new_password_ARG
 print_script_version
 parse_arguments "$@"
 
-If [[ "$ASIC_MANIUFACTURER" != 'Bitmain' ]]; then
-	echo "${BYELLOW-}Antminer not detected (model: $ASIC_MODEL), exiting...${NOCOLOR-}"
+(( set_password_for_ssh_FLAG )) && set_ssh_password "$new_password_ARG"
+
+if [[ "$ASIC_MANIUFACTURER" == 'Bitmain' ]]; then
+	set_antminer_web_password "$new_password_ARG"
+else
+	echo "Antminer not detected (model: $ASIC_MODEL), cannot set web password${NOCOLOR-}"
 	exit 1
 fi
-
-change_antminer_web_password "$current_password_ARG" "$new_password_ARG"
