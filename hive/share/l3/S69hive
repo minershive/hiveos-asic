@@ -79,6 +79,7 @@ rm -rf /tmp/*.log > /dev/null 2>&1
 [ -e /config/hive/hive/sbin/teleconsole ] && rm /config/hive/hive/sbin/teleconsole
 
 if [ -s /config/hive/hive/share/l3/S69hive ] && ! cmp -s /etc/rcS.d/S69hive /config/hive/hive/share/l3/S69hive; then
+    cp -rf /config/hive/hive/share/l3/S69hive /etc/rcS.d/S69hive
     sh /config/hive/hive/share/l3/S69hive
     exit 0
 fi
