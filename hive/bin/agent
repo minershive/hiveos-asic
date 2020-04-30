@@ -385,7 +385,7 @@ miner_stats () {
 				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
 				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
 
-				if [ $(echo $freq | jq -r length) -ne "$miner_count" ]; then
+				if [[ $(echo $freq | jq -r length) -ne "$miner_count" ]]; then
 					local freq_new="[]"
 					local freq=$((jq '.[1] | with_entries( select(.key | test("frequency")) )       | to_entries | [.[].value]') <<< "$STATS")
 					local freq_num=$(echo $freq | jq -r .[0])
