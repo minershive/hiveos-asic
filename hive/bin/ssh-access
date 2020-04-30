@@ -4,12 +4,12 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: ssh access control'
-readonly script_version='0.1.1'
+readonly script_version='0.2.0'
 
 
 # !!! bash strict mode, no unbound variables
@@ -19,15 +19,39 @@ set -o nounset
 
 # functions
 
-print_script_version() {
+function print_script_version {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
-print_script_usage() {
+function print_script_usage {
 	basename="$( basename "$0" )"
-	echo -e "Usage: ${CYAN-}${basename} on | off | permanent [--reboot]${NOCOLOR-}"
+	echo -e "Usage: ${CYAN-}${basename} status | on | off${NOCOLOR-}"
 	echo
+}
+
+# shellcheck disable=SC2120
+function is_ssh_server_listen {
+	#
+	# Usage: is_ssh_server_listen
+	#
+
+	# consts
+
+	local -r -i ssh_port_DEFAULT=22
+
+	# args
+
+	local port="${1-${ssh_port_DEFAULT}}"
+
+	# vars
+
+	local -i ssh_listen_sockets_number
+
+	# code
+
+	ssh_listen_sockets_number="$( netstat -lnt | grep -cFe ":$port" -- )" || echo 'Something wrong'
+	(( ssh_listen_sockets_number ))
 }
 
 
@@ -51,21 +75,26 @@ case "$command" in
 		rm /config/dropbear
 		rm /etc/default/dropbear
 		/etc/init.d/dropbear start
-		echo -e "ssh turned ON till the next reboot."
+		echo -e "ssh ${BYELLOW-}turned ON${NOCOLOR-} till the next reboot"
 		;;
 	'off')
 		rm /config/dropbear
-		echo -e -n "ssh turned OFF. "
-		if [[ $option == '--reboot' ]]; then
-			echo -e "Reboot in 30 seconds..."
-			( sleep 30s; reboot ) &
-		else
-			echo -e "Please reboot the machine."
-		fi
+		killall dropbear
+		echo -e "ssh ${BGREEN-}turned OFF${NOCOLOR-} permanently"
 		;;
-	'permanent')
-		ln -s /dev/null /config/dropbear -sf; nohup /etc/init.d/dropbear start & # are you sure?
-		echo -e "ssh turned ON permanently."
+#	'--permanent')
+#		ln -s /dev/null /config/dropbear -sf; nohup /etc/init.d/dropbear start & # are you sure?
+#		echo -e 'ssh turned ON permanently'
+#		;;
+	'status')
+		# shellcheck disable=SC2119
+		if is_ssh_server_listen; then
+			echo -e "Port 22 opened, ${BYELLOW-}ssh is ON${NOCOLOR-}"
+			exit 22
+		else
+			echo -e "Port 22 closed, ${BGREEN-}ssh is OFF${NOCOLOR-}"
+			exit 0
+		fi
 		;;
 	*)
 		print_script_usage
