@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.16'
+readonly script_version='2.1.17'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -765,7 +765,7 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 
 	# vars
 
-	local HIVE_HOST_URL
+	local HIVE_HOST_URL server_answer
 	local -i current_year date_from_server_in_seconds
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 
@@ -781,8 +781,12 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
-		date_from_server_in_seconds="$( curl --head "$HIVE_HOST_URL" 2>&1 | grep -F 'Date:' | cut -d' ' -f3-6 | timetran )"
-		print_controller_log_entry "$event_type_for_log" "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+		if server_answer="$( curl --fail --silent --show-error --head "$HIVE_HOST_URL" 2>&1 )"; then
+			date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
+			print_controller_log_entry "$event_type_for_log" "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+		else
+			print_controller_log_entry "$event_type_for_log" "System date is 1970. Network is lost, cannot get actual date from server ($server_answer)"
+		fi
 	fi
 
 	return $(( is_something_happened ))
