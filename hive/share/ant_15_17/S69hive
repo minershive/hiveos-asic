@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.24'
+readonly script_version='1.0.26-test'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -71,7 +71,7 @@ parse_arguments () {
 			'-d'|'--force-deploy')
 				force_deploy_FLAG=1
 				;;
-			'')
+			''|'start')
 				: ok good to go
 				;;
 			*)
@@ -82,7 +82,7 @@ parse_arguments () {
 		esac
 	done
 
-	if [ -f "$dev_build_file" ]; then # how'd you like a secret stuff
+	if [ -f "${NVRAM_path}/${dev_build_file}" ]; then # how'd you like a secret stuff
 		# unconditional download & deploy with latest dev build
 		remote_package_filename="$dev_build_package_filename"
 		dev_build_FLAG=1
@@ -197,16 +197,20 @@ get_tar_gz_at_any_cost () {
 	return 0
 }
 
-set_download_server_URL () {
+set_default_download_server_URL () {
 	#
-	# Usage: set_download_server_URL
+	# Usage: set_default_download_server_URL
 	#
 	# sets download_server_URL global var
 	#
 
+	# conts
+
+	local whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url' # space-delimited collection
+
 	# vars
 
-	local whitelabel_download_server_URL_file=''
+	local whitelabel_download_server_URL_file
 
 	# code
 
@@ -244,6 +248,23 @@ set_download_server_URL () {
 	esac
 }
 
+set_NVRAM_path () {
+
+	# consts
+
+	local package_at_default_path="${NVRAM_path_default}/${persistent_package_filename}"
+	local package_at_quirk_path="${NVRAM_path_quirk}/${persistent_package_filename}"
+
+	# code
+
+	if [ -s "$package_at_default_path" ] && [ -s "$package_at_quirk_path" ] && [ "$package_at_quirk_path" -nt "$package_at_default_path" ]; then
+			# quirk is newer, use quirk
+			NVRAM_path="$NVRAM_path_quirk" # duct tape for dear Vitya
+	elif [ -d "$NVRAM_path_quirk" ]; then
+		NVRAM_path="$NVRAM_path_quirk" # duct tape for dear Vitya
+	fi
+}
+
 deploy_hive () {
 	#
 	# Usage: deploy_hive &
@@ -253,25 +274,26 @@ deploy_hive () {
 
 	local full_URL=''
 	local tar_output=''
+	persistent_package_filename_w_path="${NVRAM_path}/${persistent_package_filename}"
 
 	# code
 
 	echo_action 'Hive deployment launched in the background'
 
-	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename" ] || ! gunzip -tf "$persistent_package_filename" >/dev/null 2>&1; then
-		set_download_server_URL
+	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename_w_path" ] || ! gunzip -tf "$persistent_package_filename_w_path" >/dev/null 2>&1; then
+		set_default_download_server_URL
 		full_URL="${download_server_URL}${remote_package_filename}"
-		get_tar_gz_at_any_cost "$full_URL" "$persistent_package_filename" || die "Error downloading $persistent_package_filename, exiting"
+		get_tar_gz_at_any_cost "$full_URL" "$persistent_package_filename_w_path" || die "Error downloading $persistent_package_filename_w_path, exiting"
 	fi
 
 	if [ ! -d /config/hive ]; then
 		mkdir -p /config/hive/hive-config
 	fi
 
-	echo_action "Extracting $persistent_package_filename"
+	echo_action "Extracting $persistent_package_filename_w_path"
 
 	cd "$NVRAM_path"
-	tar_output="$( tar -xzv -f "$persistent_package_filename" 2>&1 )" || die "${tar_output}\n\nError extracting $persistent_package_filename, exiting"
+	tar_output="$( tar -xzv -f "$persistent_package_filename_w_path" 2>&1 )" || die "${tar_output}\n\nError extracting $persistent_package_filename_w_path, exiting"
 
 	[ -L /hive ] && rm /hive
 	rm -rf hiveos-asic-*/hive/sbin/teleconsole # remove the legacy before copying
@@ -282,7 +304,7 @@ deploy_hive () {
 
 	echo_action 'Copying finished, removing temporary files'
 	rm -rf hiveos-asic*  || echo_info 'Temporary files removing error'
-	[ -f "$dev_build_file" ] && rm "$dev_build_file"
+	[ -f "${NVRAM_path}/${dev_build_file}" ] && rm -f "${NVRAM_path}/${dev_build_file}"
 
 	sleep 2
 
@@ -319,22 +341,24 @@ boot_hive () {
 
 # global consts
 
-readonly NVRAM_path='/nvdata'
-readonly persistent_package_filename="${NVRAM_path}/latest.tar.gz"
-readonly dev_build_file="${NVRAM_path}/dev-build"
+readonly NVRAM_path_default='/nvdata'
+readonly NVRAM_path_quirk='/opt'
+readonly persistent_package_filename='latest.tar.gz'
+
+readonly dev_build_file='dev-build'
 
 readonly FARM_HASH_file='/config/FARM_HASH'
 readonly HIVE_HOST_URL_file='/config/HIVE_HOST_URL'
 
-readonly whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url' # space-delimited collection
 readonly default_download_server_URL='http://download.hiveos.farm'
 
-readonly stable_package_filename='/asic/client/latest.tar.gz'
-readonly dev_build_package_filename='/_asic/client/latest.tar.gz'
+readonly stable_package_filename="/asic/client/${persistent_package_filename}"
+readonly dev_build_package_filename="/_asic/client/${persistent_package_filename}"
 
 
 # global vars
 
+NVRAM_path="$NVRAM_path_default"
 download_server_URL="$default_download_server_URL"
 remote_package_filename="$stable_package_filename"
 dev_build_FLAG=0
@@ -350,8 +374,10 @@ export LD_LIBRARY_PATH=/hive/lib
 
 # code
 
+[ -t 1 ] || exec >> "/tmp/${script_basename}.log" 2>&1
 trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
 
+set_NVRAM_path
 parse_arguments "$@"
 
 echo_action "$script_mission $script_version started"
