@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.17'
+readonly script_version='2.1.18'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1128,6 +1128,39 @@ function checkup:is_overclock_profile_exist {														(( script_debug )) &&
 	return $(( is_something_happened ))
 }
 
+function checkup:is_fw_signed {																		(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message='warning'	# error|warning|info|success
+	local -r message_header='For maximum security you only have to install a signed firmware'
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	if ! ant-functions is_hiveon_fw_signed; then
+		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) == 0 )); then
+			# one time action
+			print_controller_log_entry "$event_type_for_log" 'Firmware is unsigned'
+			message "$event_type_for_message" "$message_header"
+			set_checkup_counter "$FUNCNAME" 'fw_is_unsigned' 1
+			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+		fi
+	else
+		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) > 0 )); then
+			# one time action
+			print_controller_log_entry 'info' 'Firmware is signed now'
+			set_checkup_counter "$FUNCNAME" 'fw_is_unsigned' 0
+		fi
+	fi
+
+	return $(( is_something_happened ))
+}
+
 function checkup:are_logs_updated {																	(( script_debug )) && debugcho
 
 	# consts
@@ -1424,6 +1457,7 @@ declare -r -a crontab=(
 	'@hourly		execute:cache_hive_ip'
 	'@midnight		print_checkup_summary_report'
 )
+#	'* * * * *		checkup:is_fw_signed' # forging ahead
 
 
 # main()
