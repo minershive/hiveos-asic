@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.25'
+readonly script_version='1.0.26-test'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -63,30 +63,19 @@ parse_arguments () {
 	# Usage: parse_arguments "$@"
 	#
 
-	# vars
-
-	local this_ARG
-	
-	# code
-
-	for this_ARG in "$@"; do
-		case "$this_ARG" in
+	for argument in "$@"; do
+		case "$argument" in
 			'-f'|'--force-download')
 				force_download_FLAG=1
 				;;
 			'-d'|'--force-deploy')
 				force_deploy_FLAG=1
 				;;
-			'')
+			''|'start')
 				: ok good to go
-				;;
-			'start'|'stop'|'restart')
-				started_by_rc_FLAG=1
 				;;
 			*)
 				print_script_version
-				echo "Invalid option '$this_ARG'"
-				echo
 				print_script_usage
 				exit 1
 				;;
@@ -260,9 +249,6 @@ set_default_download_server_URL () {
 }
 
 set_NVRAM_path () {
-	#
-	# Usage: set_NVRAM_path
-	#
 
 	# consts
 
@@ -271,10 +257,9 @@ set_NVRAM_path () {
 
 	# code
 
-	# shellcheck disable=SC2039
 	if [ -s "$package_at_default_path" ] && [ -s "$package_at_quirk_path" ] && [ "$package_at_quirk_path" -nt "$package_at_default_path" ]; then
-		# quirk is newer, use quirk
-		NVRAM_path="$NVRAM_path_quirk" # duct tape for dear Vitya
+			# quirk is newer, use quirk
+			NVRAM_path="$NVRAM_path_quirk" # duct tape for dear Vitya
 	elif [ -d "$NVRAM_path_quirk" ]; then
 		NVRAM_path="$NVRAM_path_quirk" # duct tape for dear Vitya
 	fi
@@ -370,19 +355,15 @@ readonly default_download_server_URL='http://download.hiveos.farm'
 readonly stable_package_filename="/asic/client/${persistent_package_filename}"
 readonly dev_build_package_filename="/_asic/client/${persistent_package_filename}"
 
-readonly own_log="/tmp/${script_basename}.log"
-
 
 # global vars
 
 NVRAM_path="$NVRAM_path_default"
 download_server_URL="$default_download_server_URL"
 remote_package_filename="$stable_package_filename"
-
 dev_build_FLAG=0
 force_download_FLAG=0
 force_deploy_FLAG=0
-started_by_rc_FLAG=0
 
 
 # global exports
@@ -393,19 +374,15 @@ export LD_LIBRARY_PATH=/hive/lib
 
 # code
 
+[ -t 1 ] || exec >> "/tmp/${script_basename}.log" 2>&1
 trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
 
 set_NVRAM_path
 parse_arguments "$@"
 
-if [ "$started_by_rc_FLAG" -eq 1 ]; then
-	exec >> "$own_log" 2>&1
-	echo_info "Started by rc, log output to $own_log"
-fi
-
 echo_action "$script_mission $script_version started"
 
-if [ -e /hive ] && [ "$force_deploy_FLAG" -eq 0 ]; then
+if [ -e /hive ] && [ "$force_deploy_FLAG" -ne 1 ]; then
 	boot_hive &
 else
 	[ "$force_download_FLAG" -eq 1 ] && echo_info 'Force download mode ON'
