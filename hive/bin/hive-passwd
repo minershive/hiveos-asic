@@ -10,8 +10,8 @@
 #
 
 
-readonly script_mission='Client for ASICs: Set passwords for Antminer web interface and ssh (optional)'
-readonly script_version='0.2.0'
+readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
+readonly script_version='0.2.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -28,9 +28,12 @@ function print_script_version {
 }
 
 function print_script_usage {
-	echo "Usage: ${CYAN-}${script_basename} new_password [-s|--show]${NOCOLOR-}"
+	echo "Usage: ${CYAN-}${script_basename} [new_password] [OPTIONS]${NOCOLOR-}"
 	echo
-	echo "  ${WHITE-}-s, --show${GRAY-}    show passwords${NOCOLOR-}"
+	echo "  ${WHITE-}-c, --conf${GRAY-}      set ssh password as a worker password (RIG_PASSWD)${NOCOLOR-}"
+	echo "  ${WHITE-}-d, --default${GRAY-}   set ssh password to 'admin', web password to 'root'${NOCOLOR-}"
+	echo "  ${WHITE-}-s, --show${GRAY-}      show current web and ssh passwords${NOCOLOR-}"
+	echo "  ${WHITE-}-w, --web${GRAY-}       set password for the web interface (default is ssh password)${NOCOLOR-}"
 	echo
 }
 
@@ -52,6 +55,24 @@ function md5 {
 
 	md5_output="$( printf '%s' "${string}" | md5sum )"
 	echo "${md5_output::32}"
+}
+
+function get_worker_password {
+	#
+	# Usage: get_worker_password
+	#
+
+	# consts
+
+	local -r RIG_CONF='/hive-config/rig.conf'
+
+	# code
+
+	if [[ -s "$RIG_CONF" ]] && source "$RIG_CONF" && [[ -n "${RIG_PASSWD-}" ]]; then
+		echo "$RIG_PASSWD"
+	else
+		false
+	fi
 }
 
 function set_antminer_web_password {
@@ -104,11 +125,23 @@ function set_antminer_web_password {
 }
 
 function show_ssh_password {
+	#
+	# Usage: show_ssh_password
+	#
+
+	# consts
+
+	# shellcheck disable=SC2016
 	local -r admin_string='root:$6$saaYvC9T$PqLC9JWHDZsWYmpB0b0Zf.34b1m5/r9U6A8PPig2qzxAyUN78pyI/vi7OZrCA0T2y1fT5UNFtPiBYuCyBTA610:15975:0:99999:7:::'
+	# shellcheck disable=SC2016
 	local -r  root_string='root:$6$K/vQNJUn$ikrUf5YdPElcX5Sp2AUOrOfLVtLdMBp/zYFy1GCQpeOmS2ZcJQ8i5g3XKmf3rigb1sL.9dUxlfXqMdc/j.TBa1:18071:0:99999:7:::'
+
+	# vars
 
 	local -i is_1st_and_2nd_equal=0 is_1st_and_3rd_equal=0
 	local shadow_files_collection
+
+	# code
 
 	cmp -s /etc/shadow /etc/shadow.factory && is_1st_and_2nd_equal=1
 	cmp -s /etc/shadow /config/shadow && is_1st_and_3rd_equal=1
@@ -133,9 +166,17 @@ function show_ssh_password {
 }
 
 function show_antminer_web_password {
+	#
+	# Usage: show_antminer_web_password
+	#
+
+	# consts
+
 	local -r default_htdigest_content='root:antMiner Configuration:23c2a2d78c0d20ec069097d7d20c4392'
 
-	echo -n "web password: "
+	# code
+
+	echo -n 'Antminer web password: '
 	if grep -Fqse "$default_htdigest_content" -- "$lighttpd_password_file"; then
 		echo -n "${BRED}root${GRAY-} (default, all viruses know it)${NOCOLOR-}"
 	else
@@ -178,32 +219,48 @@ function parse_arguments {
 
 	# args
 
-	new_password_ARG="${1-}"
+	new_ssh_password="${1-}"
 
 	# vars
 
-	local this_ARG
+	local this_ARG RIG_PASSWD
 
 	# code
 
-	if 	[[ -z "$new_password_ARG" ]]; then
+	if 	[[ -z "$new_ssh_password" ]]; then
 		print_script_usage
-		exit 1
+		exit 0
 	fi
 
 	for this_ARG in "$@"; do
 		case "$this_ARG" in
-			'-s' | '--show' )
+			'-c' | '--conf')
+				echo 'rig.conf ON: set ssh password as a worker password (RIG_PASSWD)'
+				if RIG_PASSWD="$( get_worker_password )"; then
+					new_ssh_password="$RIG_PASSWD"
+				else
+					echo "Cannot get RIG_PASSWD from $RIG_CONF"
+					exit 1
+				fi
+				;;
+			'-d' | '--default')
+				echo "defaults ON: set ssh password to default 'admin', web password to default 'root'"
+				new_ssh_password='admin'
+				new_web_password='root'
+				;;
+			'-s' | '--show')
 				show_antminer_web_password
 				show_ssh_password
+				echo "RIG_PASSWD: $( get_worker_password )"
 				exit 0
 				;;
-#			'-s' | '--ssh' )
-#				set_password_for_ssh_FLAG=1
-#				;;
+			'-w'|'--web')
+				new_web_password="$new_ssh_password"
+				new_ssh_password=''
+				;;
 			'-h'|'--help')
 				print_script_usage
-				exit 1
+				exit 0
 				;;
 		esac
 	done
@@ -223,8 +280,7 @@ declare -r lighttpd_password_file='/config/lighttpd-htdigest.user'
 
 # global vars
 
-declare new_password_ARG
-declare -i set_password_for_ssh_FLAG=0
+declare new_ssh_password='' new_web_password=''
 
 
 # main
@@ -232,10 +288,10 @@ declare -i set_password_for_ssh_FLAG=0
 print_script_version
 parse_arguments "$@"
 
-(( set_password_for_ssh_FLAG )) && set_ssh_password "$new_password_ARG"
+[[ -n "$new_ssh_password" ]] && set_ssh_password "$new_ssh_password"
 
-if [[ "$ASIC_MANIUFACTURER" == 'Bitmain' ]]; then
-	set_antminer_web_password "$new_password_ARG"
+if [[ -n "$new_web_password" && "$ASIC_MANIUFACTURER" == 'Bitmain' ]]; then
+	set_antminer_web_password "$new_web_password"
 else
 	echo "Antminer not detected (model: $ASIC_MODEL), cannot set web password${NOCOLOR-}"
 	exit 1
