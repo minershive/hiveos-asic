@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.5'
+readonly script_version='0.16.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -628,8 +628,7 @@ execute_install_routine () {
 		'Antminer S9 SE'		|\
 		'Antminer S9k'			|\
 		'Antminer S15'			|\
-		'Antminer T15'			|\
-		'Antminer X17')			echo "$ASIC_MODEL";				do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer T15')			echo "$ASIC_MODEL";				do_install_for 'antminer_bmminer_ro'	;;
 
 		'Antminer Z9-Mini')		echo "$ASIC_MODEL";				do_install_for 'antminer_Z9_cgminer'	;;
 
@@ -646,6 +645,7 @@ execute_install_routine () {
 		'Antminer T9+'*)		echo 'Antminer T9+';			do_install_for 'antminer_bmminer'		;;
 		'Antminer T9'*)			echo 'Antminer T9';				do_install_for 'antminer_bmminer'		;;
 		'Antminer T17'*)		echo 'Antminer T17';			do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer X17'*)		echo 'Antminer X17';			do_install_for 'antminer_bmminer_ro'	;;
 		'Antminer Z9'*)			echo 'Antminer Z9';				do_install_for 'antminer_Z9_cgminer'	;;
 		'Antminer Z11'*)		echo 'Antminer Z11';			do_install_for 'antminer_Z9_cgminer'	;;
 

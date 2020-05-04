@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.1.2'
+readonly script_version='0.1.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -51,15 +51,23 @@ function gethostbyname {
 }
 
 function set_hostfile {
+
+	# consts
+
+	local -r abracadabra='MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo='
+
+	# code
+
 	case "$ASIC_MODEL" in
 		'Antminer S9k'			|\
 		'Antminer S9 SE')
 			hostfile='/etc/hosts'
-			;;
+		;;
+
 		'Antminer S9'			|\
 		'Antminer T17'*			|\
 		'Antminer S17'*			|\
-		'Antminer X17'			|\
+		'Antminer X17'*			|\
 		'Antminer T9+'*			|\
 		'Antminer T9'*			|\
 		'Antminer S10'*			|\
@@ -77,12 +85,17 @@ function set_hostfile {
 			#127.0.0.1       localhost.localdomain           localhost
 			#
 			if [[ $( md5sum /etc/hosts | awk '{print $1}' ) != '27acad957c7cded40cd6ac50d23ddc66' ]]; then
-				echo 'MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo=' | base64 -d > /etc/hosts
+				if which base64 > /dev/null; then
+					base64 -d <<< "$abracadabra" > /etc/hosts
+				elif which openssl > /dev/null; then
+					openssl base64 -d  <<< "$abracadabra" > /etc/hosts 2> /dev/null
+				fi
 			fi
-			;;
+		;;
+
 		*)
 			hostfile='/etc/hosts'
-			;;
+		;;
 	esac
 }
 

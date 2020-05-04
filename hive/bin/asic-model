@@ -10,10 +10,9 @@
 #
 
 
-# defined in the main()
-#readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-#readonly script_version='1.1.1'
-#readonly script_basename="$( basename "$0" )"
+readonly asic_model_script_mission='Client for ASICs: Print ASIC model and set necessary constants'
+readonly asic_model_script_version='1.1.1'
+readonly asic_model_script_basename="$( basename "$0" )"
 
 
 # !!! bash strict mode, no unbound variables
@@ -241,7 +240,7 @@ function set_ASIC_constants {
 			FANS_COUNT_DEFAULT='2'
 			;;
 
-		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17' )
+		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17'* )
 			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
@@ -450,9 +449,9 @@ set_ASIC_constants "$ASIC_MODEL"
 if ! ( return 0 2>/dev/null ); then
 	# not sourced
 
-	readonly script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-	readonly script_version='1.1.0'
-	readonly script_basename="$( basename "$0" )"
+	readonly script_mission="$asic_model_script_mission"
+	readonly script_version="$asic_model_script_version"
+	readonly script_basename="$asic_model_script_basename"
 
 	source colors
 

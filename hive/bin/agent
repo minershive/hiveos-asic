@@ -63,7 +63,7 @@ miner_stats () {
 		"Antminer T9+"*|"Antminer T9"*|\
 		"Antminer T15"|\
 		"Antminer T17"*|\
-		"Antminer X17")
+		"Antminer X17"*)
 			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'`
 			if [[ $? -ne 0 || -z $stats_raw ]]; then
 				printf '%(%F %T %z)T %s: ' -1 'agent'
