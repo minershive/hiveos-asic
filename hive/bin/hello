@@ -70,6 +70,7 @@ mb_manufacturer=
 #mb_product=`cat /etc/config/Config.ini | grep -m1 "Name=" | awk -F"=" '{print $2}'`
 
 if [[ -e /home/sm/miner/build/cpuminer && -e /flask/setHashinJson ]]; then
+	[[ $(echo $PATH | tr ":" "\n" | grep -c "^/sbin") -eq 0 ]] && export PATH=$PATH:/sbin:/usr/sbin
 	mb_manufacturer='Todek'
 	mb_product=$ASIC_MODEL
 elif [[ -e /usr/bin/compile_time ]]; then

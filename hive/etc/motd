@@ -6,7 +6,7 @@
 readonly separator='·'
 
 if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
-    export PATH=$PATH:/bin:/sbin
+    [[ $(echo $PATH | tr ":" "\n" | grep -c "^/sbin") -eq 0 ]] && export PATH=$PATH:/sbin:/usr/sbin
 fi
 
 # functions
