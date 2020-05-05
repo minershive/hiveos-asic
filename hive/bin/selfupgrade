@@ -1313,7 +1313,8 @@ get_remote_version_of () {
 
 	# vars
 
-	local downloader_output='' downloader_exitcode="$exitcode_OK" download_URL='' max_time=''
+	local downloader_output='' downloader_exitcode="$exitcode_OK" download_URL=''
+
 	# code
 
 	case "$release_or_build" in
@@ -1322,8 +1323,11 @@ get_remote_version_of () {
 	esac
 
 	if is_curl_available; then
-		[ "$bulk_download_mode_FLAG" -eq 0 ] && max_time='--max-time 2' # 2 seconds tops
-		downloader_output="$( curl --insecure --location --fail --silent --show-error $max_time "$download_URL" 2>&1 )"
+		if [ "$bulk_download_mode_FLAG" -eq 0 ]; then
+			downloader_output="$( curl --insecure --location --fail --silent --show-error --max-time 2 "$download_URL" 2>&1 )" # 2 seconds tops
+		else
+			downloader_output="$( curl --insecure --location --fail --silent --show-error "$download_URL" 2>&1 )"
+		fi
 	else
 		downloader_output="$( wget --quiet --output-document=- "$download_URL" 2>&1 )"
 	fi
