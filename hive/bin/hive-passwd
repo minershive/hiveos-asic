@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
-readonly script_version='0.2.2'
+readonly script_version='0.2.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -134,7 +134,7 @@ function show_ssh_password {
 
 	if grep -Fqse "$root_admin" -- /etc/shadow; then
 		printf "$printf_template" "ssh password"
-		echo "${BRED}${this_password}${GRAY-} (default, all viruses know it)${NOCOLOR-}"
+		echo "${BRED}admin${GRAY-} (default, all viruses know it)${NOCOLOR-}"
 	fi
 }
 
