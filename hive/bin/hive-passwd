@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
-readonly script_version='0.2.1'
+readonly script_version='0.2.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -75,6 +75,130 @@ function get_worker_password {
 	fi
 }
 
+function show_ssh_passwords { # NOT USED -- we don't have a proper sha512 generator in the standard ASIC tooling
+	#
+	# Usage: show_ssh_passwords
+	#
+
+	# consts
+
+	local -r -A password_dictionary=(
+#		['root']='root:$6$K/vQNJUn$ikrUf5YdPElcX5Sp2AUOrOfLVtLdMBp/zYFy1GCQpeOmS2ZcJQ8i5g3XKmf3rigb1sL.9dUxlfXqMdc/j.TBa1:18071:0:99999:7:::'
+#		['root']='root:$6$M7IgIrZ5$QEt4GXhREGRYod4x0tYqZRHgLSYk9MBF6wjgTcfJu1Z9z9rOW7VeZPwfYOwlwGpsj.lkBg5hwSviVAk46qWIu0:18387:0:99999:7:::'
+		['admin']='root:$6$saaYvC9T$PqLC9JWHDZsWYmpB0b0Zf.34b1m5/r9U6A8PPig2qzxAyUN78pyI/vi7OZrCA0T2y1fT5UNFtPiBYuCyBTA610:15975:0:99999:7:::'
+	)
+	# shellcheck disable=SC2016
+
+	# flags
+
+	local -i default_password_found_FLAG=0
+
+	# vars
+
+	local -a shadow_files_collection=( '/etc/shadow' )
+	local this_file this_password shadow_string
+
+	# code
+
+	for this_file in '/etc/shadow.factory' '/config/shadow'; do
+		cmp -s /etc/shadow "$this_file" || shadow_files_collection+=( "$this_file" )
+	done
+
+	for this_file in "${shadow_files_collection[@]}"; do
+		default_password_found_FLAG=0
+		for this_password in "${!password_dictionary[@]}"; do
+			shadow_string="${password_dictionary[$this_password]}"
+			if grep -Fqse "$shadow_string" -- "$this_file"; then
+				printf "$printf_template" "ssh password in $this_file"
+				echo "${BRED}${this_password}${GRAY-} (pretty common, all viruses know it)${NOCOLOR-}"
+				default_password_found_FLAG=1
+			fi
+		done
+
+#		if (( ! default_password_found_FLAG )); then
+#			echo "${BGREEN}non-standard${GRAY-} (and it's good)${NOCOLOR-}"
+#		fi
+	done
+}
+
+function show_ssh_password {
+	#
+	# Usage: show_ssh_password
+	#
+
+	# consts
+
+	local -r root_admin='root:$6$saaYvC9T$PqLC9JWHDZsWYmpB0b0Zf.34b1m5/r9U6A8PPig2qzxAyUN78pyI/vi7OZrCA0T2y1fT5UNFtPiBYuCyBTA610:15975:0:99999:7:::'
+
+	# code
+
+	if grep -Fqse "$root_admin" -- /etc/shadow; then
+		printf "$printf_template" "ssh password"
+		echo "${BRED}${this_password}${GRAY-} (default, all viruses know it)${NOCOLOR-}"
+	fi
+}
+
+function set_ssh_password {
+	#
+	# Usage: set_ssh_password 'new_password'
+	#
+
+	# args
+
+	(( $# == 1 )) || return 1
+	local -r new_password="$1"
+
+	# code
+
+	echo -n "Setting ssh password to '${WHITE-}${new_password}${NOCOLOR-}'... "
+
+	if printf '%s\n%s\n' "$new_password" "$new_password" | passwd root 2> /dev/null; then
+		rm -f /config/shadow
+		mv /etc/shadow /config/shadow
+		ln -s /config/shadow /etc/shadow
+		echo "${GREEN-}OK${NOCOLOR-}"
+		echo
+	else
+		echo "${BRED-}FAILED${NOCOLOR-} (something bad happened)"
+		echo
+		return 1
+	fi
+}
+
+function show_antminer_web_password {
+	#
+	# Usage: show_antminer_web_password
+	#
+
+	# consts
+
+	local -r -A password_dictionary=(
+		['root']='root:antMiner Configuration:23c2a2d78c0d20ec069097d7d20c4392'
+		['root@']='root:antMiner Configuration:7f6bcb75db3228ac3289d0cbfa2e2926'
+		['admin']='root:antMiner Configuration:c5a6e7cfb212161e98acdd2c27da8e64'
+	)
+
+	# vars
+
+	local -i default_password_found_FLAG=0
+	local this_password htdigest_string
+
+	# code
+
+	printf "$printf_template" 'Antminer web password'
+	for this_password in "${!password_dictionary[@]}"; do
+		htdigest_string="${password_dictionary[$this_password]}"
+		if grep -Fqse "$htdigest_string" -- "$lighttpd_password_file"; then
+			echo "${BRED}${this_password}${GRAY-} (default, all viruses know it)${NOCOLOR-}"
+			default_password_found_FLAG=1
+		fi
+	done
+
+	if (( ! default_password_found_FLAG )); then
+		echo "${BGREEN}non-standard${GRAY-} (and it's good)${NOCOLOR-}"
+	fi
+}
+
 function set_antminer_web_password {
 	#
 	# Usage: set_antminer_web_password 'new_password'
@@ -97,7 +221,7 @@ function set_antminer_web_password {
 
 	# code
 
-	echo -n "Setting Antminer web interface password to '${WHITE-}${new_password}${NOCOLOR-}'... "
+	echo -n "Setting Antminer web password to '${WHITE-}${new_password}${NOCOLOR-}'... "
 
 	if [[ ! -s "$lighttpd_password_file" ]]; then
 		echo "${BRED-}FAILED${NOCOLOR-} ($lighttpd_password_file not found or empty)"
@@ -110,7 +234,7 @@ function set_antminer_web_password {
 
 	# compare current password with the new
 	if diff "$lighttpd_password_file" <( echo "$new_password_digest_string" ) > /dev/null; then
-		echo "${BYELLOW-}SKIPPED${NOCOLOR-} (new password is the same as the current one, skipped)"
+		echo "${BYELLOW-}SKIPPED${NOCOLOR-} (new password is the same as the current one)"
 		return 2
 	fi
 
@@ -120,94 +244,6 @@ function set_antminer_web_password {
 		return 0
 	else
 		echo "${BRED-}FAILED${NOCOLOR-} (something bad happened)"
-		return 1
-	fi
-}
-
-function show_ssh_password {
-	#
-	# Usage: show_ssh_password
-	#
-
-	# consts
-
-	# shellcheck disable=SC2016
-	local -r admin_string='root:$6$saaYvC9T$PqLC9JWHDZsWYmpB0b0Zf.34b1m5/r9U6A8PPig2qzxAyUN78pyI/vi7OZrCA0T2y1fT5UNFtPiBYuCyBTA610:15975:0:99999:7:::'
-	# shellcheck disable=SC2016
-	local -r  root_string='root:$6$K/vQNJUn$ikrUf5YdPElcX5Sp2AUOrOfLVtLdMBp/zYFy1GCQpeOmS2ZcJQ8i5g3XKmf3rigb1sL.9dUxlfXqMdc/j.TBa1:18071:0:99999:7:::'
-
-	# vars
-
-	local -i is_1st_and_2nd_equal=0 is_1st_and_3rd_equal=0
-	local shadow_files_collection
-
-	# code
-
-	cmp -s /etc/shadow /etc/shadow.factory && is_1st_and_2nd_equal=1
-	cmp -s /etc/shadow /config/shadow && is_1st_and_3rd_equal=1
-
-	if (( is_1st_and_2nd_equal && is_1st_and_3rd_equal )); then
-		shadow_files_collection='/etc/shadow'
-	else
-		shadow_files_collection='/etc/shadow /etc/shadow.factory /config/shadow'
-	fi
-
-	for this_file in $shadow_files_collection; do
-		echo -n "ssh password in $this_file: "
-		if grep -Fqse "$admin_string" -- "$this_file"; then
-			echo -n "${BRED-}admin${GRAY-} (default, all viruses know it)${NOCOLOR-}"
-		elif grep -Fqse "$root_string" -- "$this_file"; then
-			echo -n "${BRED-}root${GRAY-} (standard, all viruses know it)${NOCOLOR-}"
-		else
-			echo -n "${BGREEN-}non-standard${GRAY-} (and it's good)${NOCOLOR-}"
-		fi
-		echo
-	done
-}
-
-function show_antminer_web_password {
-	#
-	# Usage: show_antminer_web_password
-	#
-
-	# consts
-
-	local -r default_htdigest_content='root:antMiner Configuration:23c2a2d78c0d20ec069097d7d20c4392'
-
-	# code
-
-	echo -n 'Antminer web password: '
-	if grep -Fqse "$default_htdigest_content" -- "$lighttpd_password_file"; then
-		echo -n "${BRED}root${GRAY-} (default, all viruses know it)${NOCOLOR-}"
-	else
-		echo -n "${BGREEN}non-standard${GRAY-} (and it's good)${NOCOLOR-}"
-	fi
-	echo
-}
-
-function set_ssh_password {
-	#
-	# Usage: set_ssh_password 'new_password'
-	#
-
-	# args
-
-	(( $# == 1 )) || return 1
-	local -r new_password="$1"
-
-	# code
-
-	echo -n "Setting ssh password to '$new_password'... "
-
-	if printf '%s\n%s\n' "$new_password" "$new_password" | passwd root > /dev/null; then
-		rm -f /config/shadow
-		mv /etc/shadow /config/shadow
-		ln -s /config/shadow /etc/shadow
-		echo "${GREEN-}OK${NOCOLOR-}"
-		echo
-	else
-		echo "${BRED-}FAILED${NOCOLOR-} (something bad happened)"
-		echo
 		return 1
 	fi
 }
@@ -235,7 +271,7 @@ function parse_arguments {
 	for this_ARG in "$@"; do
 		case "$this_ARG" in
 			'-c' | '--conf')
-				echo 'rig.conf ON: set ssh password as a worker password (RIG_PASSWD)'
+				#echo 'rig.conf ON: set ssh password as a worker password (RIG_PASSWD)'
 				if RIG_PASSWD="$( get_worker_password )"; then
 					new_ssh_password="$RIG_PASSWD"
 				else
@@ -244,14 +280,14 @@ function parse_arguments {
 				fi
 				;;
 			'-d' | '--default')
-				echo "defaults ON: set ssh password to default 'admin', web password to default 'root'"
+				#echo "defaults ON: set ssh password to default 'admin', web password to default 'root'"
 				new_ssh_password='admin'
 				new_web_password='root'
 				;;
 			'-s' | '--show')
 				show_antminer_web_password
 				show_ssh_password
-				echo "RIG_PASSWD: $( get_worker_password )"
+				printf "${printf_template}%s\n\n" 'RIG_PASSWD' "$( get_worker_password )"
 				exit 0
 				;;
 			'-w'|'--web')
@@ -276,6 +312,7 @@ source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
 # global consts
 
 declare -r lighttpd_password_file='/config/lighttpd-htdigest.user'
+declare -r printf_template='%21.21s: '
 
 
 # global vars
@@ -288,11 +325,15 @@ declare new_ssh_password='' new_web_password=''
 print_script_version
 parse_arguments "$@"
 
-[[ -n "$new_ssh_password" ]] && set_ssh_password "$new_ssh_password"
+if [[ -n "$new_ssh_password" ]]; then
+	set_ssh_password "$new_ssh_password"
+fi
 
-if [[ -n "$new_web_password" && "$ASIC_MANIUFACTURER" == 'Bitmain' ]]; then
-	set_antminer_web_password "$new_web_password"
-else
-	echo "Antminer not detected (model: $ASIC_MODEL), cannot set web password${NOCOLOR-}"
-	exit 1
+if [[ -n "$new_web_password" ]]; then
+	if [[ "$ASIC_MANUFACTURER" == 'Bitmain' ]]; then
+		set_antminer_web_password "$new_web_password"
+	else
+		echo "Antminer not detected (model: $ASIC_MODEL), cannot set web password${NOCOLOR-}"
+		exit 1
+	fi
 fi
