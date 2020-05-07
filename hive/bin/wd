@@ -4,103 +4,92 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-#export PATH="./:/hive/bin:/hive/sbin:$PATH"
-
-SLEEP=10 #seconds to sleep over iteration
-OK_MESSAGE_REDUCE=$(( 1 * 60 / SLEEP )) #e.g. only every 12th message will be displayed to reduce log
-
-RIG_CONF="/hive-config/rig.conf"
-
-[[ -t 1 ]] && . /hive/bin/colors
+readonly script_mission='Client for ASICs: Hashrate Watchdog'
+readonly script_version='0.2.3'
+readonly script_basename="$( basename "$0" )"
 
 
-function loadconf() {
-	WD_ENABLED=
+# functions
 
-	if [[ ! -f $RIG_CONF ]]; then
-		echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
-		echo "Exiting"
-		exit 1
+function load_configuration {
+	if [[ -f $RIG_CONF ]]; then
+		source "$RIG_CONF"
 	else
-		. "$RIG_CONF"
+		echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
+		exit 1
 	fi
 
-
-	if [[ -z $WD_ENABLED || $WD_ENABLED -ne 1 ]]; then
-		printf '%(%F %T %z)T %s: ' -1 'watchdog'
-		echo -e "${YELLOW}Watchdog not enabled (WD_ENABLED=$WD_ENABLED), exiting${NOCOLOR}"
+	if (( ! "${WD_ENABLED:-0}")); then
+		log_line warning "Watchdog not enabled (WD_ENABLED='$WD_ENABLED'), exiting"
 		exit 0
 	fi
 
-	minhash=`echo $WD_MINHASHES | jq -r ".\"$MINER\""`
-	if [[ -z $minhash || $minhash == "null" ]]; then
+	minhash="$( jq -r ".\"$MINER\"" <<< "$WD_MINHASHES" )"
+	if [[ -z "$minhash" || "$minhash" == 'null' ]]; then
 		message warn "Minimal hashrate for $MINER is not set"
-		printf '%(%F %T %z)T %s: ' -1 'watchdog'
-		echo -e "${RED}Minimal hashrate for $MINER is not set in config, exiting${NOCOLOR}"
+		log_line error "Minimal hashrate for $MINER is not set in config, exiting"
 		exit 1
 	fi
 }
 
-
-function set_lastgood() {
+function set_lastgood {
 	#lastgood=`date +%s`
-	[[ -e /run/hive/khs ]] &&
-#		lastgood=`stat -c %Y /run/hive/khs` ||
-		lastgood=`date -r /run/hive/khs +%s` ||
+	if [[ -f /run/hive/khs ]]; then
+#		lastgood=`stat -c %Y /run/hive/khs`
+#		lastgood="$( date -r /run/hive/khs +%s )"
+		lastgood="$( get_file_last_modified_time_in_seconds /run/hive/khs )"
+	else
 		#lastgood=0 can't set it to 0, in case of boot agent may be late
-		lastgood=`date +%s` #let's count from now
+		printf -v lastgood '%(%s)T' -1 #let's count from now
+#		lastgood="$( date +%s )" 
+	fi
 
 	miner_restart_count=0
 }
 
+function loop {
 
-set_lastgood
-ok_count=0
-function loop() {
-	#echo -n "[`date`] "
+	# vars
 
-	loadconf
+	local -i khs_decimal minhash_decimal
 
-	khs=
-	[[ -e /run/hive/khs ]] && khs=`cat /run/hive/khs`
-	[[ -z $khs ]] && khs=0
+	# code
 
+	load_configuration
 
-	hash_is_ok=`echo "$khs $minhash" | awk '{ print ($1 >= $2) ? 1 : 0 }'` #float comparison
+	[[ -f /run/hive/khs ]] && khs="$( < /run/hive/khs )"
+	: "${khs:=0}" # set to 0 if empty or null
 
-	if (( hash_is_ok )); then
+	khs_decimal="$( scientific_to_decimal "$khs" )"
+	minhash_decimal="$( scientific_to_decimal "$minhash" )"
+
+	if (( khs_decimal >= minhash_decimal )); then
 		set_lastgood
 		if (( ok_count == 0 )); then
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "${GREEN}OK${NOCOLOR} ${CYAN}$MINER${NOCOLOR} $khs kHs >= $minhash kHs"
+			log_line ok "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR} ${GREEN}>=${NOCOLOR} ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR}"
 		fi
-		(( ++ok_count >= OK_MESSAGE_REDUCE )) && ok_count=0
+		(( ok_count++ ))
+		(( ok_count >= OK_MESSAGE_REDUCE )) && ok_count=0
 		return
 	fi
 
+	printf -v now '%(%s)T' -1
+	(( elapsed = now - lastgood ))
 
-	now=`date +%s`
-	elapsed=$(( now - lastgood ))
-	#echo Elapsed $elapsed seconds
-
-	printf '%(%F %T %z)T %s: ' -1 'watchdog'
-	echo -e "${RED}BARK${NOCOLOR} ${CYAN}$MINER${NOCOLOR} $khs kHs < $minhash kHs for $elapsed seconds"
+	log_line warning "BARK-BARK! $MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" ) ${YELLOW}<${NOCOLOR} ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR} for ${WHITE}${elapsed}${NOCOLOR} seconds"
 
 	#Check to reboot first
-	if [[ ! -z $WD_REBOOT ]]; then
-		reboot_timeout=`echo "$WD_REBOOT 60" | awk '{print $1 * $2}'`
-		if [[ $elapsed -ge $reboot_timeout ]]; then
-			message danger "$MINER low hashrate ($khs kH/s), rebooting"
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "---"
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "${RED}Rebooting after $WD_REBOOT minutes${NOCOLOR}"
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "---"
+	if [[ -n "$WD_REBOOT" ]]; then
+		(( reboot_timeout = WD_REBOOT * 60 ))
+		if (( elapsed >= reboot_timeout )); then
+			message danger "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), rebooting"
+			log_line error "!"
+			log_line error "! Rebooting after $WD_REBOOT minutes"
+			log_line error "!"
 			#sreboot
 			nohup bash -c 'reboot' > /tmp/nohup.log 2>&1 &
 			return #for testing and if it does not work)
@@ -108,16 +97,13 @@ function loop() {
 	fi
 
 	#Check to restart miner
-	if [[ ! -z $WD_MINER ]]; then
-		miner_restart_timeout=`echo "$WD_MINER 60" | awk '{print $1 * $2}'`
-		if [[ $miner_restart_count -eq 0 && $elapsed -ge $miner_restart_timeout ]]; then
-			message warn "$MINER low hashrate ($khs kH/s), restarting"
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "---"
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "${YELLOW}Restarting ${CYAN}$MINER${NOCOLOR} ${YELLOW}after $WD_MINER minutes${NOCOLOR}"
-			printf '%(%F %T %z)T %s: ' -1 'watchdog'
-			echo -e "---"
+	if [[ -n "$WD_MINER" ]]; then
+		(( miner_restart_timeout = WD_MINER * 60 ))
+		if (( miner_restart_count == 0 && elapsed >= miner_restart_timeout )); then
+			message warn "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), restarting"
+			log_line warning "!"
+			log_line warning "! Restarting $MINER after $WD_MINER minutes"
+			log_line warning "!"
 			miner_restart_count=1
 			/hive/bin/miner restart
 		fi
@@ -125,40 +111,81 @@ function loop() {
 }
 
 
-########################################################################################################################
+# consts
+
+declare -r sleep_time=10 # seconds to sleep over iteration
+declare -r OK_MESSAGE_REDUCE=$(( 1 * 60 / sleep_time )) # e.g. only every 12th message will be displayed to reduce log
+declare -r RIG_CONF="/hive-config/rig.conf"
+
+
+# vars
+
+declare -i ok_count=0 miner_restart_count lastgood
+
+
+# sources
+
+[[ -t 1 ]] && source /hive/bin/colors
+source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+
+
+# main
+
+set_lastgood
 
 case "$1" in
-	run)
-		loadconf
-		printf '%(%F %T %z)T %s: ' -1 'watchdog'
-		echo "MINER RESTART: $WD_MINER minutes"
-		printf '%(%F %T %z)T %s: ' -1 'watchdog'
-		echo "WORKER REBOOT: $WD_REBOOT minutes"
+	'run'|'start')
+		load_configuration
+		log_line info "$script_mission, version $script_version started"
+
+		log_line info "Miner restart in ${WHITE}$WD_MINER${NOCOLOR}m and worker reboot in ${WHITE}$WD_REBOOT${NOCOLOR}m if hashrate < ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR}"
+
+#		log_line info "Mininal hashrate is ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR}"
+#		log_line info "Miner restart configured in ${WHITE}$WD_MINER${NOCOLOR} minutes"
+#		log_line info "Worker reboot configured in ${WHITE}$WD_REBOOT${NOCOLOR} minutes"
 		while true; do
 			loop
-			sleep $SLEEP
+			snore "$sleep_time"
 		done
 	;;
-	stop)
-		ps w | grep 'wd' | grep -v grep | awk '{print $1}' | xargs kill
+
+	'stop')
+		printf -v marker '%(%s)T-%s-%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
+		self="(${$}|${BASHPID})[[:space:]].+$0"
+		if ps w | grep -F -e "$0" -e "$marker" | grep -Ev -e "$marker" -e "$self" | awk '{print $1}' | xargs kill > /dev/null 2>&1; then
+			log_line warning "$script_mission, version $script_version stopped"
+		else
+			log_line error "$script_mission, version $script_version was not running"
+		fi
 	;;
-	start)
-		/hive/bin/wd run
-	;;
-	restart)
+
+#	'start')
+#		/hive/bin/wd run
+#	;;
+
+	'restart')
 		/hive/bin/wd stop
 		/hive/bin/wd run
 	;;
-	log)
+
+	'log')
+		print_script_version
 		echo "TODO"
 		#journalctl -u hive-watchdog --no-pager $2 $3 $4 $5 $6 $7
 	;;
-	status)
-		/hive/bin/wd log
+
+	'status')
+		print_script_version
+		self_count="$( pgrep_count "$0" )"
+		if (( self_count )); then
+			echo 'Running'
+		else
+			echo 'Not running'
+		fi
 	;;
+
 	*)
-		bname=`basename $0`
-		echo -e "${YELLOW}Hashrate Watchdog${NOCOLOR}"
-		echo -e "Usage: ${CYAN}$bname start|stop|restart|log|status${NOCOLOR}"
+		print_script_version
+		echo -e "Usage: ${CYAN}$script_basename start|stop|restart|log|status${NOCOLOR}"
 	;;
 esac
