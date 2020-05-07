@@ -8,23 +8,832 @@
 #
 
 
-#Send stats, receives commands
+readonly script_mission='Client for ASICs: The Agent'
+readonly script_version='0.2.5'
+readonly script_basename="$( basename "$0" )"
 
-INTERVAL=10
-RIG_CONF="/hive-config/rig.conf"
-#NVIDIA_OC_CONF="/hive-config/nvidia-oc.conf"
-#AMD_OC_CONF="/hive-config/amd-oc.conf"
-WALLET_CONF="/hive-config/wallet.conf"
-#LOG="/var/log/hive-agent.log"
-LOG="/dev/null"
-MINER="asicminer"
 
-API_TIMEOUT=15 #timeout to wait for miner API response, can take very long time on 13+ gpus
+# functions
 
-[[ -t 1 ]] && . colors
+function reduce_hashrate_to_khs {
+	#
+	# Usage: reduce_hashrate_to_khs 'input_hashrate_value' 'hs|khs|mhs|ghs|ths|phs' 'output_hashrate_in_khs_by_ref'
+	#
+
+	# args
+
+	local -r input_hashrate_value="${1-}"
+	local -r input_hashrate_unit="${2-}"
+	local -r -n output_hashrate_in_khs_by_ref="${3-}"
+
+	# consts
+
+	local -r -A relationship_to_khs=(
+		['phs']='1000000000000'
+		['ths']='1000000000'
+		['ghs']='1000000'
+		['mhs']='1000'
+		['khs']='1'
+		['hs']='0.001'
+	)
+
+	# code
+
+	if [[ "$input_hashrate_unit" == 'khs' ]]; then # don't have to calculate anything
+		output_hashrate_in_khs_by_ref="$input_hashrate_value"
+		return
+	fi
+
+	if [[ -n "${relationship_to_khs[$input_hashrate_unit]-}" ]]; then
+		output_hashrate_in_khs_by_ref="$(
+			awk -v input_hashrate_value="$input_hashrate_value" \
+				-v relationship_to_khs="${relationship_to_khs[$input_hashrate_unit]}" \
+				'BEGIN{ print input_hashrate_value * relationship_to_khs }'
+		)"
+	else
+		errcho "Invalid unit '$input_hashrate_unit'"
+		return 1
+	fi
+}
+
+function send_request_to_miner_api {
+	#
+	# Usage: send_request_to_miner_api 'request_body'
+	#
+
+	# args
+
+	local -r request_body="${1-}"
+
+	# consts
+
+	local -r -i timeout=7
+
+	# code
+
+	case "$ASIC_MODEL" in
+		'Zig Z1+'|'Zig Z1')
+			timeout "$timeout" nc "$miner_API_host" "$miner_API_port" <<< "$request_body" 2> /dev/null
+		;;
+
+		*)
+			timeout -t "$timeout" nc "$miner_API_host" "$miner_API_port" <<< "$request_body" 2> /dev/null
+		;;
+	esac | tr -d '\0'
+
+	return "${PIPESTATUS[0]}"
+}
+
+function get_stats_raw {
+	#
+	# Usage: get_stats_raw
+	#
+
+	send_request_to_miner_api '{"command":"stats"}'
+}
+
+function get_pools_raw {
+	#
+	# Usage: get_pools_raw
+	#
+
+	send_request_to_miner_api '{"command":"pools"}'
+}
+
+function get_miner_stats {
+	#
+	# Usage: get_miner_stats 'miner_name'
+	#
+
+	# args
+
+	local miner_name="$1"
+	local mindex="$2" #empty or 2
+
+	# vars
+
+	local stats_raw max_fan_rpm STATS
+	local algo hs_units uptime hashrate_raw
+	local stats_pool_raw pool_stats active_pool
+	local hs temp chip_temp board_temp fan fan_rpm freq freq_new acn status chain_voltage hw_errors power asicboost ar
+
+	# traps
+
+	function check_khs_and_stats {
+		[[ -z "$khs" ]] && khs=0
+		[[ -z "$stats" ]] && stats='null'
+	}
+	trap 'check_khs_and_stats' RETURN
+
+	# code
+
+	khs=0				# global
+	system_status='NA'	# global
+	stats=''			# global
+
+	max_fan_rpm="$MAX_FAN_RPM"
+	algo="$ASIC_ALGO"
+	hs_units="$HASH"
+
+	case "$ASIC_MODEL" in
+		'Antminer '						|\
+		'Antminer E3'					|\
+		'Antminer S9'|'Antminer S9i'|'Antminer S9j'|'Antminer S9 Hydro'|'Antminer S9 (vnish'*|'Antminer S9'*|'Minecenter S9'|\
+		'Antminer S10'*					|\
+		'Antminer S11'					|\
+		'Antminer S15'					|\
+		'Antminer S17'*					|\
+		'Antminer T9+'*|'Antminer T9'*	|\
+		'Antminer T15'					|\
+		'Antminer T17'*					|\
+		'Antminer X17'*)
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			stats_raw="$( get_stats_raw | tr -d '\n'; exit "${PIPESTATUS[0]}" )"
+			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
+			else
+				stats_raw="$( sed 's/}{/\},{/' <<< "$stats_raw" )" # ??? what's the case for this
+				STATS="$( jq '.STATS' <<< "$stats_raw" )"
+
+				hashrate_raw="$( jq -r '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+
+				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
+
+				if stats_pool_raw="$( get_pools_raw )"; then
+					if pool_stats="$( jq '.POOLS' <<< "$stats_pool_raw" )"; then
+						if active_pool="$( jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]' <<< "$pool_stats" 2> /dev/null )"; then
+							: ok good to go
+						else
+							log_line warning "No active pools yet"
+							return
+						fi
+					else
+						log_line warning "No pools yet"
+					fi
+				else
+					log_line warning "Failed to read pool stats from $miner_API_host:$miner_API_port"
+				fi
+
+				uptime="$(			jq -r '.[1].Elapsed' <<< "$STATS" )"
+				hs="$(				jq '.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $hs value'
+				temp="$(			jq '.[1]	| with_entries( select(.key | test("temp2_\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $temp value'
+				chip_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [.[].value | split("-") | max]'											<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $chip_temp value'
+				board_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $board_temp value'
+				fan="$(				jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'									<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $fan value'
+				fan_rpm="$(			jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $fan_rpm value'
+				freq="$(			jq '.[1]	| with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $freq value'
+				freq_new="$(		jq '.[1]	| with_entries( select(.key | test("freq\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $freq_new value'
+				acn="$(				jq '.[1]	| with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $acn value'
+				status="$(			jq '.[1]	| with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $status value'
+				chain_voltage="$(	jq '.[1]	| with_entries( select(.key | test("chain_voltage\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $chain_voltage value'
+				hw_errors="$(		jq '.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $hw_errors value'
+				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $power value'
+				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'				<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $asicboost value'
+				ar="$(				jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats"	2> /dev/null )"	|| errcho 'jq error: no $ar value'
+
+				grep -q '.[0-9]' <<< "$chip_temp" && temp="$chip_temp"
+				grep -q '.[0-9]' <<< "$freq_new" && freq="$freq_new"
+
+				stats="$( jq -nc \
+					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+					--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+					--argjson freq "$freq" --argjson chain_voltage "$chain_voltage" --argjson acn "$acn" --argjson power "$power" \
+					--argjson hw_errors "$hw_errors" --argjson status "$status" \
+					--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}' \
+					2> /dev/null
+				)" || errcho "jq error: \$stats [$stats]"
+			fi
+		;;
+
+		'Antminer A3'										|\
+		'Antminer D3'|'Antminer D3 Blissz'*|'Antminer DR3'	|\
+		'Antminer L3+'*|'Antminer L3++'						|\
+		'Antminer S7'										|\
+		'Antminer X3'										|\
+		'Antminer Z9'*										|\
+		'Antminer Z11'*)
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			stats_raw="$( get_stats_raw )"
+			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
+			else
+				stats_raw="$( sed 's/}{/\},{/' <<< "$stats_raw" )"
+				STATS="$( jq '.STATS' <<< "$stats_raw" )"
+
+				#if [[ -z $algo || $algo == 'null' ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				hashrate_raw="$( jq -r '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+
+				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
+
+				#temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
+				#hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
+				#stats=$(jq -nc --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
+
+				uptime="$(		jq -r '.[1].Elapsed' <<< "$STATS" )"
+				hs="$(			jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'								<<< "$STATS" )"
+				temp="$(		jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
+				board_temp="$(	jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
+				fan="$(			jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'	<<< "$STATS" )"
+				fan_rpm="$(		jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
+				freq="$(		jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
+				miner_count="$(	jq '.[1] | with_entries( select(.key | test("miner_count")) )		| to_entries | .[].value'								<<< "$STATS" )"
+				acn="$(			jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
+				power="$(		jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'								<<< "$STATS" )"
+				status="$(		jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
+				hw_errors="$(	jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
+
+				if [[ "$( jq -r length <<< "$freq" )" -ne $miner_count ]]; then
+					freq_new='[]'
+					freq="$( jq '.[1] | with_entries( select(.key | test("frequency")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
+					freq_num="$( jq -r .[0] <<< "$freq" )"
+					for (( c=1; c<=miner_count; c++ )); do
+						freq_new="$( jq -r --arg freq_num "$freq_num" '[.[], $freq_num|tonumber]' <<< "$freq_new" )"
+					done
+				else
+					freq_new="$freq"
+				fi
+
+				stats="$( jq -nc \
+					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+					--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+					--argjson freq "$freq_new" --argjson acn "$acn" --argjson power "$power" \
+					--argjson hw_errors "$hw_errors" --argjson status "$status" \
+					--arg uptime "$uptime" \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime}'
+				)"
+			fi
+		;;
+
+		'Zig Z1+'	|\
+		'Zig Z1')
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			stats_raw="$( get_stats_raw )"
+			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
+			else
+				STATS="$( jq '.STATS' <<< "$stats_raw" )"
+
+				hashrate_raw="$( jq -r '.[0]."MHS 30S"' <<< "$STATS" )"
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+
+				uptime="$(		jq -r '.[0].Elapsed' <<< "$STATS" )"
+				hs="$(			jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | ."MHS 30S"]'															<<< "$STATS" )"
+				temp="$(		jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | ."Temperature"]'														<<< "$STATS" )"
+				fan="$(			jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) )					| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'												<<< "$STATS" )"
+				fan_rpm="$(		jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) )					| to_entries | [.[].value ]'																		<<< "$STATS" )"
+				freq="$(		jq '.[0].Frequency as $freq | .[0] | with_entries( select(.key | test("CH\\d+") ) )	| to_entries | [.[].value | $freq ]'																<<< "$STATS" )"
+				acn="$(			jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | .status | length ]'														<<< "$STATS" )"
+				status="$(		jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | .status | [.[].accept | if . > 0 then "o" else "x" end ] | join("") ]'	<<< "$STATS" )"
+#				hw_errors="$(	jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) )						| to_entries | [.[].value]'																			<<< "$STATS" )"
+
+				stats="$( jq -nc \
+					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+					--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+					--argjson freq "$freq" --argjson acn "$acn" \
+					--argjson status "$status" \
+					--arg uptime "$uptime" \
+					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}'
+				)"
+			fi
+		;;
+
+		'b29+.g19'						|\
+		'd9.g19'						|\
+		's11.g19'						|\
+		't2t.soc'|'t2t+.soc'			|\
+		't2th.soc'|'t2th+.soc'|'t2thf.soc'|'t2thf+.soc'|'t2thl+.soc'|'t2thm.soc'|\
+		't2ti.soc'						|\
+		't2ts.soc'						|\
+		't2tz.soc'						|\
+		't3.soc'|'t3+.soc'|'t3h+.soc')
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			stats_raw="$( get_stats_raw )"
+			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
+			else
+				#stats_raw="$( sed 's/}{/\},{/' <<< "$stats_raw" )"
+				STATS="$( jq '.STATS' <<< "$stats_raw" )"
+
+				#if [[ -z $algo || $algo == 'null' ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				hashrate_raw="$( jq -r '.[-1] | .[] | add' < /tmp/stats.json )"
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+
+				uptime="$(		jq -r '.[0].Elapsed' <<< "$STATS" )"
+				hs="$(			jq -r '[.[-1] | .[] | .[]]' < /tmp/stats.json )"
+				temp="$(		jq '[.[] | with_entries( select(.key | test("^Temp$")) )			| to_entries | .[].value]'								<<< "$STATS" )"
+				fan="$(			jq '[.[] | with_entries( select(.key | test("^Fan duty$")) )		| to_entries | .[].value]'								<<< "$STATS" )"
+				freq="$(		jq '[.[] | with_entries( select(.key | test("^PLL")) )				| to_entries | .[].value]'								<<< "$STATS" )"
+				acn="$(			jq '[.[] | with_entries( select(.key | test("Num chips")) )			| to_entries | .[].value]'								<<< "$STATS" )"
+				status="$(		jq '[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'								<<< "$STATS" )"
+				hw_errors="$(	jq '[.[] | with_entries( select(.key | test("HW errors")) )			| to_entries | [.[].value] | add | select(.!=null)]'	<<< "$STATS" )"
+
+				stats="$( jq -nc \
+					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+					--argjson temp "$temp" --argjson fan "$fan" \
+					--argjson freq "$freq" --argjson acn "$acn" \
+					--argjson hw_errors "$hw_errors" --argjson status "$status" \
+					--arg uptime "$uptime" \
+					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}'
+				)"
+			fi
+		;;
+
+		'T4.G19')
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			stats_raw="$( send_request_to_miner_api '{"command":"devs"}' )"
+			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
+			else
+				STATS="$( jq '.DEVS' <<< "$stats_raw" )"
+
+				#if [[ -z $algo || $algo == 'null' ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				hashrate_raw="$( jq -r '[.[]["MHS av"]] | add' <<< "$STATS" )"
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+
+				uptime="$(		jq -r '.[0]["Device Elapsed"]' <<< "$STATS" )"
+				hs="$(			jq '[.[] | with_entries( select(.key | test("MHS 5s")) )			| to_entries | .[].value]' <<< "$STATS" )"
+				temp="$(		jq '[.[] | with_entries( select(.key | test("TempAVG")) )			| to_entries | .[].value]' <<< "$STATS" )"
+				freq="$(		jq '[.[] | with_entries( select(.key | test("CORE")) )				| to_entries | .[].value]' <<< "$STATS" )"
+				acn="$(			jq '[.[] | with_entries( select(.key | test("DUTY")) )				| to_entries | .[].value]' <<< "$STATS" )"
+#				status="$(		jq '[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]' <<< "$STATS" )"
+				hw_errors="$(	jq '[.[] | with_entries( select(.key | test("Hardware Errors")) )	| to_entries | .[].value]' <<< "$STATS" )"
+
+				stats="$( jq -nc \
+					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+					--argjson temp "$temp" \
+					--argjson freq "$freq" --argjson acn "$acn" \
+					--argjson hw_errors "$hw_errors" \
+					--arg uptime "$uptime" \
+					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}'
+				)"
+			fi
+		;;
+
+		'Toddminer C1'*)
+			stats="$( todd_api stats )"
+			hashrate_raw="$( jq '.hs | add' <<< "$stats" )"
+			reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+			[[ "$khs" > '0' ]] && system_status='mining'
+		;;
+
+		'Blackminer F1'*)
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			stats_raw="$( get_stats_raw )"
+			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
+			else
+				stats_raw="$( sed 's/}{/\},{/' <<< "$stats_raw" )"
+				STATS="$( jq '.STATS' <<< "$stats_raw" )"
+
+				local COIN="$( jq -r '."coin-type"' < /config/cgminer.conf )"
+				POWER=(50)
+				[[ -e /hive/share/blackminer/blackminer.json ]] && BBDATA="$( jq -e '.' < /hive/share/blackminer/blackminer.json )"
+				if (( $? == 0 )); then
+					ASIC_ALGO="$( jq -r --arg coin "$COIN" '.[$coin].algo' <<< "$BBDATA" )"
+					POWER="$( jq -r --arg coin "$COIN" '.[$coin].power' <<< "$BBDATA" )"
+				fi
+
+				##echo $ASIC_ALGO $POWER
+				#if [[ -z $algo || $algo == 'null' ]]; then
+				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
+				#fi
+
+				algo="$ASIC_ALGO"
+				hashrate_raw="$( jq -r '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+
+				pool_stats="$( get_pools_raw | jq '.POOLS' )"
+				active_pool="$(	jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]'	<<< "$pool_stats" )"
+
+				uptime="$(		jq -r '.[1].Elapsed' <<< "$STATS" )"
+				hs="$(			jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'																	<<< "$STATS" )"
+#				temp="$(		jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
+				temp="$(		jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
+				board_temp="$(	jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
+				fan="$(			jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'										<<< "$STATS" )"
+				fan_rpm="$(		jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
+				freq="$(		jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
+				miner_count="$(	jq '.[1] | with_entries( select(.key | test("miner_count")) )		| to_entries | .[].value'																	<<< "$STATS" )"
+				acn="$(			jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
+				status="$(		jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
+				hw_errors="$(	jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
+				ar="$(			jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats" )"
+
+				if [[ "$( jq -r length <<< "$freq" )" -ne "$miner_count" ]]; then
+					freq_new='[]'
+					freq="$(		jq '.[1] | with_entries( select(.key | test("frequency")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
+					freq_num="$( jq -r .[0] <<< "$freq" )"
+					for (( c=1; c<=miner_count; c++ )); do
+						freq_new="$( jq -r --arg freq_num "$freq_num" '[.[], $freq_num|tonumber]' <<< "$freq_new" )"
+					done
+				else
+					freq_new="$freq"
+				fi
+
+				stats="$( jq -nc \
+					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
+					--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
+					--argjson freq "$freq_new" --argjson acn "$acn" \
+					--argjson power "$( jq -cs '.' <<< "$POWER" )" --argjson ar "$ar" \
+					--argjson hw_errors "$hw_errors" --argjson status "$status" \
+					--arg uptime "$uptime" \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $ar, $hw_errors, $status, $uptime}'
+				)"
+			fi
+		;;
+
+		*)
+			#miner_name='unknown'
+			#MINER=miner
+			eval "MINER${mindex}=unknown"
+		;;
+	esac
+}
+
+function loop {
+
+	# vars
+
+	local -i khs_decimal
+
+	# code
+
+	[[ ! -f "$RIG_CONF" ]] && log_line error "Config file $RIG_CONF not found" && return
+
+	#each time read config again
+	source "$RIG_CONF"
+	source "$WALLET_CONF"
+
+	# If rig config contains PUSH_INTERVAL then change default to custom
+	[[ -n "$PUSH_INTERVAL" ]] && INTERVAL=$PUSH_INTERVAL
+	[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
+	[[ -z $MINER ]] && MINER='asicminer'
+
+	log_line info "Collecting stats from $MINER API..."
+	get_miner_stats "$MINER"
+
+	khs_decimal="$( scientific_to_decimal "$khs" )"
+	if (( khs_decimal > 0 )); then
+		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )"
+	else
+		log_line warning "$MINER hashrate ${WHITE}0 H/s"
+	fi
+	echo "$khs" > /run/hive/khs
+
+	[[ -n "$META" ]] && meta="$META" || meta='null'
+	cpuavg_array=( $( < /proc/loadavg ) )
+	cpuavg="$( IFS=','; echo "${cpuavg_array[*]::3}" )"
+	df="$( df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//' )"
+
+	request="$( jq -n \
+		--arg rig_id "$RIG_ID" \
+		--arg passwd "$RIG_PASSWD" \
+		--arg miner "$MINER" \
+		--argjson meta "$meta" \
+		--argjson miner_stats "$stats" \
+		--arg total_khs "$khs" \
+		--arg system_status "$system_status" \
+		--arg df "$df" \
+		--argjson cpuavg "[$cpuavg]" \
+		'{
+			"method": "stats", "jsonrpc": "2.0", "id": 0,
+			"params": {
+				$rig_id, $passwd, $miner, $meta,
+				$miner_stats, $total_khs, $system_status,
+				$df, $cpuavg
+			}
+		}'
+	)"
+
+	jq '.' -c <<< "$request"
+
+	if [[ -z "$RIG_ID" ]]; then
+		log_line warning "No RIG_ID, skipping sending stats"
+		return
+	fi
+
+	HIVE_URL="$HIVE_HOST_URL"
+	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index for original HIVE_HOST_URL
+	# !!! duct tape
+	# protection measures -- we might don't have https on the vast majority of ASICs
+	if [[ "$HIVE_URL" =~ ^https:// ]]; then
+		log_line warning "API Server $HIVE_URL is not supported, most likely"
+		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for a http form of https'ed HIVE_HOST_URL
+		if (( https_disabled_message_sent == 0 )); then
+			cp "$RIG_CONF" "${RIG_CONF}.original"
+			sed -i 's|HIVE_HOST_URL="https://|HIVE_HOST_URL="http://|' "$RIG_CONF"
+			message warning "Server URL with HTTPS might not be supported on this ASIC. It's recommended to switch to HTTP (Settings->Mirror select)"
+			mv "${RIG_CONF}.original" "$RIG_CONF"
+			https_disabled_message_sent=1
+		fi
+	fi
+
+	for this_URL in "${HIVE_URL_collection[@]}"; do
+		log_line info "Sending stats to ${this_URL}..."
+		response="$( jq '.' -c <<< "$request" |
+			curl --insecure --location --data @- \
+			--connect-timeout 15 --max-time 25 --silent --fail \
+			-XPOST "${this_URL}/worker/api?id_rig=$RIG_ID&method=stats" -H 'Content-Type: application/json'
+		)"
+		exitcode=$?
+		if (( exitcode )); then
+			log_line error "Error sending stats (curl error $exitcode), trying next URL..."
+		else
+			break
+		fi
+	done
+
+	if [[ $exitcode -ne 0 || -z "$response" ]]; then
+		log_line error "Error sending stats (curl error $exitcode)"
+		/hive/bin/timeout -t 10 /hive/bin/cache-hive-ip
+		return "$exitcode"
+	fi
+
+	error="$( jq '.error' --raw-output <<< "$response" )"
+	if (( $? )); then
+		log_line error "Invalid response:${NOCOLOR}\n$response"
+		return 1
+	fi
+
+	if [[ -n "$error" && "$error" != 'null' ]]; then
+		log_line error "Error response:${NOCOLOR} $error"
+		return 1
+	fi
+
+	command="$( jq '.result.command' --raw-output <<< "$response" )"
+
+	[[ $command != 'OK' ]] && jq '.result' <<< "$response"
+
+	if [[ "$command" != 'batch' ]]; then
+		body="$( jq -c '.result' <<< "$response" )"
+		do_command
+	else
+		count="$( jq '.result.commands|length' <<< "$response" )"
+		log_line info "Got $count batch commands"
+		for (( i=0; i < count; i++ )); do
+			body="$( jq -c ".result.commands[$i]" <<< "$response" )"
+			command=
+			do_command
+		done
+	fi
+}
+
+function backslash {
+	local var="${1//\\/\\\\}"
+	var="${var//\"/\\\"}"
+	var="${var//\`/\\\`}"
+	var="${var//\$/\\\$}"
+	echo "$var"
+}
+
+function do_command {
+	#body="$1"
+	[[ -z "$command" ]] && command="$( jq -r '.command' <<< "$body" )" #get command for batch
+
+	#Optional command identifier
+	cmd_id="$( jq -r '.id' <<< "$body" )"
+	[[ "$cmd_id" == 'null' ]] && cmd_id=
+
+	log_line ok "'$command' received"
+
+	case "$command" in
+		'OK')
+			:
+		;;
+
+		'reboot')
+			message ok 'Rebooting' --id="$cmd_id"
+			log_line ok "Rebooting"
+			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
+			/sbin/reboot
+		;;
+
+		'upgrade')
+			local version="$( jq -r '.version' <<< "$body" )"
+			[[ $version == 'null' ]] && version=
+			screen -dm -S selfupgrade bash -c '
+				selfupgrade '"$version"' 2>&1 | tee /tmp/nohup.log
+				exitcode=${PIPESTATUS[0]}
+				payload="$( < /tmp/nohup.log )"
+				if (( exitcode == 0 )); then
+					message ok "Client update successful" payload --id='$cmd_id' <<< "$payload"
+				else
+					message error "Client update failed" payload --id='$cmd_id' <<< "$payload"
+				fi
+			'
+		;;
+
+		'upgrade beta')
+			screen -dm -S selfupgrade bash -c '
+				selfupgrade master 2>&1 | tee /tmp/nohup.log
+				exitcode=${PIPESTATUS[0]}
+				payload="$( < /tmp/nohup.log )"
+				if (( exitcode == 0 )); then
+					message ok "Client update successful" payload --id='$cmd_id' <<< "$payload"
+				else
+					message error "Client update failed" payload --id='$cmd_id' <<< "$payload"
+				fi
+			'
+		;;
+
+		'exec')
+			exec="$( jq '.exec' --raw-output <<< "$body" )"
+			if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
+				exectimeout='nohup timeout 360 bash -c'
+			else
+				exectimeout='nohup timeout -t 360 bash -c'
+			fi
+			[[ "$exec" == 'hssh start' ]] && exec='unset TMUX; hssh start' # !!! duct tape
+			$exectimeout '
+				log_name="/tmp/exec_"'$cmd_id'".log"
+				('"$exec"') > "$log_name" 2>&1
+				exitcode=$?
+				if (( exitcode == 0 )); then
+					message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' < "$log_name"
+				else
+					message error "'"$(backslash "$exec")"' (failed, exitcode=$exitcode)" payload --id='$cmd_id' < "$log_name"
+				fi
+				rm "$log_name" > /dev/null 2>&1
+			' > /tmp/nohup.log 2>&1 &
+		;;
+
+		'asic_oc')
+			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
+			screen -dm -S autotune bash -c '
+				echo "Auto-tune parameters:"
+				echo
+				jq <<< "$asic_oc"
+				echo
+				echo -n "Tuning... "
+				asic_oc "$asic_oc" 2>&1 | tee /tmp/nohup.log
+				exitcode=${PIPESTATUS[0]}
+				payload="$( < /tmp/nohup.log )"
+				if (( exitcode == 0 )); then
+					message ok "Auto-tune is finished. Click for details" payload --id='$cmd_id' <<< "$payload"
+				else
+					message error "Auto-tune error. Click for details" payload --id='$cmd_id' <<< "$payload"
+				fi
+			'
+		;;
+
+		'firmware-upgrade')
+			export firmware_url="$( jq '.firmware_url' --raw-output <<< "$body" )"
+			screen -dm -S upgrade bash -c '
+				firmware-upgrade "$firmware_url" 2>&1 | tee /tmp/nohup.log
+				exitcode=${PIPESTATUS[0]}
+				payload="$( < /tmp/nohup.log )"
+				if (( exitcode == 0 )); then
+					message ok "Firmware upgrade successful, rebooting..." payload --id='$cmd_id' <<< "$payload"
+				else
+					message error "Firmware upgrade failed" payload --id='$cmd_id' <<< "$payload"
+				fi
+			'
+		;;
+
+		'config')
+			config="$( jq '.config' --raw-output <<< "$body" )"
+			justwrite="$( jq '.justwrite' --raw-output <<< "$body" )" #don't restart miner, just write config, maybe WD settings will be updated
+			if [[ -n "$config" && $config != 'null' ]]; then
+				#scan for password change
+				echo "$config" > /tmp/rig.conf.new
+				while read -r line; do
+					[[ "$line" =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD="${BASH_REMATCH[1]}" && break
+				done < /tmp/rig.conf.new
+				rm /tmp/rig.conf.new
+
+				# Password change ---------------------------------------------------
+				if [[ "$RIG_PASSWD" != "$NEW_PASSWD" ]]; then
+					log_line warning "Old password: $RIG_PASSWD, new password: $NEW_PASSWD"
+
+					message warning "New password received, please wait for the green message..." --id="$cmd_id"
+					request="$( jq -n \
+						--arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
+						'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}'
+					)"
+					response="$( curl --insecure --location --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}/worker/api?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json" <<< "$request" )"
+
+					exitcode=$?
+					if (( exitcode != 0 )); then
+						message error "Error notifying hive about \"password_change_received\"" --id="$cmd_id"
+						return "$exitcode" #better exit because password will not be changed
+					fi
+
+					error="$( jq '.error' --raw-output <<< "$response" )"
+					if [[ -n "$error" && "$error" != 'null' ]]; then
+						log_line error "Server error: $( jq '.error.message' -r <<< "$response" )"
+						return 1
+					fi
+
+					jq '.' <<< "$response"
+					#after this there will be new password on server, so all new request should use new one
+				fi
+
+				# Write new config and load it ---------------------------------------
+				echo "$config" > "$RIG_CONF" && sync
+				source "$RIG_CONF"
+
+				# Save wallet if given -----------------------------------------------
+				wallet="$( jq '.wallet' --raw-output <<< "$body" )"
+				[[ -n "$wallet" && "$wallet" != 'null' ]] && echo "$wallet" > "$WALLET_CONF"
+
+				# Overclocking if given in config --------------------------------------
+#				oc_if_changed
+
+				# Final actions ---------------------------------------------------------
+				if [[ "$justwrite" != 1 ]]; then
+					#hostname-check
+					/hive/bin/miner restart
+				fi
+
+				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
+				if (( "${WD_ENABLED:-0}" )); then
+					nohup wd stop > /dev/null 2>&1
+					nohup sleep 5 > /dev/null 2>&1
+				fi
+				wd start &
+
+				message ok "Rig config changed" --id="$cmd_id"
+				#[[ $? -eq 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
+				sync
+			else
+				message error "No rig \"config\" given" --id="$cmd_id"
+			fi
+		;;
+
+		'wallet')
+			wallet="$( jq '.wallet' --raw-output <<< "$body" )"
+			if [[ -n "$wallet" && "$wallet" != 'null' ]]; then
+				echo "$wallet" > "$WALLET_CONF" && sync
+
+				justwrite=
+#				oc_if_changed
+
+				/hive/bin/miner restart
+				if (( $? == 0 )); then
+					message ok "Wallet changed, miner restarted" --id="$cmd_id"
+				else
+					message warn "Error restarting miner" --id="$cmd_id"
+				fi
+			else
+				message error "No \"wallet\" config given" --id="$cmd_id"
+			fi
+		;;
+
+		*)
+			log_line error "Unknown command received: '$command'"
+		;;
+
+	esac
+}
+
+
+# consts
+
+declare -r RIG_CONF='/hive-config/rig.conf'
+declare -r WALLET_CONF='/hive-config/wallet.conf'
+declare -r miner_API_host='localhost'
+declare -r -i miner_API_port=4028
+
+
+# vars
+
+declare MINER='asicminer'
+declare khs stats system_status
+declare -i INTERVAL=10
+declare -i https_disabled_message_sent=0
+declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
+	[2]='http://api.hiveos.farm'
+	[3]='http://paris.hiveos.farm'
+	[4]='http://amster.hiveos.farm'
+	[5]='http://helsinki.hiveos.farm'
+	[6]='http://msk.hiveos.farm'
+	[7]='http://ca1.hiveos.farm'
+)
+
+
+# sources
+
+[[ -t 1 ]] && source colors
+source asic-model
+source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+
+
+# main
 
 #$PPID - might be parent screen pid
-screen_count="$( screen -ls | grep "\.agent" | grep -v "$PPID" | wc -l )"
+screen_count="$( screen -ls | grep "\.agent" | grep -Fcv "$PPID" )"
 
 #there will be still 1 process for subshell
 #[[ `ps aux | grep "./agent" | grep -vE "grep|screen|SCREEN|$$" | wc -l` -gt 1 ]] &&
@@ -34,704 +843,30 @@ if (( screen_count > 0 )); then
 	exit 1
 fi
 
-. asic-model
+log_line info "$script_mission, version $script_version started"
+log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
 
-printf '%(%F %T %z)T %s: ' -1 'agent'
-echo -e "Detected ASIC model: ${CYAN}$ASIC_MODEL${NOCOLOR}\n"
+# (re)starting wd
 
-[[ $WD_ENABLED -eq 1 ]] && nohup wd stop && nohup sleep 5; wd start &
+if (( "${WD_ENABLED:-0}" )); then
+	nohup wd stop > /dev/null 2>&1
+	nohup sleep 5 > /dev/null 2>&1
+fi
+wd start &
 
-########################################################################################################################
+# main loop
 
-miner_stats () {
-	local miner="$1"
-	local mindex="$2" #empty or 2
-
-	khs=0
-	system_status="NA"
-	stats=
-	stats_raw=
-	max_fan_rpm="$MAX_FAN_RPM"
-	case "$ASIC_MODEL" in
-		"Antminer "|\
-		"Antminer E3"|\
-		"Antminer S9"|"Antminer S9i"|"Antminer S9j"|"Antminer S9 Hydro"|"Antminer S9 (vnish"*|"Antminer S9"*|"Minecenter S9"|\
-		"Antminer S10"*|\
-		"Antminer S11"|\
-		"Antminer S15"|\
-		"Antminer S17"*|\
-		"Antminer T9+"*|"Antminer T9"*|\
-		"Antminer T15"|\
-		"Antminer T17"*|\
-		"Antminer X17"*)
-			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'`
-			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T %s: ' -1 'agent'
-				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
-			else
-				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
-				local STATS=$(jq '.STATS' <<< "$stats_raw")
-
-				#if [[ -z $algo || $algo == "null" ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc -w $API_TIMEOUT localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				local algo="$ASIC_ALGO"
-				local hs_units="$HASH"
-				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
-				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
-				if [[ $HASH == "mhs" ]]; then
-					khs=$(awk '{print $1 * 1000}' <<< "$khs")
-				elif [[ $HASH == "khs" ]]; then
-					khs=$(awk '{print $1}' <<< "$khs")
-				elif [[ $HASH == "hs" ]]; then
-					khs=$(awk '{print $1 / 1000}' <<< "$khs")
-				else
-					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
-				fi
-
-				system_status=$( ant-functions hiveon_status <<< "$STATS" )
-
-				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
-				local active_pool=$(echo "$stats_pool" | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
-
-
-				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
-				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local chip_temp=$((jq '.[1] | with_entries( select(.key | test("temp_chip\\d+")))| to_entries | [.[].value | split("-") | max]') <<< "$STATS")
-				local board_temp=$((jq '.[1] | with_entries( select(.key | test("temp\\d+$")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
-				local fan_rpm=$( (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("freq_avg\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local freq_new=$((jq '.[1] | with_entries( select(.key | test("freq\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local chain_voltage=$(	 (jq '.[1] | with_entries( select(.key | test("chain_voltage\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local hw_errors=$((jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local asicboost=$((jq '[.[1] | with_entries( select(.key | test("chain_power$")) ) | to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]') <<< "$STATS")
-				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
-
-				test_temp=$(echo "$chip_temp" | grep .[0-9])
-				if [[ ! -z $test_temp ]]; then
-					local temp="$chip_temp"
-				fi
-				test_freq=$(echo "$freq_new" | grep .[0-9])
-				if [[ ! -z $test_freq ]]; then
-					local freq="$freq_new"
-				fi
-
-				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
-						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
-						--argjson freq "$freq" --argjson chain_voltage "$chain_voltage" --argjson acn "$acn" --argjson power "$power" \
-						--argjson hw_errors "$hw_errors" --argjson status "$status" \
-						--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
-						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}')
-			fi
-		;;
-		
-		"Antminer A3"|\
-		"Antminer D3"|"Antminer D3 Blissz"*|"Antminer DR3"|\
-		"Antminer L3+"*|"Antminer L3++"|\
-		"Antminer S7"|\
-		"Antminer X3"|\
-		"Antminer Z9"*|\
-		"Antminer Z11"*)
-			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
-			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T %s: ' -1 'agent'
-				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
-			else
-				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
-				local STATS=$(jq '.STATS' <<< "$stats_raw")
-
-				#if [[ -z $algo || $algo == "null" ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				local algo="$ASIC_ALGO"
-				local hs_units="$HASH"
-				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
-				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
-				if [[ $HASH == "mhs" ]]; then
-					khs=$(awk '{print $1 * 1000}' <<< "$khs")
-				elif [[ $HASH == "khs" ]]; then
-					khs=$(awk '{print $1}' <<< "$khs")
-				else
-					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
-				fi
-
-				system_status=$( ant-functions hiveon_status <<< "$STATS" )
-
-				#local temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq -sc .) <<< "$STATS" )
-				#local hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq -r '.' | jq -sc .) <<< "$STATS" )
-				#stats=$(jq -nc --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
-
-				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
-				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local board_temp=$((jq '.[1] | with_entries( select(.key | test("temp\\d+$")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
-				local fan_rpm=$( (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )       | to_entries | [.[].value]') <<< "$STATS")
-				local miner_count=$((jq '.[1] | with_entries( select(.key | test("miner_count")) )      | to_entries | .[].value') <<< "$STATS")
-				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local power=$(	 (jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-
-				if [[ $(echo "$freq" | jq -r length) -ne $miner_count ]]; then
-					local freq_new="[]"
-					local freq=$((jq '.[1] | with_entries( select(.key | test("frequency")) )       | to_entries | [.[].value]') <<< "$STATS")
-					local freq_num=$(echo "$freq" | jq -r .[0])
-					for (( c=1; c<=$miner_count; c++ )); do
-						freq_new=$(echo "$freq_new" | jq -r --arg freq_num "$freq_num" '[.[], $freq_num|tonumber]')
-					done
-				else freq_new="$freq"
-				fi
-
-				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
-						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
-						--argjson freq "$freq_new" --argjson acn "$acn" --argjson power "$power" \
-						--argjson hw_errors "$hw_errors" --argjson status "$status" \
-						--arg uptime "$uptime" \
-						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime}')
-			fi
-		;;
-
-		'Zig Z1+'|'Zig Z1')
-			stats_raw=`echo '{"command":"stats"}' | timeout 7 nc localhost 4028 | tr -d '\0'`
-			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T %s: ' -1 'agent'
-				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
-			else
-				local STATS=$(jq '.STATS' <<< "$stats_raw")
-				local algo="$ASIC_ALGO"
-				local hs_units="$HASH"
-				local uptime=$(jq -r '.[0].Elapsed' <<< "$STATS")
-				khs=$(jq -r '.[0]."MHS 30S"' <<< "$STATS")
-				if [[ $HASH == "mhs" ]]; then
-					khs=$(awk '{print $1 * 1000}' <<< "$khs")
-				elif [[ $HASH == "khs" ]]; then
-					khs=$(awk '{print $1}' <<< "$khs")
-				else
-					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
-				fi
-
-				local hs=$( 	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) 		| to_entries | [.[].value | ."MHS 30S"]') <<< "$STATS" )
-				local temp=$(	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) 		| to_entries | [.[].value | ."Temperature"]') <<< "$STATS")
-				local fan=$(	 (jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) ) 	| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
-				local fan_rpm=$( (jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) ) 	| to_entries | [.[].value ]') <<< "$STATS")
-				local freq=$(	 (jq '.[0].Frequency as $freq | .[0] | with_entries( select(.key | test("CH\\d+") ) ) | to_entries | [.[].value | $freq ]') <<< "$STATS")
-				local acn=$(	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) 		| to_entries | [.[].value | .status | length ]') <<< "$STATS")
-				local status=$(	 (jq '.[0] | with_entries( select(.key | test("CH\\d+") ) ) | to_entries | [.[].value | .status | [.[].accept | if . > 0 then  "o" else "x" end ] | join("") ]') <<< "$STATS")
-#				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-
-				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
-						--argjson temp "$temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
-						--argjson freq "$freq" --argjson acn "$acn" \
-						--argjson status "$status" \
-						--arg uptime "$uptime" \
-						'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}')
-			fi
-		;;
-		
-		"b29+.g19"|\
-		"d9.g19"|\
-		"s11.g19"|\
-		"t2t.soc"|"t2t+.soc"|\
-		"t2th.soc"|"t2th+.soc"|"t2thf.soc"|"t2thf+.soc"|"t2thl+.soc"|"t2thm.soc"|\
-		"t2ti.soc"|\
-		"t2ts.soc"|\
-		"t2tz.soc"|\
-		"t3.soc"|"t3+.soc"|"t3h+.soc")
-			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
-			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T %s: ' -1 'agent'
-				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
-			else
-				#stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
-				local STATS=$(jq '.STATS' <<< "$stats_raw")
-
-				#if [[ -z $algo || $algo == "null" ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				local algo="$ASIC_ALGO"
-				local hs_units="$HASH"
-				local uptime=$(jq -r '.[0].Elapsed' <<< "$STATS")
-				khs=$(cat /tmp/stats.json | jq -r '.[-1] | .[] | add')
-				if [[ $HASH == "mhs" ]]; then
-					khs=$(awk '{print $1 * 1000}' <<< "$khs")
-				elif [[ $HASH == "khs" ]]; then
-					khs=$(awk '{print $1}' <<< "$khs")
-				else
-					khs=$(awk '{print $1 / 1000}' <<< "$khs")
-				fi
-
-				local hs=$(cat /tmp/stats.json | jq -r '[.[-1] | .[] | .[]]')
-				local temp=$(	 (jq '[.[] | with_entries( select(.key | test("^Temp$")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local fan=$(	 (jq '[.[] | with_entries( select(.key | test("^Fan duty$")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local freq=$(	 (jq '[.[] | with_entries( select(.key | test("^PLL")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local acn=$(	 (jq '[.[] | with_entries( select(.key | test("Num chips")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local status=$(	 (jq '[.[] | with_entries( select(.key | test("Num active chips")) ) 	| to_entries | .[].value]') <<< "$STATS")
-				local hw_errors=$( (jq '[.[] | with_entries( select(.key | test("HW errors")) ) 	| to_entries | [.[].value] | add | select(.!=null)]') <<< "$STATS")
-
-				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
-						--argjson temp "$temp" --argjson fan "$fan" \
-						--argjson freq "$freq" --argjson acn "$acn" \
-						--argjson hw_errors "$hw_errors" --argjson status "$status" \
-						--arg uptime "$uptime" \
-						'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}')
-			fi
-		;;
-		
-		"T4.G19")
-			stats_raw=`echo '{"command":"devs"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
-			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				printf '%(%F %T %z)T %s: ' -1 'agent'
-				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
-			else
-				local STATS=$(jq '.DEVS' <<< "$stats_raw")
-
-				#if [[ -z $algo || $algo == "null" ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				local algo="$ASIC_ALGO"
-				local hs_units="$HASH"
-				local uptime=$(jq -r '.[0]["Device Elapsed"]' <<< "$STATS")
-				khs=$(jq -r '[.[]["MHS av"]] | add' <<< "$STATS")
-				if [[ $HASH == "mhs" ]]; then
-					khs=$(awk '{print $1 * 1000}' <<< "$khs")
-				elif [[ $HASH == "khs" ]]; then
-					khs=$(awk '{print $1}' <<< "$khs")
-				else
-					khs=$(awk '{print $1 / 1000}' <<< "$khs")
-				fi
-
-				local hs=$(	 (jq '[.[] | with_entries( select(.key | test("MHS 5s")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local temp=$(	 (jq '[.[] | with_entries( select(.key | test("TempAVG")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local freq=$(	 (jq '[.[] | with_entries( select(.key | test("CORE")) ) 		| to_entries | .[].value]') <<< "$STATS")
-				local acn=$(	 (jq '[.[] | with_entries( select(.key | test("DUTY")) ) 		| to_entries | .[].value]') <<< "$STATS")
-#				local status=$(	 (jq '[.[] | with_entries( select(.key | test("Num active chips")) ) 	| to_entries | .[].value]') <<< "$STATS")
-				local hw_errors=$( (jq '[.[] | with_entries( select(.key | test("Hardware Errors")) ) 	| to_entries | .[].value]') <<< "$STATS")
-
-				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
-						--argjson temp "$temp" \
-						--argjson freq "$freq" --argjson acn "$acn" \
-						--argjson hw_errors "$hw_errors" \
-						--arg uptime "$uptime" \
-						'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}')
-			fi
-		;;
-		
-		"Toddminer C1"*)
-				stats="`todd_api stats`"
-				ghs=`echo $stats | jq '.hs | add'`
-				khs=`printf '%.0f' $((ghs*1000000))`
-				[[ "$ghs" -gt 0 ]] && system_status="mining"
-		;;
-
-		"Blackminer F1"*)
-			stats_raw=`echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0'`
-			if [[ $? -ne 0 || -z $stats_raw ]]; then
-				echo -e "${YELLOW}Failed to read $miner stats from localhost:4028${NOCOLOR}"
-			else
-				stats_raw=$(sed 's/}{/\},{/' <<< "$stats_raw")
-				local STATS=$(jq '.STATS' <<< "$stats_raw")
-				local COIN=$(cat /config/cgminer.conf | jq -r '."coin-type"')
-                                POWER=(50)
-				[[ -e /hive/share/blackminer/blackminer.json ]] && BBDATA=`cat /hive/share/blackminer/blackminer.json | jq -e '.'`
-                                if [[ "$?" -eq 0 ]]; then
-                                   ASIC_ALGO=`echo $BBDATA | jq -r --arg coin "$COIN" '.[$coin].algo'`
-                                   POWER=`echo $BBDATA | jq -r --arg coin "$COIN" '.[$coin].power'`
-                                fi
-                 
-                                ##echo $ASIC_ALGO $POWER
-				#if [[ -z $algo || $algo == "null" ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				local algo=$ASIC_ALGO
-				local hs_units=$HASH
-				local uptime=$(jq -r '.[1].Elapsed' <<< "$STATS")
-				khs=$(jq -r '.[1]."GHS 5s"' <<< "$STATS") #14162.91 gh/s = 14 th/s
-				if [[ $HASH == "mhs" ]]; then
-					khs=$(awk '{print $1 * 1000}' <<< "$khs")
-				elif [[ $HASH == "khs" ]]; then
-					khs=$(awk '{print $1}' <<< "$khs")
-				else
-					khs=$(awk '{print $1 * 1000000}' <<< "$khs")
-				fi
-
-				local stats_pool=`echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0' | jq '.POOLS'`
-				local active_pool=$(echo $stats_pool | jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true  and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]')
-
-				local hs=$( 	 (jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS" )
-#				local temp=$(	 (jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local temp=$((jq '.[1] | with_entries( select(.key | test("temp\\d+$")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local board_temp=$((jq '.[1] | with_entries( select(.key | test("temp\\d+$")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local fan=$(	 (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value / '$max_fan_rpm' * 100 ]') <<< "$STATS")
-				local fan_rpm=$( (jq '.[1] | with_entries( select(.key | test("fan\\d+")) ) 		| to_entries | [.[].value]') <<< "$STATS")
-				local freq=$(	 (jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )       | to_entries | [.[].value]') <<< "$STATS")
-				local miner_count=$((jq '.[1] | with_entries( select(.key | test("miner_count")) )      | to_entries | .[].value') <<< "$STATS")
-				local acn=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local status=$(	 (jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local hw_errors=$( (jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) ) 	| to_entries | [.[].value]') <<< "$STATS")
-				local ar=$(	 (jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]') <<< "$stats_pool")
-
-				if [[ $(echo $freq | jq -r length) -ne "$miner_count" ]]; then
-					local freq_new="[]"
-					local freq=$((jq '.[1] | with_entries( select(.key | test("frequency")) )       | to_entries | [.[].value]') <<< "$STATS")
-					local freq_num=$(echo $freq | jq -r .[0])
-					for (( c=1; c<=$miner_count; c++ )); do
-						freq_new=$(echo "$freq_new" | jq -r --arg freq_num "$freq_num" '[.[], $freq_num|tonumber]')
-					done
-				else freq_new=$freq
-				fi
-                                
-				stats=$(jq -nc \
-						--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
-						--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
-						--argjson freq "$freq_new" --argjson acn "$acn" \
-						--argjson power "`echo $POWER | jq -cs '.'`" --argjson ar "$ar" \
-						--argjson hw_errors "$hw_errors" --argjson status "$status" \
-						--arg uptime "$uptime" \
-						'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $ar, $hw_errors, $status, $uptime}')
-			fi
-		;;
-
-		
-		*)
-			miner="unknown"
-			#MINER=miner
-			eval "MINER${mindex}=unknown"
-		;;
-	esac
-
-
-	[[ -z $khs ]] && khs=0
-	[[ -z $stats ]] && stats="null"
-
-#	[[ ! -z $mindex ]] &&
-#		eval "khs${mindex}"
-}
-
-
-########################################################################################################################
-
-loop () {
-	[[ ! -z $TIMEZONE ]] && export TZ=$TIMEZONE
-
-	printf '%(%F %T %z)T %s: %s\n' -1 'agent' 'Collecting stats...'
-
-	[[ ! -f $RIG_CONF ]] && echo -e "Config file $RIG_CONF not found" && return
-
-	#each time read config again
-	. "$RIG_CONF"
-	. "$WALLET_CONF"
-
-	# If rig config contains PUSH_INTERVAL then change default to custom
-	[[ ! -z "$PUSH_INTERVAL" ]] && INTERVAL=$PUSH_INTERVAL
-
-	[[ -z $MINER ]] && MINER="asicminer"
-	HIVE_URL="$HIVE_HOST_URL/worker/api"
-
-	miner_stats "$MINER" #khs and stats are global
-
-	printf '%(%F %T %z)T %s: ' -1 'agent'
-	echo -en "Hashrate ${CYAN}$MINER${NOCOLOR} `[[ $khs > "0" ]] && echo -e "${YELLOW}" || echo -e "${RED}"`$khs${NOCOLOR} kH/s"
-	#                                                   ^ floating point, that's why
-	echo -en "\n"
-	echo "$khs" > /run/hive/khs
-
-
-	#echo "$stats"
-	#uptime: load averages for the past 1, 5, and 15 minutes
-
-	[[ ! -z $META ]] && meta="$META" || meta='null'
-	request=$(
-	jq -n \
-	--arg rig_id "$RIG_ID" \
-	--arg passwd "$RIG_PASSWD" \
-	--arg miner "$MINER" \
-	--argjson meta "$meta" \
-	--argjson miner_stats "$stats" \
-	--arg total_khs "$khs" \
-	--arg system_status "$system_status" \
-	--arg df "`df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//'`" \
-	--argjson cpuavg "[`uptime | awk -F': ' '{print $2}'`]" \
-	'{
-		"method": "stats", "jsonrpc": "2.0", "id": 0,
-		"params": {
-			$rig_id, $passwd, $miner, $meta,
-			$miner_stats, $total_khs, $system_status,
-			$df, $cpuavg
-		}
-	}'
-	)
-
-	echo "$request" | jq '.' -c
-
-	if [[ -z $RIG_ID ]]; then
-		printf '%(%F %T %z)T %s: ' -1 'agent'
-		echo -e "${YELLOW}No RIG_ID, skipping sending stats${NOCOLOR}"
-		return
-	fi
-
-	#log request
-	echo "[`date`] > `echo "$request" | jq '.' -c`" >> "$LOG"
-	#echo "[`date`] > $request" >> "$LOG"
-
-	response=$(echo "$request" | jq '.' -c | curl --insecure -L --data @- \
-	--connect-timeout 15 --max-time 25 --silent \
-	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=stats"  -H "Content-Type: application/json")
-
-	exitcode=$?
-	if [[ $exitcode -ne 0 || -z $response ]]; then
-		printf '%(%F %T %z)T %s: ' -1 'agent'
-		echo -e "${RED}Error sending stats${NOCOLOR} $HIVE_HOST_URL" && human-curl-error $exitcode
-		echo "[`date`] < ERROR SENDING STATS TO $HIVE_HOST_URL (curl code=$exitcode) \"$response\"" >> "$LOG"
-		/hive/bin/timeout -t 10 /hive/bin/cache-hive-ip
-		return "$exitcode"
-	fi
-
-	#echo "$response"
-	#echo "[`date`] < `echo "$response" | jq '.' -c`" >> "$LOG"
-	echo "[`date`] < $response" >> "$LOG" #full response even invalid
-
-	error=$(echo "$response" | jq '.error' --raw-output)
-	if [[ $? -ne 0 ]]; then
-		printf '%(%F %T %z)T %s: ' -1 'agent'
-		echo -e "${RED}Invalid response${NOCOLOR}: $HIVE_HOST_URL\n$response"
-		return 1
-	fi
-	if [[ ! -z $error && "$error" != "null" ]]; then
-		printf '%(%F %T %z)T %s: ' -1 'agent'
-		echo -e "${RED}Error response${NOCOLOR}: $error"
-		return 1
-	fi
-
-	command=$(echo "$response" | jq '.result.command' --raw-output)
-
-	[[ $command != "OK" ]] && echo "$response" | jq '.result'
-
-
-	if [[ $command != "batch" ]]; then
-		body=`echo $response | jq -c '.result'`
-		do_command
-	else
-		count=`echo $response | jq '.result.commands|length'`
-		echo "Got $count batch commands"
-		for (( i=0; i < count; i++ )); do
-			body=`echo $response | jq -c ".result.commands[$i]"`
-			command=
-			do_command
-		done
-	fi
-}
-
-
-########################################################################################################################
-backslash() {
-  local var="${1//\\/\\\\}"
-  var="${var//\"/\\\"}"
-  var="${var//\`/\\\`}"
-  var="${var//\$/\\\$}"
-  echo "$var"
-}
-
-do_command () {
-	#body="$1"
-	[[ -z $command ]] && command=`echo $body | jq -r '.command'` #get command for batch
-
-	#Optional command identifier
-	cmd_id=$(echo $body | jq -r '.id')
-	[[ $cmd_id == "null" ]] && cmd_id=
-
-	case "$command" in
-		OK)
-			printf '%(%F %T %z)T %s: ' -1 'agent'
-			echo -e "${BGREEN}$command${NOCOLOR}"
-		;;
-		reboot)
-			message ok "Rebooting" --id="$cmd_id"
-			printf '%(%F %T %z)T %s: ' -1 'agent'
-			echo -e "${BRED}Rebooting${NOCOLOR}"
-			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
-			/sbin/reboot
-		;;
-		upgrade)
-			local version=$(echo "$body" | jq -r '.version')
-			[[ $version == "null" ]] && version=
-			screen -dm -S selfupgrade bash -c '
-				selfupgrade '"$version"' 2>&1 | tee /tmp/nohup.log
-				upgrade_exitcode=${PIPESTATUS[0]}
-				payload=`cat /tmp/nohup.log`
-				[[ $upgrade_exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Client update successful" payload --id='$cmd_id' ||
-					echo "$payload" | message error "Client update failed" payload --id='$cmd_id'
-			'
-		;;
-		"upgrade beta")
-			screen -dm -S selfupgrade bash -c '
-				selfupgrade master 2>&1 | tee /tmp/nohup.log
-				upgrade_exitcode=${PIPESTATUS[0]}
-				payload=`cat /tmp/nohup.log`
-				[[ $upgrade_exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Client update successful" payload --id='$cmd_id' ||
-					echo "$payload" | message error "Client update failed" payload --id='$cmd_id'
-			'
-		;;
-		exec)
-			exec=$(echo "$body" | jq '.exec' --raw-output)
-			if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
-				exectimeout='nohup timeout 360 bash -c'
-			else
-				exectimeout='nohup timeout -t 360 bash -c'
-			fi
-			$exectimeout '
-			log_name="/tmp/exec_"'$cmd_id'".log"
-			('"$exec"') > $log_name 2>&1
-			exitcode=$?
-			[[ $exitcode -eq 0 ]] &&
-				cat $log_name | message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' ||
-				cat $log_name | message error "'"$(backslash "$exec")"' (failed, exitcode=$exitcode)" payload --id='$cmd_id'
-			rm $log_name > /dev/null 2>&1
-			' > /tmp/nohup.log 2>&1 &
-		;;
-		asic_oc)
-			export asic_oc=`echo $body | jq '.asic_oc' --raw-output`
-			screen -dm -S autotune bash -c '
-				asic_oc $asic_oc 2>&1 | tee /tmp/nohup.log
-				exitcode=${PIPESTATUS[0]}
-				payload=`cat /tmp/nohup.log`
-					[[ $exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Overclock config successful" payload --id='$cmd_id' ||
-					echo "$payload" | message error "Overclock config failed" payload --id='$cmd_id'
-			'
-		;;
-		firmware-upgrade)
-			export firmware_url=`echo $body | jq '.firmware_url' --raw-output`
-			screen -dm -S upgrade bash -c '
-				firmware-upgrade $firmware_url 2>&1 | tee /tmp/nohup.log
-				exitcode=${PIPESTATUS[0]}
-				payload=`cat /tmp/nohup.log`
-					[[ $exitcode -eq 0 ]] &&
-					echo "$payload" | message ok "Firmware upgrade successful, rebooting..." payload --id='$cmd_id' ||
-					echo "$payload" | message error "Firmware upgrade failed" payload --id='$cmd_id'
-			'
-		;;
-		config)
-			config=$(echo $body | jq '.config' --raw-output)
-			justwrite=$(echo $body | jq '.justwrite' --raw-output) #don't restart miner, just write config, maybe WD settings will be updated
-			if [[ ! -z $config && $config != "null" ]]; then
-				#scan for password change
-				echo "$config" > /tmp/rig.conf.new
-				while read line; do
-					[[ $line =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD=${BASH_REMATCH[1]} && break
-				done < /tmp/rig.conf.new
-				rm /tmp/rig.conf.new
-
-				# Password change ---------------------------------------------------
-				if [[ $RIG_PASSWD != $NEW_PASSWD ]]; then
-					printf '%(%F %T %z)T %s: ' -1 'agent'
-					echo -e "${RED}New password:${NOCOLOR} $NEW_PASSWD";
-
-					message warning "Password change received, wait for next message..." --id="$cmd_id"
-					request=$(jq -n --arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
-					'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}')
-					response=$(echo $request | curl --insecure -L --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json")
-
-					exitcode=$?
-					[[ $exitcode -ne 0 ]] &&
-						message error "Error notifying hive about \"password_change_received\"" --id="$cmd_id" &&
-						return "$exitcode" #better exit because password will not be changed
-
-					error=$(echo $response | jq '.error' --raw-output)
-					[[ ! -z $error && $error != "null" ]] && echo -e "${RED}Server error:${NOCOLOR} `echo "$response" | jq '.error.message' -r`" && return 1
-
-					echo "$response" | jq '.'
-					#after this there will be new password on server, so all new request should use new one
-				fi
-
-				# Write new config and load it ---------------------------------------
-				echo "$config" > "$RIG_CONF" && sync
-				. "$RIG_CONF"
-
-				# Save wallet if given -----------------------------------------------
-				wallet=$(echo $body | jq '.wallet' --raw-output)
-				[[ ! -z $wallet && $wallet != "null" ]] &&
-					echo "$wallet" > "$WALLET_CONF"
-
-
-				# Overclocking if given in config --------------------------------------
-#				oc_if_changed
-
-
-				# Final actions ---------------------------------------------------------
-				if [[ $justwrite != 1 ]]; then # maybe [[ $justwrite -ne 1 ]]? // @j2h4u
-					#hostname-check
-					/hive/bin/miner restart
-				fi
-
-				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
-				[[ $WD_ENABLED -eq 1 ]] && nohup wd stop && nohup sleep 5; wd start &
-
-				message ok "Rig config changed" --id="$cmd_id"
-				#[[ $? -eq 0 ]] && message ok "Wallet changed, miner restarted" --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
-			else
-				message error "No rig \"config\" given" --id="$cmd_id"
-			fi
-		;;
-		wallet)
-			wallet=$(echo $body | jq '.wallet' --raw-output)
-			if [[ ! -z $wallet && $wallet != "null" ]]; then
-				echo "$wallet" > "$WALLET_CONF" && sync
-
-				justwrite=
-				oc_if_changed
-
-				/hive/bin/miner restart
-				[[ $? -eq 0 ]] && message ok "Wallet changed, miner restarted" --id="$cmd_id" || message warn "Error restarting miner" --id="$cmd_id"
-			else
-				message error "No \"wallet\" config given" --id="$cmd_id"
-			fi
-		;;
-	esac
-
-	#Flush buffers if any files changed
-	sync
-}
-
-
-
-########################################################################################################################
-
-echo -e "\n\n[`date`] Started" >> "$LOG"
-
-while true
-do
-	time_start=`date +%s`
+while true; do
+	printf -v time_start '%(%s)T' -1
 	loop
-	time_finish=`date +%s`
+	echo
+	printf -v time_finish '%(%s)T' -1
 
-	wasted=$(( time_finish - time_start ))
-
-	tosleep=$(( INTERVAL - wasted ))
-
-	#echo "Sleeping $tosleep"
-	echo ""
-
+	(( wasted = time_finish - time_start ))
+	(( tosleep = INTERVAL - wasted ))
 	if (( tosleep > 0 )); then
-		sleep "$INTERVAL"
+		snore "$INTERVAL"
 	else
-		printf '%(%F %T %z)T %s: ' -1 'agent'
-		echo -e "${YELLOW}WARNING: Stats sending interval > $INTERVAL seconds, hanging driver?${NOCOLOR}"
+		log_line warning "Stats sending interval > $INTERVAL seconds"
 	fi
 done
