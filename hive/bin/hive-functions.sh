@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.1.10'
+declare -r hive_functions_lib_version='0.1.11'
 
 
 # !!! bash strict mode, no unbound variables
@@ -63,6 +63,37 @@ function debugcho {
 
 } 1>&2
 
+function log_line {
+	#
+	# Usage: log_line 'ok|info|error|warning' 'log_entry'
+	#
+
+	# args
+
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r __event_type="${1:-info}"
+	local -r __log_entry="${2:-}"
+
+	# consts
+
+	local -r -A __event_color_dictionary=(
+		['warning']="${YELLOW}"
+		['error']="${RED}"
+		['info']="${DGRAY}"
+		['ok']="${GREEN}"
+	)
+
+	# code
+
+	# wd			2 chars
+	# agent			5
+	# watchdog		8
+	# controller	10
+
+	printf '%b%(%F %T)T %b%-10.10s%b %b%b\n' "${DGRAY}" -1 "${__event_color_dictionary[$__event_type]}" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
+#	printf '%b%(%F %T)T %b%s%b %b%b\n' "${DGRAY}" -1 "${__event_color_dictionary[$__event_type]}" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
+}
+
 
 #
 # functions: audit
@@ -90,11 +121,11 @@ function is_script_exist_and_doing_fine {
 	# args
 
 	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r script_name="${1-}"
+	local -r __script_name="${1-}"
 
 	# code
 
-	is_program_in_the_PATH "$script_name" && [[ "$( "$script_name" --audit )" == "$__audit_ok_string" ]]
+	is_program_in_the_PATH "$__script_name" && [[ "$( "$__script_name" --audit )" == "$__audit_ok_string" ]]
 }
 
 
@@ -111,14 +142,14 @@ function iif {
 
 	# args
 
-	(( $# < 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r -i condition="${1-}"
-	local -r -a cmd=( "${@:2}" )
+	(( $# >= 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -i __condition="${1-}"
+	local -r -a __cmd=( "${@:2}" )
 
 	# code
 
-	if (( condition )); then
-		"${cmd[@]}" # execute a command
+	if (( __condition )); then
+		"${__cmd[@]}" # execute a command
 	fi
 }
 
@@ -133,14 +164,14 @@ function iif_pipe {
 
 	# args
 
-	(( $# < 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r -i condition="${1-}"
-	local -r -a cmd=( "${@:2}" )
+	(( $# >= 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -i __condition="${1-}"
+	local -r -a __cmd=( "${@:2}" )
 
 	# code
 
-	if (( condition )); then
-		"${cmd[@]}" # execute a command
+	if (( __condition )); then
+		"${__cmd[@]}" # execute a command
 	else
 		cat - # pass stdin to stdout
 	fi
@@ -153,12 +184,12 @@ function is_program_in_the_PATH {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r program_name="$1"
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r __program_name="$1"
 
 	# code
 
-	type -p "$program_name" &> /dev/null
+	type -p "$__program_name" &> /dev/null
 }
 
 function is_function_exist {
@@ -172,12 +203,12 @@ function is_function_exist {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r function_name="$1"
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r __function_name="$1"
 
 	# code
 
-	declare -F -- "$function_name" >/dev/null
+	declare -F -- "$__function_name" >/dev/null
 }
 
 function is_first_floating_number_bigger_than_second {
@@ -187,7 +218,7 @@ function is_first_floating_number_bigger_than_second {
 
 	# args
 
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r first_number="${1-}"
 	local -r second_number="${2-}"
 
@@ -211,13 +242,13 @@ function is_first_version_equal_to_second {
 
 	# args
 
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local first_version="${1-}"
 	local second_version="${2-}"
 
 	# vars
 
-	local IFS=.-
+	local IFS='.-'
 	local -i idx
 	local -a first_version_array second_version_array
 
@@ -242,10 +273,6 @@ function is_first_version_equal_to_second {
 	fi
 
 	return $(( exitcode_IS_EQUAL ))
-	declare -r -i exitcode_IS_EQUAL=0
-declare -r -i exitcode_GREATER_THAN=1
-declare -r -i exitcode_LESS_THAN=2
-
 }
 
 
@@ -266,7 +293,7 @@ function strip_ansi {
 
 	# args
 
-	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# <= 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
 
 	# vars
@@ -297,7 +324,7 @@ function calculate_percent_from_number {
 
 	# args
 
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -i percent="${1-}"
 	local -r -i number="${2-}"
 
@@ -313,13 +340,79 @@ function set_bits_by_mask {
 	
 	# args
 
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n variable_by_ref="${1-}"
 	local -r -n bitmask_by_ref="${2-}"
 
 	# code
 
 	(( variable_by_ref |= bitmask_by_ref )) # bitwise OR
+}
+
+function scientific_to_decimal {
+	#
+	# Usage: scientific_to_decimal 'exponential_number'
+	#
+
+	# args
+
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r exponential_number="${1:-0}"
+
+	# code
+
+	printf "%.0f\n" "$exponential_number"
+}
+
+function big_decimal_to_human {
+	#
+	# Usage: big_decimal_to_human 'big_decimal_number' ['base_units']
+	#
+
+	# args
+
+	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	big_decimal_number=${1:-0}
+	base_units=${2:-}
+
+	# vars
+
+	local digits_after_period=''
+	local -i magnitude_index=0
+	local magnitude_char=( '' 'k' 'M' 'G' 'T' 'P' 'E' 'Y' 'Z' )
+
+	# code
+
+	while (( big_decimal_number > 1000 )); do
+		printf -v digits_after_period ".%02d" $(( big_decimal_number % 1000 * 100 / 1000 ))
+		(( big_decimal_number /= 1000, magnitude_index++ ))
+	done
+
+	[[ $digits_after_period =~ \.00 ]] && digits_after_period=''
+	[[ $digits_after_period =~ \.[0-9]0 ]] && digits_after_period="${digits_after_period::-1}"
+	echo "${big_decimal_number}${digits_after_period} ${magnitude_char[${magnitude_index}]}${base_units}"
+}
+
+function khs_to_human_friendly_hashrate {
+	#
+	# Usage: khs_to_human_friendly_hashrate 'hashrate_in_khs'
+	#
+
+	# args
+
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r hashrate_in_khs="${1:-0}"
+
+	# vars
+
+	local -i khs_decimal hs_decimal
+
+	# code
+
+	khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
+	hs_decimal=$(( khs_decimal * 1000 ))
+
+	echo "$( big_decimal_to_human "$hs_decimal" 'H/s' )"
 }
 
 
@@ -334,7 +427,7 @@ function get_file_last_modified_time_in_seconds {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_name="${1-}"
 
 	# code
@@ -356,7 +449,7 @@ function get_file_size_in_bytes {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_name="${1-}"
 
 	# arrays
@@ -397,7 +490,7 @@ function set_variable_to_current_system_time_in_seconds {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n variable_to_set_by_ref="${1-}" # get var by ref
 
 	# code
@@ -416,8 +509,8 @@ function seconds2dhms {
 
 	# args
 
-	(( $# < 1 || $# > 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS
+	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS (just in case)
 	local -r delimiter_DEFAULT=' '
 	local -r delimiter="${2-${delimiter_DEFAULT}}"
 
@@ -448,7 +541,7 @@ function format_date_in_seconds {
 
 	# args
 
-	(( $# < 1 || $# > 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -i -r time_in_seconds="${1-}"
 	local -r date_format_DEFAULT='%F %T'
 	local -r date_format="${2-${date_format_DEFAULT}}"
@@ -504,20 +597,20 @@ function snore {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r sleep_time="${1-}"
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r __sleep_time="${1-}"
 
 	# vars
 
-	local IFS
+	local IFS # reset IFS in case it’s set to something weird
 
 	# code
 
 	# shellcheck disable=SC1083
-	# ...man bash:
+	# because 'man bash':
 	# Each redirection that may be preceded by a file descriptor number may instead be preceded by a word of the form {varname}.
 	[[ -n "${__snore_fd:-}" ]] || exec {__snore_fd}<> <(:)
-	read -r -t "${sleep_time}" -u "$__snore_fd" || :
+	read -r -t "${__sleep_time}" -u "$__snore_fd" || :
 }
 
 
@@ -527,14 +620,14 @@ function snore {
 
 function get_substring_position_in_string {
 	#
-	# Usage: get_substring_position_in_string
+	# Usage: get_substring_position_in_string 'substring' 'string'
 	#
 
 	# args
 
-	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r substring="$1"
-	local -r string="$2"
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r substring="${1-}"
+	local -r string="${2-}"
 
 	# vars
 
@@ -566,7 +659,7 @@ function pgrep_count {
 	
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
 
 	# vars
@@ -576,7 +669,8 @@ function pgrep_count {
 	# code
 
 	printf -v marker '%(%s)T-%s-%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
-	self="${$}[[:space:]].+${FUNCNAME}"
+#	self="${$}[[:space:]].+${FUNCNAME}" # TODO figure out what's best
+	self="(${$}|${BASHPID})[[:space:]].+$0"
 
 	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evc -e "$marker" -e "$self" --
 }
@@ -590,7 +684,7 @@ function pgrep_quiet {
 	
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
 
 	# vars
@@ -601,6 +695,7 @@ function pgrep_quiet {
 
 	printf -v marker '%(%s)T:%s:%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
 	self="${$}[[:space:]].+${FUNCNAME}"
+#	self="(${$}|${BASHPID})[[:space:]].+$0" # TODO figure out what's best
 
 	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evq -e "$marker" -e "$self" --
 }
