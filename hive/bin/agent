@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.7'
+readonly script_version='0.2.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -45,6 +45,7 @@ function reduce_hashrate_to_khs {
 	fi
 
 	if [[ -n "${relationship_to_khs[$input_hashrate_unit]-}" ]]; then
+		# shellcheck disable=SC2034
 		output_hashrate_in_khs_by_ref="$(
 			awk -v input_hashrate_value="$input_hashrate_value" \
 				-v relationship_to_khs="${relationship_to_khs[$input_hashrate_unit]}" \
@@ -131,9 +132,11 @@ function get_miner_stats {
 	system_status='NA'	# global
 	stats=''			# global
 
-	max_fan_rpm="$MAX_FAN_RPM"
 	algo="$ASIC_ALGO"
 	hs_units="$HASH"
+	# shellcheck disable=SC2153
+	# var from asic-model
+	max_fan_rpm="$MAX_FAN_RPM"
 
 	case "$ASIC_MODEL" in
 		'Antminer '						|\
@@ -385,6 +388,8 @@ function get_miner_stats {
 			stats="$( todd_api stats )"
 			hashrate_raw="$( jq '.hs | add' <<< "$stats" )"
 			reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+			# shellcheck disable=SC2071
+			# bc of float comparison
 			[[ "$khs" > '0' ]] && system_status='mining'
 		;;
 
@@ -466,7 +471,8 @@ function loop {
 
 	# vars
 
-	local -i khs_decimal
+	local -i khs_decimal time_start time_finish time_wasted
+	local PUSH_INTERVAL custom_interval_message
 
 	# code
 
@@ -477,22 +483,32 @@ function loop {
 	source "$WALLET_CONF"
 
 	# If rig config contains PUSH_INTERVAL then change default to custom
-	[[ -n "$PUSH_INTERVAL" ]] && INTERVAL=$PUSH_INTERVAL
+	if [[ -n "$PUSH_INTERVAL" ]] && (( PUSH_INTERVAL != default_push_interval )); then
+		INTERVAL="$PUSH_INTERVAL"
+		custom_interval_message="${LGRAY}[push interval ${INTERVAL}s]${NOCOLOR} "
+	else
+		INTERVAL="$default_push_interval"
+	fi
 	[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
 	[[ -z $MINER ]] && MINER='asicminer'
 
-	log_line info "Collecting stats from $MINER API..."
+	log_line info "${custom_interval_message}Collecting stats from ${WHITE}${MINER}${NOCOLOR} API..."
+	printf -v time_start '%(%s)T' -1
 	get_miner_stats "$MINER"
+	printf -v time_finish '%(%s)T' -1
+	(( time_wasted = time_finish - time_start ))
 
 	khs_decimal="$( scientific_to_decimal "$khs" )"
 	if (( khs_decimal > 0 )); then
-		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )"
+		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}, stats collected in ${WHITE}${time_wasted}s"
 	else
-		log_line warning "$MINER hashrate ${WHITE}0 H/s"
+		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}, stats collected in ${WHITE}${time_wasted}s"
 	fi
 	echo "$khs" > /run/hive/khs
 
-	[[ -n "$META" ]] && meta="$META" || meta='null' # ??? GPU legacy
+	# shellcheck disable=SC2153
+	# ??? META is from GPU legacy
+	[[ -n "$META" ]] && meta="$META" || meta='null'
 	cpuavg_array=( $( < /proc/loadavg ) )
 	cpuavg="$( IFS=','; echo "${cpuavg_array[*]::3}" )"
 	df="$( df -h "/${MOUNT}" | awk '{ print $4 }' | tail -n 1 | sed 's/%//' )"
@@ -599,10 +615,9 @@ function backslash {
 }
 
 function do_command {
-
 	# vars
 
-	local command_log cmd_id version exec exectimeout asic_oc firmware_url
+	local command_log cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
 	local -i exitcode
 	#local TMUX	# let's test it later
@@ -656,13 +671,35 @@ function do_command {
 
 		'exec')
 			exec="$( jq '.exec' --raw-output <<< "$body" )"
+
+			case "$exec" in
+				'hssh start')
+					unset TMUX # !!! duct tape
+				;;
+
+				'sreboot shutdown')
+					shutdown_fuse_file="/tmp/${script_basename}-shutdown-fuse.lock"
+					if [[ ! -f "$shutdown_fuse_file" ]]; then
+						message warning 'Vast majority of ASICs does not support shutdown. Click for details' payload --id="$cmd_id" <<-EOF
+							<h3>Vast majority of ASICs does not support shutdown</h3>It might be the ASIC will simply go offline. You will more than likely have to power it off manually.
+							If you know what are you doing, please <strong>send this command one more time</strong>
+							EOF
+						touch "$shutdown_fuse_file"
+						return
+					else
+						rm "$shutdown_fuse_file"
+						message ok 'ASIC powered off' --id="$cmd_id"
+						snore 5 # wait 5s until the message has been sent
+					fi
+				;;
+			esac
+
+			# shellcheck disable=SC2076
 			if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
 				exectimeout='nohup timeout 360 bash -c' # 6m limit
 			else
 				exectimeout='nohup timeout -t 360 bash -c'
 			fi
-
-			[[ "$exec" == 'hssh start' ]] && unset TMUX # !!! duct tape
 
 			#
 			# do we need an intermediate file? here's a file-less approach with pipe:
@@ -823,14 +860,15 @@ declare -r RIG_CONF='/hive-config/rig.conf'
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r miner_API_host='localhost'
 declare -r -i miner_API_port=4028
+declare -r -i default_push_interval=10
 
 
 # vars
 
 declare MINER='asicminer'
 declare khs stats system_status
-declare -i INTERVAL=10
-declare -i https_disabled_message_sent=0
+declare -i INTERVAL https_disabled_message_sent=0
+declare -i time_start time_finish time_wasted time_remaining
 declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
 	[2]='http://api.hiveos.farm'
 	[3]='http://paris.hiveos.farm'
@@ -861,7 +899,7 @@ if (( screen_count > 0 )); then
 	exit 1
 fi
 
-log_line info "$script_mission, version $script_version started"
+log_line ok "$script_mission, version $script_version started"
 log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
 
 # (re)starting wd
@@ -880,9 +918,9 @@ while true; do
 	echo
 	printf -v time_finish '%(%s)T' -1
 
-	(( wasted = time_finish - time_start ))
-	(( tosleep = INTERVAL - wasted ))
-	if (( tosleep > 0 )); then
+	(( time_wasted = time_finish - time_start ))
+	(( time_remaining = INTERVAL - time_wasted ))
+	if (( time_remaining > 0 )); then
 		snore "$INTERVAL"
 	else
 		log_line warning "Stats sending interval > $INTERVAL seconds"
