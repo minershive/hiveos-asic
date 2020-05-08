@@ -4,13 +4,88 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-. asic-model
+# sources
 
-if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
+source asic-model
+
+
+# consts
+
+declare -r tune_status_FACTORY=0
+declare -r tune_status_TUNING=1
+declare -r tune_status_DONE=2
+declare -r -a tune_status_dictionary=(
+	[tune_status_FACTORY]='factory'
+	[tune_status_TUNING]='in tuning now'
+	[tune_status_DONE]='tuned'
+)
+
+
+# functions
+
+function read_variable_from_file {
+	#
+	# Usage: read_variable_from_file 'variable_to_read' 'file'
+	#
+	# !!! carry over to library
+	#
+
+	(( $# == 2 )) || return 1
+
+	local -r -n variable_to_read="$1"
+	local -r file="$2"
+	local answer
+
+	if [[ -s "$file" ]]; then
+		answer="$(
+			source <( grep -Ee '^[_[:alnum:]]+=[^[:space:]]' -- "$file" )
+			[[ -n "${variable_to_read-}" ]] && echo "${variable_to_read-}"
+		)"
+	else
+		return 1
+	fi
+
+	if [[ -n "$answer" ]]; then
+		echo "$answer"
+	else
+		return 2
+	fi
+}
+
+function ant17:get_current_profile_number {
+#	local -r _current_profile_file='/config/profile.txt'
+
+	read_variable_from_file tune_profile '/config/profile.txt'
+#	if [[ -s "$_current_profile_file" ]]; then
+#		(	# sub-shell yeah
+#			source "$_current_profile_file"; echo "$tune_profile"
+#		)
+#	fi
+}
+
+function ant17:get_description_for_profile {
+	local -r -i _profile_number="$1"
+
+	ASIC_MODEL_short="$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
+	profile_description_file="/hive/share/profiles/${ASIC_MODEL_short}_${HIVEON_VERSION}_description"
+
+	read_variable_from_file "profile_${_profile_number}" "$profile_description_file"
+
+#	current_profile_description="$(
+#		source "$profile_description_file"
+#		var_by_ref="profile_${_profile_number}"
+#		echo "${!var_by_ref}"
+#	)"
+}
+
+
+# main
+
+if [[ $HIVEON_VERSION == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
 	if [[ $1 == "default" ]]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
 	else
@@ -26,7 +101,8 @@ if [[ $HIVEON_VER == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL
 		nohup su - www -c "/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null" &
 	fi
 	echo -e "Autotune config applied!"
-elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || $ASIC_MODEL == "Antminer T17 Hiveon" ]]; then
+
+elif [[ $HIVEON_VERSION == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || $ASIC_MODEL == "Antminer T17 Hiveon" ]]; then
 	if [[ $1 == "default" ]]; then
 		rm -rf /config/profile.txt > /dev/null 2>&1
 	else
@@ -36,48 +112,113 @@ elif [[ $HIVEON_VER == "1.00" ]] && [[ $ASIC_MODEL == "Antminer S17 Hiveon" || $
 	n=0
 	while true; do
 		sleep 60
-		if [[ $(cat /config/profile.txt | grep tune_status | awk -F\= '{print $2}') -eq 2 ]]; then
-			miner tuning
-			exit 0
-		fi
-		n=$(( n + 1 ))
-		if (( n == 200 )); then
-			sed -i 's/tune_status=1/tune_status=2/' /config/profile.txt > /dev/null 2>&1
-			miner restart
-		fi
-	done
-elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
-	profile_file="/hive/share/profiles/$( echo "$ASIC_MODEL" | cut -d' ' -f2 )"
-	if [[ $1 == "default" ]]; then
-		rm -rf /config/profile.txt > /dev/null 2>&1
-	else
-		profile_id=$(echo "$1" | jq -r .profile)
-
-		if [[ -e $profile_file ]]; then
-			#temp S17+ fix. DOTO delete profile
-			cat "$profile_file" | jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
-		else
-			echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' | sed s/\&/\\n/g | sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > /config/profile.txt
-		fi
-
-		#tuned profiles
-		if [[ -s "/config/profiles/$profile_id/profile.txt" ]]; then
-			cp -rf /config/profiles/$profile_id/* /config
-		fi
-	fi
-	killall bmminer
-	n=0
-	while true; do
-		sleep 60
-		if [[ $(cat /config/profile.txt | grep tune_status | awk -F\= '{print $2}') -eq 2 ]]; then
+		if ( source /config/profile.txt && (( tune_status == tune_status_DONE )) ); then
 			miner tuning
 			exit 0
 		fi
 		(( n++ ))
-		if (( n == 500 )); then
+		if (( n == 200 )); then
+			sed -i "s|tune_status=${tune_status_TUNING}|tune_status=${tune_status_DONE}|" /config/profile.txt > /dev/null 2>&1
+			miner restart
+		fi
+	done
+
+elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T17" ]]; then
+	current_profile_file='/config/profile.txt'
+	template_profile_file="/hive/share/profiles/$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
+
+	case "$1" in
+		'status')
+			valid_profile_number_RE='^[0-9]+$'
+
+			for this_profile_directory in /config/profiles/*; do
+				if [[ -d "$this_profile_directory" ]]; then
+					this_profile_number="${this_profile_directory##*/}"
+					if [[ "$this_profile_number" =~ $valid_profile_number_RE ]]; then
+						this_profile_tune_status="$( read_variable_from_file tune_status "${this_profile_directory}/profile.txt" )"
+						this_profile_description="$( ant17:get_description_for_profile "$this_profile_number" )"
+
+						saved_profiles_array[$this_profile_number]="$this_profile_description"
+						profile_tune_status[$this_profile_number]="$this_profile_tune_status"
+						is_profile_saved[$this_profile_number]=1
+					fi
+				fi
+			done
+
+			current_profile_number="$( ant17:get_current_profile_number )"
+			current_profile_description="$( ant17:get_description_for_profile "$current_profile_number" )"
+			current_tune_status="$( read_variable_from_file tune_status '/config/profile.txt' )"
+			saved_profiles_array[$current_profile_number]="$current_profile_description"
+
+			echo "  $ASIC_MODEL @ $HIVEON_VERSION"
+			echo
+			for this_profile_number in "${!saved_profiles_array[@]}"; do
+				marker_current=''
+				marker_tune_status=''
+				marker_saved=''
+				if (( this_profile_number == current_profile_number )); then
+					marker_current='>'
+					marker_tune_status="${tune_status_dictionary[$current_tune_status]}"
+				else
+					marker_tune_status="${tune_status_dictionary[${profile_tune_status[$this_profile_number]}]}"
+				fi
+				[[ -n "${is_profile_saved[this_profile_number]}" ]] && marker_saved='saved'
+
+				printf '%1.1s %02d. %15.15s (%5.5s, %s)\n' "$marker_current" "$this_profile_number" "${saved_profiles_array[this_profile_number]}" "$marker_saved" "$marker_tune_status"
+			done
+			echo
+
+			exit 0
+		;;
+
+		'default'|'factory')
+			rm -rf "$current_profile_file" > /dev/null 2>&1
+#			message warn 'Auto-tune OFF. Running on non-optimal factory settings'
+		;;
+
+		'retune'|'re-tune')
+			if [[ -s "$current_profile_file" ]]; then
+				sed -i "s|tune_status=${tune_status_DONE}|tune_status=${tune_status_TUNING}|" "$current_profile_file" > /dev/null 2>&1
+				message ok 'Re-tune is started'
+				# TODO loop and checking
+			fi
+		;;
+
+		*)
+			profile_id="$( jq -r .profile <<< "$1" )"
+
+			if [[ -s $template_profile_file ]]; then
+				#temp S17+ fix. DOTO delete profile
+				cat "$template_profile_file" |
+					jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' |
+						sed ':a;N;$!ba;s/\n/\&/g' |
+							sed s/\&/\\n/g |
+								sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > "$current_profile_file"
+			else
+				echo "$1" |
+					jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' |
+						sed ':a;N;$!ba;s/\n/\&/g' |
+							sed s/\&/\\n/g |
+								sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > "$current_profile_file"
+			fi
+
+			#tuned profiles
+			if [[ -s "/config/profiles/$profile_id/profile.txt" ]]; then
+				cp -rf "/config/profiles/$profile_id/"* /config
+			fi
+		;;
+	esac
+
+	killall bmminer
+
+	for (( n=0; n < 500; n++ )); do
+		sleep 60
+		if tune_status="$( read_variable_from_file tune_status '/config/profile.txt' )" && (( tune_status == tune_status_DONE )); then
+			miner tuning
 			exit 0
 		fi
 	done
+
 else
 	if [[ $1 == "default" ]]; then
 		rm -rf /config/autoTune.conf > /dev/null 2>&1
@@ -158,4 +299,5 @@ else
 	fi
 	echo -e "Autotune config applied"
 fi
+
 exit 0
