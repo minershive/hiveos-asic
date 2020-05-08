@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.5'
+readonly script_version='0.2.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -655,7 +655,7 @@ function do_command {
 			else
 				exectimeout='nohup timeout -t 360 bash -c'
 			fi
-			[[ "$exec" == 'hssh start' ]] && exec='unset TMUX; hssh start' # !!! duct tape
+			[[ "$exec" == 'hssh start' ]] && unset TMUX # !!! duct tape
 			$exectimeout '
 				log_name="/tmp/exec_"'$cmd_id'".log"
 				('"$exec"') > "$log_name" 2>&1
