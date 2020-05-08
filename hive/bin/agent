@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.6'
+readonly script_version='0.2.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -175,22 +175,22 @@ function get_miner_stats {
 					log_line warning "Failed to read pool stats from $miner_API_host:$miner_API_port"
 				fi
 
-				uptime="$(			jq -r '.[1].Elapsed' <<< "$STATS" )"
-				hs="$(				jq '.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $hs value'
-				temp="$(			jq '.[1]	| with_entries( select(.key | test("temp2_\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $temp value'
-				chip_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [.[].value | split("-") | max]'											<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $chip_temp value'
-				board_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $board_temp value'
-				fan="$(				jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'									<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $fan value'
-				fan_rpm="$(			jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $fan_rpm value'
-				freq="$(			jq '.[1]	| with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $freq value'
-				freq_new="$(		jq '.[1]	| with_entries( select(.key | test("freq\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $freq_new value'
-				acn="$(				jq '.[1]	| with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $acn value'
-				status="$(			jq '.[1]	| with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $status value'
-				chain_voltage="$(	jq '.[1]	| with_entries( select(.key | test("chain_voltage\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $chain_voltage value'
-				hw_errors="$(		jq '.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $hw_errors value'
-				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $power value'
-				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'				<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error: no $asicboost value'
-				ar="$(				jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats"	2> /dev/null )"	|| errcho 'jq error: no $ar value'
+				uptime="$(			jq -r '.[1].Elapsed'																																			<<< "$STATS" )"
+				hs="$(				jq '.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $hs'
+				temp="$(			jq '.[1]	| with_entries( select(.key | test("temp2_\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $temp'
+				chip_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [.[].value | split("-") | max]'											<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $chip_temp'
+				board_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $board_temp'
+				fan="$(				jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'									<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $fan'
+				fan_rpm="$(			jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $fan_rpm'
+				freq="$(			jq '.[1]	| with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $freq'
+				freq_new="$(		jq '.[1]	| with_entries( select(.key | test("freq\\d+")) )			| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $freq_new'
+				acn="$(				jq '.[1]	| with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $acn'
+				status="$(			jq '.[1]	| with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $status'
+				chain_voltage="$(	jq '.[1]	| with_entries( select(.key | test("chain_voltage\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $chain_voltage'
+				hw_errors="$(		jq '.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $hw_errors'
+				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $power'
+				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'				<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $asicboost'
+				ar="$(				jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats"	2> /dev/null )"	|| errcho 'jq error at $ar'
 
 				grep -q '.[0-9]' <<< "$chip_temp" && temp="$chip_temp"
 				grep -q '.[0-9]' <<< "$freq_new" && freq="$freq_new"
@@ -203,7 +203,7 @@ function get_miner_stats {
 					--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
 					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}' \
 					2> /dev/null
-				)" || errcho "jq error: \$stats [$stats]"
+				)" || errcho "jq error at \$stats: [$stats]"
 			fi
 		;;
 
@@ -492,10 +492,10 @@ function loop {
 	fi
 	echo "$khs" > /run/hive/khs
 
-	[[ -n "$META" ]] && meta="$META" || meta='null'
+	[[ -n "$META" ]] && meta="$META" || meta='null' # ??? GPU legacy
 	cpuavg_array=( $( < /proc/loadavg ) )
 	cpuavg="$( IFS=','; echo "${cpuavg_array[*]::3}" )"
-	df="$( df -h /$MOUNT | awk '{ print $4 }' | tail -n 1 | sed 's/%//' )"
+	df="$( df -h "/${MOUNT}" | awk '{ print $4 }' | tail -n 1 | sed 's/%//' )"
 
 	request="$( jq -n \
 		--arg rig_id "$RIG_ID" \
@@ -599,8 +599,18 @@ function backslash {
 }
 
 function do_command {
-	#body="$1"
+
+	# vars
+
+	local command_log cmd_id version exec exectimeout asic_oc firmware_url
+	local config justwrite line NEW_PASSWD request response error wallet
+	local -i exitcode
+	#local TMUX	# let's test it later
+
+	# code
+
 	[[ -z "$command" ]] && command="$( jq -r '.command' <<< "$body" )" #get command for batch
+	command_log="/tmp/${script_basename}-${command// /-}.log"
 
 	#Optional command identifier
 	cmd_id="$( jq -r '.id' <<< "$body" )"
@@ -616,34 +626,30 @@ function do_command {
 		'reboot')
 			message ok 'Rebooting' --id="$cmd_id"
 			log_line ok "Rebooting"
-			#nohup bash -c 'sreboot' > /tmp/nohup.log 2>&1 &
+			#nohup bash -c 'sreboot' > "$command_log" 2>&1 &
 			/sbin/reboot
 		;;
 
 		'upgrade')
-			local version="$( jq -r '.version' <<< "$body" )"
-			[[ $version == 'null' ]] && version=
+			version="$( jq -r '.version' <<< "$body" )"
+			[[ "$version" == 'null' ]] && version=
 			screen -dm -S selfupgrade bash -c '
-				selfupgrade '"$version"' 2>&1 | tee /tmp/nohup.log
-				exitcode=${PIPESTATUS[0]}
-				payload="$( < /tmp/nohup.log )"
-				if (( exitcode == 0 )); then
-					message ok "Client update successful" payload --id='$cmd_id' <<< "$payload"
+				selfupgrade '"$version"' 2>&1 | tee '"$command_log"'
+				if (( PIPESTATUS[0] == 0 )); then
+					message ok "Client update successful" payload --id='"$cmd_id"' < '"$command_log"'
 				else
-					message error "Client update failed" payload --id='$cmd_id' <<< "$payload"
+					message error "Client update failed" payload --id='"$cmd_id"' < '"$command_log"'
 				fi
 			'
 		;;
 
 		'upgrade beta')
 			screen -dm -S selfupgrade bash -c '
-				selfupgrade master 2>&1 | tee /tmp/nohup.log
-				exitcode=${PIPESTATUS[0]}
-				payload="$( < /tmp/nohup.log )"
-				if (( exitcode == 0 )); then
-					message ok "Client update successful" payload --id='$cmd_id' <<< "$payload"
+				selfupgrade master 2>&1 | tee '"$command_log"'
+				if (( PIPESTATUS[0] == 0 )); then
+					message ok "Client update successful" payload --id='"$cmd_id"' < '"$command_log"'
 				else
-					message error "Client update failed" payload --id='$cmd_id' <<< "$payload"
+					message error "Client update failed" payload --id='"$cmd_id"' < '"$command_log"'
 				fi
 			'
 		;;
@@ -651,22 +657,35 @@ function do_command {
 		'exec')
 			exec="$( jq '.exec' --raw-output <<< "$body" )"
 			if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
-				exectimeout='nohup timeout 360 bash -c'
+				exectimeout='nohup timeout 360 bash -c' # 6m limit
 			else
 				exectimeout='nohup timeout -t 360 bash -c'
 			fi
+
 			[[ "$exec" == 'hssh start' ]] && unset TMUX # !!! duct tape
+
+			#
+			# do we need an intermediate file? here's a file-less approach with pipe:
+			#
+			#$exectimeout '
+			#	( '"$exec"' ) 2>&1 | if (( $? == 0 ));  then
+			#		message info "'"$( backslash "$exec" )"'" payload --id='"$cmd_id"'
+			#	else
+			#		message error "'"$( backslash "$exec" )"' (failed, exitcode=$?)" payload --id='"$cmd_id"'
+			#	fi
+			#' > "$command_log" 2>&1 &
+
 			$exectimeout '
-				log_name="/tmp/exec_"'$cmd_id'".log"
-				('"$exec"') > "$log_name" 2>&1
+				log_name="/tmp/agent-exec-'"$cmd_id"'.log"
+				( '"$exec"' ) > "$log_name" 2>&1
 				exitcode=$?
 				if (( exitcode == 0 )); then
-					message info "'"$(backslash "$exec")"'" payload --id='$cmd_id' < "$log_name"
+					message info "'"$( backslash "$exec" )"'" payload --id='"$cmd_id"' < "$log_name"
 				else
-					message error "'"$(backslash "$exec")"' (failed, exitcode=$exitcode)" payload --id='$cmd_id' < "$log_name"
+					message error "'"$( backslash "$exec" )"' (failed, exitcode=$exitcode)" payload --id='"$cmd_id"' < "$log_name"
 				fi
 				rm "$log_name" > /dev/null 2>&1
-			' > /tmp/nohup.log 2>&1 &
+			' > "$command_log" 2>&1 &
 		;;
 
 		'asic_oc')
@@ -677,13 +696,11 @@ function do_command {
 				jq <<< "$asic_oc"
 				echo
 				echo -n "Tuning... "
-				asic_oc "$asic_oc" 2>&1 | tee /tmp/nohup.log
-				exitcode=${PIPESTATUS[0]}
-				payload="$( < /tmp/nohup.log )"
-				if (( exitcode == 0 )); then
-					message ok "Auto-tune is finished. Click for details" payload --id='$cmd_id' <<< "$payload"
+				asic_oc "$asic_oc" 2>&1 | tee '"$command_log"'
+				if (( PIPESTATUS[0] == 0 )); then
+					message ok "Auto-tune is finished. Click for details" payload --id='"$cmd_id"' < '"$command_log"'
 				else
-					message error "Auto-tune error. Click for details" payload --id='$cmd_id' <<< "$payload"
+					message error "Auto-tune error. Click for details" payload --id='"$cmd_id"' < '"$command_log"'
 				fi
 			'
 		;;
@@ -691,13 +708,11 @@ function do_command {
 		'firmware-upgrade')
 			export firmware_url="$( jq '.firmware_url' --raw-output <<< "$body" )"
 			screen -dm -S upgrade bash -c '
-				firmware-upgrade "$firmware_url" 2>&1 | tee /tmp/nohup.log
-				exitcode=${PIPESTATUS[0]}
-				payload="$( < /tmp/nohup.log )"
-				if (( exitcode == 0 )); then
-					message ok "Firmware upgrade successful, rebooting..." payload --id='$cmd_id' <<< "$payload"
+				firmware-upgrade "$firmware_url" 2>&1 | tee '"$command_log"'
+				if (( PIPESTATUS[0] == 0 )); then
+					message ok "Firmware upgrade successful, rebooting..." payload --id='"$cmd_id"' < '"$command_log"'
 				else
-					message error "Firmware upgrade failed" payload --id='$cmd_id' <<< "$payload"
+					message error "Firmware upgrade failed" payload --id='"$cmd_id"' < '"$command_log"'
 				fi
 			'
 		;;
@@ -709,7 +724,10 @@ function do_command {
 				#scan for password change
 				echo "$config" > /tmp/rig.conf.new
 				while read -r line; do
-					[[ "$line" =~ ^RIG_PASSWD=\"(.*)\" ]] && NEW_PASSWD="${BASH_REMATCH[1]}" && break
+					if [[ "$line" =~ ^RIG_PASSWD=\"(.*)\" ]]; then
+						NEW_PASSWD="${BASH_REMATCH[1]}"
+						break
+					fi
 				done < /tmp/rig.conf.new
 				rm /tmp/rig.conf.new
 
