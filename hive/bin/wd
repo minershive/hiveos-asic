@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.2.3'
+readonly script_version='0.2.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -136,7 +136,7 @@ set_lastgood
 case "$1" in
 	'run'|'start')
 		load_configuration
-		log_line info "$script_mission, version $script_version started"
+		log_line ok "$script_mission, version $script_version started"
 
 		log_line info "Miner restart in ${WHITE}$WD_MINER${NOCOLOR}m and worker reboot in ${WHITE}$WD_REBOOT${NOCOLOR}m if hashrate < ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR}"
 
