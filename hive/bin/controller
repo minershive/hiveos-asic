@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.19'
+readonly script_version='2.1.20'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1115,10 +1115,10 @@ function checkup:is_overclock_profile_exist {														(( script_debug )) &&
 	# code
 
 	if [[ $ASIC_MODEL =~ $asic_model_RE ]]; then
-		if [[ ! -f "$oc_profile_file" ]]; then
+		if [[ ! -s "$oc_profile_file" ]]; then
 			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
 				# one time action
-				print_controller_log_entry "$event_type_for_log" 'OC profile not found'
+				print_controller_log_entry "$event_type_for_log" 'OC profile not found or empty'
 				message "$event_type_for_message" "$message_header"
 				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 1
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
