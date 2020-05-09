@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.1.11'
+declare -r hive_functions_lib_version='0.1.12'
 
 
 # !!! bash strict mode, no unbound variables
@@ -466,6 +466,30 @@ function get_file_size_in_bytes {
 		echo "${ls_output_field[4]}"
 	else
 		errcho "$file_name not found"
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+}
+
+function read_variable_from_file {
+	#
+	# Usage: read_variable_from_file 'variable_to_read' 'file'
+	#
+	#
+
+	# args
+
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n variable_to_read="$1"
+	local -r file="$2"
+
+	# code
+
+	if [[ -s "$file" ]]; then
+		(
+			source <( grep -Ee '^[_[:alnum:]]+=[^[:space:]]' -- "$file" )
+			[[ -n "${variable_to_read-}" ]] && echo "${variable_to_read-}"
+		)
+	else
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
 }
