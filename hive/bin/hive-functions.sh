@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.1.12'
+declare -r hive_functions_lib_version='0.1.13'
 
 
 # !!! bash strict mode, no unbound variables
@@ -90,6 +90,7 @@ function log_line {
 	# watchdog		8
 	# controller	10
 
+	# shellcheck disable=SC2154
 	printf '%b%(%F %T)T %b%-10.10s%b %b%b\n' "${DGRAY}" -1 "${__event_color_dictionary[$__event_type]}" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
 #	printf '%b%(%F %T)T %b%s%b %b%b\n' "${DGRAY}" -1 "${__event_color_dictionary[$__event_type]}" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
 }
@@ -412,7 +413,7 @@ function khs_to_human_friendly_hashrate {
 	khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
 	hs_decimal=$(( khs_decimal * 1000 ))
 
-	echo "$( big_decimal_to_human "$hs_decimal" 'H/s' )"
+	big_decimal_to_human "$hs_decimal" 'H/s'
 }
 
 
