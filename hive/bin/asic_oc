@@ -145,7 +145,7 @@ declare -i kill_miner_FLAG=0 wait_for_tuning_FLAG=0
 
 # main
 
-if [[ $HIVEON_VERSION == "1.02" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
+if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
 	current_profile_file='/config/autoTune.conf'
 
 	case "$1" in
