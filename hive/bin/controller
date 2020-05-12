@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.20'
+readonly script_version='2.1.21'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -505,8 +505,10 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					*'domains fixed'*			)	event_type='ok'			;;
 					*							)	event_type='warning'	;;
 				esac
-				# cut milliseconds from watchdog messages like 'Total rate is 0 after 1870.000000 seconds, restart'
-				log_message="${log_message//\.000000 seconds/ seconds}"		;;
+				# cut milliseconds from watchdog messages like
+				# ST17 'Total rate is 0 after 1870.000000 seconds, restart'
+				# S9: 'Total hashrate 0.000000 is less than 90 percents of 17112.42, stopping miner'
+				log_message="${log_message//\.000000 / }"					;;
 
 			'/tmp/auto-tune'			)			# S9
 
