@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.3'
+readonly script_version='0.1.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -369,15 +369,22 @@ else
 				;;
 		esac
 	fi
-	#echo "$1"
+
+	for this_user_id in 'www' 'wwwrun' 'root'; do
+		if id -u "$this_user_id" > /dev/null 2>&1; then
+			su_user="$this_user_id"
+			break
+		fi
+	done	
+
 	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
 	killall auto-chip-tune > /dev/null 2>&1
 	snore 1
-	nohup su - www -c "/usr/bin/auto-tune"
+	nohup su - "$su_user" -c "/usr/bin/auto-tune"
 	if grep -q 'enable_auto_chip=1' "$current_profile_file"; then
-		nohup su - www -c '/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null' &
+		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null' &
 	fi
 	echo 'Autotune config applied'
 fi
