@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.4'
+readonly script_version='0.1.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -258,7 +258,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 			kill_miner_FLAG=1
 
 			profile_id="$( jq -r .profile <<< "$1" )"
-			template_profile_file="/hive/share/profiles/$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
+#			template_profile_file="/hive/share/profiles/$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
 
 			# if saved profile does exist (and isn't empty) -- copy it over the current one
 			if [[ -s "/config/profiles/$profile_id/profile.txt" ]]; then
@@ -267,20 +267,28 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 				message info 'Using saved profile, no need to tune'
 			else
 				wait_for_tuning_FLAG=1
-				if [[ -s "$template_profile_file" ]]; then
-					#temp S17+ fix. DOTO delete profile
-					cat "$template_profile_file" |
-						jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' |
-							sed ':a;N;$!ba;s/\n/\&/g' |
-								sed s/\&/\\n/g |
-									sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > "$current_profile_file"
-				else
-					echo "$1" |
-						jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' |
-							sed ':a;N;$!ba;s/\n/\&/g' |
-								sed s/\&/\\n/g |
-									sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > "$current_profile_file"
-				fi
+# it was duct tape of sorts
+#				if [[ -s "$template_profile_file" ]]; then
+#					#temp S17+ fix. DOTO delete profile
+#					cat "$template_profile_file" |
+#						jq -r --arg profile_id "$profile_id" '.[$profile_id] | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' |
+#							sed ':a;N;$!ba;s/\n/\&/g' |
+#								sed s/\&/\\n/g |
+#									sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > "$current_profile_file"
+#				else
+#					echo "$1" |
+#						jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' <<< "$1" |
+# useless back and forth conversion
+#							sed ':a;N;$!ba;s/\n/\&/g' |
+#								sed s/\&/\\n/g |
+#									sed -e '$ a tune_status=0' -e '$ a tune_max_restarts=10' -e '$ a tune_uptime=240' > "$current_profile_file"
+#				fi
+				{	# build a new config
+					echo 'tune_status=0'
+					jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' <<< "$1"
+					echo 'tune_max_restarts=10'
+					echo 'tune_uptime=240'
+				} > "$current_profile_file"
 			fi
 			;;
 	esac
