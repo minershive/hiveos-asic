@@ -386,7 +386,7 @@ else
 	done	
 
 	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
-	if [ -s /config/config.conf ]; then #fix autotune bag for L3
+	if [ ! -s /config/config.conf ]; then #fix autotune bag for L3
 		rm -f /config/config.conf
 	fi
 	rm -f /config/manual_freqs.txt
