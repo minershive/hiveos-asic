@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.21'
+readonly script_version='2.1.22'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -790,7 +790,7 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
-		if server_answer="$( curl --fail --silent --show-error --head "$HIVE_HOST_URL" 2>&1 )"; then
+		if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
 			date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
 			print_controller_log_entry "$event_type_for_log" "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
 		else
