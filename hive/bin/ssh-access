@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: ssh access control'
-readonly script_version='0.2.2'
+readonly script_version='0.2.3'
 
 
 # !!! bash strict mode, no unbound variables
@@ -50,7 +50,7 @@ function is_ssh_server_listen {
 
 	# code
 
-	ssh_listen_sockets_number="$( netstat -lnt 2> /dev/null | grep -cFe ":$port" -- )" || echo 'Something wrong'
+	ssh_listen_sockets_number="$( netstat -lnt 2> /dev/null | grep -cFe ":$port" -- )"
 	(( ssh_listen_sockets_number ))
 }
 
