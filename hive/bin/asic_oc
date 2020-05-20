@@ -147,6 +147,7 @@ declare -i kill_miner_FLAG=0 wait_for_tuning_FLAG=0
 
 if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
 	current_profile_file='/config/autoTune.conf'
+	current_config_file='/config/config.conf'
 
 	case "$1" in
 		'status'|'retune'|'re-tune')
@@ -156,6 +157,7 @@ if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODE
 
 		'default'|'factory')
 			rm -rf "$current_profile_file" > /dev/null 2>&1
+			rm -rf "$current_config_file" > /dev/null 2>&1
 			;;
 
 		*)
@@ -310,8 +312,10 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 
 else
 	current_profile_file='/config/autoTune.conf'
+	current_config_file='/config/config.conf'
 	if [[ $1 == "default" ]]; then
 		rm -rf "$current_profile_file" > /dev/null 2>&1
+		rm -rf "$current_config_file" > /dev/null 2>&1
 	else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > "$current_profile_file"
 	fi
