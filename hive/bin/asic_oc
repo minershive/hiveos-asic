@@ -326,6 +326,9 @@ else
 	if [[ $1 == "default" ]]; then
 		rm -rf "$current_profile_file" > /dev/null 2>&1
 		rm -rf "$current_config_file" > /dev/null 2>&1
+		if [[ $ASIC_MODEL =~ 'Antminer L3' ]]; then
+			killall -9 cgminer
+		fi
 	else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > "$current_profile_file"
 	fi
