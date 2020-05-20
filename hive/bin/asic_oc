@@ -165,14 +165,24 @@ if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODE
 			;;
 	esac
 
+#	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
+	for this_user_id in 'www' 'wwwrun' 'root'; do
+		if id -u "$this_user_id" > /dev/null 2>&1; then
+			su_user="$this_user_id"
+			chown $su_user:$su_user "$current_profile_file" > /dev/null 2>&1
+			chown $su_user:$su_user "$current_config_file" > /dev/null 2>&1
+			break
+		fi
+	done
+
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
 	snore 1
 	rm -f /config/yellow-step
 	killall tune-yellow > /dev/null 2>&1
-	nohup su - www -c "/usr/bin/auto-tune"
+	nohup su - "$su_user" -c "/usr/bin/auto-tune"
 	if grep -q 'enable_auto_chip=1' "$current_profile_file"; then
-		nohup su - www -c '/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null' &
+		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null' &
 	fi
 	echo 'Autotune config applied!'
 
@@ -382,14 +392,16 @@ else
 		esac
 	fi
 
+	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
 	for this_user_id in 'www' 'wwwrun' 'root'; do
 		if id -u "$this_user_id" > /dev/null 2>&1; then
 			su_user="$this_user_id"
+			chown $su_user:$su_user "$current_profile_file" > /dev/null 2>&1
+			chown $su_user:$su_user "$current_config_file" > /dev/null 2>&1
 			break
 		fi
-	done	
+	done
 
-	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
 	if [ ! -s /config/config.conf ]; then #fix autotune bag for L3
 		rm -f /config/config.conf
 	fi
