@@ -195,6 +195,7 @@ function get_miner_stats {
 				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'				<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $asicboost'
 				ar="$(				jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats"	2> /dev/null )"	|| errcho 'jq error at $ar'
 
+				[ $chain_voltage == "[]" ] && chain_voltage="$( ant-functions hiveon_voltage <<< "$acn" )"
 				grep -q '.[0-9]' <<< "$chip_temp" && temp="$chip_temp"
 				grep -q '.[0-9]' <<< "$freq_new" && freq="$freq_new"
 

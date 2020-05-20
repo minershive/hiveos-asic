@@ -190,6 +190,38 @@ function hiveon_status {
 	echo $system_status
 }
 
+#get voltage
+function hiveon_voltage {
+	#
+	# Usage: hiveon_voltage '[...,0,0,X,X,X,0,...]'
+	#
+	# If the API does not return voltage
+	# Example acn=[0,0,0,0,0,63,63,63,0,0,0,0,0,0,0,0]
+	#
+
+	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
+
+	voltage_list="[]"
+	if [ -e /www/pages/cgi-bin/get_adv_config.cgi ]; then
+		voltage_mask=$(echo "$input_text" | jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end')
+		voltage_list_pre=($(sh /www/pages/cgi-bin/get_adv_config.cgi | grep bitmain-voltage | awk -F\= '{print $2/100}'))
+		n=0
+		declare -a format_list
+		for chain in $voltage_mask; do
+			if [ $chain == 1 ]; then
+				chain=${voltage_list_pre[$n]}
+				(( n++ ))
+			fi
+			format_list+=($chain)
+		done
+		voltage_list=$(echo ${format_list[@]} | jq -s '.')
+	fi
+
+	echo $voltage_list
+}
+
+
 source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
 
 # consts
