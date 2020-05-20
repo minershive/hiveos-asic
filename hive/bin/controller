@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.22'
+readonly script_version='2.1.23'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -753,7 +753,7 @@ function wipe_memory {																				(( script_debug )) && debugcho
 #
 # routine functions executed by cron
 #
-# checkup:is_it_1970_year
+# checkup:is_it_the_past
 # checkup:is_memory_full
 # checkup:is_build_updated
 # checkup:is_virus_found
@@ -765,7 +765,7 @@ function wipe_memory {																				(( script_debug )) && debugcho
 # print_checkup_summary_report
 #
 
-function checkup:is_it_1970_year {																	(( script_debug )) && debugcho
+function checkup:is_it_the_past {																	(( script_debug )) && debugcho
 
 	# templates
 
@@ -782,7 +782,7 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 
 	printf -v current_year '%(%Y)T' -1
 
-	if (( current_year == 1970 )); then
+	if (( current_year < 2020 )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 
 		HIVE_HOST_URL="$( [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf && echo "${HIVE_HOST_URL-}" )"
@@ -792,9 +792,9 @@ function checkup:is_it_1970_year {																	(( script_debug )) && debugch
 		fi
 		if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
 			date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
-			print_controller_log_entry "$event_type_for_log" "System date is 1970. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+			print_controller_log_entry "$event_type_for_log" "System date year is $current_year. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
 		else
-			print_controller_log_entry "$event_type_for_log" "System date is 1970. Network is lost, cannot get actual date from server ($server_answer)"
+			print_controller_log_entry "$event_type_for_log" "System date year is $current_year. Network is lost, cannot get actual date from server ($server_answer)"
 		fi
 	fi
 
@@ -1455,7 +1455,7 @@ export LD_LIBRARY_PATH=/hive/lib
 
 # shellcheck disable=SC2034
 declare -r -a crontab=(
-	'* * * * *		checkup:is_it_1970_year'
+	'* * * * *		checkup:is_it_the_past'
 	'* * * * *		checkup:is_memory_full'
 	'* * * * *		checkup:is_build_updated'
 	'* * * * *		checkup:is_virus_found'
