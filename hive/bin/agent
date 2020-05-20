@@ -252,6 +252,8 @@ function get_miner_stats {
 				status="$(		jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
 				hw_errors="$(	jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
 
+				chain_voltage="$( ant-functions hiveon_voltage <<< "$acn" )"
+
 				if [[ "$( jq -r length <<< "$freq" )" -ne $miner_count ]]; then
 					freq_new='[]'
 					freq="$( jq '.[1] | with_entries( select(.key | test("frequency")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
@@ -266,10 +268,10 @@ function get_miner_stats {
 				stats="$( jq -nc \
 					--arg algo "$algo" --argjson hs "$hs" --arg hs_units "$hs_units" \
 					--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
-					--argjson freq "$freq_new" --argjson acn "$acn" --argjson power "$power" \
+					--argjson freq "$freq_new" --argjson chain_voltage "$chain_voltage" --argjson acn "$acn" --argjson power "$power" \
 					--argjson hw_errors "$hw_errors" --argjson status "$status" \
 					--arg uptime "$uptime" \
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $hw_errors, $status, $uptime}'
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime}'
 				)"
 			fi
 		;;
