@@ -129,6 +129,7 @@ function get_miner_stats {
 	# code
 
 	khs=0				# global
+	khs_av=''			# global
 	system_status='NA'	# global
 	stats=''			# global
 
@@ -160,6 +161,8 @@ function get_miner_stats {
 
 				hashrate_raw="$( jq -r '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
 				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+				hashrate_raw_avg="$( jq -r '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
+				reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH" khs_av
 
 				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
 
@@ -232,6 +235,8 @@ function get_miner_stats {
 
 				hashrate_raw="$( jq -r '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
 				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+				hashrate_raw_avg="$( jq -r '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
+				reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH" khs_av
 
 				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
 
@@ -523,6 +528,7 @@ function loop {
 		--argjson meta "$meta" \
 		--argjson miner_stats "$stats" \
 		--arg total_khs "$khs" \
+		--arg avg_khs "$khs_av" \
 		--arg system_status "$system_status" \
 		--arg df "$df" \
 		--argjson cpuavg "[$cpuavg]" \
@@ -530,7 +536,7 @@ function loop {
 			"method": "stats", "jsonrpc": "2.0", "id": 0,
 			"params": {
 				$rig_id, $passwd, $miner, $meta,
-				$miner_stats, $total_khs, $system_status,
+				$miner_stats, $total_khs, $avg_khs, $system_status,
 				$df, $cpuavg
 			}
 		}'
