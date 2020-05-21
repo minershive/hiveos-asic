@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.1.13'
+declare -r hive_functions_lib_version='0.1.14'
 
 
 # !!! bash strict mode, no unbound variables
@@ -670,6 +670,24 @@ function get_substring_position_in_string {
 	fi
 }
 
+function rematch {
+	#
+	# Usage: rematch 'regex' 'string'
+	# Usage: rematch 'regex' <<< 'string'
+	#
+
+	# args
+
+	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+
+	local -r regex="${1-}"
+	local -r string="${2:-$( < /dev/stdin )}" # get from arg or stdin
+
+	# code
+
+	[[ $string =~ $regex ]]
+	printf '%s\n' "${BASH_REMATCH[@]:1}"
+}
 
 #
 # functions: processes
