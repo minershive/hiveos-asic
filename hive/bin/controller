@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.23'
+readonly script_version='2.1.24'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -477,7 +477,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 		case "$log_name" in
 			'/www/logs/lighttpd.error.log' )
-			
+
 				case "$log_message" in
 					*'auth failed'*				)
 													event_type='warning'
@@ -557,7 +557,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					"$log_message" \
 					"$message_advice"
 
-				echo "$message_body" | message "$event_type" "$message_header" payload
+				echo "$message_body" | message "$event_type" "$message_header" payload > /dev/null
 			fi
 		fi
 	done
@@ -617,7 +617,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 				printf -v log_to_check_sanitized '%q' "$log_to_check"
 
 				if (( current_log_size > previous_log_size )); then # a few lines was added
-					tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines" 
+					tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines"
 				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
 					tail -n 100 "$log_to_check" # tail not cat -- better be safe than sorry
 				fi | {
@@ -749,6 +749,90 @@ function wipe_memory {																				(( script_debug )) && debugcho
 	du -h /tmp/* /var/log/* | grep -Fe 'M'$'\t' -- | awk '{print $2}' | tee >( xargs rm )
 }
 
+function check_ntpd {																				(( script_debug )) && debugcho
+
+	# code
+
+	# shellcheck disable=SC2009
+	# ...bc there's no pgrep
+	if ! ps | grep -q '[n]tpd'; then
+		if [[ -x /etc/init.d/ntpd ]]; then
+			print_controller_log_entry 'warning' 'ntpd daemon not running, starting it...'
+			/etc/init.d/ntpd start
+		else
+			print_controller_log_entry 'warning' '/etc/init.d/ntpd not found, trying to adjust the time by ntpdate...'
+			sync_time_with_ntpdate
+		fi
+		echo
+	fi
+}
+
+function sync_time_with_ntpdate {																	(( script_debug )) && debugcho
+
+	# code
+
+	ntpdate -u -t 10 "$ntp_server"
+}
+
+function set_time_source { # not used atm
+
+	# vars
+
+	local -i time_before time_after time_difference
+
+	# code
+
+	time_before="$( get_current_system_time_in_seconds )"
+
+	# shellcheck disable=SC2009
+	# ...bc there's no pgrep
+	if is_program_in_the_PATH 'ntpdate' && ntpdate -u -t 10 "$ntp_server"; then
+		time_source='ntpdate'
+
+	elif ps | grep -q '[n]tpd'; then
+		time_source='ntpd'
+
+	else
+		time_source='hive'
+
+	fi
+
+	print_controller_log_entry 'info' "The correct time source set to '$time_source'"
+
+	time_after="$( get_current_system_time_in_seconds )"
+	(( time_difference = time_after >= time_before ? time_after - time_before : time_before - time_after )) # absolute difference
+
+	if (( time_difference > (60 * 10) )); then
+		print_controller_log_entry 'warning' "Local time adjusted by $( seconds2dhms "$time_difference" )"
+	fi
+}
+
+function sync_time_via_hive_server { # not used atm
+
+	# vars
+
+	local HIVE_HOST_URL server_answer
+	local -i date_from_server_in_seconds
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	HIVE_HOST_URL="$( [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf && echo "${HIVE_HOST_URL-}" )"
+
+	if [[ -z ${HIVE_HOST_URL-} ]]; then
+		HIVE_HOST_URL='http://api.hiveos.farm'
+	fi
+	if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
+		date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
+		echo "Setting actual date from Hive server: $( date -s "@$date_from_server_in_seconds" )"
+	else
+		echo "Network is lost? Cannot get actual date from Hive server ($server_answer)"
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+	fi
+
+	return $(( is_something_happened ))
+}
+
 
 #
 # routine functions executed by cron
@@ -786,7 +870,7 @@ function checkup:is_it_the_past {																	(( script_debug )) && debugcho
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 
 		HIVE_HOST_URL="$( [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf && echo "${HIVE_HOST_URL-}" )"
-		
+
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
@@ -826,7 +910,7 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		print_controller_log_entry "$event_type_for_log" "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
-		echo -e "$print_top" | tee >( message "$event_type_for_message" 'System memory low, tried to clean up the logs' payload; echo )
+		echo -e "$print_top" | tee >( message "$event_type_for_message" 'System memory low, tried to clean up the logs' payload > /dev/null )
 
 		shrink_system_logs
 		wipe_memory
@@ -854,7 +938,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 	local actual_VERSION=''			saved_VERSION=''
 	local actual_build=''			saved_build=''
 	local actual_Client_version=''	saved_Client_version=''
-	local message_header 
+	local message_header
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 	local -i is_saved_build_file_exist=0 is_actual_build_file_exist=0 should_report_to_user=0
 
@@ -933,7 +1017,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 				$(( exitcode_LESS_THAN ))		)	what_happened='degraded'	;;
 				*								)	what_happened='changed' 	;; # wtf? maybe is_first_version_equal_to_second() error
 			esac
-			
+
 			message_header="Client $what_happened from $saved_Client_version to $actual_Client_version"
 			print_controller_log_entry "$event_type_for_log" "$message_header"
 			message "$event_type_for_message" "$message_header"
@@ -947,7 +1031,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 			message_header="$actual_VERSION_file missed, please check"
 			print_controller_log_entry 'warning' "$message_header"
 			# shellcheck disable=SC2012
-			ls -ALl /hive/etc /hive-config | message 'warning' "$message_header" payload
+			ls -ALl /hive/etc /hive-config | message 'warning' "$message_header" payload > /dev/null
 			set_checkup_counter "$FUNCNAME" 'actual_VERSION_file_missed' 1
 		fi
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
@@ -1034,7 +1118,7 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 			# !!! flaw: if another virus will arise, no message will be sent till reboot
 			# one time action
 			print_controller_log_entry "$event_type_for_log" "$message_header"
-			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" payload; echo )
+			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" payload > /dev/null )
 			if (( assign_tag_to_worker )); then
 				message tag "$tag_label"
 				echo
@@ -1437,6 +1521,8 @@ declare -r unique_delimiter="d${RANDOM}e${RANDOM}l${RANDOM}i${RANDOM}m"
 declare -r -i exitcode_OK_NOTHING_HAPPENED=0
 declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
 
+declare -r ntp_server='pool.ntp.org'
+
 
 # global sources
 
@@ -1449,6 +1535,11 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
+
+
+# global vars
+
+declare time_source # ntpd|ntpdate|hive
 
 
 # crontab
@@ -1476,12 +1567,12 @@ declare -r -a crontab=(
 #pool checks
 #DNS checks
 #wd
-# warn unsigned fw owners
 # extended virus checks
 
 parse_arguments "$@"
 initialize_dictionaries
 print_controller_log_entry 'info' "Controller $script_version started"
+check_ntpd
 
 do_cron_jobs_indefinitely
 
