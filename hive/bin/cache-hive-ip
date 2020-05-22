@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.1.4'
+readonly script_version='0.1.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -38,16 +38,24 @@ function gethostbyname {
 
 	local -r host="$1"
 
+	# vars
+
+	local nslookup_output
+
 	# code
 
-	nslookup "$host" |
-		grep -A 4 Name |
-			sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p' |
-				tail -1 |
-					grep Address |
-						head -n1 |
-							awk -F': ' '{print $2}' |
-								awk '{print $1}'
+	if nslookup_output="$( nslookup "$host" )"; then
+		echo "$nslookup_output"									|
+			grep -A 4 Name										|
+				sed -n '/\([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}/p'	|
+					tail -1										|
+						grep Address							|
+							head -n1							|
+								awk -F': ' '{print $2}'			|
+									awk '{print $1}'
+	else
+		return 1
+	fi
 }
 
 function set_hostfile {
@@ -150,8 +158,9 @@ if [[ -z "$HOST" ]]; then
 fi
 
 for i in {1..30}; do
-	ip_address="$( gethostbyname "$HOST" )"
-	[[ $ip_address != '127.0.0.1' ]] && break
+	if ip_address="$( gethostbyname "$HOST" )" && [[ -n "$ip_address" && "$ip_address" != '127.0.0.1' ]]; then
+		break
+	fi
 	echo "Waiting for nslookup... Attempt #$i"
 	sleep 2
 done

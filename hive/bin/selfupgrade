@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.7'
+readonly script_version='0.16.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -350,7 +350,7 @@ get_tar_gz_at_any_cost () {
 
 	local retries_limit_standard=1
 	local retries_limit_bulk=16 # max.time from 10m to 60m
-	local temporary_file="${output_file}.{$script_basename}-download"
+	local temporary_file="${output_file}.${script_basename}-download"
 
 	# vars
 
