@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.6'
+readonly script_version='0.16.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1324,7 +1324,7 @@ get_remote_version_of () {
 
 	if is_curl_available; then
 		if [ "$bulk_download_mode_FLAG" -eq 0 ]; then
-			downloader_output="$( curl --insecure --location --fail --silent --show-error --max-time 2 "$download_URL" 2>&1 )" # 2 seconds tops
+			downloader_output="$( curl --insecure --location --fail --silent --show-error --max-time 10 "$download_URL" 2>&1 )" # 10 seconds tops
 		else
 			downloader_output="$( curl --insecure --location --fail --silent --show-error "$download_URL" 2>&1 )"
 		fi
@@ -1385,7 +1385,7 @@ get_local_versions () {
 
 get_remote_versions () {
 	remote_release_version="$( get_remote_version_of 'release' "$repo_version_URL" )"; repo_connectivity_status_exitcode=$?
-	remote_build_version="$( get_remote_version_of 'build' "$repo_version_URL" )" || echo
+	remote_build_version="$( get_remote_version_of 'build' "$repo_version_URL" )" || echo_error 'Error getting build version'
 }
 
 
