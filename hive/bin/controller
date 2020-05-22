@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.24'
+readonly script_version='2.1.25'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1020,8 +1020,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 
 			message_header="Client $what_happened from $saved_Client_version to $actual_Client_version"
 			print_controller_log_entry "$event_type_for_log" "$message_header"
-			message "$event_type_for_message" "$message_header"
-			echo
+			message "$event_type_for_message" "$message_header" > /dev/null
 
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
@@ -1120,8 +1119,7 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 			print_controller_log_entry "$event_type_for_log" "$message_header"
 			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" payload > /dev/null )
 			if (( assign_tag_to_worker )); then
-				message tag "$tag_label"
-				echo
+				message tag "$tag_label" > /dev/null
 			fi
 			set_checkup_counter "$FUNCNAME" 'message_sent' 1
 		fi
@@ -1168,7 +1166,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 				if (( write_failed_FLAG )); then
 					message_header="$directory_to_check switched to read-only mode, please check"
 					print_controller_log_entry "$event_type_for_log" "$message_header"
-					message "$event_type_for_message" "$message_header"
+					message "$event_type_for_message" "$message_header" > /dev/null
 					set_checkup_counter "$FUNCNAME" 'message_sent' 1
 					is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				fi
@@ -1205,7 +1203,7 @@ function checkup:is_overclock_profile_exist {														(( script_debug )) &&
 			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
 				# one time action
 				print_controller_log_entry "$event_type_for_log" 'OC profile not found or empty'
-				message "$event_type_for_message" "$message_header"
+				message "$event_type_for_message" "$message_header" > /dev/null
 				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 1
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			fi
@@ -1239,7 +1237,7 @@ function checkup:is_fw_signed {																		(( script_debug )) && debugcho
 		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) == 0 )); then
 			# one time action
 			print_controller_log_entry "$event_type_for_log" 'Firmware is unsigned'
-			message "$event_type_for_message" "$message_header"
+			message "$event_type_for_message" "$message_header" > /dev/null
 			set_checkup_counter "$FUNCNAME" 'fw_is_unsigned' 1
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
