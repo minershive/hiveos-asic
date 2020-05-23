@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.8'
+readonly script_version='0.2.9'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -114,7 +114,7 @@ function get_miner_stats {
 	# vars
 
 	local stats_raw max_fan_rpm STATS
-	local algo hs_units uptime hashrate_raw
+	local algo hs_units uptime hashrate_raw hashrate_raw_avg
 	local stats_pool_raw pool_stats active_pool
 	local hs temp chip_temp board_temp fan fan_rpm freq freq_new acn status chain_voltage hw_errors power asicboost ar
 
@@ -136,7 +136,7 @@ function get_miner_stats {
 	algo="$ASIC_ALGO"
 	hs_units="$HASH"
 	# shellcheck disable=SC2153
-	# var from asic-model
+	# ...bc MAX_FAN_RPM var is from asic-model
 	max_fan_rpm="$MAX_FAN_RPM"
 
 	case "$ASIC_MODEL" in
@@ -198,7 +198,7 @@ function get_miner_stats {
 				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'				<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $asicboost'
 				ar="$(				jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats"	2> /dev/null )"	|| errcho 'jq error at $ar'
 
-				[ $chain_voltage == "[]" ] && chain_voltage="$( ant-functions hiveon_voltage <<< "$acn" )"
+				[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( ant-functions hiveon_voltage <<< "$acn" )"
 				grep -q '.[0-9]' <<< "$chip_temp" && temp="$chip_temp"
 				grep -q '.[0-9]' <<< "$freq_new" && freq="$freq_new"
 
@@ -498,7 +498,7 @@ function loop {
 		INTERVAL="$default_push_interval"
 	fi
 	[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
-	[[ -z $MINER ]] && MINER='asicminer'
+	[[ -z "$MINER" ]] && MINER='asicminer'
 
 	log_line info "${custom_interval_message}Collecting stats from ${WHITE}${MINER}${NOCOLOR} API..."
 	printf -v time_start '%(%s)T' -1
@@ -705,7 +705,7 @@ function do_command {
 
 			# shellcheck disable=SC2076
 			if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
-				exectimeout='nohup timeout 360 bash -c' # 6m limit
+				exectimeout='nohup timeout 360 bash -c' # 6m limit for any command
 			else
 				exectimeout='nohup timeout -t 360 bash -c'
 			fi
@@ -824,7 +824,7 @@ function do_command {
 				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
 				if (( "${WD_ENABLED:-0}" )); then
 					nohup wd stop > /dev/null 2>&1
-					nohup sleep 5 > /dev/null 2>&1
+					snore 5
 				fi
 				wd start &
 
@@ -875,7 +875,7 @@ declare -r -i default_push_interval=10
 # vars
 
 declare MINER='asicminer'
-declare khs stats system_status
+declare khs khs_av system_status stats
 declare -i INTERVAL https_disabled_message_sent=0
 declare -i time_start time_finish time_wasted time_remaining
 declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
@@ -915,7 +915,7 @@ log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
 
 if (( "${WD_ENABLED:-0}" )); then
 	nohup wd stop > /dev/null 2>&1
-	nohup sleep 5 > /dev/null 2>&1
+	snore 5
 fi
 wd start &
 
@@ -929,9 +929,10 @@ while true; do
 
 	(( time_wasted = time_finish - time_start ))
 	(( time_remaining = INTERVAL - time_wasted ))
+
 	if (( time_remaining > 0 )); then
 		snore "$INTERVAL"
 	else
-		log_line warning "Stats sending interval > $INTERVAL seconds"
+		log_line warning "Stats sending interval ${time_wasted}s > ${INTERVAL}s, free time is ${time_remaining}s"
 	fi
 done
