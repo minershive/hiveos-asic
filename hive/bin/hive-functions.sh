@@ -11,7 +11,8 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.1.14'
+declare -r hive_functions_lib_version='0.33.0'
+#                                        ^^ current number of public functions
 
 
 # !!! bash strict mode, no unbound variables
@@ -276,6 +277,28 @@ function is_first_version_equal_to_second {
 	return $(( exitcode_IS_EQUAL ))
 }
 
+function is_integer {
+	#
+	# Usage: is_integer 'string_to_check'
+	#
+	# checks the first argument as an integer or fail
+	#
+
+	# args
+
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r string_to_check="${1-}"
+
+	# consts
+
+	# "Integer: A sequence of an optional sign (+ or -) followed by no more than 18 (significant) decimal digits."
+	local -r integer_definition_RE='^([+-])?0*([0-9]{1,18})$'
+
+	# code
+
+	[[ "$string_to_check" =~ $integer_definition_RE ]]
+}
+
 
 #
 # functions: text
@@ -473,23 +496,67 @@ function get_file_size_in_bytes {
 
 function read_variable_from_file {
 	#
-	# Usage: read_variable_from_file 'variable_to_read' 'file'
-	#
+	# Usage: read_variable_from_file 'file_with_variables' 'variable_to_read'
 	#
 
 	# args
 
 	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r -n variable_to_read="$1"
-	local -r file="$2"
+	local -r file_with_variables="${1-}"
+	local -r -n variable_to_read="${2-}"
+
+	# vars
+
+	local result
 
 	# code
 
-	if [[ -s "$file" ]]; then
-		(
-			source <( grep -Ee '^[_[:alnum:]]+=[^[:space:]]' -- "$file" )
+	# if file isn't empty or it's a named pipe (for <() constructions)
+	if [[ -s "$file_with_variables" || -p "$file_with_variables" ]]; then
+		# let's don't pollute our scope -- do it in the sub-shell
+		if result="$(
+			source <( grep -E -e '^[_[:alnum:]]+=[^[:space:]]' -- "$file_with_variables" ) # read all *valid* variable assignments
 			[[ -n "${variable_to_read-}" ]] && echo "${variable_to_read-}"
-		)
+		)"; then
+			echo "$result"
+		else
+			return $(( exitcode_ERROR_NOT_FOUND ))
+		fi
+	else
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+}
+
+function set_variable_in_file {
+	#
+	# Usage: set_variable_in_file 'file_with_variables' 'variable_to_change' 'new_value'
+	#
+	# if variable isn't exist, add it to the end of file
+
+	# args
+
+	(( $# == 3 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_with_variables="${1-}"
+	local -r variable_to_change="${2-}"
+	local -r new_value="${3-}"
+
+	# vars
+
+	local empty_if_newline
+
+	# code
+
+	if [[ -s "$file_with_variables" ]]; then
+		# is variable exist?
+		if grep -Eq -e "^$variable_to_change=.+$" -- "$file_with_variables"; then
+			# yes, change its value
+			sed -i "s/$variable_to_change=.*/$variable_to_change=$new_value/" "$file_with_variables"
+		else
+			# no, add variable
+			empty_if_newline="$( tail -c 1 "$file_with_variables" )"
+			[[ -z "$empty_if_newline" ]] || echo >> "$file_with_variables" # add a newline first
+			echo "$variable_to_change=$new_value" >> "$file_with_variables"
+		fi
 	else
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
@@ -521,7 +588,8 @@ function set_variable_to_current_system_time_in_seconds {
 	# code
 
 	# shellcheck disable=SC2034
-	variable_to_set_by_ref="$( get_current_system_time_in_seconds )"
+#	variable_to_set_by_ref="$( get_current_system_time_in_seconds )"
+	printf -v variable_to_set_by_ref '%(%s)T\n' -1
 }
 
 function seconds2dhms {
@@ -688,6 +756,7 @@ function rematch {
 	[[ $string =~ $regex ]]
 	printf '%s\n' "${BASH_REMATCH[@]:1}"
 }
+
 
 #
 # functions: processes

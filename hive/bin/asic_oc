@@ -9,14 +9,14 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.5'
+readonly script_version='0.1.6'
 readonly script_basename="$( basename "$0" )"
 
 
 # functions
 
 function ant17:get_current_profile_id {
-	read_variable_from_file tune_profile '/config/profile.txt'
+	read_variable_from_file '/config/profile.txt' 'tune_profile'
 }
 
 function ant17:get_description_for_profile {
@@ -34,7 +34,7 @@ function ant17:get_description_for_profile {
 	ASIC_MODEL_short="$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
 	profile_description_file="/hive/share/profiles/${ASIC_MODEL_short}_${HIVEON_VERSION}_description"
 
-	read_variable_from_file "profile_${_profile_id}" "$profile_description_file"
+	read_variable_from_file "$profile_description_file" "profile_${_profile_id}"
 }
 
 function ant17:get_saved_profiles_ids {
@@ -79,7 +79,7 @@ function ant17:print_status {
 
 	for this_profile_id in $( ant17:get_saved_profiles_ids ); do
 		profile_description[$this_profile_id]="$( ant17:get_description_for_profile "$this_profile_id" )"
-		profile_tune_status[$this_profile_id]="$( read_variable_from_file tune_status "/config/profiles/${this_profile_id}/profile.txt" )"
+		profile_tune_status[$this_profile_id]="$( read_variable_from_file "/config/profiles/${this_profile_id}/profile.txt" 'tune_status' )"
 		is_profile_saved[$this_profile_id]=1
 	done
 
@@ -89,7 +89,7 @@ function ant17:print_status {
 	if [[ -s '/config/profile.txt' ]]; then
 		current_profile_id="$( ant17:get_current_profile_id )"
 		current_profile_description="$( ant17:get_description_for_profile "$current_profile_id" )"
-		current_profile_tune_status="$( read_variable_from_file tune_status '/config/profile.txt' )"
+		current_profile_tune_status="$( read_variable_from_file '/config/profile.txt' 'tune_status' )"
 		profile_description[$current_profile_id]="$current_profile_description"
 	else
 		echo -n '  Running on factory settings'
@@ -139,7 +139,7 @@ declare -r -a tune_status_dictionary=(
 
 # vars
 
-declare current_profile_file template_profile_file
+declare current_profile_file #template_profile_file
 declare -i kill_miner_FLAG=0 wait_for_tuning_FLAG=0
 
 
@@ -230,7 +230,7 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 
 	if (( wait_for_tuning_FLAG )); then
 		n=0
-		until tune_status="$( read_variable_from_file 'tune_status' "$current_profile_file" )" && (( tune_status == tune_status_DONE )); do
+		until tune_status="$( read_variable_from_file "$current_profile_file" 'tune_status' )" && (( tune_status == tune_status_DONE )); do
 			if (( ++n == 200 )); then
 				# forcibly stop tuning after 200 minutes
 				sed -i "s|tune_status=${tune_status_TUNING}|tune_status=${tune_status_DONE}|" "$current_profile_file" > /dev/null 2>&1
@@ -313,7 +313,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 		# wait for 500 minutes
 		for (( n=0; n < 500; n++ )); do
 			snore 60
-			if tune_status="$( read_variable_from_file tune_status "$current_profile_file" )" && (( tune_status == tune_status_DONE )); then
+			if tune_status="$( read_variable_from_file "$current_profile_file" 'tune_status' )" && (( tune_status == tune_status_DONE )); then
 				miner tuning
 				break
 			fi
@@ -333,7 +333,7 @@ else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > "$current_profile_file"
 	fi
 	conftune="$( < "$current_profile_file" )"
-	if [[ -e "/usr/bin/compile_ver" && $ASIC_MODEL =~ "Antminer S9" ]]; then
+	if [[ -e /usr/bin/compile_ver && $ASIC_MODEL =~ "Antminer S9" ]]; then
 		sed -i 's/profile=1\&/profile=1\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' "$current_profile_file"
 		sed -i 's/profile=2\&/profile=2\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' "$current_profile_file"
 		sed -i 's/profile=3\&/profile=3\&slow_freq_start=400\&slow_freq_step=50\&slow_volt_max=860\&/' "$current_profile_file"

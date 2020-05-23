@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.9'
+readonly script_version='0.2.10'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -736,13 +736,18 @@ function do_command {
 
 		'asic_oc')
 			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
+			if [[ -f /config/use-new-asic-oc ]]; then
+				asic_oc_cmd='asic-oc-new'
+			else
+				asic_oc_cmd='asic_oc'
+			fi
 			screen -dm -S autotune bash -c '
 				echo "Auto-tune parameters:"
 				echo
 				jq <<< "$asic_oc"
 				echo
 				echo -n "Tuning... "
-				asic_oc "$asic_oc" 2>&1 | tee '"$command_log"'
+				'"$asic_oc_cmd"' "$asic_oc" 2>&1 | tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Auto-tune is finished. Click for details" payload --id='"$cmd_id"' < '"$command_log"'
 				else
