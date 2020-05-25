@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.10'
+readonly script_version='0.2.11'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -737,7 +737,7 @@ function do_command {
 		'asic_oc')
 			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
 			if [[ -f /config/use-new-asic-oc ]]; then
-				asic_oc_cmd='asic-oc-new'
+				asic_oc_cmd='asic-oc'
 			else
 				asic_oc_cmd='asic_oc'
 			fi
