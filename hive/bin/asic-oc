@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.5.33'
+readonly script_version='0.5.34'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -21,7 +21,9 @@ readonly script_DEBUG=1
 set -o nounset
 
 
+#
 # functions
+#
 
 function die {
 	# !!! must be the first line in this function to catch the incoming error code -- do not move
@@ -42,12 +44,13 @@ function print_script_usage {
 
 	# code
 	echo "Usage: ${CYAN-}${script_basename} 'JSON profile string' [-f|--force]${NOCOLOR-}"
+	echo "       ${CYAN-}${script_basename} status [OPTIONS]${NOCOLOR-}"
+	echo "       ${CYAN-}${script_basename} default|factory${NOCOLOR-}"
 	echo "       ${CYAN-}${script_basename} re-tune|retune${NOCOLOR-}"
 	echo "       ${CYAN-}${script_basename} finetune${NOCOLOR-}"
-	echo "       ${CYAN-}${script_basename} default|factory${NOCOLOR-}"
-	echo "       ${CYAN-}${script_basename} status [OPTIONS]${NOCOLOR-}"
+	echo "       ${CYAN-}${script_basename} clear-cache [profile_id...]${NOCOLOR-}"
 	echo
-	echo "   ${WHITE-}-f, --force${GRAY-}                  does not use a cached profile${NOCOLOR-}"
+	echo "   ${WHITE-}-f, --force${GRAY-}                  forced apply -- ignore cache for this profile${NOCOLOR-}"
 	echo "   ${WHITE-}-j, --json${GRAY-}                   generate JSON with active profile and list of cached profiles${NOCOLOR-}"
 	echo "   ${WHITE-}-i, --active-profile-id${GRAY-}      prints ID of the active profile${NOCOLOR-}"
 	echo "   ${WHITE-}-l, --cached-profiles-list${GRAY-}   lists IDs of all cached profiles${NOCOLOR-}"
@@ -56,11 +59,34 @@ function print_script_usage {
 
 function process_arguments {
 	# vars
-	local profile
+	local active_profile
 	local -a cached_profiles_array
 
 	# code
 	case "${1-}" in
+		'clear-cache')
+			print_script_version
+			if cached_profiles_array=( $( get_cached_profiles_ids ) ) && (( ${#cached_profiles_array[@]} > 0 )); then
+				# at least one profile is cached
+				echo "Cached profiles found: $( print_array_comma_separated 'cached_profiles_array' )"
+				echo
+				if (( ${#@} > 1 )); then
+					# do clear only selected profile(s)
+					clear_cached_profile "${@:2}"
+				else
+					# do clear all cached profiles
+					clear_cached_profile 'ALL'
+				fi
+			else
+				# shellcheck disable=SC2154
+				die 'no cached profiles found' $(( exitcode_ERROR_NOT_FOUND ))
+				# ...bc it's defined in a library
+			fi
+			# shellcheck disable=SC2154
+			exit $(( exitcode_OK ))
+			# ...bc it's defined in a library
+		;;
+
 		'status')
 			case "${2-}" in
 				'')
@@ -70,9 +96,10 @@ function process_arguments {
 
 				'-j'|'--json')
 					# "profile": "10", "tuned_profile": [9, 10, 11]
-					profile="$( get_active_profile_id )"
+					active_profile="$( get_active_profile_id )"
 					cached_profiles_array=( $( get_cached_profiles_ids ) )
-					echo "\"profile\": \"${profile-default}\", \"tuned_profile\": [$( IFS=','; echo "${cached_profiles_array[*]}" )]"
+					echo "\"profile\": \"${active_profile--1}\", \"tuned_profile\": [$( print_array_comma_separated 'cached_profiles_array' )]"
+					#                                     -1 for factory default profile (no profile at all)
 				;;
 
 				'-i'|'--active-profile-id')
@@ -87,7 +114,7 @@ function process_arguments {
 					print_script_version
 					print_script_usage
 					echo "invalid option '$2'"
-					false
+					false # set exitcode for 'exit'
 				;;
 			esac
 			exit
@@ -119,7 +146,9 @@ function process_arguments {
 }
 
 
+#
 # logic
+#
 
 function is_ST17 {
 	# args
@@ -145,7 +174,9 @@ function is_profile_cached {
 }
 
 
+#
 # getters: active profile
+#
 
 function get_active_profile_id {
 	# args
@@ -159,14 +190,14 @@ function get_active_profile_id {
 			read_variable_from_file <( replace_ampersands_with_newlines < "$active_profile_file_w_path" ) 'profile'
 		fi
 	else
-		# shellcheck disable=SC2154
 		return $(( exitcode_ERROR_NOT_FOUND ))
-		# ...bc defined in the library
 	fi
 }
 
 
+#
 # getters: description
+#
 
 function get_description_for_profile {
 	# args
@@ -183,7 +214,9 @@ function get_description_for_profile {
 }
 
 
+#
 # getters: cached profiles
+#
 
 function get_cached_profile_filename {
 	# args
@@ -219,9 +252,7 @@ function get_cached_profiles_ids {
 			fi
 		done
 	else
-		# shellcheck disable=SC2154
 		return $(( exitcode_ERROR_NOT_FOUND ))
-		# ...bc defined in the library
 	fi
 }
 
@@ -244,8 +275,51 @@ function get_cached_profile {
 	fi
 }
 
+function clear_cached_profile {
+	#
+	# Usage: clear_cached_profile ALL|profile_id...
+	#
 
+	# args
+	(( $# > 0 )) || return 1
+	local -r -a profiles_to_clear=( "$@" )
+
+	# var
+	local this_profile
+
+	# code
+	if [[ "${profiles_to_clear[0]}" == 'ALL' ]]; then
+		# do clear all cached profiles
+		echo -n '> Clearing cache for all profiles... '
+		if rm -rf "${cached_profiles_directory:-SAFE}"; then
+			echo 'OK'
+		else
+			echo 'FAIL'
+			# shellcheck disable=SC2154
+			die 'cache clearing error' $(( exitcode_ERROR_SOMETHING_WEIRD ))
+			# ...bc it's defined in a library
+		fi
+	else
+		# do clear only selected profile(s)
+		for this_profile in "${profiles_to_clear[@]}"; do
+			if is_integer "$this_profile"; then
+				echo -n "> Clearing cache for profile #$this_profile... "
+				if rm -rf "${cached_profiles_directory:-SAFE}/$this_profile"; then
+					echo 'OK'
+				else
+					echo 'FAIL'
+				fi
+			else
+				die "invalid profile ID '$this_profile' (not an integer number)" $(( exitcode_ERROR_SOMETHING_WEIRD ))
+			fi
+		done
+	fi
+}
+
+
+#
 # getters: json
+#
 
 function get_profile_id_from_json {
 	# args
@@ -290,7 +364,9 @@ function get_key_value_from_json {
 }
 
 
+#
 # setters
+#
 
 function set_model_dependent_variables {
 	# args
@@ -311,7 +387,9 @@ function set_model_dependent_variables {
 }
 
 
+#
 # save/restore profile to/from cache
+#
 
 function save_active_profile_to_cache {
 	# args
@@ -426,6 +504,21 @@ function deactivate_active_profile_files {
 
 
 #
+
+function print_array_comma_separated {
+	# args
+	(( $# == 1 )) || return 1
+	local -n -r array_to_print="${1-}"
+
+	# vars
+	local IFS
+
+	# code
+	if [[ -n "${array_to_print[*]-}" ]]; then
+		IFS=','
+		echo "${array_to_print[*]}"
+	fi
+}
 
 function print_status {
 	# args
@@ -613,8 +706,8 @@ function print_all_variables_in_file { # NOT USED ATM, should one carry it over 
 # sources
 
 source colors || echo 'ERROR: /hive/bin/colors not found'
-source asic-model || die 'ERROR: /hive/bin/asic-model not found'
-source /hive/bin/hive-functions.sh || die 'ERROR: /hive/bin/hive-functions.sh not found'
+source asic-model || die '/hive/bin/asic-model not found'
+source /hive/bin/hive-functions.sh || die '/hive/bin/hive-functions.sh not found'
 
 
 # consts
@@ -849,7 +942,7 @@ if [[ $HIVEON_VERSION == '1.02' || $HIVEON_VERSION == '1.03' ]] && [[ $ASIC_MODE
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Tuning...'
+		echo '> Auto-tune started...'
 		killall auto-tune > /dev/null 2>&1
 		snore 1
 		killall tune-yellow > /dev/null 2>&1
@@ -860,7 +953,7 @@ if [[ $HIVEON_VERSION == '1.02' || $HIVEON_VERSION == '1.03' ]] && [[ $ASIC_MODE
 		fi
 		[[ -s /tmp/auto-tune.nohup.log ]] && { echo 'Tune log:'; cat /tmp/auto-tune.nohup.log; }
 		[[ -f /tmp/auto-tune.nohup.log ]] && rm /tmp/auto-tune.nohup.log
-		echo 'Tune finished.'
+		echo '  Auto-tune finished'
 		if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
 			if [[ -n "$lighttpd_owner" && "$lighttpd_owner" != 'root' ]]; then
 				nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 &
@@ -890,7 +983,7 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Tuning...'
+		echo '> Auto-tune started...'
 		counter=0
 		until tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); do
 			if (( ++counter == 200 )); then
@@ -900,6 +993,8 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 			fi
 			snore 60
 		done
+		echo '  Auto-tune finished'
+		printf '<h3>\nTune log</h3>'
 		miner tuning
 	fi
 
@@ -925,11 +1020,12 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Tuning...'
+		echo '> Auto-tune started...'
 		# wait for 500 minutes
 		for (( n=0; n < 500; n++ )); do
 			snore 60
 			if tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); then
+				echo '  Auto-tune finished'
 				printf '<h3>\nTune log</h3>'
 				miner tuning
 				break
@@ -1037,7 +1133,7 @@ else
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Tuning...'
+		echo '> Auto-tune started...'
 		killall auto-tune > /dev/null 2>&1
 		killall auto-chip-tune > /dev/null 2>&1
 		snore 1
@@ -1048,6 +1144,7 @@ else
 		fi
 		[[ -s /tmp/auto-tune.nohup.log ]] && cat /tmp/auto-tune.nohup.log
 		[[ -f /tmp/auto-tune.nohup.log ]] && rm /tmp/auto-tune.nohup.log
+		echo '> Auto-tune finished'
 		if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
 			if [[ -n "$lighttpd_owner" && "$lighttpd_owner" != 'root' ]]; then
 				nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 &
@@ -1058,9 +1155,9 @@ else
 	fi
 fi
 
+(( have_to_tune_FLAG )) && save_active_profile_to_cache
+
 set_variable_to_current_system_time_in_seconds tune_finish_time
 printf '<h3>\nTotal running time %s</h3>' "$( seconds2dhms $(( tune_finish_time - tune_start_time )) )"
 
-# shellcheck disable=SC2154
 exit $(( exitcode_OK ))
-# ...bc it's defined in a library
