@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.5.34'
+readonly script_version='0.5.35'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -748,7 +748,7 @@ declare -i oc_action
 declare -i have_to_tune_FLAG=0 have_to_restart_miner_FLAG=0 force_apply_incoming_profile_FLAG=0 have_to_generate_active_profile_FLAG=0
 declare -i tune_start_time tune_finish_time
 declare -A incoming_profile_as_hashtable cached_profile_as_hashtable # keys_hashtable
-declare lighttpd_owner
+declare this_file lighttpd_owner
 
 
 # main
@@ -932,7 +932,18 @@ if [[ $HIVEON_VERSION == '1.02' || $HIVEON_VERSION == '1.03' ]] && [[ $ASIC_MODE
 		lighttpd_owner="$( ps | awk '/lighttpd/ && !/awk/ {print $2}' )"
 		if [[ -n "$lighttpd_owner" && "$lighttpd_owner" != 'root' ]]; then
 			echo "> Fixing profile ownership for '$lighttpd_owner'..."
-			chown "$lighttpd_owner:$lighttpd_owner" "${profile_files_collection[@]}" > /dev/null 2>&1
+			for this_file in "${profile_files_collection[@]}"; do
+				(( script_DEBUG )) && echo -n "  [DEBUG] $this_file "
+				if [[ -f "$active_profile_directory/$this_file" ]]; then
+					if chown "$lighttpd_owner:$lighttpd_owner" "$active_profile_directory/$this_file" > /dev/null 2>&1; then
+						(( script_DEBUG )) && echo 'OK'
+					else
+						(( script_DEBUG )) && echo 'FAIL'
+					fi
+				else
+					(( script_DEBUG )) && echo 'OK (not exist)'
+				fi
+			done
 		fi
 	fi
 
@@ -953,7 +964,7 @@ if [[ $HIVEON_VERSION == '1.02' || $HIVEON_VERSION == '1.03' ]] && [[ $ASIC_MODE
 		fi
 		[[ -s /tmp/auto-tune.nohup.log ]] && { echo 'Tune log:'; cat /tmp/auto-tune.nohup.log; }
 		[[ -f /tmp/auto-tune.nohup.log ]] && rm /tmp/auto-tune.nohup.log
-		echo '  Auto-tune finished'
+		echo '> Auto-tune finished'
 		if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
 			if [[ -n "$lighttpd_owner" && "$lighttpd_owner" != 'root' ]]; then
 				nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 &
@@ -993,7 +1004,7 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 			fi
 			snore 60
 		done
-		echo '  Auto-tune finished'
+		echo '> Auto-tune finished'
 		printf '<h3>\nTune log</h3>'
 		miner tuning
 	fi
@@ -1025,7 +1036,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 		for (( n=0; n < 500; n++ )); do
 			snore 60
 			if tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); then
-				echo '  Auto-tune finished'
+				echo '> Auto-tune finished'
 				printf '<h3>\nTune log</h3>'
 				miner tuning
 				break
@@ -1119,7 +1130,18 @@ else
 		lighttpd_owner="$( ps | awk '/lighttpd/ && !/awk/ {print $2}' )"
 		if [[ -n "$lighttpd_owner" && "$lighttpd_owner" != 'root' ]]; then
 			echo "> Fixing profile ownership for '$lighttpd_owner'..."
-			chown "$lighttpd_owner:$lighttpd_owner" "${profile_files_collection[@]}" > /dev/null 2>&1
+			for this_file in "${profile_files_collection[@]}"; do
+				(( script_DEBUG )) && echo -n "  [DEBUG] $this_file "
+				if [[ -f "$active_profile_directory/$this_file" ]]; then
+					if chown "$lighttpd_owner:$lighttpd_owner" "$active_profile_directory/$this_file" > /dev/null 2>&1; then
+						(( script_DEBUG )) && echo 'OK'
+					else
+						(( script_DEBUG )) && echo 'FAIL'
+					fi
+				else
+					(( script_DEBUG )) && echo 'OK (not exist)'
+				fi
+			done
 		fi
 	fi
 
