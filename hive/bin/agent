@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.11'
+readonly script_version='0.2.12'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -703,11 +703,16 @@ function do_command {
 				;;
 			esac
 
-			# shellcheck disable=SC2076
-			if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
-				exectimeout='nohup timeout 360 bash -c' # 6m limit for any command
+			# !!! a secret spell: if the command to exec prefixed with ':;', then no time limit enabled
+			if [[ "${exec:0:2}" == ':;' ]]; then
+				exectimeout='nohup bash -c' # no time limit at all
 			else
-				exectimeout='nohup timeout -t 360 bash -c'
+				# shellcheck disable=SC2076
+				if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
+					exectimeout='nohup timeout 360 bash -c' # 6m limit for any command
+				else
+					exectimeout='nohup timeout -t 360 bash -c'
+				fi
 			fi
 
 			#
@@ -736,6 +741,7 @@ function do_command {
 
 		'asic_oc')
 			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
+			# !!! a secret feature
 			if [[ -f /config/use-new-asic-oc ]]; then
 				asic_oc_cmd='asic-oc'
 			else
