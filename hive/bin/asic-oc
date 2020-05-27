@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.5.37'
+readonly script_version='0.5.38'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -291,7 +291,7 @@ function clear_cached_profile {
 	if [[ "${profiles_to_clear[0]}" == 'ALL' ]]; then
 		# do clear all cached profiles
 		echo -n '> Clearing cache for all profiles... '
-		if rm -rf "${cached_profiles_directory:-SAFE}"; then
+		if rm -r "${cached_profiles_directory:-SAFE}" > /dev/null 2>&1; then
 			echo 'OK'
 		else
 			echo 'FAIL'
@@ -304,7 +304,7 @@ function clear_cached_profile {
 		for this_profile in "${profiles_to_clear[@]}"; do
 			if is_integer "$this_profile"; then
 				echo -n "> Clearing cache for profile #$this_profile... "
-				if rm -rf "${cached_profiles_directory:-SAFE}/$this_profile"; then
+				if rm -r "${cached_profiles_directory:-SAFE}/$this_profile" > /dev/null 2>&1; then
 					echo 'OK'
 				else
 					echo 'FAIL'
@@ -1159,7 +1159,7 @@ else
 
 	# fix autotune bug for L3: if config exists, but size is zero -> delete it
 	if [[ -f "$active_profile_directory/config.conf" && ! -s "$active_profile_directory/config.conf" ]]; then
-		rm -f "$active_profile_directory/config.conf"
+		rm "$active_profile_directory/config.conf"
 	fi
 
 	if (( have_to_generate_active_profile_FLAG || have_to_restart_miner_FLAG || have_to_tune_FLAG )) && is_lighttpd_not_running_as_root; then
