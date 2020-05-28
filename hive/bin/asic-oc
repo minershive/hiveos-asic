@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.5.39'
+readonly script_version='0.6.6'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -39,9 +39,6 @@ function die {
 } 1>&2
 
 function print_script_usage {
-	# args
-	(( $# == 0 )) || return 1
-
 	# code
 	echo "Usage: ${CYAN-}${script_basename} 'JSON profile string' [-f|--force]${NOCOLOR-}"
 	echo "       ${CYAN-}${script_basename} status [OPTIONS]${NOCOLOR-}"
@@ -98,7 +95,7 @@ function process_arguments {
 					# "profile": "10", "tuned_profile": [9, 10, 11]
 					active_profile="$( get_active_profile_id )"
 					cached_profiles_array=( $( get_cached_profiles_ids ) )
-					echo "\"profile\": \"${active_profile--1}\", \"tuned_profile\": [$( print_array_comma_separated 'cached_profiles_array' )]"
+					echo "\"profile\": \"${active_profile:--1}\", \"tuned_profile\": [$( print_array_comma_separated 'cached_profiles_array' )]"
 					#                                     -1 for factory default profile (no profile at all)
 				;;
 
@@ -150,10 +147,7 @@ function process_arguments {
 # logic
 #
 
-function is_ST17 {
-	# args
-	(( $# == 0 )) || return 1
-
+function is_series_17 {
 	# code
 	# shellcheck disable=SC2076
 	[[ "$ASIC_MODEL" =~ 'Antminer S17' || "$ASIC_MODEL" =~ 'Antminer T17' ]]
@@ -179,12 +173,9 @@ function is_profile_cached {
 #
 
 function get_active_profile_id {
-	# args
-	(( $# == 0 )) || return 1
-
 	# code
 	if [[ -s "$active_profile_file_w_path" ]]; then
-		if is_ST17; then
+		if is_series_17; then
 			read_variable_from_file "$active_profile_file_w_path" 'tune_profile'
 		else
 			read_variable_from_file <( replace_ampersands_with_newlines < "$active_profile_file_w_path" ) 'profile'
@@ -205,11 +196,13 @@ function get_description_for_profile {
 	local -r -i profile_id="$1"
 
 	# vars
-	local ASIC_MODEL_short profile_description_file
+	local ASIC_MODEL_short _HIVEON_VERSION profile_description_file
 
 	# code
 	ASIC_MODEL_short="$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
-	profile_description_file="/hive/share/profiles/${ASIC_MODEL_short}_${HIVEON_VERSION}_description"
+	_HIVEON_VERSION="${HIVEON_VERSION:-1.00}" # 1.00 if empty
+
+	profile_description_file="/hive/share/profiles/${ASIC_MODEL_short}_${_HIVEON_VERSION}_description"
 	read_variable_from_file "$profile_description_file" "profile_$profile_id"
 }
 
@@ -224,7 +217,7 @@ function get_cached_profile_filename {
 	local -r profile_id="$1"
 
 	# code
-	if is_ST17; then
+	if is_series_17; then
 		echo "${cached_profiles_directory}/${profile_id}/$ant17_profile_filename"
 	else
 		echo "${cached_profiles_directory}/${profile_id}/$ant9_profile_filename"
@@ -232,9 +225,6 @@ function get_cached_profile_filename {
 }
 
 function get_cached_profiles_ids {
-	# args
-	(( $# == 0 )) || return 1
-
 	# vars
 	local this_profile_directory
 
@@ -267,7 +257,7 @@ function get_cached_profile {
 	# code
 	cached_profile_filename="$( get_cached_profile_filename "$profile_id" )"
 	if [[ -s "$cached_profile_filename" ]]; then
-		if is_ST17; then
+		if is_series_17; then
 			cat "$cached_profile_filename"
 		else
 			replace_ampersands_with_newlines < "$cached_profile_filename"
@@ -369,11 +359,8 @@ function get_key_value_from_json {
 #
 
 function set_model_dependent_variables {
-	# args
-	(( $# == 0 )) || return 1
-
 	# code
-	if is_ST17; then
+	if is_series_17; then
 		active_profile_filename="$ant17_profile_filename"
 		tune_files_collection=( "${ant17_tune_files_collection[@]}" )
 		profile_files_collection=( "${ant17_profile_files_collection[@]}" )
@@ -392,9 +379,6 @@ function set_model_dependent_variables {
 #
 
 function save_active_profile_to_cache {
-	# args
-	(( $# == 0 )) || return 1
-
 	# vars
 	local active_profile_id directory_to_save
 	local this_file source_file destination_file
@@ -497,33 +481,17 @@ function deactivate_active_profile_files {
 		if [[ -f "$this_file_w_path" ]]; then
 			mv -f "$this_file_w_path" "$this_file_w_path.previous" && echo 'OK (renamed to *.previous)' || echo 'FAIL (rename error)'
 		else
-			echo 'OK (not exist)'
+			echo 'SKIPPED (not exist)'
 		fi
 	done
 }
 
 
 #
-
-function print_array_comma_separated {
-	# args
-	(( $# == 1 )) || return 1
-	local -n -r array_to_print="${1-}"
-
-	# vars
-	local IFS
-
-	# code
-	if [[ -n "${array_to_print[*]-}" ]]; then
-		IFS=','
-		echo "${array_to_print[*]}"
-	fi
-}
+#
+#
 
 function print_status {
-	# args
-	(( $# == 0 )) || return 1
-
 	# dictionaries
 	local -r -a tune_status_dictionary=(
 		[tune_status_NOT_YET]='not yet tuned'
@@ -549,7 +517,8 @@ function print_status {
 		is_profile_cached_array[$this_profile_id]=1
 	done
 
-	echo "  $ASIC_MODEL @ $HIVEON_VERSION"
+	echo -n "  $ASIC_MODEL"
+	[[ -n "$HIVEON_VERSION" ]] && echo " @ $HIVEON_VERSION"
 	echo
 
 	if [[ -s "$active_profile_file_w_path" ]]; then
@@ -592,7 +561,9 @@ function print_status {
 }
 
 
+#
 # profiles comparing
+#
 
 function load_profile_to_array {
 	# args
@@ -629,9 +600,6 @@ function load_profile_to_array {
 }
 
 function is_cached_profile_equal_to_incoming {
-	# args
-	(( $# == 0 )) || return 1
-
 	# vars
 	local this_key incoming_value cached_value
 
@@ -646,9 +614,6 @@ function is_cached_profile_equal_to_incoming {
 }
 
 function print_differencies_in_profiles {
-	# args
-	(( $# == 0 )) || return 1
-
 	# consts
 	local -r -n keys='incoming_profile_as_hashtable'
 
@@ -660,33 +625,177 @@ function print_differencies_in_profiles {
 	printf '%-27.27s %7.7s %8.8s\n' 'parameter' 'cached' 'updated'
 	echo '-------------------------------------------'
 	for this_key in "${!keys[@]}"; do
-		incoming_value="${incoming_profile_as_hashtable[$this_key]--}"
-		cached_value="${cached_profile_as_hashtable[$this_key]--}"
-		if [[ "$incoming_value" == "$cached_value" ]]; then
-			this_color="${DGRAY}"
+		incoming_value="${incoming_profile_as_hashtable[$this_key]:--}"
+		cached_value="${cached_profile_as_hashtable[$this_key]:--}"
+		if [[ "$incoming_value" != "$cached_value" ]]; then
+			this_color="${BYELLOW}"
 		else
-			this_color="${NOCOLOR}"
+			this_color="${GREEN}"
 		fi
-		printf '%b%-27.27s %7.7s %8.8s%b\n' "$this_color" "$this_key" "$cached_value" "$incoming_value" "${NOCOLOR}"
+		printf '%-27.27s %b%7.7s %8.8s%b\n' "$this_key" "$this_color" "$cached_value" "$incoming_value" "${NOCOLOR}"
 	done | sort
 	echo
 }
 
 
-# auxillary
+#
+# model-dependent tune & restart
+#
 
-function get_lighttpd_owner {
-	# args
-	(( $# == 0 )) || return 1
+# Series 9 (and the others)
+
+function generate_active_profile_9 {
+	echo '> Generating active profile...'
+	# build a fresh config file for auto-tune
+	(( script_DEBUG )) && { echo "[DEBUG] incoming profile: [$incoming_profile]"; echo; }
+	printf '%s' "$incoming_profile" | replace_newlines_with_ampersands > "$active_profile_file_w_path"
+	(( script_DEBUG )) && { echo "[DEBUG] generated file: [$( cat "$active_profile_file_w_path" )]"; echo; }
+}
+
+function restart_miner_9 {
+	echo '> Restarting miner...'
+	# shellcheck disable=SC2076
+	if [[ "$ASIC_MODEL" =~ 'Antminer L3' ]]; then
+	# ...bc we need a literal match
+		killall -9 cgminer
+	else
+		if (( is_lighttpd_not_running_as_root_FLAG )); then
+			# create file as lighttpd owner
+			su - "$lighttpd_owner" -c "echo 'ok' > $active_profile_directory/restart" > /dev/null 2>&1
+		else
+			echo 'ok' > "$active_profile_directory/restart"
+		fi
+	fi
+}
+
+function tune_9 {
+	# vars
+	local this_process
 
 	# code
-	ps | awk '/lighttpd/ && !/awk/ {print $2}'
+	echo '> Auto-tune started...'
+
+	for this_process in auto-tune auto-chip-tune tune-yellow; do
+		if is_program_running "$this_process"; then
+			(( script_DEBUG )) && echo "  [DEBUG] killing $this_process"
+			killall "$this_process" > /dev/null 2>&1
+			snore 1
+		fi
+	done
+
+	[[ -f /tmp/auto-tune ]] && rm /tmp/auto-tune # delete log from previous session
+
+	if (( is_lighttpd_not_running_as_root_FLAG )); then
+		nohup su - "$lighttpd_owner" -c '/usr/bin/auto-tune' > /tmp/auto-tune.nohup.log 2>&1
+	else
+		nohup /usr/bin/auto-tune > /tmp/auto-tune.nohup.log 2>&1
+	fi
+
+	if (( script_DEBUG )) && [[ -f /tmp/auto-tune.nohup.log ]]; then
+		echo '[DEBUG] Auto-tune log:'
+		cat /tmp/auto-tune.nohup.log
+		echo
+		rm /tmp/auto-tune.nohup.log
+	fi
+
+	if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
+		if (( is_lighttpd_not_running_as_root_FLAG )); then
+			nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 &
+		else
+			nohup /usr/bin/auto-chip-tune > /dev/null 2>&1 &
+		fi
+	fi
+	echo '> Auto-tune finished'
+}
+
+# Series 17
+
+function generate_active_profile_17 {
+	echo '> Generating active profile...'
+	# build a fresh config file for auto-tune
+	{
+		if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile"; then
+			echo "tune_profile=$incoming_profile_id"
+		fi
+		echo 'tune_status=0'
+		echo 'tune_max_restarts=10'
+		echo 'tune_uptime=240'
+		echo "$incoming_profile"
+	} > "$active_profile_file_w_path"
+}
+
+function restart_miner_17 {
+	echo '> Restarting miner...'
+	killall bmminer
+}
+
+function tune_17_old {
+	# vars
+	local -i minutes_counter=0
+
+	# code
+	echo '> Auto-tune started...'
+	until tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); do
+		if (( ++minutes_counter == 200 )); then
+			# forcibly stop tuning after 200 minutes
+			set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_DONE"
+			miner restart
+		fi
+		snore 60
+	done
+	echo '> Auto-tune finished'
+	printf '<h3>\nTune log</h3>'
+	miner tuning
+}
+
+function tune_17_new {
+	# vars
+	local -i minutes_counter
+
+	# code
+	echo '> Auto-tune started...'
+	# wait for 500 minutes (usually it gets like 30-40 minutes)
+	for (( minutes_counter=0; minutes_counter < 500; minutes_counter++ )); do
+		snore 60
+		if tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); then
+			echo '> Auto-tune finished'
+			printf '<h3>\nTune log</h3>'
+			miner tuning
+			break
+		fi
+	done
+}
+
+
+#
+# lighttpd ownership
+#
+
+function is_program_running {
+	# args
+	(( $# == 1 )) || return 1
+	local -r program_name="${1-}"
+
+	# code
+	if which pidof > /dev/null; then
+		pidof "$program_name" > /dev/null
+	else
+		# shellcheck disable=SC2009
+		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
+		# ...bc we don't have pgrep
+	fi
+}
+
+function get_lighttpd_owner {
+	# code
+	if is_program_running 'lighttpd'; then
+		ps | awk '/lighttpd/ && !/awk/ {print $2}'
+	else
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
 }
 
 function is_lighttpd_not_running_as_root {
-	# args
-	(( $# == 0 )) || return 1
-
 	# code
 	lighttpd_owner="$( get_lighttpd_owner )" # global var
 	[[ -n "$lighttpd_owner" && "$lighttpd_owner" != 'root' ]]
@@ -697,45 +806,64 @@ function fix_tune_files_ownership {
 	# fix tune files ownership for CGI scripts
 	#
 
-	# args
-	(( $# == 0 )) || return 1
-
 	# vars
-	local this_file
+	local this_file this_file_w_path
 
 	# code
 	if [[ -n "$lighttpd_owner" ]]; then
 		echo "> Fixing profile ownership for '$lighttpd_owner'..."
-		for this_file in "${profile_files_collection[@]}"; do
-			(( script_DEBUG )) && echo -n "  [DEBUG] $this_file "
-			if [[ -f "$active_profile_directory/$this_file" ]]; then
-				if chown "$lighttpd_owner:$lighttpd_owner" "$active_profile_directory/$this_file" > /dev/null 2>&1; then
+		for this_file in "${profile_files_collection[@]}" /tmp/auto-tune; do
+			#                                             ^^^^^^^^^^^^^^ non-root auto-tune process cannot write to this log until its uid become a non-root too
+			#
+			# check if $this_file is a "fully-qualified" filename with path
+			if [[ "$this_file" =~ ^[/.~] ]]; then
+				this_file_w_path="$this_file"
+			else
+				this_file_w_path="$active_profile_directory/$this_file"
+			fi
+			(( script_DEBUG )) && echo -n "  [DEBUG] $this_file_w_path "
+			if [[ -f "$this_file_w_path" ]]; then
+				if chown "$lighttpd_owner:$lighttpd_owner" "$this_file_w_path" > /dev/null 2>&1; then
 					(( script_DEBUG )) && echo 'OK'
 				else
 					(( script_DEBUG )) && echo 'FAIL'
 				fi
 			else
-				(( script_DEBUG )) && echo 'OK (not exist)'
+				(( script_DEBUG )) && echo 'SKIPPED (not exist)'
 			fi
 		done
 	fi
 }
 
-function replace_newlines_with_ampersands {
+
+#
+# auxillary functions
+#
+
+function print_array_comma_separated {
 	# args
-	(( $# == 0 )) || return 1
+	(( $# == 1 )) || return 1
+	local -n -r array_to_print="${1-}"
+
+	# vars
+	local IFS
 
 	# code
-	#sed ':a;N;$!ba;s/\n/\&/g'
+	if [[ -n "${array_to_print[*]-}" ]]; then
+		IFS=','
+		echo "${array_to_print[*]}"
+	fi
+}
+
+function replace_newlines_with_ampersands {
+	# code
+	# alternative: sed ':a;N;$!ba;s/\n/\&/g'
 	tr '\n' '&'
 }
 
 function replace_ampersands_with_newlines {
-	# args
-	(( $# == 0 )) || return 1
-
 	# code
-	#sed 's|&|\n|g'
+	# alternative: sed 's|&|\n|g'
 	tr '&' '\n'
 }
 
@@ -743,10 +871,17 @@ function print_all_variables_in_file { # NOT USED ATM, should one carry it over 
 	#
 	# Usage: print_all_variables_in_file 'file'
 	#
+
+	# code
 	(( $# == 1 )) || return 1
 	local -r file="$1"
 	grep -Ee '^[_[:alnum:]]+=[^[:space:]]' -- "$file"
 }
+
+
+#
+# functions END
+#
 
 
 # sources
@@ -792,9 +927,10 @@ declare incoming_profile_id incoming_profile_description incoming_profile
 declare message_text message_event_type
 declare -i oc_action
 declare -i have_to_tune_FLAG=0 have_to_restart_miner_FLAG=0 force_apply_incoming_profile_FLAG=0 have_to_generate_active_profile_FLAG=0
-declare -i is_lighttpd_not_running_as_root_FLAG=0
 declare -i tune_start_time tune_finish_time
 declare -A incoming_profile_as_hashtable cached_profile_as_hashtable # keys_hashtable
+
+declare -i is_lighttpd_not_running_as_root_FLAG=0
 declare lighttpd_owner
 
 
@@ -815,6 +951,11 @@ if active_profile_id="$( get_active_profile_id )"; then
 else
 	active_profile_description='factory'
 fi
+
+
+#
+# prepare actions
+#
 
 case "$oc_action" in
 
@@ -841,7 +982,7 @@ case "$oc_action" in
 		if [[ -s "$active_profile_file_w_path" ]]; then
 			message_text="Re-tuning for $active_profile_description is started"
 			message_event_type='ok'
-			is_ST17 &&
+			is_series_17 &&
 				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_TUNING"
 			#
 			have_to_restart_miner_FLAG=1
@@ -865,7 +1006,7 @@ case "$oc_action" in
 		if [[ -s "$active_profile_file_w_path" ]]; then
 			message_text="Fine-tuning for $active_profile_description is started"
 			message_event_type='ok'
-			is_ST17 &&
+			is_series_17 &&
 				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_TUNING"
 			#
 			have_to_restart_miner_FLAG=1
@@ -917,10 +1058,19 @@ case "$oc_action" in
 					echo "> Cached profile #$incoming_profile_id found. It's equal to incoming. Using cached one."
 					message info "$message_text. Cached profile activated, auto-tuning skipped" > /dev/null
 					restore_cached_profile "$incoming_profile_id"
+					if [[ -s "$active_profile_directory/manual_freqs.txt" ]]; then
+						#
+						have_to_tune_FLAG=0
+					else
+						echo "> Chip tuning file (manual_freqs.txt) is missing. Profile has to be tuned."
+						message info 'Cached profile is not fully tuned and has to be tuned again' > /dev/null
+						#
+						have_to_tune_FLAG=1
+					fi
 					#
 					have_to_generate_active_profile_FLAG=0
 					have_to_restart_miner_FLAG=1
-					have_to_tune_FLAG=0
+					#
 				else
 					# does cached profile ID not equal to incoming profile ID?
 					# ...yes it does, the same ID! do nothing.
@@ -962,132 +1112,64 @@ case "$oc_action" in
 
 esac
 
+
+#
+# proceed model-dependent actions
+#
+
 # shellcheck disable=SC2076
 if [[ $HIVEON_VERSION == '1.02' || $HIVEON_VERSION == '1.03' ]] && [[ $ASIC_MODEL =~ 'Antminer S9' || $ASIC_MODEL =~ 'Antminer T9' ]]; then
 # ...bc we need a literal match
 
 	if (( have_to_generate_active_profile_FLAG )); then
-		echo '> Generating active profile...'
-		# build a fresh config file for auto-tune
-		(( script_DEBUG )) && { echo "[DEBUG] incoming profile: [$incoming_profile]"; echo; }
-		printf '%s' "$incoming_profile" | replace_newlines_with_ampersands > "$active_profile_file_w_path"
-		(( script_DEBUG )) && { echo "[DEBUG] generated file: [$( cat "$active_profile_file_w_path" )]"; echo; }
+		generate_active_profile_9
 	fi
 
 	if (( have_to_generate_active_profile_FLAG || have_to_restart_miner_FLAG || have_to_tune_FLAG )) && is_lighttpd_not_running_as_root; then
 		is_lighttpd_not_running_as_root_FLAG=1
-		lighttpd_owner="$( get_lighttpd_owner )"
+		#lighttpd_owner="$( get_lighttpd_owner )" # already set in is_lighttpd_not_running_as_root()
 		fix_tune_files_ownership
 	fi
 
 	if (( have_to_restart_miner_FLAG )); then
-		echo '> Restarting miner...'
-		if (( is_lighttpd_not_running_as_root_FLAG )); then
-			# create file as lighttpd owner
-			su - "$lighttpd_owner" -c "echo 'ok' > /config/restart" > /dev/null 2>&1
-		else
-			echo 'ok' > /config/restart
-		fi
+		restart_miner_9
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Auto-tune started...'
-		killall auto-tune > /dev/null 2>&1
-		snore 1
-		killall tune-yellow > /dev/null 2>&1
-		if (( is_lighttpd_not_running_as_root_FLAG )); then
-			nohup su - "$lighttpd_owner" -c '/usr/bin/auto-tune' > /tmp/auto-tune.nohup.log 2>&1
-		else
-			nohup /usr/bin/auto-tune > /tmp/auto-tune.nohup.log 2>&1
-		fi
-		[[ -f /tmp/auto-tune.nohup.log ]] && { cat /tmp/auto-tune.nohup.log; rm /tmp/auto-tune.nohup.log; }
-		echo '> Auto-tune finished'
-		if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
-			if (( is_lighttpd_not_running_as_root_FLAG )); then
-				nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 &
-			else
-				nohup /usr/bin/auto-chip-tune > /dev/null 2>&1 &
-			fi
-		fi
+		tune_9
 	fi
 
 elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' || $ASIC_MODEL == 'Antminer T17 Hiveon' ]]; then
 
 	if (( have_to_generate_active_profile_FLAG )); then
-		echo '> Generating active profile...'
-		# build a fresh config file for auto-tune
-		{
-			if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile"; then
-				echo "tune_profile=$incoming_profile_id"
-			fi
-			echo 'tune_status=0'
-			echo "$incoming_profile"
-		} > "$active_profile_file_w_path"
+		generate_active_profile_17
 	fi
 
 	if (( have_to_restart_miner_FLAG )); then
-		echo '> Restarting miner...'
-		killall bmminer
+		restart_miner_17
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Auto-tune started...'
-		counter=0
-		until tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); do
-			if (( ++counter == 200 )); then
-				# forcibly stop tuning after 200 minutes
-				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_DONE"
-				miner restart
-			fi
-			snore 60
-		done
-		echo '> Auto-tune finished'
-		printf '<h3>\nTune log</h3>'
-		miner tuning
+		tune_17_old
 	fi
 
 elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 
 	if (( have_to_generate_active_profile_FLAG )); then
-		echo '> Generating active profile...'
-		# build a fresh config file for auto-tune
-		{
-			if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile"; then
-				echo "tune_profile=$incoming_profile_id"
-			fi
-			echo 'tune_status=0'
-			echo 'tune_max_restarts=10'
-			echo 'tune_uptime=240'
-			echo "$incoming_profile"
-		} > "$active_profile_file_w_path"
+		generate_active_profile_17
 	fi
 
 	if (( have_to_restart_miner_FLAG )); then
-		echo '> Restarting miner...'
-		killall bmminer
+		restart_miner_17
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Auto-tune started...'
-		# wait for 500 minutes
-		for (( n=0; n < 500; n++ )); do
-			snore 60
-			if tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); then
-				echo '> Auto-tune finished'
-				printf '<h3>\nTune log</h3>'
-				miner tuning
-				break
-			fi
-		done
+		tune_17_new
 	fi
 
 else
 	if (( have_to_generate_active_profile_FLAG )); then
-		echo '> Generating active profile...'
-		# build a fresh config file for auto-tune
-		(( script_DEBUG )) && { echo "[DEBUG] incoming profile: [$incoming_profile]"; echo; }
-		printf '%s' "$incoming_profile" | replace_newlines_with_ampersands > "$active_profile_file_w_path"
-		(( script_DEBUG )) && { echo "[DEBUG] generated file: [$( cat "$active_profile_file_w_path" )]"; echo; }
+		generate_active_profile_9
 	fi
 
 	# fix S9 old fw bug
@@ -1164,43 +1246,16 @@ else
 
 	if (( have_to_generate_active_profile_FLAG || have_to_restart_miner_FLAG || have_to_tune_FLAG )) && is_lighttpd_not_running_as_root; then
 		is_lighttpd_not_running_as_root_FLAG=1
-		lighttpd_owner="$( get_lighttpd_owner )"
+		#lighttpd_owner="$( get_lighttpd_owner )" # already set in is_lighttpd_not_running_as_root()
 		fix_tune_files_ownership
 	fi
 
 	if (( have_to_restart_miner_FLAG )); then
-		echo '> Restarting miner...'
-		if [[ "$ASIC_MODEL" =~ 'Antminer L3' ]]; then
-			killall -9 cgminer
-		else
-			if (( is_lighttpd_not_running_as_root_FLAG )); then
-				# create file as lighttpd owner
-				su - "$lighttpd_owner" -c 'echo ok > /config/restart' > /dev/null 2>&1 &
-			else
-				echo 'ok' > /config/restart
-			fi
-		fi
+		restart_miner_9
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		echo '> Auto-tune started...'
-		killall auto-tune > /dev/null 2>&1
-		killall auto-chip-tune > /dev/null 2>&1
-		snore 1
-		if (( is_lighttpd_not_running_as_root_FLAG )); then
-			nohup su - "$lighttpd_owner" -c '/usr/bin/auto-tune' > /tmp/auto-tune.nohup.log 2>&1
-		else
-			nohup /usr/bin/auto-tune > /tmp/auto-tune.nohup.log 2>&1
-		fi
-		[[ -f /tmp/auto-tune.nohup.log ]] && { cat /tmp/auto-tune.nohup.log; rm /tmp/auto-tune.nohup.log; }
-		echo '> Auto-tune finished'
-		if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
-			if (( is_lighttpd_not_running_as_root_FLAG )); then
-				nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 &
-			else
-				nohup /usr/bin/auto-chip-tune > /dev/null 2>&1 &
-			fi
-		fi
+		tune_9
 	fi
 fi
 
