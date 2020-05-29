@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.8'
+readonly script_version='0.6.9'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -644,6 +644,31 @@ function print_differencies_in_profiles {
 
 # Series 9 (and the others)
 
+function kill_autotune_9 {
+	#
+	# kills the whole tuning stuff
+	#
+
+	# vars
+	local this_process
+	local -i kill_counter
+
+	# code
+	(( script_DEBUG )) && echo '> [DEBUG] Stopping auto-tune tools...'
+	for this_process in 'auto-tune' 'tune-yellow' 'auto-chip-tune'; do
+		kill_counter=0
+		while is_program_running "$this_process"; do
+			if (( ++kill_counter > 10 )); then
+				(( script_DEBUG )) && echo "  [DEBUG] $this_process is still alive after $kill_counter tries!"
+				break
+			fi
+			(( script_DEBUG )) && echo "  [DEBUG] killing $this_process, attempt #$kill_counter"
+			killall "$this_process" > /dev/null 2>&1
+			snore 0.5
+		done
+	done
+}
+
 function generate_active_profile_9 {
 	echo '> Generating active profile...'
 	# build a fresh config file for auto-tune
@@ -653,6 +678,8 @@ function generate_active_profile_9 {
 }
 
 function restart_miner_9 {
+	# code
+	kill_autotune_9
 	echo '> Restarting miner...'
 	# shellcheck disable=SC2076
 	if [[ "$ASIC_MODEL" =~ 'Antminer L3' ]]; then
@@ -669,19 +696,9 @@ function restart_miner_9 {
 }
 
 function tune_9 {
-	# vars
-	local this_process
-
 	# code
+	kill_autotune_9
 	echo '> Auto-tune started...'
-
-	for this_process in auto-tune auto-chip-tune tune-yellow; do
-		if is_program_running "$this_process"; then
-			(( script_DEBUG )) && echo "  [DEBUG] killing $this_process"
-			killall "$this_process" > /dev/null 2>&1
-			snore 1
-		fi
-	done
 
 	[[ -f /tmp/auto-tune ]] && rm /tmp/auto-tune # delete log from previous session
 
