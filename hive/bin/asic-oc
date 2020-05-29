@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.7'
+readonly script_version='0.6.8'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -1063,7 +1063,7 @@ case "$oc_action" in
 						have_to_tune_FLAG=0
 					else
 						echo "> Chip tuning file (manual_freqs.txt) is missing. Profile has to be tuned."
-						message info 'Cached profile is not fully tuned and has to be tuned again' > /dev/null
+						message warn 'Cached profile is not fully tuned and has to be tuned again' > /dev/null
 						#
 						have_to_tune_FLAG=1
 					fi
@@ -1087,7 +1087,7 @@ case "$oc_action" in
 				echo "> Cached profile #$incoming_profile_id found. It ISN'T equal to incoming profile. Using incoming one."
 				print_differencies_in_profiles |
 					tee >(
-						message info "$message_text. Active profile updated, click for details" payload > /dev/null
+						message info "$message_text. Cached profile is outdated, click for details. Profile has updated and needs to be tuned" payload > /dev/null
 					)
 				#
 				have_to_generate_active_profile_FLAG=1
