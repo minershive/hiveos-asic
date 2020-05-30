@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.9'
+readonly script_version='0.6.10'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -997,16 +997,16 @@ case "$oc_action" in
 	"$oc_action_RETUNE")
 		echo '<h3>Re-tuning profile from scratch</h3>'
 		if [[ -s "$active_profile_file_w_path" ]]; then
-			message_text="Re-tuning for $active_profile_description is started"
-			message_event_type='ok'
+			message_text="Re-tuning $active_profile_description from scratch"
+			message_event_type='info'
 			is_series_17 &&
-				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_TUNING"
+				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_NOT_YET"
 			#
 			have_to_restart_miner_FLAG=1
 			have_to_tune_FLAG=1
 		else
 			message_text='No active profile found, re-tuning skipped'
-			message_event_type='info'
+			message_event_type='warning'
 			#
 			have_to_restart_miner_FLAG=0
 			have_to_tune_FLAG=0
@@ -1030,7 +1030,7 @@ case "$oc_action" in
 			have_to_tune_FLAG=1
 		else
 			message_text='No active profile found, fine-tuning skipped'
-			message_event_type='info'
+			message_event_type='warning'
 			#
 			have_to_restart_miner_FLAG=0
 			have_to_tune_FLAG=0
@@ -1080,7 +1080,7 @@ case "$oc_action" in
 						have_to_tune_FLAG=0
 					else
 						echo "> Chip tuning file (manual_freqs.txt) is missing. Profile has to be tuned."
-						message warn 'Cached profile is not fully tuned and has to be tuned again' > /dev/null
+						message warning 'Cached profile is not fully tuned and has to be tuned again' > /dev/null
 						#
 						have_to_tune_FLAG=1
 					fi
@@ -1092,7 +1092,7 @@ case "$oc_action" in
 					# does cached profile ID not equal to incoming profile ID?
 					# ...yes it does, the same ID! do nothing.
 					echo "> Cached and incoming profiles are equal and have the same ID. Nothing to do."
-					message info "$message_text. Profiles are the same, any actions skipped" > /dev/null
+					message warning "$message_text. Profiles are the same, any actions skipped" > /dev/null
 					#
 					have_to_generate_active_profile_FLAG=0
 					have_to_restart_miner_FLAG=0
@@ -1104,7 +1104,7 @@ case "$oc_action" in
 				echo "> Cached profile #$incoming_profile_id found. It ISN'T equal to incoming profile. Using incoming one."
 				print_differencies_in_profiles |
 					tee >(
-						message info "$message_text. Cached profile is outdated, click for details. Profile has updated and needs to be tuned" payload > /dev/null
+						message warning "$message_text. Cached profile is outdated, click for details. Profile has updated and needs to be tuned" payload > /dev/null
 					)
 				#
 				have_to_generate_active_profile_FLAG=1
