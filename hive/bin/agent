@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.13'
+readonly script_version='0.2.14'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -651,6 +651,7 @@ function do_command {
 			message ok 'Rebooting' --id="$cmd_id"
 			log_line ok "Rebooting"
 			#nohup bash -c 'sreboot' > "$command_log" 2>&1 &
+			sync
 			/sbin/reboot
 		;;
 
