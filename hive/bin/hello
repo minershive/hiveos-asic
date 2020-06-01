@@ -157,7 +157,7 @@ fi
 
 [[ -s /hive-config/model ]] && MODELH_detected="$( < /hive-config/model )"
 
-if [[ -n "$MODELH_detected" ]]; then
+if [[ -n "$MODELH_detected" && -e /usr/bin/compile_ver ]]; then
 	sed "2s/.*/${MODELH_detected} Hiveon/" -i /usr/bin/compile_ver
 	sed "2s/.*/${MODELH_detected} Hiveon/" -i /usr/bin/compile_time
 fi
