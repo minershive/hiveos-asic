@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.10'
+readonly script_version='0.6.11'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -137,7 +137,7 @@ function process_arguments {
 
 		*)
 			(( oc_action = oc_action_APPLY_OC ))
-			[[ "${2-}" == '-f' || "${2-}" == '--force' ]] && force_apply_incoming_profile_FLAG=1
+			[[ "${2-}" == '-f' || "${2-}" == '--force' ]] && forced_apply_incoming_profile_FLAG=1
 		;;
 	esac
 }
@@ -333,7 +333,7 @@ function get_profile_id_from_json {
 	fi
 }
 
-function get_key_value_from_json {
+function get_key_value_pairs_from_json {
 	# args
 	(( $# == 1 )) || return 1
 	local -r input_json="$1"
@@ -488,7 +488,7 @@ function deactivate_active_profile_files {
 
 
 #
-#
+# print_status()
 #
 
 function print_status {
@@ -511,7 +511,7 @@ function print_status {
 	for this_profile_id in $( get_cached_profiles_ids ); do
 		profile_description_array[$this_profile_id]="$( get_description_for_profile "$this_profile_id" || echo "Profile #$this_profile_id" )"
 		profile_tune_status_array[$this_profile_id]="$(
-			read_variable_from_file "$cached_profiles_directory/$this_profile_id/$active_profile_filename" 'tune_status' ||
+			read_variable_from_file "$( get_cached_profile_filename "$this_profile_id" )" 'tune_status' ||
 				echo "$tune_status_NOT_SUPPORTED"
 		)"
 		is_profile_cached_array[$this_profile_id]=1
@@ -771,7 +771,7 @@ function tune_17_new {
 
 	# code
 	echo '> Auto-tune started...'
-	# wait for 500 minutes (usually it gets like 30-40 minutes)
+	# wait for 500 minutes (usually it takes like 30-40 minutes)
 	for (( minutes_counter=0; minutes_counter < 500; minutes_counter++ )); do
 		snore 60
 		if tune_status="$( read_variable_from_file "$active_profile_file_w_path" 'tune_status' )" && (( tune_status == tune_status_DONE )); then
@@ -943,7 +943,7 @@ declare -a profile_files_collection tune_files_collection
 declare incoming_profile_id incoming_profile_description incoming_profile
 declare message_text message_event_type
 declare -i oc_action
-declare -i have_to_tune_FLAG=0 have_to_restart_miner_FLAG=0 force_apply_incoming_profile_FLAG=0 have_to_generate_active_profile_FLAG=0
+declare -i have_to_tune_FLAG=0 have_to_restart_miner_FLAG=0 forced_apply_incoming_profile_FLAG=0 have_to_generate_active_profile_FLAG=0
 declare -i tune_start_time tune_finish_time
 declare -A incoming_profile_as_hashtable cached_profile_as_hashtable # keys_hashtable
 
@@ -1051,7 +1051,7 @@ case "$oc_action" in
 		# is it valid JSON?
 		if incoming_profile_id="$( get_profile_id_from_json "$1" )"; then
 			incoming_profile_description="$( get_description_for_profile "$incoming_profile_id" || echo "Profile #$incoming_profile_id" )"
-			incoming_profile="$( get_key_value_from_json "$1" )"
+			incoming_profile="$( get_key_value_pairs_from_json "$1" )"
 		else
 			print_script_usage
 			die "invalid JSON '$1'" 2
@@ -1060,7 +1060,7 @@ case "$oc_action" in
 		message_text="Switching profile from $active_profile_description to $incoming_profile_description"
 		echo "<h3>$message_text</h3>"
 
-		if is_profile_cached "$incoming_profile_id" && (( ! force_apply_incoming_profile_FLAG )); then
+		if is_profile_cached "$incoming_profile_id" && (( ! forced_apply_incoming_profile_FLAG )); then
 			# does cached profile exist (and isn't empty)?
 			# ...yes, cached profile does exist
 			cached_profile="$( get_cached_profile "$incoming_profile_id" )"
@@ -1074,7 +1074,9 @@ case "$oc_action" in
 					# ...does NOT equal. copy cached profile over the active one
 					echo "> Cached profile #$incoming_profile_id found. It's equal to incoming. Using cached one."
 					message info "$message_text. Cached profile activated, auto-tuning skipped" > /dev/null
+
 					restore_cached_profile "$incoming_profile_id"
+
 					if [[ -s "$active_profile_directory/manual_freqs.txt" ]]; then
 						#
 						have_to_tune_FLAG=0
@@ -1113,8 +1115,12 @@ case "$oc_action" in
 			fi
 		else
 			# does cached profile exist (and isn't empty)?
-			# ...no, cached profile does not exist. let's generate a brand new profile.
-			message info "$message_text" > /dev/null
+			# ...no, cached profile does not exist (or --force argument is in use). let's generate a brand new profile.
+ 			if (( forced_apply_incoming_profile_FLAG )); then
+	 			message info "$message_text. Forced apply, ignoring cached data" > /dev/null
+	 		else
+	 			message info "$message_text" > /dev/null
+	 		fi
 			#
 			have_to_generate_active_profile_FLAG=1
 			have_to_restart_miner_FLAG=1
