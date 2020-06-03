@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.26'
+readonly script_version='2.1.27'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -485,6 +485,11 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						message_header='Fan error. Click for details'
 					;;
 
+					*'Temp Err!'*)
+						event_type='error'
+						message_header='Temperature sensor error. Click for details'
+					;;
+
 					*)
 						event_type='skip'
 					;;
@@ -535,39 +540,59 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 			;;
 
-			'/tmp/auto-tune'			)			# S9
+			'/tmp/auto-tune')														# S9
 
 				case "$log_message" in
-					'Config parse:'*			)	event_type='ok'					# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
-													message_header='Auto-tune is started. Click for details'
-													message_advice='Auto-tune is started. It will take 30-300 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
-													;;
-#					'Auto tune is done'*		)	event_type='ok'		 			# Auto tune is done, exit
-#													message_header='Tune done'
-#													;;
-					*							)	event_type='skip'		;;
+					'Config parse:'*)												# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
+						event_type='ok'
+						message_header='Auto-tune is started. Click for details'
+						message_advice='Auto-tune is started. It will take 30-300 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
+					;;
+
+#					'Auto tune is done'*)											# Auto tune is done, exit
+#						event_type='ok'
+#						message_header='Tune done'
+#					;;
+
+					*)
+						event_type='skip'
+					;;
 				esac
 
 			;;
 
-			'/tmp/tune_log.txt'			)
+			'/tmp/tune_log.txt')
+
 				case "$log_message" in
-					'Tune started'*				)	event_type='ok'
-													message_header='Auto-tune is started. Click for details'
-													message_advice='Auto-tune is started. It will take 30-90 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
-													;;
-#					'All is ok'*				)	event_type='ok'			;;		# All is ok, tune is done
-					'Achieved '*				)	event_type='warning'	;;		# Achieved maximum number of restarts
-					*							)	event_type='skip'		;;
+					'Tune started'*)
+						event_type='ok'
+						message_header='Auto-tune is started. Click for details'
+						message_advice='Auto-tune is started. It will take 30-90 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
+					;;
+
+#					'All is ok'*)
+#						event_type='ok'												# All is ok, tune is done
+#					;;		
+
+					'Achieved '*)
+						event_type='warning'										# Achieved maximum number of restarts
+					;;
+
+					*)
+						event_type='skip'
+					;;
 				esac
+
 			;;
 
-			'/tmp/fault.log'			)			event_type='warning'
-													message_header='Miner program fault. Click for details'
-													message_advice="There was a program fault. The miner program has restarted automatically. Report was sent to developers. You don't have to do anything special, we'll take care."
+			'/tmp/fault.log')
+				event_type='warning'
+				message_header='Miner program fault. Click for details'
+				message_advice="There was a program fault. The miner program has restarted automatically. Report was sent to developers. You don't have to do anything special, we'll take care."
 			;;
 
-			*							)			event_type='warning'			# do not frighten the user with 'oh no, the error!'
+			*)
+				event_type='warning'												# do not frighten the user with 'oh no, the error!'
 			;;
 
 		esac
