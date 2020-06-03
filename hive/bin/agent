@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.14'
+readonly script_version='0.2.15'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -651,7 +651,6 @@ function do_command {
 			message ok 'Rebooting' --id="$cmd_id"
 			log_line ok "Rebooting"
 			#nohup bash -c 'sreboot' > "$command_log" 2>&1 &
-			sync
 			/sbin/reboot
 		;;
 
@@ -744,7 +743,6 @@ function do_command {
 			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
 			# !!! a secret feature
 			if [[ -f /config/use-new-asic-oc ]]; then
-				[[ -f /hive/bin/asic-oc && ! -x /hive/bin/asic-oc ]] && chmod +x /hive/bin/asic-oc
 				asic_oc_cmd='asic-oc'
 			else
 				asic_oc_cmd='asic_oc'
