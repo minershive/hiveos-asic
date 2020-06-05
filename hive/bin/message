@@ -8,101 +8,125 @@
 #
 
 
-. /hive/bin/colors
+source colors
 
-RIG_CONF="/hive-config/rig.conf"
-[[ ! -f $RIG_CONF ]] && echo -e "Config file $RIG_CONF not found" && exit 1
-
-. "$RIG_CONF"
-
-HIVE_URL="$HIVE_HOST_URL/worker/api"
-#LOG="/var/log/hive-agent.log"
-LOG="/dev/null"
-
-if [[ $# -lt 2 ]]; then
-	echo -e "${CYAN}Usage: $0 success|danger|warning|info|default \"message\" [payload] [-i|--id=msgid] ${NOCOLOR}"
-	echo "Aliases: ok|error|err|warn|default|file"
-	echo "payload is read from stdin"
+RIG_CONF='/hive-config/rig.conf'
+if [[ ! -s $RIG_CONF ]]; then
+	echo "Config file $RIG_CONF empty or not found"
 	exit 1
 fi
 
-type="$1"
-data="$2"
+source "$RIG_CONF"
 
-MSGCOLOR="$CYAN"
-[[ $type == "error" || $type == "err" ]] && type="danger" && MSGCOLOR="$RED"
-[[ $type == "warn" ]] && type="warning" && MSGCOLOR="$YELLOW"
-[[ $type == "ok" ]] && type="success" && MSGCOLOR="$GREEN"
+HIVE_URL="$HIVE_HOST_URL/worker/api"
+#LOG="/var/log/hive-agent.log"
 
+if (( $# < 2 )); then
+	echo -e "Usage: ${CYAN}$( basename "$0" ) success|danger|warning|info|default|tag \"message\" [payload] [-i|--id=msgid] ${NOCOLOR}"
+	echo 'Aliases: ok|error|err|warn|default'
+	echo 'Attention: payload is read from stdin'
+	echo
+	exit 1
+fi
+
+message_type="$1"
+message_header="$2"
+
+case "$message_type" in
+	'error'|'err')
+		message_type='danger'
+		MSGCOLOR="$RED"
+	;;
+
+	'warning'|'warn')
+		message_type='warning'
+		MSGCOLOR="$YELLOW"
+	;;
+
+	'ok'|'success')
+		message_type='success'
+		MSGCOLOR="$GREEN"
+	;;
+
+	'tag')
+		MSGCOLOR="$PURPLE"
+	;;
+
+	*)
+		MSGCOLOR="$CYAN"
+	;;
+esac
 
 
 request=$(
-echo "$payload_json" | jq -n \
---arg rig_id "$RIG_ID" \
---arg passwd "$RIG_PASSWD" \
---arg type "$type" \
---arg data "$data" \
-'{
-	"method": "message", "jsonrpc": "2.0", "id": 0,
-	"params": {$rig_id, $passwd, $type, $data}
-}'
+	echo "$payload_json" | jq -n \
+		--arg rig_id "$RIG_ID" \
+		--arg passwd "$RIG_PASSWD" \
+		--arg type "$message_type" \
+		--arg data "$message_header" \
+		'{
+			"method": "message", "jsonrpc": "2.0", "id": 0,
+			"params": {$rig_id, $passwd, $type, $data}
+		}'
 )
 #echo "$request" | jq .
 
-id=
-payload=
-for i in "$@"; do
-	case "$i" in
-		-i=*|--id=*)
-			id="${i#*=}"
-			id_json=`jq --arg id "$id" -n '{"params": {$id}}'`
-			request=`echo "$request $id_json" | jq -sc '.[0] * .[1]'`
-			shift
+id=''
+payload=''
+for this_argument in "${@:3}"; do
+	case "$this_argument" in
+		'-i='*|'--id='*)
+			id="${this_argument#*=}"
+			id_json="$( jq --arg id "$id" -n '{"params": {$id}}' )"
+			request="$( echo "$request $id_json" | jq -sc '.[0] * .[1]' )"
 		;;
-		payload)
-			echo "With payload"
-			payload=$(cat)
-			payload_json=`echo -n "$payload" | jq -R -s '{"params": {"payload": .}}'`
-			request=`echo "$request $payload_json" | jq -sc '.[0] * .[1]'`
-			shift # past argument with no value
+		'payload'|'--payload')
+			payload="$( < /dev/stdin )"
+			payload_json="$( echo -n "$payload" | jq -R -s '{"params": {"payload": .}}' )"
+			request="$( echo "$request $payload_json" | jq -sc '.[0] * .[1]' )"
 		;;
-# TODO file: gzip -c /usr/sbin/dropbearmulti | openssl base64 -e -A | message file 'dropbearmulti' payload
 		*)
-			# unknown option
+			echo "ERROR: unknown option '$this_argument'"
 		;;
+# TODO file): gzip -c /usr/sbin/dropbearmulti | openssl base64 -e -A | message file 'dropbearmulti' payload
 	esac
 done
 
-
-#date
-echo -e "> Sending \"$type\": ${MSGCOLOR}$data${NOCOLOR}"
+if [[ -z "$payload" ]]; then
+	echo -e "> Sending '$message_type' message: ${MSGCOLOR}$message_header${NOCOLOR}"
+else
+	echo -e "> Sending '$message_type' message with payload (${#payload} bytes): ${MSGCOLOR}$message_header${NOCOLOR}"
+fi
 
 #Show output and exit for debug
 #echo "$request" | jq . && exit
 
-[[ $? -ne 0 ]] && echo "Error formatting JSON message" && exit 1
+# !!! senseless 'if': checking exit status of an echo command a few lines up
+#if (( $? )); then
+#	echo "Error formatting JSON message"
+#	exit 1
+#fi
 
+[[ -n "$LOG" ]] && echo "[`date`] > `echo "$request" | jq . -c`" >> "$LOG"
 
-echo "[`date`] > `echo "$request" | jq . -c`" >> "$LOG"
-#echo "[`date`] > $request" >> "$LOG"
-
-response=$(echo "$request" | curl --insecure -L --data @- \
---connect-timeout 7 --max-time 15 --silent \
--XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=message"  -H "Content-Type: application/json")
+response=$( echo "$request" | curl --insecure --location --data @- \
+	--connect-timeout 15 --max-time 25 --silent \
+	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=message" --header "Content-Type: application/json"
+)
 
 exitcode=$?
-if [[ $exitcode -ne 0 ]]; then
+if (( exitcode )); then
 	echo "Error sending message (curl code=$exitcode)"
-	echo "[`date`] < Error sending message (curl code=$exitcode)" >> "$LOG"
+	#echo "[`date`] < Error sending message (curl code=$exitcode)" >> "$LOG"
 	exit $exitcode
 fi
 
-#echo "[`date`] < $response" >> "$LOG"
-echo "[`date`] < `echo "$response" | jq . -c`" >> "$LOG"
+[[ -n "$LOG" ]] && echo "[`date`] < `echo "$response" | jq . -c`" >> "$LOG"
 
-error=$(echo "$response" | jq '.error' --raw-output)
-#[[ ! -z $error && $error != "null" ]] && echo -e "Error response: `echo "$response" | jq '.error' -r`" && exit 1
-[[ ! -z $error && $error != "null" ]] && echo "Error response: $error" && exit 1
-
+error=$( echo "$response" | jq '.error' --raw-output )
+if [[ -n "$error" && "$error" != "null" ]]; then
+	echo "Error response: $error"
+	exit 1
+fi
 
 exit 0
