@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.27'
+readonly script_version='2.1.28'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -527,10 +527,13 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/config/watchdog.log')
 
 				case "$log_message" in
-					*'Tune is in progress'*		)	event_type='skip'		;;		# S9, 'Tune is in progress, wait 30 seconds...'
-					*'Found'*'red chips'*		)	event_type='ok'			;;		# S9, 'Found 1 red chips, restart'
-					*'Chain '*'found '*			)	event_type='info'		;;		# 17: 'Chain 1: found 1 bad domains'
+					'Tune is in progress'*		)	event_type='skip'		;;		# S9, 'Tune is in progress, wait 30 seconds...'
+					'Found'*'red chips'*		)	event_type='ok'			;;		# S9, 'Found 1 red chips, restart'
+					'Chain '*'found '*			)	event_type='info'		;;		# 17: 'Chain 1: found 1 bad domains'
 					*'domains fixed'*			)	event_type='ok'			;;
+					'Activating profile '*		)	event_type='skip'		;;		# 17, 'Activating profile 11'
+					'Re-run cgminer to check temerature sensor type again!')
+													event_type='skip'		;;		# 17
 					*							)	event_type='warning'	;;
 				esac
 				# cut milliseconds from watchdog messages like
