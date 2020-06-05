@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.15'
+readonly script_version='0.2.16'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -944,6 +944,6 @@ while true; do
 	if (( time_remaining > 0 )); then
 		snore "$INTERVAL"
 	else
-		log_line warning "Stats sending interval ${time_wasted}s > ${INTERVAL}s, free time is ${time_remaining}s"
+		log_line warning "Stats sending interval ${time_wasted}s >= ${INTERVAL}s, idle time is ${time_remaining}s"
 	fi
 done
