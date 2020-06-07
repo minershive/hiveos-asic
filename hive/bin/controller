@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.28'
+readonly script_version='2.1.29'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -50,21 +50,24 @@ function parse_arguments {																			(( script_debug )) && debugcho "$@"
 			print_last_lines_from_own_log "$option"
 			# shellcheck disable=SC2154
 			exit $(( exitcode_OK ))
-			;;
+		;;
+
 		'')
 			: 'do nothing special'
-			;;
+		;;
+
 		'-h' | '--help')
 			print_script_version
 			print_script_usage
 			exit $(( exitcode_OK ))
-			;;
+		;;
+
 		*)
 			print_script_version
 			print_script_usage
 			# shellcheck disable=SC2154
 			exit $(( exitcode_ERROR_IN_ARGUMENTS ))
-			;;
+		;;
 	esac
 }
 
@@ -477,6 +480,22 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 		case "$log_name" in
 
+			'/var/log/log')															# series 15/17
+
+				case "$log_message" in
+					*'Chain['*'] PIC init failed!')
+						# 'driver/driver-btm-api.c:242:init_pic_one_chain: Chain[2] PIC init failed!'
+						event_type='error'
+						message_header='Chain error. Click for details'
+					;;
+
+					*)
+						event_type='skip'
+					;;
+				esac
+
+			;;
+
 			'/var/log/messages')
 
 				case "$log_message" in
@@ -546,13 +565,15 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/tmp/auto-tune')														# S9
 
 				case "$log_message" in
-					'Config parse:'*)												# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
+					'Config parse:'*)
+						# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
 						event_type='ok'
 						message_header='Auto-tune is started. Click for details'
 						message_advice='Auto-tune is started. It will take 30-300 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
 					;;
 
-#					'Auto tune is done'*)											# Auto tune is done, exit
+#					'Auto tune is done'*)
+#						# 'Auto tune is done, exit'
 #						event_type='ok'
 #						message_header='Tune done'
 #					;;
@@ -574,11 +595,13 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					;;
 
 #					'All is ok'*)
-#						event_type='ok'												# All is ok, tune is done
+#						# 'All is ok, tune is done'
+#						event_type='ok'
 #					;;		
 
 					'Achieved '*)
-						event_type='warning'										# Achieved maximum number of restarts
+						# 'Achieved maximum number of restarts'
+						event_type='warning'
 					;;
 
 					*)
@@ -595,7 +618,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			;;
 
 			*)
-				event_type='warning'												# do not frighten the user with 'oh no, the error!'
+				# let's do not frighten the user with 'oh no, the error!'
+				event_type='warning'
 			;;
 
 		esac
@@ -1319,6 +1343,7 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 		'/tmp/auto-tune'				# Hiveon 9
 		'/tmp/fault.log'				# Hiveon 15/17
 		'/tmp/tune_log.txt'				# Hiveon 15/17
+		'/var/log/log'					# Hiveon 15/17
 		'/var/log/messages'				# all Antminers ???
 		'/www/logs/lighttpd.error.log'	# all Antminers ???
 	)

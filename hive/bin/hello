@@ -9,6 +9,12 @@
 #
 
 
+readonly script_mission='Client for ASICs: Say hello to the server'
+readonly script_version='0.1.1'
+readonly script_basename="$( basename "$0" )"
+readonly script_debug=0
+
+
 # functions
 
 function _die {
@@ -332,7 +338,7 @@ for (( attempts_counter = 1; attempts_counter <= 10; attempts_counter++ )); do
 	exitcode=$?
 	if (( exitcode )); then
 		echo "Error connecting to server ${HIVE_HOST_URL} (attempt #$attempts_counter)"
-		echo "$( human-curl-error "$exitcode" )"
+		human-curl-error "$exitcode"
 		sleep $(( attempts_counter ))
 	else
 		break
@@ -340,7 +346,7 @@ for (( attempts_counter = 1; attempts_counter <= 10; attempts_counter++ )); do
 done
 
 if (( exitcode )); then
-	_die "Error connecting to server ${HIVE_HOST_URL}, exiting...\n$( human-curl-error "$exitcode" )" "$exitcode" #404 is not a bad exit code
+	_die "Error connecting to server ${HIVE_HOST_URL}. No attempts left, exiting...\n$( human-curl-error "$exitcode" )" "$exitcode" #404 is not a bad exit code
 fi
 
 # show response and check json
