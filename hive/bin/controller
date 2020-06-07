@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.29'
+readonly script_version='2.1.30'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -463,7 +463,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			continue
 		fi
 
-		split_log_line_to_date_and_message "$log_line" 'log_timestamp' 'log_message_combined_with_log_name' # !! last two vars passed by reference, not by value
+		split_log_line_to_date_and_message "$log_line" 'log_timestamp' 'log_message_combined_with_log_name' # !! last two vars passed by a reference, not by value
 
 		if [[ "$log_message_combined_with_log_name" =~ $unique_delimiter ]]; then
 			# split log_message_combined_with_log_name to message and logname
@@ -483,22 +483,31 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/var/log/log')															# series 15/17
 
 				case "$log_message" in
+
 					*'Chain['*'] PIC init failed!')
 						# 'driver/driver-btm-api.c:242:init_pic_one_chain: Chain[2] PIC init failed!'
 						event_type='error'
 						message_header='Chain error. Click for details'
+						message_advice='Please get the ASIC to the service or repair shop.'
 					;;
 
-					*)
-						event_type='skip'
+					*'will power off hash board'*)
+						# 'driver/driver-btm-api.c:1445:check_asic_number_with_power_on: Chain 0 only find 3 asic, will power off hash board 0'
+						event_type='error'
+						message_header='Chain error. Click for details'
+						message_advice="There's a chance that the chain is undervolted and cannot start due to a low voltage. "
+						message_advice+="Sometimes, switching an Overclocking profile to the more aggressive one resolves the issue. "
+						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
+
 				esac
 
 			;;
 
-			'/var/log/messages')
+			'/var/log/messages')													# S9 only?
 
 				case "$log_message" in
+
 					*'Fan Err!'*)
 						event_type='error'
 						message_header='Fan error. Click for details'
@@ -509,9 +518,6 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						message_header='Temperature sensor error. Click for details'
 					;;
 
-					*)
-						event_type='skip'
-					;;
 				esac
 
 			;;
@@ -519,15 +525,15 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/www/logs/lighttpd.error.log')
 
 				case "$log_message" in
+
 					*'auth failed'*)
 						event_type='warning'
 						message_header='Failed login attempt has been made to the ASIC web interface. Click for details'
-						message_advice="Someone or something has tried to login to the ASIC web interface with wrong login and/or password. If it wasn't you -- you MAY have a virus in the local network that tries to brute-force all ASICs in the vicinity. Please be advised."
+						message_advice="Someone or something has tried to login to the ASIC web interface with a wrong login and/or password. "
+						message_advice+="If it wasn't you -- you MAY have a virus in the local network that trying to brute-force all ASICs "
+						message_advice+="in the vicinity. Please be advised."
 					;;
 
-					*)
-						event_type='skip'
-					;;
 				esac
 
 			;;
@@ -556,7 +562,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					*							)	event_type='warning'	;;
 				esac
 				# cut milliseconds from watchdog messages like
-				# ST17 'Total rate is 0 after 1870.000000 seconds, restart'
+				# ST17: 'Total rate is 0 after 1870.000000 seconds, restart'
 				# S9: 'Total hashrate 0.000000 is less than 90 percents of 17112.42, stopping miner'
 				log_message="${log_message//\.000000 / }"
 
@@ -569,7 +575,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
 						event_type='ok'
 						message_header='Auto-tune is started. Click for details'
-						message_advice='Auto-tune is started. It will take 30-300 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
+						message_advice='Auto-tune is started. It will take 30-300 minutes. '
+						message_advice+='Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
 					;;
 
 #					'Auto tune is done'*)
@@ -578,9 +585,6 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 #						message_header='Tune done'
 #					;;
 
-					*)
-						event_type='skip'
-					;;
 				esac
 
 			;;
@@ -588,25 +592,24 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/tmp/tune_log.txt')
 
 				case "$log_message" in
+
 					'Tune started'*)
 						event_type='ok'
 						message_header='Auto-tune is started. Click for details'
-						message_advice='Auto-tune is started. It will take 30-90 minutes. Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
+						message_advice='Auto-tune is started. It will take 30-90 minutes. '
+						message_advice+='Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
 					;;
 
 #					'All is ok'*)
 #						# 'All is ok, tune is done'
 #						event_type='ok'
-#					;;		
+#					;;
 
 					'Achieved '*)
 						# 'Achieved maximum number of restarts'
 						event_type='warning'
 					;;
 
-					*)
-						event_type='skip'
-					;;
 				esac
 
 			;;
@@ -614,7 +617,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/tmp/fault.log')
 				event_type='warning'
 				message_header='Miner program fault. Click for details'
-				message_advice="There was a program fault. The miner program has restarted automatically. Report was sent to developers. You don't have to do anything special, we'll take care."
+				message_advice="There was a program fault. The miner program has restarted automatically. "
+				message_advice+="Report was sent to developers. You don't have to do anything special, we'll take care."
 			;;
 
 			*)
