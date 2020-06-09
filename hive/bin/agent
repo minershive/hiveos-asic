@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.16'
+readonly script_version='0.2.17'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -741,7 +741,7 @@ function do_command {
 		'asic_oc')
 			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
 			# !!! a secret feature
-			if [[ -f /config/use-new-asic-oc ]]; then
+			if [[ "$HIVEON_VERSION" == '2.00' || -f /config/use-new-asic-oc ]]; then
 				asic_oc_cmd='asic-oc'
 			else
 				asic_oc_cmd='asic_oc'
