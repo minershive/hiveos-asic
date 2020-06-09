@@ -27,7 +27,18 @@ function config_gen() {
 	[[ -z $ASICMINER_TEMPLATE ]] && echo -e "${YELLOW}ASICMINER__TEMPLATE is empty${NOCOLOR}" && return 1
 	[[ -z $ASICMINER_URL ]] && echo -e "${YELLOW}ASICMINER__URL is empty${NOCOLOR}" && return 1
 
+	pools_count=1
+	if [[ -n $ASICMINER_TEMPLATE2 || -n $ASICMINER_URL2 ]]; then
+		pools_count=2
+	fi
+	if [[ -n $ASICMINER_TEMPLATE3 || -n $ASICMINER_URL3 ]]; then
+		pools_count=3
+	fi
+
+	#use first pool on ASICMINER_URL, if not epmty ASICMINER_URL2 and ASICMINER_URL3
+	#use first and second pool on ASICMINER_URL, if not epmty ASICMINER_URL2 and empty ASICMINER_URL3
 	pools='[]'
+	first_url_count=3
 	for url in $ASICMINER_URL; do
 		pool='{}'
 		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}'`
@@ -35,7 +46,23 @@ function config_gen() {
 		#[[ ! -z $ASICMINER_PASS ]] &&
 		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}'`
 		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
+		[[ $first_url_count == $pools_count ]] && break
+		(( first_url_count-- ))
 	done
+	if [[ -n $ASICMINER_TEMPLATE2 || -n $ASICMINER_URL2 ]]; then
+		pool='{}'
+		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}'`
+		pool=`jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}'`
+		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}'`
+		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
+	fi
+	if [[ -n $ASICMINER_TEMPLATE3 || -n $ASICMINER_URL3 ]]; then
+		pool='{}'
+		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}'`
+		pool=`jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}'`
+		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}'`
+		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
+	fi
 
 	pools=`jq --null-input --argjson pools "$pools" '{$pools}'`
 
@@ -71,8 +98,8 @@ function config_gen() {
 	fi
 #innosilicon A5/A8 end
 
-#	echo "$pools" | jq .
-
+echo "$pools" | jq .
+echo "===="
 
 if [[ $ASIC_MODEL == "Antminer S9k" ]]; then
 	config_global='{
