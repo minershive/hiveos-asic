@@ -199,7 +199,8 @@ upgrade_ro() {
 }
 
 case "$ASIC_MODEL" in
-	'Antminer S9'*)		upgrade_s9;;
+	'Antminer S9'*		|\
+	'Antminer S10'*)	upgrade_s9;;
 
 	'Antminer S9k'*		|\
 	'Antminer S9SE'*	|\
