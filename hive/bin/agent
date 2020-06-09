@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.17'
+readonly script_version='0.2.18'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -627,7 +627,7 @@ function do_command {
 
 	local command_log cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
-	local -i exitcode
+	local -i exitcode time_limit
 	#local TMUX	# let's test it later
 
 	# code
@@ -706,11 +706,12 @@ function do_command {
 			if [[ "${exec:0:2}" == ':;' ]]; then
 				exectimeout='nohup bash -c' # no time limit at all
 			else
+				(( time_limit = 60 * 60 * 3 ))	# 3 hrs
 				# shellcheck disable=SC2076
 				if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
-					exectimeout='nohup timeout 360 bash -c' # 6m limit for any command
+					exectimeout="nohup timeout $time_limit bash -c"
 				else
-					exectimeout='nohup timeout -t 360 bash -c'
+					exectimeout="nohup timeout -t $time_limit bash -c"
 				fi
 			fi
 
