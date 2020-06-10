@@ -1,202 +1,202 @@
 #!/bin/sh -e
 
+
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+
+
+readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
+readonly script_version='0.1'
+readonly script_basename="$( basename "$0" )"
+
+
+# !!! sh -e
+
+
+# functions
+
+at_exit () {
+	rm -rf "$file" || true
+	umount "$file.boot" 2>/dev/null || true
+	rmdir "$file.boot" 2>/dev/null || true
+	sync
+	if [ -z "$ok" ]; then
+		echo 'Client: firmware upgrade unexpectedly interrupted'
+	fi
+}
+
+upgrade_l3 () {
+	curl --fail --insecure "$URL" | tar xvz
+	if [ -f runme.sh ]; then
+		sh runme.sh
+	else
+		if [ -e /dev/mmcblk0p3 ]; then
+			mkdir "$file.boot"
+			mount /dev/mmcblk0p1 "$file.boot"
+			cp -rf ./* "$file.boot/"
+			umount "$file.boot"
+			sync
+		fi
+		if [ -e /dev/mtd8 ]; then
+			if [ -f initramfs.bin.SD ]; then
+				echo '> Flashing romfs...'
+				flash_eraseall /dev/mtd8 >/dev/null 2>&1
+				nandwrite -p /dev/mtd8 initramfs.bin.SD >/dev/null 2>&1
+			fi
+
+			if [ -f uImage.bin ]; then
+				echo '> Flashing kernel...'
+				flash_eraseall /dev/mtd7 2>/dev/null
+				nandwrite -p /dev/mtd7 uImage.bin 2>/dev/null
+			fi
+		fi
+	fi
+
+	ok=1
+	echo
+	echo 'Flashing done'
+
+	sleep 1
+	/sbin/reboot -f
+}
+
+upgrade_s9 () {
+#	rm -rf /config/hive/hive
+	rm -rf /hive
+	for f in /tmp/*; do
+		if [ -d "$f" ] && [ ! -L "$f" ]; then
+			rm -rf "$f"
+		fi
+	done
+
+	#exec 2>"$own_log"
+	curl --fail --insecure "$URL" | tar xvz
+	if [ ! -f ubi_info ]; then
+		echo -e "${RED}Client: Incorrect firmware${NOCOLOR}"
+		rm /tmp/*
+		exit 1
+	else
+		if [ ! -d /mnt/config ]; then
+			mkdir /mnt/config
+		fi
+		ubiattach /dev/ubi_ctrl -m 2
+		mount -t ubifs ubi1:rootfs /mnt/config
+		if [ ! -d /mnt/config/home/usr_config ]; then
+			mkdir /mnt/config/home/usr_config
+		fi
+
+		sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
+		cat >> /config/network.conf <<-FILEEOF
+			### HIVE HECK ###
+			if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
+				ln -s /config/hive/hive-config /hive-config
+				export PATH=$PATH:/hive/bin:/hive/sbin
+				export LD_LIBRARY_PATH=/hive/lib
+				cp -rf /hive/share/S9/S69hive /etc/rcS.d/
+				cp -rf /hive/share/S9/.profile /home/root/
+				/hive/bin/hive
+			fi
+		FILEEOF
+
+		if [ "${#FARM_HASH}" -eq 40 ]; then
+			echo "$FARM_HASH" > /config/FARM_HASH
+		fi
+		if [ -n "$HIVE_HOST_URL" ]; then
+			echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
+		fi
+		sync
+		cp -r /config/* /mnt/config/home/usr_config/
+		umount /mnt/config
+		ubidetach -d 1 /dev/ubi_ctrl
+		if [ -f runme.sh ]; then
+			sh runme.sh
+			echo -e "${GREEN}Client: Firmware upgrade complete. Rebooting...${NOCOLOR}"
+		else
+			echo -e "${RED}Client: Incorrect firmware${NOCOLOR}"
+			exit 1
+		fi
+	fi
+
+	#cat "$own_log"
+	ok=1
+	sleep 1
+	/sbin/reboot -f
+}
+
+upgrade_ro () {
+	sync && echo 3 > /proc/sys/vm/drop_caches
+	[ -e /nvdata/latest.tar.gz ] && rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1
+
+	exec 2>"$own_log"
+
+	if [ "${#FARM_HASH}" -eq 40 ]; then
+		echo "$FARM_HASH" > /config/FARM_HASH
+	fi
+	if [ -n "$HIVE_HOST_URL" ]; then
+		echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
+	fi
+	sync
+
+	curl --silent --fail --insecure "$URL" | tar xvz
+
+	# hide upgrade scripts, version file and certificates
+	for this_file in /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade_clear.cgi \
+					/etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem; do
+		[ -f "$this_file" ] && { mv "$this_file" "${this_file}-disabled" || true; }
+	done
+
+	sh runme.sh
+
+	ant_result=$( cat "$own_log" || true )
+	if [ -z "$ant_result" ]; then
+		echo 'Client: firmware upgrade done. Rebooting...'
+		# TODO should we fork the reboot to bg? so the agent can send a message to server?
+		sleep 10
+		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
+	else
+		echo -e "$ant_result"
+
+		# unhide upgrade scripts, version file and certificates
+		for this_file in /etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem \
+						/www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade_clear.cgi; do					
+			[ -f "$this_file" ] && { mv "${this_file}-disabled" "$this_file" || true; }
+		done
+	fi
+
+	ok=1
+	#cat "$own_log"
+}
+
+
+# main
+
+source colors
+
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
-[ -e "/usr/bin/compile_time" ] && ASIC_MODEL=`sed -n 2p /usr/bin/compile_time` #Antminer
+[ -e /usr/bin/compile_time ] && ASIC_MODEL=$( sed -n 2p /usr/bin/compile_time ) #Antminer
 
 sync && echo 3 > /proc/sys/vm/drop_caches
 
+own_log="/tmp/$script_basename.log"
 URL="$1"
 #curl "$URL" | tar xvz
-filename=$(echo "$URL" | awk -F \/ '{print $NF}')
+filename=$( echo "$URL" | awk -F \/ '{print $NF}' )
 # get FARM_HASH from a firmware's filename
-FARM_HASH=$(echo "$filename" | awk -F \- '{print $NF}' | sed s/.tar.gz//)
-HIVE_HOST_URL=$(echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/)
-du -h /tmp/* /var/log/ | grep M | awk '{print $2}' | xargs rm -rf
+FARM_HASH=$( echo "$filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )
+HIVE_HOST_URL=$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )
 
-upgrade_l3() {
-file=/tmp/$$
-trap atexit 0
-
-atexit() {
-        rm -rf $file
-        umount $file.boot 2>/dev/null || true
-        rmdir $file.boot 2>/dev/null || true
-        sync
-        if [ ! $ok ]; then
-            print "Client: System upgrade failed"
-        fi
-}
+# remove huge temp files (1M and up)
+du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' | xargs rm -rf
 
 
-mkdir $file
-cd $file
-curl -f --insecure "$URL" | tar xvz
-if [ -f runme.sh ]; then
-        sh runme.sh
-else
-    if [ -e /dev/mmcblk0p3 ]; then
-                mkdir $file.boot
-        mount /dev/mmcblk0p1 $file.boot
-        cp -rf * $file.boot/
-        umount $file.boot
-        sync
-        fi
-        if [ -e /dev/mtd8 ]; then
-                if [ -f initramfs.bin.SD ]; then
-                        echo "flash romfs"
-                        flash_eraseall /dev/mtd8 >/dev/null 2>&1
-                        nandwrite -p /dev/mtd8 initramfs.bin.SD >/dev/null 2>&1
-                fi
+file="/tmp/$$"
+mkdir "$file"
+cd "$file"
+trap at_exit 0
 
-                if [ -f uImage.bin ]; then
-                        echo "flash kernel"
-                        flash_eraseall /dev/mtd7 2>/dev/null
-                        nandwrite -p /dev/mtd7 uImage.bin 2>/dev/null
-                fi
-        fi
-fi
-
-ok=1
-echo
-echo "done"
-
-sleep 1; /sbin/reboot -f
-
-}
-
-upgrade_s9() {
-#    rm -rf /config/hive/hive
-    rm -rf /hive
-    for f in /tmp/*; do
-        if [[ -d "$f" && ! -L "$f" ]]; then
-            rm -rf $f
-        fi
-    done
-
-    file=/tmp/$$
-    mkdir $file
-    cd $file
-
-    trap atexit 0
-    atexit() {
-        rm -rf $file
-        umount $file.boot 2>/dev/null || true
-        rmdir $file.boot 2>/dev/null || true
-        sync
-        if [ ! $ok ]; then
-            echo -e "Client: System upgrade failed"
-        fi
-    }
-
-    #exec 2>/tmp/upgrade_result
-    #tar zxf -
-    #tar -xvf "$filename"
-    curl -f --insecure "$URL" | tar xvz
-    if [ ! -f ubi_info ]; then
-        echo -e "${RED}Client: Incorrect firmware!!!${NOCOLOR}"
-        rm /tmp/*
-        exit 1
-    else
-        if [ ! -d /mnt/config ]; then
-            mkdir /mnt/config
-        fi
-        ubiattach /dev/ubi_ctrl -m 2
-        mount -t ubifs ubi1:rootfs /mnt/config
-        if [ ! -d /mnt/config/home/usr_config ]; then
-            mkdir /mnt/config/home/usr_config
-        fi
-
-        sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
-        cat >> /config/network.conf <<FILEEOF
-### HIVE HECK ###
-if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
-  ln -s /config/hive/hive-config /hive-config
-  export PATH=$PATH:/hive/bin:/hive/sbin
-  export LD_LIBRARY_PATH=/hive/lib
-  cp -rf /hive/share/S9/S69hive /etc/rcS.d/
-  cp -rf /hive/share/S9/.profile /home/root/
-  /hive/bin/hive
-fi
-FILEEOF
-
-        if [ "$(echo "$FARM_HASH" | wc -c)" -eq 41 ]; then
-            echo "$FARM_HASH" > /config/FARM_HASH
-        fi
-        if [ ! -z "$HIVE_HOST_URL" ]; then
-            echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
-        fi
-        sync
-        cp -r /config/* /mnt/config/home/usr_config/
-        umount /mnt/config
-        ubidetach -d 1 /dev/ubi_ctrl
-        if [ -f runme.sh ]; then
-            sh runme.sh
-            echo -e "${GREEN}Client: Firmware upgrade complete. Rebooting...${NOCOLOR}"
-        else
-            echo -e "${RED}Client: Incorrect firmware!!!${NOCOLOR}"
-            exit 1
-        fi
-    fi
-    #cat /tmp/upgrade_result
-    ok=1
-    sleep 1; /sbin/reboot -f
-}
-
-upgrade_ro() {
-    sync && echo 3 > /proc/sys/vm/drop_caches
-    [ -e "/nvdata/latest.tar.gz" ] && rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1
-    file=/dev/$$
-    trap atexit 0
-    atexit() {
-        rm -rf $file
-        umount $file.boot 2>/dev/null || true
-        rmdir $file.boot 2>/dev/null || true
-        sync
-        if [ ! $ok ]; then
-            echo -e "Client: firmware upgrade unexpectedly interrupted"
-        fi
-    }
-
-    exec 2>/tmp/upgrade_result
-    mkdir $file
-    cd $file
-
-    if [ "$(echo "$FARM_HASH" | wc -c)" -eq 41 ]; then
-        echo "$FARM_HASH" > /config/FARM_HASH
-    fi
-    if [ ! -z "$HIVE_HOST_URL" ]; then
-        echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
-    fi
-    sync
-
-    curl -s -f --insecure "$URL" | tar xvz
-
-    # hide upgrade scripts, version file and certificate
-    [ -e /www/pages/cgi-bin/upgrade.cgi ] && { mv /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade.cgi-disabled || true; }
-    [ -e /www/pages/cgi-bin/upgrade2.cgi ] && { mv /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade2.cgi-disabled || true; }
-    [ -e /www/pages/cgi-bin/upgrade2.cgi ] && { mv /www/pages/cgi-bin/upgrade_clear.cgi /www/pages/cgi-bin/upgrade_clear.cgi-disabled || true; }
-    [ -e /etc/ant_version ] && { mv /etc/ant_version /etc/ant_version-disabled || true; }
-    [ -e /etc/bitmain-pub.pem ] && { mv /etc/bitmain-pub.pem /etc/bitmain-pub.pem-disabled || true; }
-
-    sh runme.sh
-
-    ant_result=$( cat /tmp/upgrade_result || true )
-    if [ -z "$ant_result" ]; then
-        echo -e "Client: firmware upgrade done. Rebooting..."
-	# TODO should we fork the reboot to bg? so the agent can send a message to server?
-        sleep 10; sh /www/pages/cgi-bin/reboot.cgi || sleep 5; /sbin/reboot -f
-    else
-        echo -e "$ant_result"
-	# unhide upgrade scripts, version file and certificate
-	[ -e /etc/bitmain-pub.pem-disabled ] && { mv /etc/bitmain-pub.pem-disabled /etc/bitmain-pub.pem || true; }
-	[ -e /etc/ant_version-disabled ] && { mv /etc/ant_version-disabled /etc/ant_version || true; }
-	[ -e /www/pages/cgi-bin/upgrade_clear.cgi-disabled ] && { mv /www/pages/cgi-bin/upgrade_clear.cgi-disabled /www/pages/cgi-bin/upgrade_clear.cgi || true; }
-	[ -e /www/pages/cgi-bin/upgrade2.cgi-disabled ] && { mv /www/pages/cgi-bin/upgrade2.cgi-disabled /www/pages/cgi-bin/upgrade2.cgi || true; }
-	[ -e /www/pages/cgi-bin/upgrade.cgi-disabled ] && { mv /www/pages/cgi-bin/upgrade.cgi-disabled /www/pages/cgi-bin/upgrade.cgi || true; }
-    fi
-    ok=1
-    #cat /tmp/upgrade_result
-}
 
 case "$ASIC_MODEL" in
 	'Antminer S9'*		|\
@@ -211,4 +211,6 @@ case "$ASIC_MODEL" in
 	'Antminer X17'*)	upgrade_ro;;
 
 	'Antminer L3'*)		upgrade_l3;;
+
+	*)					echo "$ASIC_MODEL not supported, exiting"; exit 1;;
 esac
