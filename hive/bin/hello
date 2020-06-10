@@ -142,12 +142,11 @@ boot_POSIX_time="$( awk '/btime/{print $2}' /proc/stat )"
 
 if [[ "$mb_product" =~ 'Toddminer C1' ]]; then
 	ips_json="[\""`ifconfig eth0 | grep 'inet ' | awk '{ print $2 }'`"\"]"
-	net_interfaces_json=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | grep -v sit0 | awk '{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq -sc .`
 else
 	ips_json="[\""`ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}'`"\"]"
-	net_interfaces_json=`ip -o link | grep -vE 'LOOPBACK|POINTOPOINT' | awk '{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq -sc .`
 fi
 
+net_interfaces_json="$( ip -o link | awk '!/LOOPBACK|POINTOPOINT|NOARP/{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq -sc . )"
 cpu_model="$( grep -m1 '^model name' /proc/cpuinfo | sed 's/model name[ :\t]*//g' )"
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'
 #[[ -n "$cpu_hardware" ]] && cpu_model="$cpu_model ($cpu_hardware)"
