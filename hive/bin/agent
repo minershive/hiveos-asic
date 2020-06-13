@@ -549,12 +549,12 @@ function loop {
 	fi
 
 	HIVE_URL="$HIVE_HOST_URL"
-	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index for original HIVE_HOST_URL
+	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index is for an original HIVE_HOST_URL
 	# !!! duct tape
-	# protection measures -- we might don't have https on the vast majority of ASICs
+	# protection measures -- we don't have https on the vast majority of ASICs
 	if [[ "$HIVE_URL" =~ ^https:// ]]; then
 		log_line warning "API Server $HIVE_URL is not supported, most likely"
-		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for a http form of https'ed HIVE_HOST_URL
+		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for an http form of https'ed HIVE_HOST_URL
 		if (( https_disabled_message_sent == 0 )); then
 			cp "$RIG_CONF" "${RIG_CONF}.original"
 			sed -i 's|HIVE_HOST_URL="https://|HIVE_HOST_URL="http://|' "$RIG_CONF"
