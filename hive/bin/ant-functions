@@ -235,7 +235,7 @@ function send_hiveon_config {
 		exit 0
 	fi
 
-	hiveon_config=$(cat /config/config.conf | jq -Rrnc 'inputs | match("(.*)=(.*)") | .captures | {(.[0].string): (.[1].string)}' | jq -s add)
+	hiveon_config=$(cat /config/config.conf | tr -d $'\r' | jq -Rrnc 'inputs | match("(.*)=(.*)") | .captures | {(.[0].string): (.[1].string)}' | jq -s add)
 
 	request="$( jq -n \
 		--arg rig_id "$RIG_ID" \
@@ -243,9 +243,9 @@ function send_hiveon_config {
 		--argjson hiveon_config "$hiveon_config" \
 		'{
 			"method": "set_asic_config", "jsonrpc": "2.0", "id": 0,
-			"config": $hiveon_config,
 			"params": {
-				$rig_id, $passwd
+				$rig_id, $passwd,
+				"config": $hiveon_config
 			}
 		}'
 	)"
