@@ -626,7 +626,7 @@ function do_command {
 	# vars
 
 	local command_log cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
-	local config justwrite line NEW_PASSWD request response error wallet
+	local config justwrite line NEW_PASSWD request response error wallet asic
 	local -i exitcode time_limit
 	#local TMUX	# let's test it later
 
@@ -866,6 +866,24 @@ function do_command {
 			fi
 		;;
 
+		'asic')
+			hiveon_config="$( jq '.asic' --raw-output <<< "$body" )"
+			if [[ -n "$hiveon_config" && "$hiveon_config" != 'null' ]]; then
+				echo "$hiveon_config" > "$HIVEON_CONF"
+#				grep -v '^_' "$HIVEON_CONF" > "$ASIC_CONF" #open after test
+				sync
+#				/hive/bin/miner restart #open after test
+				if (( $? == 0 )); then
+					message ok "ASIC config changed, miner restarted" --id="$cmd_id"
+				else
+					message warn "Error restarting miner" --id="$cmd_id"
+				fi
+			else
+				message error "No \"ASIC\" config given" --id="$cmd_id"
+			fi
+		;;
+
+
 		*)
 			log_line error "Unknown command received: '$command'"
 		;;
@@ -878,6 +896,8 @@ function do_command {
 
 declare -r RIG_CONF='/hive-config/rig.conf'
 declare -r WALLET_CONF='/hive-config/wallet.conf'
+declare -r HIVEON_CONF='/hive-config/hiveon.conf'
+declare -r ASIC_CONF='/config/config.conf'
 declare -r miner_API_host='localhost'
 declare -r -i miner_API_port=4028
 declare -r -i default_push_interval=10

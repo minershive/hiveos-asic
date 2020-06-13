@@ -221,6 +221,70 @@ function hiveon_voltage {
 	echo $voltage_list
 }
 
+#send hiveon config
+function send_hiveon_config {
+	#
+	# Usage: send_hiveon_config
+	#
+
+	local request hiveon_config
+
+	source "$RIG_CONF"
+	if [[ -z "$RIG_ID" ]]; then
+		echo "No RIG_ID, skipping sending config"
+		exit 0
+	fi
+
+	hiveon_config=$(cat /config/config.conf | jq -Rrnc 'inputs | match("(.*)=(.*)") | .captures | {(.[0].string): (.[1].string)}' | jq -s add)
+
+	request="$( jq -n \
+		--arg rig_id "$RIG_ID" \
+		--arg passwd "$RIG_PASSWD" \
+		--argjson hiveon_config "$hiveon_config" \
+		'{
+			"method": "set_asic_config", "jsonrpc": "2.0", "id": 0,
+			"config": $hiveon_config,
+			"params": {
+				$rig_id, $passwd
+			}
+		}'
+	)"
+	jq '.' -c <<< "$request"
+
+#duplicate code
+	HIVE_URL="$HIVE_HOST_URL"
+	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index for original HIVE_HOST_URL
+	# !!! duct tape
+	# protection measures -- we might don't have https on the vast majority of ASICs
+	if [[ "$HIVE_URL" =~ ^https:// ]]; then
+		echo "API Server $HIVE_URL is not supported, most likely"
+		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for a http form of https'ed HIVE_HOST_URL
+#		if (( https_disabled_message_sent == 0 )); then
+#			cp "$RIG_CONF" "${RIG_CONF}.original"
+#			sed -i 's|HIVE_HOST_URL="https://|HIVE_HOST_URL="http://|' "$RIG_CONF"
+#			echo "Server URL with HTTPS might not be supported on this ASIC. It's recommended to switch to HTTP (Settings->Mirror select)"
+#			mv "${RIG_CONF}.original" "$RIG_CONF"
+#			https_disabled_message_sent=1
+#		fi
+	fi
+
+	for this_URL in "${HIVE_URL_collection[@]}"; do
+		echo "Sending stats to ${this_URL}..."
+		response="$( jq '.' -c <<< "$request" |
+			curl --insecure --location --data @- \
+			--connect-timeout 15 --max-time 25 --silent --fail \
+			-XPOST "${this_URL}/worker/api?id_rig=$RIG_ID&method=set_asic_config" -H 'Content-Type: application/json'
+		)"
+		exitcode=$?
+		if (( exitcode )); then
+			echo "Error sending stats (curl error $exitcode), trying next URL..."
+		else
+			break
+		fi
+	done
+
+}
+
 
 source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
 
@@ -237,6 +301,17 @@ declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 declare -r -i exitcode_IS_EQUAL=0
 declare -r -i exitcode_GREATER_THAN=1
 declare -r -i exitcode_LESS_THAN=2
+declare -r RIG_CONF='/hive-config/rig.conf'
+declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
+	[2]='http://api.hiveos.farm'
+	[3]='http://paris.hiveos.farm'
+	[4]='http://amster.hiveos.farm'
+	[5]='http://helsinki.hiveos.farm'
+	[6]='http://msk.hiveos.farm'
+	[7]='http://ca1.hiveos.farm'
+)
+declare -i https_disabled_message_sent=0
+
 
 # main
 

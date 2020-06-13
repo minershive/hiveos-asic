@@ -924,6 +924,7 @@ function sync_time_via_hive_server { # not used atm
 #
 # checkup:is_it_the_past
 # checkup:is_memory_full
+# checkup:is_config_sync
 # checkup:is_build_updated
 # checkup:is_virus_found
 # checkup:is_NAND_in_RO_mode
@@ -1002,6 +1003,20 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 	fi
 
 	return $(( is_something_happened ))
+}
+
+function checkup:is_config_sync {																	(( script_debug )) && debugcho
+
+	local -r HIVEON_CONF='/hive-config/hiveon.conf'
+	local -r ASIC_CONF='/config/config.conf'
+
+	if [[ -e "$HIVEON_CONF" ]] && ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
+		sleep 1
+		if ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
+			cp -f "$ASIC_CONF" "$HIVEON_CONF"
+			ant-functions send_hiveon_config
+		fi
+	fi
 }
 
 function checkup:is_build_updated {																	(( script_debug )) && debugcho
@@ -1643,6 +1658,7 @@ declare -r -a crontab=(
 	'* * * * *		checkup:is_virus_found'
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
+	'* * * * *		checkup:is_config_sync'
 	'*/5 * * * *	execute:agent_screen_dontattach'
 	'@hourly		checkup:is_NAND_in_RO_mode'
 	'@hourly		execute:cache_hive_ip'
