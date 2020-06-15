@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.33.0'
+declare -r hive_functions_lib_version='0.34.0'
 #                                        ^^ current number of public functions
 
 
@@ -566,6 +566,14 @@ function set_variable_in_file {
 #
 # functions: date & time
 #
+
+function get_system_boot_time_in_seconds {
+	#
+	# Usage: get_system_boot_time_in_seconds
+	#
+
+	awk '/btime/{print $2}' /proc/stat
+}
 
 function get_current_system_time_in_seconds {
 	#
