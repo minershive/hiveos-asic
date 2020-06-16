@@ -221,6 +221,20 @@ function hiveon_voltage {
 	echo $voltage_list
 }
 
+#set default hiveon config
+function hiveon_default_config {
+	#
+	# Usage: hiveon_default_config
+	#
+
+	if [ -e "/etc/config.conf.e" ]; then
+		cp -rf "/etc/config.conf.e" "/config/config.conf"
+		ant-functions send_hiveon_config
+		miner restart
+	fi
+}
+
+
 #send hiveon config
 function send_hiveon_config {
 	#
@@ -282,6 +296,8 @@ function send_hiveon_config {
 			break
 		fi
 	done
+
+	message info "Firmware config changed"
 
 }
 
