@@ -869,13 +869,11 @@ function do_command {
 		'asic')
 			hiveon_config="$( jq '.asic' --raw-output <<< "$body" )"
 			if [[ -n "$hiveon_config" && "$hiveon_config" != 'null' ]]; then
-###				echo "$hiveon_config" > "$HIVEON_CONF"
 				grep -v '^_' <<< "$hiveon_config" > "$HIVEON_CONF"
 				grep -v '^_' <<< "$hiveon_config" > "$ASIC_CONF"
 				grep '^_' <<< "$hiveon_config" > "$HIVEON_CONF_VOLT"
-###				grep -v '^_' "$HIVEON_CONF" > "$ASIC_CONF" #open after test
 				sync
-#				/hive/bin/miner restart #open after test
+				/hive/bin/miner restart
 				if (( $? == 0 )); then
 					message ok "ASIC config changed, miner restarted" --id="$cmd_id"
 				else
