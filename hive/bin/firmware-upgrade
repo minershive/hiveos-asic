@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1'
+readonly script_version='0.1.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -19,9 +19,9 @@ readonly script_basename="$( basename "$0" )"
 # functions
 
 at_exit () {
-	rm -rf "$file" || true
-	umount "$file.boot" 2>/dev/null || true
-	rmdir "$file.boot" 2>/dev/null || true
+	rm -rf "$directory_to_unpack_fw" || true
+	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
+	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	sync
 	if [ -z "$ok" ]; then
 		echo 'Client: firmware upgrade unexpectedly interrupted'
@@ -34,10 +34,10 @@ upgrade_l3 () {
 		sh runme.sh
 	else
 		if [ -e /dev/mmcblk0p3 ]; then
-			mkdir "$file.boot"
-			mount /dev/mmcblk0p1 "$file.boot"
-			cp -rf ./* "$file.boot/"
-			umount "$file.boot"
+			mkdir "$directory_to_unpack_fw.boot"
+			mount /dev/mmcblk0p1 "$directory_to_unpack_fw.boot"
+			cp -rf ./* "$directory_to_unpack_fw.boot/"
+			umount "$directory_to_unpack_fw.boot"
 			sync
 		fi
 		if [ -e /dev/mtd8 ]; then
@@ -66,8 +66,8 @@ upgrade_l3 () {
 upgrade_s9 () {
 #	rm -rf /config/hive/hive
 #	rm -rf /hive ## no longer needed after cleaning /tmp
-	for f in /tmp/*; do
-		if [ -d "$f" ] && [ ! -L "$f" ]; then
+	for this_directory in /tmp/*; do
+		if [ -d "$this_directory" ] && [ ! -L "$this_directory" ] && [ "$this_directory" != "$directory_to_unpack_fw" ]; then
 			rm -rf "$f"
 		fi
 	done
@@ -183,18 +183,18 @@ sync && echo 3 > /proc/sys/vm/drop_caches
 own_log="/tmp/$script_basename.log"
 URL="$1"
 #curl "$URL" | tar xvz
-filename=$( echo "$URL" | awk -F \/ '{print $NF}' )
+firmware_filename=$( echo "$URL" | awk -F \/ '{print $NF}' )
 # get FARM_HASH from a firmware's filename
-FARM_HASH=$( echo "$filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )
+FARM_HASH=$( echo "$firmware_filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )
 HIVE_HOST_URL=$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )
 
 # remove huge temp files (1M and up)
 du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' | xargs rm -rf
 
 
-file="/tmp/$$"
-mkdir "$file"
-cd "$file"
+directory_to_unpack_fw="/tmp/$$"
+mkdir "$directory_to_unpack_fw"
+cd "$directory_to_unpack_fw"
 trap at_exit 0
 
 
