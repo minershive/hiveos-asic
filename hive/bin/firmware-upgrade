@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.2'
+readonly script_version='0.1.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -17,16 +17,6 @@ readonly script_basename="$( basename "$0" )"
 
 
 # functions
-
-at_exit () {
-	rm -rf "$directory_to_unpack_fw" || true
-	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
-	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
-	sync
-	if [ -z "$ok" ]; then
-		echo 'Client: firmware upgrade unexpectedly interrupted'
-	fi
-}
 
 hide_certs () {
 	# hide upgrade scripts, version file and certificates
@@ -40,14 +30,31 @@ unhide_certs () {
 	# unhide upgrade scripts, version file and certificates
 	for this_file in /etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem \
 					/www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade_clear.cgi; do					
-		[ -f "$this_file" ] && { mv "${this_file}-disabled" "$this_file" || true; }
+		[ -f "${this_file}-disabled" ] && { mv "${this_file}-disabled" "$this_file" || true; }
 	done
 }
 
+at_exit () {
+	rm -rf "$directory_to_unpack_fw" || true
+	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
+	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
+	unhide_certs
+	sync
+	if [ -z "$ok" ]; then
+		echo -e "${RED}$script_basename: Firmware upgrade unexpectedly interrupted${NOCOLOR}"
+		if [ -s /tmp/upgrade_result ]; then
+			echo '> runme.sh log:'
+			cat /tmp/upgrade_result
+		fi
+	fi
+}
+
 upgrade_l3 () {
-	curl --fail --insecure "$URL" | tar xvz
+	curl --silent --fail --insecure "$URL" | tar xvz
 	if [ -f runme.sh ]; then
+		echo '> Executing runme.sh...'
 		sh runme.sh
+		echo '> runme.sh finished'
 	else
 		if [ -e /dev/mmcblk0p3 ]; then
 			mkdir "$directory_to_unpack_fw.boot"
@@ -73,7 +80,7 @@ upgrade_l3 () {
 
 	ok=1
 	echo
-	echo 'Flashing done'
+	echo '> Flashing done'
 
 	sleep 1
 	/sbin/reboot -f
@@ -88,10 +95,10 @@ upgrade_s9 () {
 		fi
 	done
 
-	#exec 2>"$own_log"
-	curl --fail --insecure "$URL" | tar xvz
+	#exec 2>"$error_log"
+	curl --silent --fail --insecure "$URL" | tar xvz
 	if [ ! -f ubi_info ]; then
-		echo -e "${RED}Client: Incorrect firmware${NOCOLOR}"
+		echo -e "${RED}$script_basename: Incorrect firmware${NOCOLOR}"
 		rm /tmp/*
 		exit 1
 	else
@@ -129,15 +136,17 @@ upgrade_s9 () {
 		ubidetach -d 1 /dev/ubi_ctrl
 		if [ -f runme.sh ]; then
 			hide_certs
+			echo '> Executing runme.sh...'
 			sh runme.sh
-			echo -e "${GREEN}Client: Firmware upgrade complete. Rebooting...${NOCOLOR}"
+			echo '> runme.sh finished'
+			echo -e "${GREEN}$script_basename: Firmware upgrade complete. Rebooting...${NOCOLOR}"
 		else
-			echo -e "${RED}Client: Incorrect firmware${NOCOLOR}"
+			echo -e "${RED}$script_basename: Incorrect firmware${NOCOLOR}"
 			exit 1
 		fi
 	fi
 
-	#cat "$own_log"
+	#cat "$error_log"
 	ok=1
 	sleep 1
 	/sbin/reboot -f
@@ -147,7 +156,7 @@ upgrade_ro () {
 	sync && echo 3 > /proc/sys/vm/drop_caches
 	[ -e /nvdata/latest.tar.gz ] && rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1
 
-	exec 2>"$own_log"
+	exec 2>"$error_log" # redirect stderr to file
 
 	if [ "${#FARM_HASH}" -eq 40 ]; then
 		echo "$FARM_HASH" > /config/FARM_HASH
@@ -159,21 +168,20 @@ upgrade_ro () {
 
 	curl --silent --fail --insecure "$URL" | tar xvz
 	hide_certs
+	echo '> Executing runme.sh...'
 	sh runme.sh
+	echo '> runme.sh finished'
 
-	ant_result=$( cat "$own_log" || true )
-	if [ -z "$ant_result" ]; then
-		echo 'Client: firmware upgrade done. Rebooting...'
+	if [ ! -s "$error_log" ]; then
+		echo '$script_basename: Firmware upgrade done. Rebooting...'
 		# TODO should we fork the reboot to bg? so the agent can send a message to server?
 		sleep 10
 		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
 	else
-		echo -e "$ant_result"
-		unhide_certs
+		cat "$error_log"
 	fi
 
 	ok=1
-	#cat "$own_log"
 }
 
 
@@ -186,7 +194,7 @@ export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/b
 
 sync && echo 3 > /proc/sys/vm/drop_caches
 
-own_log="/tmp/$script_basename.log"
+error_log="/tmp/$script_basename.log"
 URL="$1"
 #curl "$URL" | tar xvz
 firmware_filename=$( echo "$URL" | awk -F \/ '{print $NF}' )
