@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.11'
+readonly script_version='0.6.12'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -320,7 +320,7 @@ function get_profile_id_from_json {
 	local profile_id
 
 	# code
-	if profile_id="$( jq -e -r '.profile' <<< "$input_json" 2> /dev/null )" && [[ "$profile_id" != 'null' ]]; then
+	if profile_id="$( jq -e -r '.tune_profile' <<< "$input_json" 2> /dev/null )" && [[ "$profile_id" != 'null' ]]; then
 		if is_integer "$profile_id"; then
 			echo "$profile_id"
 		else
