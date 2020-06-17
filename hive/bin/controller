@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.30'
+readonly script_version='2.1.31'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -924,7 +924,7 @@ function sync_time_via_hive_server { # not used atm
 #
 # checkup:is_it_the_past
 # checkup:is_memory_full
-# checkup:is_config_sync
+# checkup:is_configs_in_sync
 # checkup:is_build_updated
 # checkup:is_virus_found
 # checkup:is_NAND_in_RO_mode
@@ -1005,14 +1005,23 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_config_sync {																	(( script_debug )) && debugcho
+function checkup:is_configs_in_sync {																(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='info'			# error|warning|info
+
+	# consts
 
 	local -r HIVEON_CONF='/hive-config/hiveon.conf'
 	local -r ASIC_CONF='/config/config.conf'
 
+	# code
+
 	if [[ -e "$HIVEON_CONF" ]] && ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
-		sleep 1
+		snore 1
 		if ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
+			print_controller_log_entry "$event_type_for_log" "$ASIC_CONF changed, sending it to back-end..."
 			cp -f "$ASIC_CONF" "$HIVEON_CONF"
 			ant-functions send_hiveon_config
 		fi
@@ -1264,7 +1273,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 					fi
 				fi
 				if (( write_failed_FLAG )); then
-					message_header="$directory_to_check switched to read-only mode, please check"
+					message_header="Cannot write to $directory_to_check. NAND is in the read-only state, the ASIC may need a service"
 					print_controller_log_entry "$event_type_for_log" "$message_header"
 					message "$event_type_for_message" "$message_header" > /dev/null
 					set_checkup_counter "$FUNCNAME" 'message_sent' 1
@@ -1658,7 +1667,7 @@ declare -r -a crontab=(
 	'* * * * *		checkup:is_virus_found'
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
-	'* * * * *		checkup:is_config_sync'
+	'* * * * *		checkup:is_configs_in_sync'
 	'*/5 * * * *	execute:agent_screen_dontattach'
 	'@hourly		checkup:is_NAND_in_RO_mode'
 	'@hourly		execute:cache_hive_ip'
