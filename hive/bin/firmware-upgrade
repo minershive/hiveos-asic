@@ -65,7 +65,7 @@ upgrade_l3 () {
 
 upgrade_s9 () {
 #	rm -rf /config/hive/hive
-	rm -rf /hive
+#	rm -rf /hive ## no longer needed after cleaning /tmp
 	for f in /tmp/*; do
 		if [ -d "$f" ] && [ ! -L "$f" ]; then
 			rm -rf "$f"
