@@ -4,13 +4,21 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
+readonly script_mission='Client for ASICs: Messenger'
+readonly script_version='0.1.0'
+readonly script_basename="$( basename "$0" )"
+
+
+# main
+
 source colors
 
-RIG_CONF='/hive-config/rig.conf'
+[[ -z "$RIG_CONF" ]] && RIG_CONF='/hive-config/rig.conf'
+
 if [[ ! -s $RIG_CONF ]]; then
 	echo "Config file $RIG_CONF empty or not found"
 	exit 1
