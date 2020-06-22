@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.0'
+declare -r hive_functions_lib_version='0.34.1'
 #                                        ^^ current number of public functions
 
 
@@ -468,7 +468,7 @@ function get_file_size_in_bytes {
 	#
 	# Usage: get_file_size_in_bytes 'file_name'
 	#
-	# highly portable, uses ls
+	# highly portable, uses ls if no stat there
 	#
 
 	# args
@@ -482,12 +482,14 @@ function get_file_size_in_bytes {
 
 	# code
 
-	# parse ls output to array
-	# -rwxr-xr-x 1 0 0 4745 Apr  3 16:03 log-watcher.sh
-	# 0          1 2 3 4    5    6 7     8
-	if [[ -f "$file_name" ]] && ls_output_field=( $( ls -dn "$file_name" ) ); then
-		# print 5th field
-		echo "${ls_output_field[4]}"
+	if [[ -f "$file_name" ]]; then
+		# try stat first
+		if ! stat -c %s "$file_name" 2> /dev/null; then
+			# no stat, parse ls output to array then:
+			ls_output_field=( $( ls -dn "$file_name" ) ) && echo "${ls_output_field[4]}" # print 5th field
+			# -rwxr-xr-x 1 0 0 4745 Apr  3 16:03 log-watcher.sh
+			# 0          1 2 3 4    5    6 7     8
+		fi
 	else
 		errcho "$file_name not found"
 		return $(( exitcode_ERROR_NOT_FOUND ))
