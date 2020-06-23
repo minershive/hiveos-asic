@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.3'
+readonly script_version='0.1.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -20,21 +20,28 @@ readonly script_basename="$( basename "$0" )"
 
 hide_certs () {
 	# hide upgrade scripts, version file and certificates
+	echo '> Disabling cert protection...'
 	for this_file in /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade_clear.cgi \
 					/etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem; do
-		[ -f "$this_file" ] && { mv "$this_file" "${this_file}-disabled" || true; }
+		if [ -f "$this_file" ]; then
+			mv -f "$this_file" "${this_file}-disabled" || true
+		fi
 	done
 }
 
 unhide_certs () {
 	# unhide upgrade scripts, version file and certificates
+	echo '> Enabling cert protection...'
 	for this_file in /etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem \
 					/www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade_clear.cgi; do					
-		[ -f "${this_file}-disabled" ] && { mv "${this_file}-disabled" "$this_file" || true; }
+		if [ -f "${this_file}-disabled" ]; then
+			mv -f "${this_file}-disabled" "$this_file" || true
+		fi
 	done
 }
 
 at_exit () {
+	echo '> Exiting...'
 	rm -rf "$directory_to_unpack_fw" || true
 	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
@@ -50,6 +57,7 @@ at_exit () {
 }
 
 upgrade_l3 () {
+	echo "> Downloading and unpacking $URL..."
 	curl --silent --fail --insecure "$URL" | tar xvz
 	if [ -f runme.sh ]; then
 		echo '> Executing runme.sh...'
@@ -96,6 +104,7 @@ upgrade_s9 () {
 	done
 
 	#exec 2>"$error_log"
+	echo "> Downloading and unpacking $URL..."
 	curl --silent --fail --insecure "$URL" | tar xvz
 	if [ ! -f ubi_info ]; then
 		echo -e "${RED}$script_basename: Incorrect firmware${NOCOLOR}"
@@ -166,6 +175,7 @@ upgrade_ro () {
 	fi
 	sync
 
+	echo "> Downloading and unpacking $URL..."
 	curl --silent --fail --insecure "$URL" | tar xvz
 	hide_certs
 	echo '> Executing runme.sh...'
@@ -209,7 +219,7 @@ du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' | xargs rm -rf
 directory_to_unpack_fw="/tmp/$$"
 mkdir "$directory_to_unpack_fw"
 cd "$directory_to_unpack_fw"
-trap at_exit 0
+trap at_exit EXIT
 
 
 case "$ASIC_MODEL" in
