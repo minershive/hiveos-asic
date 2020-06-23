@@ -197,7 +197,7 @@ upgrade_ro () {
 
 # main
 
-source colors
+[ -e /hive/bin/colors ] && source colors
 
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
 [ -e /usr/bin/compile_time ] && ASIC_MODEL=$( sed -n 2p /usr/bin/compile_time ) #Antminer
