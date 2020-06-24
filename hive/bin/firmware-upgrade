@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.5'
+readonly script_version='0.1.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -17,6 +17,18 @@ readonly script_basename="$( basename "$0" )"
 
 
 # functions
+
+print_script_version () {
+	echo -e "${YELLOW}${script_mission}, version ${script_version}${NOCOLOR}"
+	echo
+}
+
+print_script_usage () {
+	echo -e "  Usage: ${CYAN}${script_basename} firmware-package-URL${NOCOLOR}"
+	echo
+	echo '  Firmware package, stock ot custom, must be in .tar.gz format'
+	echo
+}
 
 hide_certs () {
 	# hide upgrade scripts, version file and certificates
@@ -99,7 +111,7 @@ upgrade_s9 () {
 #	rm -rf /hive ## no longer needed after cleaning /tmp
 	for this_directory in /tmp/*; do
 		if [ -d "$this_directory" ] && [ ! -L "$this_directory" ] && [ "$this_directory" != "$directory_to_unpack_fw" ]; then
-			rm -rf "$f"
+			rm -rf "$this_directory"
 		fi
 	done
 
@@ -162,7 +174,6 @@ upgrade_s9 () {
 }
 
 upgrade_ro () {
-	sync && echo 3 > /proc/sys/vm/drop_caches
 	[ -e /nvdata/latest.tar.gz ] && rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1
 
 	exec 2>"$error_log" # redirect stderr to file
@@ -170,9 +181,11 @@ upgrade_ro () {
 	if [ "${#FARM_HASH}" -eq 40 ]; then
 		echo "$FARM_HASH" > /config/FARM_HASH
 	fi
+
 	if [ -n "$HIVE_HOST_URL" ]; then
 		echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
 	fi
+
 	sync
 
 	echo "> Downloading and unpacking $firmware_filename..."
@@ -183,7 +196,7 @@ upgrade_ro () {
 	echo '> runme.sh finished'
 
 	if [ ! -s "$error_log" ]; then
-		echo '$script_basename: Firmware upgrade done. Rebooting...'
+		echo "$script_basename: Firmware upgrade done. Rebooting..."
 		# TODO should we fork the reboot to bg? so the agent can send a message to server?
 		sleep 10
 		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
@@ -195,32 +208,45 @@ upgrade_ro () {
 }
 
 
+# consts
+
+readonly error_log="/tmp/$script_basename.log"
+
+
+# sources
+
+[ -f /hive/bin/colors ] && . colors
+
+
 # main
 
-[ -e /hive/bin/colors ] && source colors
-
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
-[ -e /usr/bin/compile_time ] && ASIC_MODEL=$( sed -n 2p /usr/bin/compile_time ) #Antminer
+[ -f /usr/bin/compile_time ] && ASIC_MODEL="$( sed -n 2p /usr/bin/compile_time )" #Antminer
 
-sync && echo 3 > /proc/sys/vm/drop_caches
+print_script_version
 
-error_log="/tmp/$script_basename.log"
+case "$1" in
+	''|'-h'|'--help')
+		print_script_usage
+		exit
+	;;
+esac
+
 URL="$1"
-#curl "$URL" | tar xvz
-firmware_filename=$( echo "$URL" | awk -F \/ '{print $NF}' )
+firmware_filename="$( echo "$URL" | awk -F \/ '{print $NF}' )"
 # get FARM_HASH from a firmware's filename
-FARM_HASH=$( echo "$firmware_filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )
-HIVE_HOST_URL=$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )
+FARM_HASH="$( echo "$firmware_filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )"
+HIVE_HOST_URL="$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )"
 
 # remove huge temp files (1M and up)
 du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' | xargs rm -rf
-
 
 directory_to_unpack_fw="/tmp/$$"
 mkdir "$directory_to_unpack_fw"
 cd "$directory_to_unpack_fw"
 trap at_exit EXIT
 
+sync && echo 3 > /proc/sys/vm/drop_caches
 
 case "$ASIC_MODEL" in
 	'Antminer S9'*		|\
