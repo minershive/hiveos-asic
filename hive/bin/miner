@@ -4,12 +4,12 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.0.4'
+readonly script_version='1.1.0'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -21,65 +21,59 @@ function script_usage {
 	echo -e "       ${CYAN}$script_basename log [kernel|status|tuning|watchdog|all]${NOCOLOR} - display a corresponding log"
 	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                                  - deprecated, please do not use"
 	echo
-	echo -e "If you run ${CYAN}$script_basename${NOCOLOR} without parameters miner screen will be tried to resume."
+	echo -e "If you run ${CYAN}$script_basename${NOCOLOR} without parameters the miner screen will be tried to resume"
 }
 
 # config functions
 
-function config-gen {
+function generate_config {
 	/hive/bin/asicminer-config
 }
 
-function echo_config_file {
-	echo -e "${YELLOW}=== $1 =================================================${NOCOLOR}"
-	cat "$1"
-	echo
-}
-
-function config {
+function print_config {
 	# shows miner config
-	logname=""
-	if [[ ! -z $CONFIG_PATH ]]; then
-		echo_config_file "${CONFIG_PATH}"
+	if [[ -n "$CONFIG_PATH" ]]; then
+		tail_any_log "$CONFIG_PATH"
 	else
 		echo "Unknown model $ASIC_MODEL"
-		return
 	fi
 }
 
 # start/stop/restart functions
 
-function start {
+function miner_start {
 	echo -e "Starting ${CYAN}$MINER${NOCOLOR} - ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
-	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
-		config-gen
+	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
+		# S9/T9 Hiveon
+		generate_config
 		rm -f /tmp/norespawn
-	elif [ -e "/www/pages/cgi-bin/resume_miner.cgi" ]; then
-		config-gen
+	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
+		# S17/T17 Hiveon
+		generate_config
 		sh /www/pages/cgi-bin/resume_miner.cgi
-	elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-		config-gen
+	elif [[ "$ASIC_MODEL" =~ 'Toddminer C1' ]]; then
+		generate_config
 		/hive/bin/todd_api mstart
 #		/home/sm/miner/build/miner.sh &
 	else
 		for i in {1..15}; do
-			test_miner="$(ps | grep -e bmminer -e cgminer -e single-board-test | grep -v 'grep' | grep -v 'systemctl')"
-			if [[ -z $test_miner ]] ; then
-				config-gen
+			test_miner="$( ps | grep -e 'bmminer' -e 'cgminer' -e 'single-board-test' | grep -v -e 'grep' -e 'systemctl' )"
+			if [[ -z "$test_miner" ]] ; then
+				generate_config
 				screen -d > /dev/null
-				if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" ]]; then
+				if [[ $ASIC_MODEL =~ '.g19' || $ASIC_MODEL == 't3.soc' ]]; then
 					systemctl start cgminer.service
-				elif [[ $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
+				elif [[ $ASIC_MODEL == 't3h+.soc' || $ASIC_MODEL == 't3+.soc' || $ASIC_MODEL == 't2th+.soc' || $ASIC_MODEL == 't2thf+.soc' || $ASIC_MODEL == 't2thl+.soc' || $ASIC_MODEL == 't2th.soc' || $ASIC_MODEL == 't2tz.soc' || $ASIC_MODEL == 't2thm.soc' || $ASIC_MODEL == 't2thf.soc' || $ASIC_MODEL == 't2t+.soc' || $ASIC_MODEL == 't2ts.soc' || $ASIC_MODEL == 't2ti.soc' || $ASIC_MODEL == 't2t.soc' ]]; then
 					systemctl start cgminer.service
 					#timeout -t 600 /hive/bin/inno_api updatePools
 					timeout -t 600 /hive/bin/inno_api updateFanspeed
 					timeout -t 600 /hive/bin/inno_api setAutoTune
-				elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
+				elif [[ $ASIC_MODEL =~ 'Zig Z1' ]]; then
 					break
-				elif [[ $ASIC_MODEL == "T4.G19" ]]; then
+				elif [[ $ASIC_MODEL == 'T4.G19' ]]; then
 					python3.4 /home/inno_tools/start_miner.py &
 				else
-					nohup /etc/init.d/$THIS_MINER_NAME.sh start > /dev/null 2>&1 &
+					nohup "/etc/init.d/$THIS_MINER_NAME.sh" start > /dev/null 2>&1 &
 				fi
 				break
 			fi
@@ -89,106 +83,71 @@ function start {
 	echo
 }
 
-function stop {
+function miner_stop {
 	echo -e "Stopping ${CYAN}$MINER${NOCOLOR} - ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
-	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
-		echo "ok" > /tmp/norespawn
-	elif [[ -e "/www/pages/cgi-bin/stop_miner.cgi" ]]; then
+	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
+		# S9/T9 Hiveon
+		echo 'ok' > /tmp/norespawn
+	elif [[ -f '/www/pages/cgi-bin/stop_miner.cgi' ]]; then
+		# S17/T17 Hiveon
 		sh /www/pages/cgi-bin/stop_miner.cgi
 	else
-		if [[ $ASIC_MODEL =~ ".g19" || $ASIC_MODEL == "t3.soc" || $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
+		if [[ $ASIC_MODEL =~ '.g19' || $ASIC_MODEL == 't3.soc' || $ASIC_MODEL == 't3h+.soc' || $ASIC_MODEL == 't3+.soc' || $ASIC_MODEL == 't2th+.soc' || $ASIC_MODEL == 't2thf+.soc' || $ASIC_MODEL == 't2thl+.soc' || $ASIC_MODEL == 't2th.soc' || $ASIC_MODEL == 't2tz.soc' || $ASIC_MODEL == 't2thm.soc' || $ASIC_MODEL == 't2thf.soc' || $ASIC_MODEL == 't2t+.soc' || $ASIC_MODEL == 't2ts.soc' || $ASIC_MODEL == 't2ti.soc' || $ASIC_MODEL == 't2t.soc' ]]; then
 			systemctl stop cgminer.service
-		elif [[ $ASIC_MODEL =~ "Zig Z1" ]]; then
+		elif [[ $ASIC_MODEL =~ 'Zig Z1' ]]; then
 			pidof miner | xargs kill -9
-		elif [[ $ASIC_MODEL == "T4.G19" ]]; then
+		elif [[ $ASIC_MODEL == 'T4.G19' ]]; then
 			killall innominer_T4
-		elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+		elif [[ $ASIC_MODEL =~ 'Toddminer C1' ]]; then
 			/hive/bin/todd_api mstop
 		else
-			/etc/init.d/$THIS_MINER_NAME.sh stop
+			"/etc/init.d/$THIS_MINER_NAME.sh" stop
 		fi
 	fi
 }
 
-function restart {
+function miner_restart {
 	echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
-	if [[ -e "/sbin/watchdog_restart.pl" ]]; then
-		config-gen
+	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
+		# S9/T9 Hiveon
+		generate_config
 		rm -f /tmp/norespawn
-		echo "ok" > /config/restart
-	elif [ -e "/www/pages/cgi-bin/resume_miner.cgi" ]; then
-		config-gen
+		echo 'ok' > /config/restart
+	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
+		# S17/T17 Hiveon
+		generate_config
 		sh /www/pages/cgi-bin/resume_miner.cgi
-	elif [ -e "/www/pages/cgi-bin/restart_miner.cgi" ]; then
-		config-gen
+	elif [ -f '/www/pages/cgi-bin/restart_miner.cgi' ]; then
+		generate_config
 		sh /www/pages/cgi-bin/restart_miner.cgi
-	elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-		start
+	elif [[ "$ASIC_MODEL" =~ 'Toddminer C1' ]]; then
+		miner_start
 	else
-		stop
-		start
+		miner_stop
+		miner_start
 	fi
 }
 
-function check_second_miner {
-	# sets MINER to MINER2 if requested
-	[[ -z $1 || $1 != "2" ]] && return #not a second miner request
 
-	[[ $1 == "2" && -z $MINER2 ]] &&
-	echo "No second miner configured" &&
-	exit 1
+# log processing functions
 
-	MINER="$MINER2" #substitute MINER var with second miner
-}
-
-# logs functions
-
-function miner_log_basename {
-	local miner="$1"
-	[[ -z $miner ]] && echo "No miner given to miner_log_basename" && return 1
-
-	if [[ ! -z $LOG_PATH ]]; then
-		log_basename="${LOG_PATH}"
+function tail_default_log {
+	# code
+	if [[ -n "$HIVEON_VER" ]]; then
+		sh /www/pages/cgi-bin/get_kernel_log.cgi # | tail -n "$lines_to_tail"
 	else
-		log_basename=""
-		echo "Unknown asic $ASIC_MODEL to miner_log_basename"
-		return 1
-	fi
-
-	echo "$log_basename"
-	return 0
-}
-
-function log_tail { # TODO should refactor to smth like print_log()
-	local TAIL_LINE=80
-	if [[ ! -z $HIVEON_VER ]]; then
-		sh /www/pages/cgi-bin/get_kernel_log.cgi | tail -n "$TAIL_LINE"
-	else
-		log_basename=`miner_log_basename $MINER`
-		if [[ $ASIC_MODEL =~ ".g19" ]]; then
-			journalctl -n "$TAIL_LINE"
-		elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
+		if [[ "$ASIC_MODEL" =~ '.g19' ]]; then
+			journalctl -n "$lines_to_tail"
+		elif [[ "$ASIC_MODEL" =~ 'Toddminer C1' ]]; then
 			/hive/bin/todd_api mlog
 		else
-			#logname="${log_basename}.log"
-			logname="${log_basename}"
-
-			if [[ ! -e "$logname" ]]; then
-				echo "Log $logname does not exist yet"
-				return
+			if [[ ! -f "$LOG_PATH" ]]; then
+				echo "Log $LOG_PATH does not exist yet"
+			elif [[ "$( get_file_size_in_bytes "$LOG_PATH" )" -le 1 ]]; then #can be 1, empty line
+				echo "Log $LOG_PATH is empty"
+			else
+				tail_any_log "$LOG_PATH"
 			fi
-
-			if [[ `ls -l $logname | awk '{print $5}'` -le 1 ]]; then #can be 1, empty line
-				echo "Log $logname is empty"
-				return
-			fi
-
-
-			echo -e "${YELLOW}=== $logname last $TAIL_LINE lines =================================================${NOCOLOR}"
-			echo "Last modified `stat -c %y $logname`"
-			echo
-			#tail -n $TAIL_LINE $logname | sed "s,$(printf '\033')\\[[0-9;]*[a-zA-Z],,g" #sed removes colors
-			tail -n "$TAIL_LINE" "$1" "$logname"
 		fi
 	fi
 }
@@ -255,15 +214,15 @@ function tail_any_log {
 				(( timespan_between_now_and_last_modified = now - last_modified_time_in_seconds ))
 				last_modified_time_dhms="$( format_date_in_seconds "$timespan_between_now_and_last_modified" 'dhms' )"
 				last_modified_time_human_readable="$( format_date_in_seconds "$last_modified_time_in_seconds" )"
-	
+
 				header="File ${WHITE}$input_file${NOCOLOR}"
 				(( is_tail )) && header+=", last ${WHITE}${tail_lines}${NOCOLOR} lines"
 				(( is_regex )) && header+=", filtered by '${WHITE}$regex_pattern${NOCOLOR}'"
-	
+
 				echo -e "${header}:"
 				echo
 			fi
-	
+
 			if (( file_size <= 1 )); then
 				echo "$input_file is empty"
 			fi
@@ -288,18 +247,52 @@ function tail_any_log {
 }
 
 function print_kernel_log {
-	local -a uptime_line
-	local -i now cputime timestamp
-	local line
+	#
+	# Usage: print_kernel_log [--print-precise-timestamps]
+	#
+	# print whole dmesg
+	# try to transform default dmesg's seconds_from_boot timestamp to the more human-readable form
 
-	if cputime="$( get_system_uptime_in_seconds )"; then
-		now="$( get_current_system_time_in_seconds )"
-		dmesg | while IFS= read -r -t 0.1 line; do
-			if [[ $line =~ ^\[\ *([0-9]+)\.[0-9]+\]\ (.*) ]]; then
-				timestamp=$(( now - cputime + BASH_REMATCH[1] ))
-				printf '%(%F %T)T %s\n' "$timestamp" "${BASH_REMATCH[2]}"
+	# args
+	local -r parameter="$1"
+
+	# consts
+	local -r dmesg_RE='^\[\ *([0-9]+)\.([0-9]{6})\]\ (.*)'
+	#                    [   47.973210] fpga mem virtual address is 0xd2000000
+
+	# vars
+	local raw_line log_message millisecond_part='000000'
+	local -i now uptime timestamp seconds_from_start line_counter
+	local -i same_millisecond_FLAG=0
+
+	# code
+	if uptime="$( get_system_uptime_in_seconds )" && now="$( get_current_system_time_in_seconds )"; then
+		dmesg | while IFS= read -r -t 0.1 raw_line; do
+			if [[ "$raw_line" =~ $dmesg_RE ]]; then
+				seconds_from_start="${BASH_REMATCH[1]}"
+				if [[ "${BASH_REMATCH[2]}" == "$millisecond_part" ]]; then
+					same_millisecond_FLAG=1
+					(( line_counter++ ))
+				else
+					same_millisecond_FLAG=0
+					(( line_counter = 0 ))
+				fi
+				millisecond_part="${BASH_REMATCH[2]}"
+				log_message="${BASH_REMATCH[3]}"
+				(( timestamp = now - uptime + seconds_from_start ))
+
+				if [[ "$parameter" == '--print-precise-timestamps' ]]; then
+					if (( same_millisecond_FLAG )); then
+						printf '%(%F %T)T.%s#%03u %s\n' "$timestamp" "$millisecond_part" "$line_counter" "$log_message"
+					else
+						printf '%(%F %T)T.%s %s\n' "$timestamp" "$millisecond_part" "$log_message"
+					fi
+				else
+					printf '%(%F %T)T %s\n' "$timestamp" "$log_message"
+				fi
+
 			else
-				echo "$line"
+				echo "$raw_line"
 			fi
 		done
 	else
@@ -308,100 +301,140 @@ function print_kernel_log {
 }
 
 function print_tune_log {
-	local -r tune_log_file='/tmp/tune_log.txt'
-	local tune_log_script
+	local -r tune_log_file_17='/tmp/tune_log.txt'
+	local -r tune_log_file_9='/tmp/auto-tune'
+	local this_tune_log_script
 
-	if [[ -s "$tune_log_file" ]]; then
-		tail_any_log -t 80 "$tune_log_file"
+	if [[ -s "$tune_log_file_17" ]]; then
+		cat "$tune_log_file_17"
+	elif [[ -s "$tune_log_file_9" ]]; then
+		cat "$tune_log_file_9"
 	else
-		for tune_log_script in '/www/pages/cgi-bin/get_auto_tune_log.cgi' '/www/pages/cgi-bin/get_tune_log.cgi'; do
-			if [[ -s "$tune_log_script" ]]; then
-				sh "$tune_log_script"
+		for this_tune_log_script in '/www/pages/cgi-bin/get_auto_tune_log.cgi' '/www/pages/cgi-bin/get_tune_log.cgi'; do
+			if [[ -s "$this_tune_log_script" ]]; then
+				sh "$this_tune_log_script"
 			fi
 		done
 	fi
 }
 
+function tail_tune_log {
+	print_tune_log | tail_any_log -t "$lines_to_tail"
+}
+
 function tail_miner_status_log {
 	local -r miner_status_log_file='/nvdata/miner_status.log'
-	tail_any_log -t 80 "$miner_status_log_file"
+	tail_any_log -t "$lines_to_tail" "$miner_status_log_file"
 }
 
 function tail_watchdog_log {
 	local -r watchdog_log_file='/config/watchdog.log'
-	tail_any_log -t 80 "$watchdog_log_file"
+	tail_any_log -t "$lines_to_tail" "$watchdog_log_file"
 }
 
 function collate_all_logs {
-	{	# !!! temporary
-		print_kernel_log | tail -n 100
-		print_tune_log | tail -n 100
-		[[ -s /nvdata/miner_status.log ]]	&& tail -n 100 /nvdata/miner_status.log
-		[[ -s /config/watchdog.log ]]		&& tail -n 100 /config/watchdog.log
+	{	# !!! duct tape, should refactor someday
+		print_kernel_log --print-precise-timestamps
+		print_tune_log
+		[[ -s /nvdata/miner_status.log ]]	&& tail -n "$lines_to_tail" /nvdata/miner_status.log
+		[[ -s /config/watchdog.log ]]		&& tail -n "$lines_to_tail" /config/watchdog.log
 	} |
-		tail_any_log -t 100 -s -r '^[0-9]'
+		tail_any_log -t "$lines_to_tail" -s -r '^[0-9]'
 }
 
 
-# main()
+# consts
 
-MINER_LOGS_BASE_DIR='/var/log/miner'
-#ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`
-MINER='asicminer'
-
-. colors
-. asic-model
-
-RIG_CONF="/hive-config/rig.conf"
-WALLET_CONF="/hive-config/wallet.conf"
+declare -r -i lines_to_tail=300
+declare -r RIG_CONF_default='/hive-config/rig.conf'
+declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+declare -r WALLET_CONF='/hive-config/wallet.conf'
 
 
-if [[ ! -f $RIG_CONF ]]; then
-	echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
+# sources
+
+source colors
+source asic-model
+
+
+# main
+
+if [[ ! -f "$RIG_CONF" ]]; then
+	echo -e "${YELLOW}Config file $RIG_CONF not found${NOCOLOR}"
+	# don't have to exit -- we simply don't have a config atm
 	#exit 1
 else
-	. "$RIG_CONF"
+	source "$RIG_CONF"
 fi
 
-[[ -e $WALLET_CONF ]] && . "$WALLET_CONF"
+if [[ ! -f "$WALLET_CONF" ]]; then
+	echo -e "${YELLOW}Wallet file $WALLET_CONF not found${NOCOLOR}"
+else
+	source "$WALLET_CONF"
+fi
 
-[[ -z $MINER ]] && MINER="asicminer" && echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
+if [[ -z "$MINER" ]]; then
+	MINER='asicminer'
+	echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
+fi
 
-#sgminer-gm is deprecated...
-miners_avail=("asicminer")
-if ! printf '%s\n' "${miners_avail[@]}" | grep -Eq '^'$MINER'$' ; then
-	echo -e "${RED}To start mining, you only have to apply a Flight Sheet${NOCOLOR}"
+# default rig.conf (before applying an any Flight Sheet) contains claymore as a defalt miner
+if [[ "$MINER" != 'asicminer' ]]; then
+	echo -e "${YELLOW}To start mining, you only have to apply a Flight Sheet${NOCOLOR}"
 	message warn 'To start mining, you only have to apply a Flight Sheet'
 	exit 1
 fi
 
 case "$1" in
-	'config')			config					;;
-	'config-gen')		config-gen				;;
-	'kernel-log')		print_kernel_log		;;		# deprecated
+	'config')			print_config		;;
+	'config-gen')		generate_config		;;
+
+	'kernel-log')		print_kernel_log	;;	# deprecated
+
 	'log')
-		case "$2" in											# TODO miner log [kernel|tuning|watchdog|all [filter=regex_pattern] [sort=none|date]]
-			'all'|'a')				collate_all_logs			;;
-			'kernel'|'k')			print_kernel_log			;;
-			'status'|'s')			tail_miner_status_log		;;
-			'tuning'|'tune'|'t')	print_tune_log				;;
-			'watchdog'|'w')			tail_watchdog_log			;;
-			*)						log_tail $2 $3				;; # supports args for tail. do we still need this???
-		esac									;;
-	'restart')			restart					;;
-	'start')			start					;;
-	'stop')				stop					;;
-	'tuning')			print_tune_log			;;		# deprecated
+		case "$2" in
+			'all')			collate_all_logs		;;
+			'kernel')		print_kernel_log		;;
+			'status')		tail_miner_status_log	;;
+			'tuning')		tail_tune_log			;;
+			'watchdog')		tail_watchdog_log		;;
+			*)				tail_default_log		;;
+		esac
+	;;
+
+	'restart')
+		miner_restart
+	;;
+
+	'start')
+		if [[ ! -s /config/stop-mining ]]; then
+			miner_start
+		else
+			rm -f /config/stop-mining
+			miner_restart
+			echo -e "${YELLOW}Emergency mode override: mining resumed${NOCOLOR}"
+			message ok 'Emergency mode override: mining resumed'
+		fi
+	;;
+
+	'stop')
+		miner_stop
+	;;
+
+	'tuning')
+		# deprecated. please use more consistent 'miner log tuning'
+		tail_tune_log
+	;;
 
 	'')
 		print_script_version
 		screen -x -S bmminer > /dev/null ||
 			screen -x -S cgminer /dev/null ||
 				echo 'No miner screen running'
-		;;
+	;;
 
 	'-h'|'--help'|*)
 		print_script_version
 		script_usage
-		;;
+	;;
 esac
