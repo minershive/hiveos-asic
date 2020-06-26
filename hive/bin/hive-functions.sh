@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.2'
+declare -r hive_functions_lib_version='0.34.3'
 #                                        ^^ current number of public functions
 
 
@@ -545,7 +545,7 @@ function set_variable_in_file {
 
 	# vars
 
-	local empty_if_newline
+	local empty_if_ends_with_newline
 
 	# code
 
@@ -556,9 +556,11 @@ function set_variable_in_file {
 			sed -i "s/^$variable_to_change=.*$/$variable_to_change=$new_value/" "$file_with_variables"
 		else
 			# no, add variable
-			empty_if_newline="$( tail -c 1 "$file_with_variables" )"
-			[[ -n "$empty_if_newline" ]] && echo >> "$file_with_variables" # add a newline first
-			echo "$variable_to_change=$new_value" >> "$file_with_variables"
+			empty_if_ends_with_newline="$( tail -c 1 "$file_with_variables" )"
+			{
+				[[ -n "$empty_if_ends_with_newline" ]] && echo # add a newline first
+				echo "$variable_to_change=$new_value"
+			} >> "$file_with_variables"
 		fi
 	else
 		return $(( exitcode_ERROR_NOT_FOUND ))
