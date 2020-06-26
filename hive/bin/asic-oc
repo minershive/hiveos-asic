@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.12'
+readonly script_version='0.6.13'
 readonly script_basename="$( basename "$0" )"
 readonly script_DEBUG=1
 
@@ -320,7 +320,7 @@ function get_profile_id_from_json {
 	local profile_id
 
 	# code
-	if profile_id="$( jq -e -r '.tune_profile' <<< "$input_json" 2> /dev/null )" && [[ "$profile_id" != 'null' ]]; then
+	if profile_id="$( jq --exit-status --raw-output 'if .tune_profile then .tune_profile else .profile end' <<< "$input_json" 2> /dev/null )" && [[ "$profile_id" != 'null' ]]; then
 		if is_integer "$profile_id"; then
 			echo "$profile_id"
 		else
@@ -345,7 +345,7 @@ function get_key_value_pairs_from_json {
 	local valid_json # this var name isn't accurate enough
 
 	# code
-	if valid_json="$( jq -r "$jq_key_value" <<< "$input_json" 2> /dev/null )" && [[ -n "$valid_json" ]]; then
+	if valid_json="$( jq --raw-output "$jq_key_value" <<< "$input_json" 2> /dev/null )" && [[ -n "$valid_json" ]]; then
 		echo "$valid_json"
 	else
 		(( script_DEBUG )) && errcho "jq error in JSON '$input_json'"
@@ -1044,7 +1044,7 @@ case "$oc_action" in
 	"$oc_action_APPLY_OC")
 		if (( script_DEBUG )); then
 			echo -n '[DEBUG] Input JSON: '
-			jq -e . <<< "$1" && echo '[DEBUG] JSON is valid' || echo '[DEBUG] JSON is NOT valid'
+			jq --exit-status '.' <<< "$1" && echo '[DEBUG] JSON is valid' || echo '[DEBUG] JSON is NOT valid'
 			echo
 		fi
 
