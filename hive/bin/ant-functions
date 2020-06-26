@@ -171,7 +171,7 @@ function hiveon_status {
 			tune_board=$(sh /www/pages/cgi-bin/check-auto-tune-running.cgi)
 		fi
 		if [ -e /www/pages/cgi-bin/check-auto-chip-tune-running.cgi ]; then
-			tune_chip=$(sh /www/pages/cgi-bin/check-auto-tune-running.cgi)
+			tune_chip=$(sh /www/pages/cgi-bin/check-auto-chip-tune-running.cgi)
 		fi
 
 		#L3 without check-auto-tune-running.cgi
