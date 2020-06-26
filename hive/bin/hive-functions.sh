@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.1'
+declare -r hive_functions_lib_version='0.34.2'
 #                                        ^^ current number of public functions
 
 
@@ -533,7 +533,8 @@ function set_variable_in_file {
 	#
 	# Usage: set_variable_in_file 'file_with_variables' 'variable_to_change' 'new_value'
 	#
-	# if variable isn't exist, add it to the end of file
+	# if the variable isn't exist, add it to the end of file
+	# if the variable is defined as empty, like 'var=', add a value to it
 
 	# args
 
@@ -550,13 +551,13 @@ function set_variable_in_file {
 
 	if [[ -s "$file_with_variables" ]]; then
 		# is variable exist?
-		if grep -Eq -e "^$variable_to_change=.+$" -- "$file_with_variables"; then
+		if grep -Eq -e "^$variable_to_change=.*$" -- "$file_with_variables"; then
 			# yes, change its value
-			sed -i "s/$variable_to_change=.*/$variable_to_change=$new_value/" "$file_with_variables"
+			sed -i "s/^$variable_to_change=.*$/$variable_to_change=$new_value/" "$file_with_variables"
 		else
 			# no, add variable
 			empty_if_newline="$( tail -c 1 "$file_with_variables" )"
-			[[ -z "$empty_if_newline" ]] || echo >> "$file_with_variables" # add a newline first
+			[[ -n "$empty_if_newline" ]] && echo >> "$file_with_variables" # add a newline first
 			echo "$variable_to_change=$new_value" >> "$file_with_variables"
 		fi
 	else
