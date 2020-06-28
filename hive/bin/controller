@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.31'
+readonly script_version='2.1.32'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -454,6 +454,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
 	local message_header message_body message_advice
+	local chain_to_repair=''
 
 	# code
 
@@ -552,14 +553,53 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/config/watchdog.log')
 
 				case "$log_message" in
-					'Tune is in progress'*		)	event_type='skip'		;;		# S9, 'Tune is in progress, wait 30 seconds...'
-					'Found'*'red chips'*		)	event_type='ok'			;;		# S9, 'Found 1 red chips, restart'
-					'Chain '*'found '*			)	event_type='info'		;;		# 17: 'Chain 1: found 1 bad domains'
-					*'domains fixed'*			)	event_type='ok'			;;
-					'Activating profile '*		)	event_type='skip'		;;		# 17, 'Activating profile 11'
+
+					'Tune is in progress'*)
+						# S9, 'Tune is in progress, wait 30 seconds...'
+						event_type='skip'
+					;;
+
+					'Found'*'red chips'*)
+						# S9, 'Found 1 red chips, restart'
+						event_type='ok'
+					;;
+
+					'Chain '*'found '*)
+						# 17: 'Chain 1: found 1 bad domains'
+						event_type='info'
+					;;
+
+					*'domains fixed'*)
+						event_type='ok'
+					;;
+
+					'Activating profile '*)
+						# 17, 'Activating profile 11'
+						event_type='skip'
+					;;
+
 					'Re-run cgminer to check temerature sensor type again!')
-													event_type='skip'		;;		# 17
-					*							)	event_type='warning'	;;
+						# 17
+						event_type='skip'
+					;;
+
+					'Possible manufacturing defects detected'*)
+						# 17 Hiveon 2.00, 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
+						if [[ -s /config/stop-mining ]]; then
+							chain_to_repair="#$( < /config/stop-mining ) "
+						fi
+						event_type='error'
+						message_header="Chain ${chain_to_repair}malfunction. Safe mode activated, mining disabled. Click for details"
+						message_advice='You see, hashboards are placed upright. Heatsinks soldered to chips using a Low Melting Point solder paste. '
+						message_advice+='Sometimes the solder melts a bit and then heatsink begins to slide down due to the gravitation. It slides '
+						message_advice+='right to the next heatsink down south and then KA-BOOM! -- a short-circuit that will ruin a whole hashboard. '
+						message_advice+='Be adviced to send the ASIC to the service.<hr>Despite the risk, you might consider to resume mining: '
+						message_advice+='just send a command <code>miner start</code>'
+					;;
+
+					*)
+						event_type='warning'
+					;;
 				esac
 				# cut milliseconds from watchdog messages like
 				# ST17: 'Total rate is 0 after 1870.000000 seconds, restart'

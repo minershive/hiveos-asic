@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.0'
+readonly script_version='1.1.1'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -410,10 +410,11 @@ case "$1" in
 		if [[ ! -s /config/stop-mining ]]; then
 			miner_start
 		else
+			chain_to_repair="#$( < /config/stop-mining ) "
 			rm -f /config/stop-mining
 			miner_restart
-			echo -e "${YELLOW}Emergency mode override: mining resumed${NOCOLOR}"
-			message ok 'Emergency mode override: mining resumed'
+			echo -e "${YELLOW}Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP${NOCOLOR}"
+			message ok "Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP"
 		fi
 	;;
 
