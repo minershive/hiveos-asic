@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.32'
+readonly script_version='2.1.33'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -586,7 +586,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					'Possible manufacturing defects detected'*)
 						# 17 Hiveon 2.00, 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
 						if [[ -s /config/stop-mining ]]; then
-							chain_to_repair="#$( < /config/stop-mining ) "
+							chain_to_repair="$( < /config/stop-mining )"
+							valid_chain_number_RE='^[0-9]+$'
+							[[ "$chain_to_repair" =~ $valid_chain_number_RE ]] && chain_to_repair="#$(( chain_to_repair - 1 )) " # chain numbers in the file are 1-based
 						fi
 						event_type='error'
 						message_header="Chain ${chain_to_repair}malfunction. Safe mode activated, mining disabled. Click for details"

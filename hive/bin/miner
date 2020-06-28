@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.1'
+readonly script_version='1.1.2'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh
 
@@ -410,7 +410,10 @@ case "$1" in
 		if [[ ! -s /config/stop-mining ]]; then
 			miner_start
 		else
-			chain_to_repair="#$( < /config/stop-mining ) "
+			chain_to_repair="$( < /config/stop-mining )"
+			valid_chain_number_RE='^[0-9]+$'
+			[[ "$chain_to_repair" =~ $valid_chain_number_RE ]] && chain_to_repair="#$(( chain_to_repair - 1 )) " # chain numbers in the file are 1-based
+
 			rm -f /config/stop-mining
 			miner_restart
 			echo -e "${YELLOW}Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP${NOCOLOR}"
