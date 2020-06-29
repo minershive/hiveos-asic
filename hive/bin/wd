@@ -9,35 +9,34 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.2.4'
+readonly script_version='0.2.5'
 readonly script_basename="$( basename "$0" )"
 
 
 # functions
 
 function load_configuration {
-	if [[ -f $RIG_CONF ]]; then
+	if [[ -f "$RIG_CONF" ]]; then
 		source "$RIG_CONF"
 	else
 		echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
 		exit 1
 	fi
 
-	if (( ! "${WD_ENABLED:-0}")); then
+	if [[ -z "$WD_ENABLED" || "$WD_ENABLED" == '0' ]]; then
 		log_line warning "Watchdog not enabled (WD_ENABLED='$WD_ENABLED'), exiting"
 		exit 0
 	fi
 
-	minhash="$( jq -r ".\"$MINER\"" <<< "$WD_MINHASHES" )"
+	minhash="$( jq --raw-output ".\"$MINER\"" <<< "$WD_MINHASHES" )"
 	if [[ -z "$minhash" || "$minhash" == 'null' ]]; then
-		message warn "Minimal hashrate for $MINER is not set"
+		message warn "Minimal hashrate for $MINER is not set. You have to configure Hashrate Watchdog"
 		log_line error "Minimal hashrate for $MINER is not set in config, exiting"
 		exit 1
 	fi
 }
 
 function set_lastgood {
-	#lastgood=`date +%s`
 	if [[ -f /run/hive/khs ]]; then
 #		lastgood=`stat -c %Y /run/hive/khs`
 #		lastgood="$( date -r /run/hive/khs +%s )"
@@ -45,7 +44,7 @@ function set_lastgood {
 	else
 		#lastgood=0 can't set it to 0, in case of boot agent may be late
 		printf -v lastgood '%(%s)T' -1 #let's count from now
-#		lastgood="$( date +%s )" 
+#		lastgood="$( date +%s )"
 	fi
 
 	miner_restart_count=0
@@ -54,11 +53,9 @@ function set_lastgood {
 function loop {
 
 	# vars
-
 	local -i khs_decimal minhash_decimal
 
 	# code
-
 	load_configuration
 
 	[[ -f /run/hive/khs ]] && khs="$( < /run/hive/khs )"
@@ -79,6 +76,15 @@ function loop {
 
 	printf -v now '%(%s)T' -1
 	(( elapsed = now - lastgood ))
+
+#
+# checking for a flag file that does indicate that mining is stopped due to some manufacturing defects
+# !!! postponed until the bug in hiveon miner will go away (sometimes it does a mining even if /config/stop-mining file exists
+#
+#	if [[ -s /config/stop-mining ]]; then
+#		log_line warning "Safe mode for $MINER activated, watchdog paused and isn't active for ${WHITE}${elapsed}${NOCOLOR} seconds"
+#		return
+#	fi
 
 	log_line warning "BARK-BARK! $MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" ) ${YELLOW}<${NOCOLOR} ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR} for ${WHITE}${elapsed}${NOCOLOR} seconds"
 
@@ -115,7 +121,7 @@ function loop {
 
 declare -r sleep_time=10 # seconds to sleep over iteration
 declare -r OK_MESSAGE_REDUCE=$(( 1 * 60 / sleep_time )) # e.g. only every 12th message will be displayed to reduce log
-declare -r RIG_CONF="/hive-config/rig.conf"
+declare -r RIG_CONF='/hive-config/rig.conf'
 
 
 # vars
@@ -136,13 +142,10 @@ set_lastgood
 case "$1" in
 	'run'|'start')
 		load_configuration
-		log_line ok "$script_mission, version $script_version started"
 
+		log_line ok "$script_mission, version $script_version started"
 		log_line info "Miner restart in ${WHITE}$WD_MINER${NOCOLOR}m and worker reboot in ${WHITE}$WD_REBOOT${NOCOLOR}m if hashrate < ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR}"
 
-#		log_line info "Mininal hashrate is ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR}"
-#		log_line info "Miner restart configured in ${WHITE}$WD_MINER${NOCOLOR} minutes"
-#		log_line info "Worker reboot configured in ${WHITE}$WD_REBOOT${NOCOLOR} minutes"
 		while true; do
 			loop
 			snore "$sleep_time"
@@ -171,7 +174,6 @@ case "$1" in
 	'log')
 		print_script_version
 		echo "TODO"
-		#journalctl -u hive-watchdog --no-pager $2 $3 $4 $5 $6 $7
 	;;
 
 	'status')
@@ -187,5 +189,6 @@ case "$1" in
 	*)
 		print_script_version
 		echo -e "Usage: ${CYAN}$script_basename start|stop|restart|log|status${NOCOLOR}"
+		echo
 	;;
 esac
