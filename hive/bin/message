@@ -6,68 +6,97 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
+# Linted by shellcheck 0.3.7
+#
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.1.0'
+readonly script_version='0.2.9'
 readonly script_basename="$( basename "$0" )"
+
+
+# vars
+
+declare HIVE_API_endpoint this_argument
+declare message_type message_header message_color
+declare id id_json payload payload_json
+declare request response
+declare file_to_send file_size
+
+
+# sources
+
+source colors
 
 
 # main
 
-source colors
-
+# you could use externally defined RIG_CONF
 [[ -z "$RIG_CONF" ]] && RIG_CONF='/hive-config/rig.conf'
 
-if [[ ! -s $RIG_CONF ]]; then
-	echo "Config file $RIG_CONF empty or not found"
+if [[ ! -s "$RIG_CONF" ]]; then
+	echo "${script_basename}> Config file $RIG_CONF empty or not found"
 	exit 1
 fi
 
 source "$RIG_CONF"
 
-HIVE_URL="$HIVE_HOST_URL/worker/api"
-#LOG="/var/log/hive-agent.log"
+HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
 
-if (( $# < 2 )); then
-	echo -e "Usage: ${CYAN}$( basename "$0" ) success|danger|warning|info|default|tag \"message\" [payload] [-i|--id=msgid] ${NOCOLOR}"
+message_type="$1"
+message_header="$2"
+
+if [[ -z "$message_type" || -z "$message_header" ]]; then
+	echo -e "Usage: ${CYAN}$script_basename success|danger|warning|info|tag \"message\" [payload] [-i|--id=msgid]${NOCOLOR}"
+	echo -e "       ${CYAN}$script_basename file /path/name"
+	echo
 	echo 'Aliases: ok|error|err|warn|default'
 	echo 'Attention: payload is read from stdin'
 	echo
 	exit 1
 fi
 
-message_type="$1"
-message_header="$2"
-
 case "$message_type" in
 	'error'|'err')
 		message_type='danger'
-		MSGCOLOR="$RED"
+		message_color="$RED"
 	;;
 
 	'warning'|'warn')
 		message_type='warning'
-		MSGCOLOR="$YELLOW"
+		message_color="$YELLOW"
 	;;
 
 	'ok'|'success')
 		message_type='success'
-		MSGCOLOR="$GREEN"
+		message_color="$GREEN"
 	;;
 
 	'tag')
-		MSGCOLOR="$PURPLE"
+		message_color="$PURPLE"
+	;;
+
+	'file')
+		file_to_send="$message_header"
+		message_header="$( basename "$file_to_send" )"
+		# if file isn't empty or it's a named pipe (for <() constructions)
+		if [[ -s "$file_to_send" || -p "$file_to_send" ]]; then
+			: ok good to go
+		else
+			echo "${script_basename}> File not found or empty: $file_to_send"
+			exit 1
+		fi
 	;;
 
 	*)
-		MSGCOLOR="$CYAN"
+		message_color="$CYAN"
 	;;
 esac
 
-
-request=$(
-	echo "$payload_json" | jq -n \
+# shellcheck disable=SC2016
+request="$(
+	jq \
+		--null-input \
 		--arg rig_id "$RIG_ID" \
 		--arg passwd "$RIG_PASSWD" \
 		--arg type "$message_type" \
@@ -76,65 +105,66 @@ request=$(
 			"method": "message", "jsonrpc": "2.0", "id": 0,
 			"params": {$rig_id, $passwd, $type, $data}
 		}'
-)
-#echo "$request" | jq .
+)"
 
-id=''
-payload=''
 for this_argument in "${@:3}"; do
 	case "$this_argument" in
 		'-i='*|'--id='*)
 			id="${this_argument#*=}"
-			id_json="$( jq --arg id "$id" -n '{"params": {$id}}' )"
-			request="$( echo "$request $id_json" | jq -sc '.[0] * .[1]' )"
+			# shellcheck disable=SC2016
+			id_json="$( jq --arg id "$id" --null-input '{"params": {$id}}' )"
+			request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $id_json" )"
 		;;
+
 		'payload'|'--payload')
 			payload="$( < /dev/stdin )"
-			payload_json="$( echo -n "$payload" | jq -R -s '{"params": {"payload": .}}' )"
-			request="$( echo "$request $payload_json" | jq -sc '.[0] * .[1]' )"
+			payload_json="$( jq --raw-input --slurp '{"params": {"payload": .}}' <<< "$payload" )"
+			request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $payload_json" )"
 		;;
+
 		*)
 			echo "ERROR: unknown option '$this_argument'"
 		;;
-# TODO file): gzip -c /usr/sbin/dropbearmulti | openssl base64 -e -A | message file 'dropbearmulti' payload
 	esac
 done
 
-if [[ -z "$payload" ]]; then
-	echo -e "> Sending '$message_type' message: ${MSGCOLOR}$message_header${NOCOLOR}"
-else
-	echo -e "> Sending '$message_type' message with payload (${#payload} bytes): ${MSGCOLOR}$message_header${NOCOLOR}"
+if [[ -n "$file_to_send" ]]; then
+	file_size="$( stat -c %s "$file_to_send" 2> /dev/null )"
+	payload="$( gzip -c9 < "$file_to_send" | openssl base64 -e -A 2> /dev/null )"
+	payload_json="$( jq --raw-input --slurp '{"params": {"payload": .}}' <<< "$payload" )"
+	request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $payload_json" )"
 fi
 
-#Show output and exit for debug
-#echo "$request" | jq . && exit
+if [[ -z "$payload" ]]; then
+	echo -en "${script_basename}> Sending '$message_type' message: ${message_color}$message_header${NOCOLOR}... "
+elif [[ -n "$file_to_send" ]]; then
+	echo -en "${script_basename}> Sending file $file_to_send ($file_size bytes compressed to ${#payload})... "
+else
+	echo -en "${script_basename}> Sending '$message_type' message with payload (${#payload} bytes): ${message_color}$message_header${NOCOLOR}... "
+fi
 
-# !!! senseless 'if': checking exit status of an echo command a few lines up
-#if (( $? )); then
-#	echo "Error formatting JSON message"
-#	exit 1
-#fi
-
-[[ -n "$LOG" ]] && echo "[`date`] > `echo "$request" | jq . -c`" >> "$LOG"
-
-response=$( echo "$request" | curl --insecure --location --data @- \
-	--connect-timeout 15 --max-time 25 --silent \
-	-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=message" --header "Content-Type: application/json"
-)
+response="$(
+	curl \
+		--insecure --location --data @- --connect-timeout 15 --max-time 25 --silent \
+		-XPOST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
+		--header 'Content-Type: application/json' \
+	<<< "$request"
+)"
 
 exitcode=$?
 if (( exitcode )); then
-	echo "Error sending message (curl code=$exitcode)"
-	#echo "[`date`] < Error sending message (curl code=$exitcode)" >> "$LOG"
-	exit $exitcode
+	echo "${BRED}NETWORK ERROR${NOCOLOR}"
+	echo "${script_basename}> Cannot send message (curl code=$exitcode)"
+	exit $(( exitcode ))
 fi
 
-[[ -n "$LOG" ]] && echo "[`date`] < `echo "$response" | jq . -c`" >> "$LOG"
-
-error=$( echo "$response" | jq '.error' --raw-output )
+error="$( jq '.error' --raw-output <<< "$response" )"
 if [[ -n "$error" && "$error" != "null" ]]; then
-	echo "Error response: $error"
+	echo "${BRED}API SERVER ERROR${NOCOLOR}"
+	echo "${script_basename}> Server response: $error"
 	exit 1
 fi
+
+echo "${BGREEN}OK${NOCOLOR}"
 
 exit 0
