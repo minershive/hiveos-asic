@@ -211,7 +211,7 @@ function hiveon_voltage {
 		for chain in $voltage_mask; do
 			if [ $chain == 1 ]; then
 				chain=${voltage_list_pre[$n]}
-				(( n++ ))
+				(( n++ )) #check?
 			fi
 			format_list+=($chain)
 		done
@@ -220,6 +220,38 @@ function hiveon_voltage {
 
 	echo $voltage_list
 }
+
+#get power chain id
+function hiveon_power {
+	#
+	# Usage: hiveon_power '{"chain_power1": 982, "chain_power3": 1001}' '[...,0,0,X,X,X,0,...]'
+	#
+
+	(( $# > 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+#	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
+	local -r power="${1-}"
+	local -r acn="${2-}"
+
+#echo $acn
+	power_list="[]"
+	power_mask=$(echo "$acn" | jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end')
+	power_list_pre=$( jq . <<< $power )
+	n=1
+
+	declare -a format_list
+	for chain in $power_mask; do
+		if [ $chain == 1 ]; then
+			chain=$(echo $power | jq .chain_power$n)
+#			(( n++ ))
+		fi
+		(( n++ ))
+		format_list+=($chain)
+	done
+	power_list=$(echo ${format_list[@]} | jq -s '.')
+
+	echo $power_list
+}
+
 
 #set default hiveon config
 function hiveon_default_config {

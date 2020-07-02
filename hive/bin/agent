@@ -194,11 +194,13 @@ function get_miner_stats {
 				status="$(			jq '.[1]	| with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $status'
 				chain_voltage="$(	jq '.[1]	| with_entries( select(.key | test("chain_voltage\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $chain_voltage'
 				hw_errors="$(		jq '.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $hw_errors'
-				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $power'
+#				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'																<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $power'
+				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | from_entries'															<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $power'
 				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'				<<< "$STATS"		2> /dev/null )"	|| errcho 'jq error at $asicboost'
 				ar="$(				jq -c --arg pool "$active_pool" '.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$pool_stats"	2> /dev/null )"	|| errcho 'jq error at $ar'
 
 				[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( ant-functions hiveon_voltage <<< "$acn" )"
+				[[ "$power" != '{}' ]] && power="$( ant-functions hiveon_power "$power" "$acn" )"
 				grep -q '.[0-9]' <<< "$chip_temp" && temp="$chip_temp"
 				grep -q '.[0-9]' <<< "$freq_new" && freq="$freq_new"
 
