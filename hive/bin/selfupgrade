@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.9'
+readonly script_version='0.16.10'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1276,10 +1276,14 @@ set_package_URL_and_file () {
 		release_version_to_install='master'
 		package_file_to_download="${release_version_to_install}.tar.gz"
 
-		local_build_version_numeric="${local_build_version#dev*}"
-		remote_build_version_numeric="${remote_build_version#dev*}"
+		# ash/dash lacks arrays and/or BASH_REMATCH, so there's a simplified approach to compare the versions:
+		# filter only first group of consecutive digits from a build version string
+		local_build_version_numeric="$( echo "$local_build_version" | sed -nre 's/^[^0-9]*([0-9]+).*/\1/p' )"
+		remote_build_version_numeric="$( echo "$remote_build_version" | sed -nre 's/^[^0-9]*([0-9]+).*/\1/p' )"
 
-		[ -z "$remote_build_version_numeric" ] && remote_build_version_numeric=1234567890 # sometimes we don't get remote build properly (curl timeouts etc.)
+		# sometimes we don't get the remote build version properly (curl timeouts etc.)
+		# in these cases let's assume that the remote version always greater than local
+		[ -z "$remote_build_version_numeric" ] && remote_build_version_numeric=1234567890
 
 		# numeric comparison
 		if [ "$local_release_version" = "$remote_release_version" ] && [ "$local_build_version_numeric" -ge "$remote_build_version_numeric" ]; then
