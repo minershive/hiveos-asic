@@ -11,17 +11,47 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.2.9'
+readonly script_version='0.3.20'
 readonly script_basename="$( basename "$0" )"
+
+
+# !!! bash strict mode, no unbound variables
+
+set -o nounset
+
+
+# functions
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+function print_script_usage {
+	echo -e "Usage: ${CYAN}$script_basename success|danger|warning|info \"message\" [OPTIONS]${NOCOLOR} - send a message to the dashboard"
+	echo -e "       ${CYAN}$script_basename file /path/filename  [OPTIONS]${NOCOLOR}                  - send a file to the dashboard"
+	echo -e "       ${CYAN}$script_basename file.io|transfer.sh /path/filename [OPTIONS]${NOCOLOR}    - send a file to the file sharing service"
+	echo -e "       ${CYAN}$script_basename tag 'your_tag' [OPTIONS]${NOCOLOR}                        - tag a worker with your_tag"
+	echo
+	echo -e 'Options:'
+	echo
+	echo -e "  ${CYAN}-i=msg_id|--id=msg_id${NOCOLOR} - add msg_id to a message (mostly used in 'agent' script)"
+	echo -e "  ${CYAN}--header=your_header${NOCOLOR}  - use a custom message header: 'message file /var/log/log --header=kernel.log'"
+	echo -e "  ${CYAN}--payload${NOCOLOR}             - add payload to a message (payload is read from stdin)"
+	echo
+	echo 'Message type aliases: ok|error|err|warn|default'
+	echo
+}
 
 
 # vars
 
 declare HIVE_API_endpoint this_argument
 declare message_type message_header message_color
-declare id id_json payload payload_json
+declare id='' id_json payload='' payload_json
 declare request response
-declare file_to_send file_size
+declare file_to_send='' file_size
+declare -i script_exitcode=0
 
 
 # sources
@@ -32,7 +62,7 @@ source colors
 # main
 
 # you could use externally defined RIG_CONF
-[[ -z "$RIG_CONF" ]] && RIG_CONF='/hive-config/rig.conf'
+[[ -z "${RIG_CONF-}" ]] && RIG_CONF='/hive-config/rig.conf'
 
 if [[ ! -s "$RIG_CONF" ]]; then
 	echo "${script_basename}> Config file $RIG_CONF empty or not found"
@@ -41,18 +71,13 @@ fi
 
 source "$RIG_CONF"
 
-HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
+# process first two arguments
+message_type="${1-}"
+message_header="${2-}"
 
-message_type="$1"
-message_header="$2"
-
-if [[ -z "$message_type" || -z "$message_header" ]]; then
-	echo -e "Usage: ${CYAN}$script_basename success|danger|warning|info|tag \"message\" [payload] [-i|--id=msgid]${NOCOLOR}"
-	echo -e "       ${CYAN}$script_basename file /path/name"
-	echo
-	echo 'Aliases: ok|error|err|warn|default'
-	echo 'Attention: payload is read from stdin'
-	echo
+if [[ "$message_type" == '--help' || -z "$message_type" || -z "$message_header" ]]; then
+	print_script_version
+	print_script_usage
 	exit 1
 fi
 
@@ -77,21 +102,107 @@ case "$message_type" in
 	;;
 
 	'file')
+		file_send_method="$message_type"
 		file_to_send="$message_header"
 		message_header="$( basename "$file_to_send" )"
-		# if file isn't empty or it's a named pipe (for <() constructions)
-		if [[ -s "$file_to_send" || -p "$file_to_send" ]]; then
-			: ok good to go
-		else
-			echo "${script_basename}> File not found or empty: $file_to_send"
-			exit 1
-		fi
 	;;
 
+	'file.io'|'transfer.sh')
+		file_send_method="$message_type"
+		file_to_send="$message_header"
+		message_header="$( basename "$file_to_send" )"
+		message_type='default'
+	;;
+		
 	*)
 		message_color="$CYAN"
 	;;
 esac
+
+# process arguments starting from 3rd
+for this_argument in "${@:3}"; do
+	case "$this_argument" in
+		'-i='*|'--id='*)
+			id="${this_argument#*=}"
+		;;
+
+		'payload'|'--payload')
+		#^^^^^^^ option without '--' is deprecated
+			payload="$( < /dev/stdin )"
+		;;
+
+		'--header='*)
+			message_header="${this_argument#*=}"
+		;;
+
+		*)
+			echo "ERROR: unknown option '$this_argument'"
+		;;
+	esac
+done
+
+# send file
+if [[ -n "$file_to_send" ]]; then
+	# if file isn't empty or it's a named pipe -- for <() redirections like 'message file <( ./script )'
+	if [[ -s "$file_to_send" || -p "$file_to_send" ]]; then
+		file_size="$( stat -c %s "$file_to_send" 2> /dev/null )"
+		case "$file_send_method" in
+
+			'file')
+				payload="$( gzip -c9 < "$file_to_send" | openssl base64 -e -A 2> /dev/null )"
+			;;
+
+			'file.io')
+				echo -en "${script_basename}> Sending $file_to_send (${file_size} bytes) to $file_send_method... "
+				file_io_response="$( curl --form "file=@$file_to_send" --insecure --silent https://file.io )"
+				curl_exitcode=$?
+				if (( curl_exitcode )); then
+					echo "${BRED}NETWORK ERROR${NOCOLOR}"
+					echo "${script_basename}> $( human-curl-error "$curl_exitcode" )"
+					script_exitcode="$curl_exitcode"
+				else
+					file_io_success="$( jq --raw-output '.success' <<< "$file_io_response" )"
+					if [[ "$file_io_success" == 'true' ]]; then
+						echo "${BGREEN}OK${NOCOLOR}"
+						file_io_link="$( jq --raw-output '.link' <<< "$file_io_response" )"
+						file_io_expiry="$( jq --raw-output '.expiry' <<< "$file_io_response" )"
+						echo "${script_basename}> Download link ${WHITE}$file_io_link${NOCOLOR} will expire in $file_io_expiry"
+					else
+						echo "${BRED}SERVER ERROR${NOCOLOR}"
+						echo "${script_basename}> $file_send_method response: $file_io_response${NOCOLOR}"
+						script_exitcode=1
+					fi
+				fi
+				exit $(( script_exitcode ))
+			;;
+
+			'transfer.sh')
+				echo -en "${script_basename}> Sending $file_to_send (${file_size} bytes) to $file_send_method... "
+				transfer_sh_response="$( curl --insecure --silent --upload-file "$file_to_send" "https://transfer.sh/$message_header" )"
+				curl_exitcode=$?
+				if (( curl_exitcode )); then
+					echo "${BRED}NETWORK ERROR${NOCOLOR}"
+					echo "${script_basename}> $( human-curl-error "$curl_exitcode" )"
+					script_exitcode="$curl_exitcode"
+				else
+					if [[ "$transfer_sh_response" =~ ^https://transfer.sh/ ]]; then
+						echo "${BGREEN}OK${NOCOLOR}"
+						echo "${script_basename}> Download link ${WHITE}$transfer_sh_response${NOCOLOR}"
+					else
+						echo "${BRED}SERVER ERROR${NOCOLOR}"
+						echo "${script_basename}> $file_send_method response: $transfer_sh_response${NOCOLOR}"
+						script_exitcode=1
+					fi
+				fi
+				exit $(( script_exitcode ))
+			;;
+
+		esac
+	else
+		echo "${script_basename}> $file_to_send not found or empty"
+		exit 1
+	fi
+fi
 
 # shellcheck disable=SC2016
 request="$(
@@ -107,64 +218,61 @@ request="$(
 		}'
 )"
 
-for this_argument in "${@:3}"; do
-	case "$this_argument" in
-		'-i='*|'--id='*)
-			id="${this_argument#*=}"
-			# shellcheck disable=SC2016
-			id_json="$( jq --arg id "$id" --null-input '{"params": {$id}}' )"
-			request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $id_json" )"
-		;;
+# add msg_id if any
+if [[ -n "$id" ]]; then
+	# shellcheck disable=SC2016
+	id_json="$( jq --arg id "$id" --null-input '{"params": {$id}}' )"
+	request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $id_json" )"
+fi
 
-		'payload'|'--payload')
-			payload="$( < /dev/stdin )"
-			payload_json="$( jq --raw-input --slurp '{"params": {"payload": .}}' <<< "$payload" )"
-			request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $payload_json" )"
-		;;
-
-		*)
-			echo "ERROR: unknown option '$this_argument'"
-		;;
-	esac
-done
-
-if [[ -n "$file_to_send" ]]; then
-	file_size="$( stat -c %s "$file_to_send" 2> /dev/null )"
-	payload="$( gzip -c9 < "$file_to_send" | openssl base64 -e -A 2> /dev/null )"
+# add payload if any
+if [[ -n "$payload" ]]; then
+	# shellcheck disable=SC2016
 	payload_json="$( jq --raw-input --slurp '{"params": {"payload": .}}' <<< "$payload" )"
 	request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $payload_json" )"
 fi
 
 if [[ -z "$payload" ]]; then
-	echo -en "${script_basename}> Sending '$message_type' message: ${message_color}$message_header${NOCOLOR}... "
+	echo -en "${script_basename}> Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header'... "
 elif [[ -n "$file_to_send" ]]; then
-	echo -en "${script_basename}> Sending file $file_to_send ($file_size bytes compressed to ${#payload})... "
+	echo -en "${script_basename}> Sending file $file_to_send (${file_size} bytes compressed to ${#payload}) to dashboard... "
 else
-	echo -en "${script_basename}> Sending '$message_type' message with payload (${#payload} bytes): ${message_color}$message_header${NOCOLOR}... "
+	echo -en "${script_basename}> Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)... "
 fi
 
+# send a message
+HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
 response="$(
 	curl \
-		--insecure --location --data @- --connect-timeout 15 --max-time 25 --silent \
+		--insecure --location --data @- --silent \
 		-XPOST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
 		--header 'Content-Type: application/json' \
 	<<< "$request"
 )"
+# curl options removed (for greater reliability on the weak links): --connect-timeout 15 --max-time 25
 
-exitcode=$?
-if (( exitcode )); then
+
+# check curl result
+curl_exitcode=$?
+if (( curl_exitcode )); then
 	echo "${BRED}NETWORK ERROR${NOCOLOR}"
-	echo "${script_basename}> Cannot send message (curl code=$exitcode)"
-	exit $(( exitcode ))
+	echo "${script_basename}> $( human-curl-error "$curl_exitcode" )"
+	[[ -n "$response" ]] && echo "${script_basename}> Response: $response"
+	script_exitcode="$curl_exitcode"
+else
+	# parse the server answer
+	error="$( jq '.error' --raw-output <<< "$response" )" # does the .error key is deprecated?
+	errors="$( jq 'if .errors.type != null then .errors.type[] else null end' --raw-output <<< "$response" )"
+	if [[ -n "$error" && "$error" != "null" ]] || [[ -n "$errors" && "$errors" != "null" ]]; then
+		echo "${BRED}API SERVER ERROR${NOCOLOR}"
+		[[ -n "$error" && "$error" != "null" ]] && echo "${script_basename}> API server response: $error"
+		[[ -n "$errors" && "$errors" != "null" ]] && echo "${script_basename}> API server response: $errors"
+		echo "${script_basename}> [DEBUG] Full JSON response:"
+		jq '.' --color-output <<< "$response" # !!! debug
+		script_exitcode=1
+	else
+		echo "${BGREEN}OK${NOCOLOR}"
+	fi
 fi
 
-error="$( jq '.error' --raw-output <<< "$response" )"
-if [[ -n "$error" && "$error" != "null" ]]; then
-	echo "${BRED}API SERVER ERROR${NOCOLOR}"
-	echo "${script_basename}> Server response: $error"
-	exit 1
-fi
-
-echo "${BGREEN}OK${NOCOLOR}"
-
-exit 0
+exit $(( script_exitcode ))
