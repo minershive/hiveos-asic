@@ -11,7 +11,7 @@
 
 
 readonly asic_model_script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-readonly asic_model_script_version='1.1.1'
+readonly asic_model_script_version='1.1.2'
 readonly asic_model_script_basename="$( basename "$0" )"
 
 
@@ -89,15 +89,23 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 set_HIVEON_VERSION_variable () {
 	#
 	# !!! shall be sh-friendly
-	# !!! copied from 'selfupgrade' script, please keep it in sync
+	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
 	#
+
+	# vars
 	HIVEON_VER='' # deprecated in favor of the more clear HIVEON_VERSION
 	HIVEON_VERSION=''
+	HIVEON_VERSION_major=-1 # default: no Hiveon
 
+	# code
 	if [ -s /usr/bin/compile_ver ]; then 
 		HIVEON_VERSION="$( awk -F'@' 'NR==3 {print $1; exit}' < /usr/bin/compile_ver )"
 		# shellcheck disable=SC2034
-		HIVEON_VER="$HIVEON_VERSION"
+		HIVEON_VER="$HIVEON_VERSION" # legacy
+		# shellcheck disable=SC2034
+		# take a part before the first dot                                  vvvvvvvvvvvvvvvvvv
+		# and then remove leading zeroes, if any             vvvvvvvvvvv
+		[ -n "$HIVEON_VERSION" ] && HIVEON_VERSION_major="$( printf '%d' "${HIVEON_VERSION%%.*}" 2> /dev/null )"
 	fi
 }
 
