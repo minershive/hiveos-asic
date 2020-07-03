@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.18'
+readonly script_version='0.2.19'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -729,22 +729,22 @@ function do_command {
 			#' > "$command_log" 2>&1 &
 
 			$exectimeout '
-				log_name="/tmp/agent-exec-'"$cmd_id"'.log"
-				( '"$exec"' ) > "$log_name" 2>&1
+				agent_exec_log="/tmp/agent-exec-'"$cmd_id"'.log"
+				( '"$exec"' ) > "$agent_exec_log" 2>&1
 				exitcode=$?
 				if (( exitcode == 0 )); then
-					message info "'"$( backslash "$exec" )"'" payload --id='"$cmd_id"' < "$log_name"
+					message info "'"$( backslash "$exec" )"'" payload --id='"$cmd_id"' < "$agent_exec_log"
 				else
-					message error "'"$( backslash "$exec" )"' (failed, exitcode=$exitcode)" payload --id='"$cmd_id"' < "$log_name"
+					message error "'"$( backslash "$exec" )"' (failed, exitcode=$exitcode)" payload --id='"$cmd_id"' < "$agent_exec_log"
 				fi
-				rm "$log_name" > /dev/null 2>&1
+				rm "$agent_exec_log" > /dev/null 2>&1
 			' > "$command_log" 2>&1 &
 		;;
 
 		'asic_oc')
 			export asic_oc="$( jq '.asic_oc' --raw-output <<< "$body" )"
-			# !!! a secret feature
-			if [[ "$HIVEON_VERSION" == '2.00' || -f /config/use-new-asic-oc ]]; then
+			# !!! a secret feature                   vvvvvvvvvvvvvvvvvvvvvvvvvv
+			if (( HIVEON_VERSION_major >= 2 )) || [[ -f /config/use-new-asic-oc ]]; then
 				asic_oc_cmd='asic-oc'
 			else
 				asic_oc_cmd='asic_oc'
