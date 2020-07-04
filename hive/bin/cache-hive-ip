@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.1.5'
+readonly script_version='0.1.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -35,15 +35,12 @@ function gethostbyname {
 	#nslookup $LINE | awk '/^Address: / { print $1 }'
 
 	# args
-
 	local -r host="$1"
 
 	# vars
-
 	local nslookup_output
 
 	# code
-
 	if nslookup_output="$( nslookup "$host" )"; then
 		echo "$nslookup_output"									|
 			grep -A 4 Name										|
@@ -107,6 +104,7 @@ function set_hostfile {
 	esac
 }
 
+
 # global sources
 
 . /hive/bin/asic-model
@@ -132,10 +130,15 @@ declare hostfile=''
 print_script_version
 set_hostfile
 
+if [[ ! -w "$hostfile" ]]; then
+	echo "$hostfile is read-only, exiting..."
+	exit 1
+fi
+
 #add host ip
 #/hive/bin/hostname-check
 
-if [[ -e $RIG_CONF ]]; then
+if [[ -f "$RIG_CONF" ]]; then
 	source "$RIG_CONF"
 	if [[ -z "$HIVE_HOST_URL" ]]; then
 		echo "HIVE_HOST_URL is empty"
@@ -167,11 +170,10 @@ done
 
 if [[ -z "$ip_address" ]]; then
 	echo "Unable to resolve $HOST"
-	[[ -e "/hive-config/hosts" ]] && cp -rf /hive-config/hosts "$hostfile"
+	[[ -f /hive-config/hosts ]] && cp -rf /hive-config/hosts "$hostfile"
 #	message warn "Unable to resolve $HOST"
 	exit 0
 fi
-
 
 old_hosts="$( < "$hostfile" )"
 old_hosts+=$'\n'
