@@ -4,12 +4,12 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.4'
+readonly script_version='1.0.5'
 readonly script_basename="$( basename "$0" )"
 readonly DEBUG=0
 
@@ -28,7 +28,7 @@ set -o nounset
 
 errcho() {
 	# uniform error logging to stderr
-	echo -e "Error in $0:${FUNCNAME[1]}(): $@"
+	echo -e "Error in $0:${FUNCNAME[1]}(): $*"
 } 1>&2
 
 # functions: screen
@@ -99,7 +99,7 @@ screen_start_session() {
 	fi
 	
 	local -r cmd="${1-}"
-	local -r args="${@:2}"
+	local -r args="${*:2}"
 
 	# consts
 	
@@ -273,22 +273,25 @@ trap -- 'errcho "SIGHUP received, ignoring..."' SIGHUP
 is_screen_session_exist 'agent'; script_exitcode=$?
 
 case "${1-}" in
-	'start')
-		agent_start
-		;;
-	'stop')
-		agent_stop
-		;;
-	'restart')
-		agent_restart
-		;;
-	'dontattach' | 'daemonize')
-		agent_start --quiet-ok
-		;;
+	'start')						agent_start				;;
+	'stop')							agent_stop				;;
+	'restart')						agent_restart			;;
+	'dontattach' | 'daemonize')		agent_start --quiet-ok	;;
+
+	'log')
+		screen -S agent -X hardcopydir /tmp
+		screen -S agent -X -p0 hardcopy
+		if [[ -f /tmp/hardcopy.0 ]]; then
+			cat /tmp/hardcopy.0
+			rm /tmp/hardcopy.0
+		fi
+		script_exitcode=0
+	;;
+
 	'attach' | *)
 		agent_start
 		screen_attach_to_session 'agent'
-		;;
+	;;
 esac
 
 exit $(( script_exitcode ))
