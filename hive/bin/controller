@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.34'
+readonly script_version='2.1.35'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1641,10 +1641,12 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 	while true; do
 		time_before_execution_in_s="$( get_current_system_time_in_seconds )"
 
-		if pgrep_quiet 'selfupgrade|S69hive|firmware-upgrade'; then
+		if pgrep_quiet 'selfupgrade|firmware-upgrade'; then
 			# do wait for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
 			print_controller_log_entry "$event_type_for_log" "Upgrade running, skipping checks..."
 			increment_checkup_counter 'upgrade_running' 'alarm'
+		elif pgrep_quiet 'S69hive'; then
+			print_controller_log_entry "$event_type_for_log" "Hive starting, skipping checks..."
 		else
 			# do cron work
 			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
