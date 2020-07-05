@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.20'
+readonly script_version='0.3.21'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -21,6 +21,10 @@ set -o nounset
 
 
 # functions
+
+function errcho {
+	echo -e "${RED}${script_basename}>${NOCOLOR} $*"
+} 1>&2
 
 function print_script_version {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
@@ -35,9 +39,10 @@ function print_script_usage {
 	echo
 	echo -e 'Options:'
 	echo
-	echo -e "  ${CYAN}-i=msg_id|--id=msg_id${NOCOLOR} - add msg_id to a message (mostly used in 'agent' script)"
-	echo -e "  ${CYAN}--header=your_header${NOCOLOR}  - use a custom message header: 'message file /var/log/log --header=kernel.log'"
-	echo -e "  ${CYAN}--payload${NOCOLOR}             - add payload to a message (payload is read from stdin)"
+	echo -e "  ${CYAN}-i=msg_id${NOCOLOR}, ${CYAN}--id=msg_id${NOCOLOR} - add msg_id to a message (mostly used in 'agent' script)"
+	echo -e "  ${CYAN}--header=your_header${NOCOLOR}   - use a custom message header: 'message file /var/log/log --header=kernel.log'"
+	echo -e "  ${CYAN}--payload${NOCOLOR}              - add payload to a message (payload is read from stdin)"
+	echo -e "  ${CYAN}-s${NOCOLOR}, ${CYAN}--silent${NOCOLOR}           - silent mode, report only errors"
 	echo
 	echo 'Message type aliases: ok|error|err|warn|default'
 	echo
@@ -51,7 +56,8 @@ declare message_type message_header message_color
 declare id='' id_json payload='' payload_json
 declare request response
 declare file_to_send='' file_size
-declare -i script_exitcode=0
+declare -i script_exitcode=0 is_silent_FLAG=0
+declare console_message=''
 
 
 # sources
@@ -65,7 +71,7 @@ source colors
 [[ -z "${RIG_CONF-}" ]] && RIG_CONF='/hive-config/rig.conf'
 
 if [[ ! -s "$RIG_CONF" ]]; then
-	echo "${script_basename}> Config file $RIG_CONF empty or not found"
+	errcho "Config file $RIG_CONF empty or not found"
 	exit 1
 fi
 
@@ -113,7 +119,7 @@ case "$message_type" in
 		message_header="$( basename "$file_to_send" )"
 		message_type='default'
 	;;
-		
+
 	*)
 		message_color="$CYAN"
 	;;
@@ -135,8 +141,12 @@ for this_argument in "${@:3}"; do
 			message_header="${this_argument#*=}"
 		;;
 
+		'-s'|'--silent')
+			is_silent_FLAG=1
+		;;
+
 		*)
-			echo "ERROR: unknown option '$this_argument'"
+			errcho "unknown option '$this_argument'"
 		;;
 	esac
 done
@@ -146,6 +156,7 @@ if [[ -n "$file_to_send" ]]; then
 	# if file isn't empty or it's a named pipe -- for <() redirections like 'message file <( ./script )'
 	if [[ -s "$file_to_send" || -p "$file_to_send" ]]; then
 		file_size="$( stat -c %s "$file_to_send" 2> /dev/null )"
+		console_message="Sending $file_to_send (${file_size} bytes) to $file_send_method..."
 		case "$file_send_method" in
 
 			'file')
@@ -153,23 +164,22 @@ if [[ -n "$file_to_send" ]]; then
 			;;
 
 			'file.io')
-				echo -en "${script_basename}> Sending $file_to_send (${file_size} bytes) to $file_send_method... "
-				file_io_response="$( curl --form "file=@$file_to_send" --insecure --silent https://file.io )"
+				filesharing_server_response="$( curl --form "file=@$file_to_send" --insecure --silent https://file.io )"
 				curl_exitcode=$?
 				if (( curl_exitcode )); then
-					echo "${BRED}NETWORK ERROR${NOCOLOR}"
-					echo "${script_basename}> $( human-curl-error "$curl_exitcode" )"
+					errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
+					errcho "$( human-curl-error "$curl_exitcode" )"
 					script_exitcode="$curl_exitcode"
 				else
-					file_io_success="$( jq --raw-output '.success' <<< "$file_io_response" )"
+					file_io_success="$( jq --raw-output '.success' <<< "$filesharing_server_response" )"
 					if [[ "$file_io_success" == 'true' ]]; then
-						echo "${BGREEN}OK${NOCOLOR}"
-						file_io_link="$( jq --raw-output '.link' <<< "$file_io_response" )"
-						file_io_expiry="$( jq --raw-output '.expiry' <<< "$file_io_response" )"
-						echo "${script_basename}> Download link ${WHITE}$file_io_link${NOCOLOR} will expire in $file_io_expiry"
+						(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}OK${NOCOLOR}"
+						file_io_link="$( jq --raw-output '.link' <<< "$filesharing_server_response" )"
+						file_io_expiry="$( jq --raw-output '.expiry' <<< "$filesharing_server_response" )"
+						echo -e "${script_basename}> Download link ${WHITE}$file_io_link${NOCOLOR} will expire in $file_io_expiry"
 					else
-						echo "${BRED}SERVER ERROR${NOCOLOR}"
-						echo "${script_basename}> $file_send_method response: $file_io_response${NOCOLOR}"
+						errcho "$console_message ${BRED}SERVER ERROR${NOCOLOR}"
+						errcho "$file_send_method response: $filesharing_server_response${NOCOLOR}"
 						script_exitcode=1
 					fi
 				fi
@@ -177,20 +187,19 @@ if [[ -n "$file_to_send" ]]; then
 			;;
 
 			'transfer.sh')
-				echo -en "${script_basename}> Sending $file_to_send (${file_size} bytes) to $file_send_method... "
-				transfer_sh_response="$( curl --insecure --silent --upload-file "$file_to_send" "https://transfer.sh/$message_header" )"
+				filesharing_server_response="$( curl --insecure --silent --upload-file "$file_to_send" "https://transfer.sh/$message_header" )"
 				curl_exitcode=$?
 				if (( curl_exitcode )); then
-					echo "${BRED}NETWORK ERROR${NOCOLOR}"
-					echo "${script_basename}> $( human-curl-error "$curl_exitcode" )"
+					errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
+					errcho "$( human-curl-error "$curl_exitcode" )"
 					script_exitcode="$curl_exitcode"
 				else
-					if [[ "$transfer_sh_response" =~ ^https://transfer.sh/ ]]; then
-						echo "${BGREEN}OK${NOCOLOR}"
-						echo "${script_basename}> Download link ${WHITE}$transfer_sh_response${NOCOLOR}"
+					if [[ "$filesharing_server_response" =~ ^https://transfer.sh/ ]]; then
+						(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}OK${NOCOLOR}"
+						echo -e "${script_basename}> Download link ${WHITE}$filesharing_server_response${NOCOLOR}"
 					else
-						echo "${BRED}SERVER ERROR${NOCOLOR}"
-						echo "${script_basename}> $file_send_method response: $transfer_sh_response${NOCOLOR}"
+						errcho "$console_message ${BRED}SERVER ERROR${NOCOLOR}"
+						errcho "$file_send_method response: $filesharing_server_response${NOCOLOR}"
 						script_exitcode=1
 					fi
 				fi
@@ -199,7 +208,7 @@ if [[ -n "$file_to_send" ]]; then
 
 		esac
 	else
-		echo "${script_basename}> $file_to_send not found or empty"
+		errcho "$file_to_send not found or empty"
 		exit 1
 	fi
 fi
@@ -233,11 +242,11 @@ if [[ -n "$payload" ]]; then
 fi
 
 if [[ -z "$payload" ]]; then
-	echo -en "${script_basename}> Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header'... "
+	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header'..."
 elif [[ -n "$file_to_send" ]]; then
-	echo -en "${script_basename}> Sending file $file_to_send (${file_size} bytes compressed to ${#payload}) to dashboard... "
+	console_message="Sending file $file_to_send (${file_size} bytes compressed to ${#payload}) to dashboard..."
 else
-	echo -en "${script_basename}> Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)... "
+	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)..."
 fi
 
 # send a message
@@ -248,30 +257,28 @@ response="$(
 		-XPOST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
 		--header 'Content-Type: application/json' \
 	<<< "$request"
-)"
-# curl options removed (for greater reliability on the weak links): --connect-timeout 15 --max-time 25
-
+)" # curl options removed (for greater reliability on the weak links): --connect-timeout 15 --max-time 25
 
 # check curl result
 curl_exitcode=$?
 if (( curl_exitcode )); then
-	echo "${BRED}NETWORK ERROR${NOCOLOR}"
-	echo "${script_basename}> $( human-curl-error "$curl_exitcode" )"
-	[[ -n "$response" ]] && echo "${script_basename}> Response: $response"
+	errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
+	errcho "$( human-curl-error "$curl_exitcode" )"
+	[[ -n "$response" ]] && errcho "Response: $response"
 	script_exitcode="$curl_exitcode"
 else
 	# parse the server answer
 	error="$( jq '.error' --raw-output <<< "$response" )" # does the .error key is deprecated?
 	errors="$( jq 'if .errors.type != null then .errors.type[] else null end' --raw-output <<< "$response" )"
 	if [[ -n "$error" && "$error" != "null" ]] || [[ -n "$errors" && "$errors" != "null" ]]; then
-		echo "${BRED}API SERVER ERROR${NOCOLOR}"
-		[[ -n "$error" && "$error" != "null" ]] && echo "${script_basename}> API server response: $error"
-		[[ -n "$errors" && "$errors" != "null" ]] && echo "${script_basename}> API server response: $errors"
-		echo "${script_basename}> [DEBUG] Full JSON response:"
-		jq '.' --color-output <<< "$response" # !!! debug
+		errcho "$console_message ${BRED}API SERVER ERROR${NOCOLOR}"
+		[[ -n "$error" && "$error" != "null" ]] && errcho "API server response: $error"
+		[[ -n "$errors" && "$errors" != "null" ]] && errcho "API server response: $errors"
+		errcho "[DEBUG] Full JSON response:"
+		jq '.' --color-output <<< "$response" 1>&2 # !!! debug
 		script_exitcode=1
 	else
-		echo "${BGREEN}OK${NOCOLOR}"
+		(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}OK${NOCOLOR}"
 	fi
 fi
 
