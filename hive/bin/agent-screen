@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.5'
+readonly script_version='1.0.6'
 readonly script_basename="$( basename "$0" )"
 readonly DEBUG=0
 
@@ -26,28 +26,25 @@ set -o nounset
 
 # functions
 
-errcho() {
+function errcho {
 	# uniform error logging to stderr
 	echo -e "Error in $0:${FUNCNAME[1]}(): $*"
 } 1>&2
 
 # functions: screen
 
-is_screen_session_exist() {
+function is_screen_session_exist {
 	# is_screen_session_exist 'session name'
 
 	# args
 
-	if (( $# != 1 )); then
-		errcho "only 1 argument allowed"
-		return "$exitcode_ERROR_IN_ARGUMENTS"
-	fi
+	(( $# == 1 )) || { errcho 'only 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	local -r session_name="${1-}"
 	local -i screen_exitcode="$exitcode_OK"
-	
+
 	# code
-	
+
 	if (( DEBUG )); then
 		screen -S "$session_name" -X select .
 	else
@@ -55,23 +52,20 @@ is_screen_session_exist() {
 	fi
 	screen_exitcode=$?
 
-	return "$screen_exitcode"
+	return $(( screen_exitcode ))
 }
 
-screen_attach_to_session() {
+function screen_attach_to_session {
 	# screen_attach_to_session 'session name'
 
 	# args
-	
-	if (( $# != 1 )); then
-		errcho "only 1 argument allowed"
-		return "$exitcode_ERROR_IN_ARGUMENTS"
-	fi
+
+	(( $# == 1 )) || { errcho 'only 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	local -r session_name="${1-}"
 
 	# code
-	
+
 	if is_screen_session_exist "$session_name"; then
 		#
 		# why setting TERM in such a fashion? screen has an argument for that:
@@ -88,34 +82,32 @@ screen_attach_to_session() {
 	fi
 }
 
-screen_start_session() {
+function screen_start_session {
 	# screen_start_session 'cmd' [args...]
 
 	# args
 
-	if (( $# == 0 )); then
-		errcho "no arguments given"
-		return "$exitcode_ERROR_IN_ARGUMENTS"
-	fi
-	
+	(( $# > 0 )) || { errcho 'no arguments given'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+
 	local -r cmd="${1-}"
 	local -r args="${*:2}"
 
 	# consts
-	
+
 	local -r session_name="$cmd"
 	local -r -i retries_limit=100
-	
+	local -r -i scrollback_buffer_lines=200
+
 	# vars
-	
+
 	local -i retries_counter
 	local -i function_exitcode="$exitcode_OK"
 
 	# code
-	
+
 	if ! which "$cmd" > /dev/null; then
 		errcho "cannot locate command '$cmd' to run in the screen session"
-		return "$exitcode_ERROR_CMD_NOT_FOUND"
+		return $(( exitcode_ERROR_CMD_NOT_FOUND ))
 	fi
 
 	retries_counter=0
@@ -127,11 +119,11 @@ screen_start_session() {
 		fi
 
 		if (( DEBUG )); then
-			screen -dm -S "$session_name" "$cmd" $args
+			screen -dm -S "$session_name" -h "$scrollback_buffer_lines" "$cmd" $args
 		else
-			screen -dm -S "$session_name" "$cmd" $args > /dev/null
+			screen -dm -S "$session_name" -h "$scrollback_buffer_lines" "$cmd" $args > /dev/null
 		fi
-	
+
 		(( retries_counter++ ))
 
 		if (( retries_counter % 10 == 0 )); then
@@ -147,32 +139,29 @@ screen_start_session() {
 		fi
 	done
 
-	return "$function_exitcode"
+	return $(( function_exitcode ))
 }
 
-screen_stop_session() {
+function screen_stop_session {
 	# screen_stop_session 'session name' -> $?
-	
+
 	# args
-	
-	if (( $# == 0 )); then
-		errcho "no arguments given"
-		return "$exitcode_ERROR_IN_ARGUMENTS"
-	fi
+
+	(( $# > 0 )) || { errcho 'no arguments given'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	local -r session_name="${1-}"
-	
+
 	# consts
-	
+
 	local -r -i retries_limit=100
-	
+
 	# vars
-	
+
 	local -i retries_counter
 	local -i function_exitcode="$exitcode_OK"
-	
+
 	# code
-	
+
 	retries_counter=0
 	while is_screen_session_exist "$session_name"; do
 		if (( retries_counter > 0 )); then
@@ -205,14 +194,14 @@ screen_stop_session() {
 		fi
 	done
 
-	return "$function_exitcode"
+	return $(( function_exitcode ))
 }
 
 # functions: agent
 
-agent_start() {
+function agent_start {
 	# args
-	
+
 	local -r message_mode="${1-}"
 
 	# code
@@ -227,7 +216,7 @@ agent_start() {
 	fi
 }
 
-agent_stop() {
+function agent_stop {
 	if is_screen_session_exist 'agent'; then
 		echo -n "> Stopping agent screen session... "
 		screen_stop_session 'agent' && echo "Stopped." || echo "Error."
@@ -236,7 +225,7 @@ agent_stop() {
 	fi
 }
 
-agent_restart() {
+function agent_restart {
 	echo "> Restarting agent screen session"
 	agent_stop
 	agent_start
@@ -245,6 +234,7 @@ agent_restart() {
 
 # global consts
 
+declare -r own_log="/tmp/${script_basename}.log"
 declare -r -i exitcode_OK=0
 declare -r -i exitcode_ERROR_IN_ARGUMENTS=128
 declare -r -i exitcode_ERROR_CMD_NOT_FOUND=100
@@ -265,10 +255,12 @@ declare -i script_exitcode
 export PATH=$PATH:/hive/bin:/hive/sbin
 export LD_LIBRARY_PATH=/hive/lib
 
-
-# main()
+# traps
 
 trap -- 'errcho "SIGHUP received, ignoring..."' SIGHUP
+
+
+# main()
 
 is_screen_session_exist 'agent'; script_exitcode=$?
 
@@ -279,13 +271,17 @@ case "${1-}" in
 	'dontattach' | 'daemonize')		agent_start --quiet-ok	;;
 
 	'log')
-		screen -S agent -X hardcopydir /tmp
-		screen -S agent -X -p0 hardcopy
-		if [[ -f /tmp/hardcopy.0 ]]; then
-			cat /tmp/hardcopy.0
-			rm /tmp/hardcopy.0
+		if touch "$own_log" 2> /dev/null; then
+			screen -S agent -X -p0 hardcopy -h "$own_log"
+			if [[ -f "$own_log" ]]; then
+				cat "$own_log"
+				rm "$own_log"
+			fi
+			script_exitcode=0
+		else
+			errcho "cannot write log to $own_log (/tmp is read-only?), exiting..."
+			script_exitcode=1
 		fi
-		script_exitcode=0
 	;;
 
 	'attach' | *)
