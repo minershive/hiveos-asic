@@ -253,7 +253,7 @@ function get_miner_stats {
 				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
 
 				#temp=$( (jq '.[1] | with_entries( select(.key | startswith("temp2_")) | select(.value > 0) ) | .[]' | jq --slurp --compact-output '.' ) <<< "$STATS" )
-				#hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq  --raw-output '.' | jq --slurp --compact-output .) <<< "$STATS" )
+				#hs=$( (jq '.[1] | with_entries( select( .key | test("chain_rate\\d+")) | select(.value != "" and .value != 0) ) | .[]' | jq --raw-output '.' | jq --slurp --compact-output .) <<< "$STATS" )
 				#stats=$(jq --null-input --compact-output --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
 
 				uptime="$(		jq --raw-output '.[1].Elapsed' <<< "$STATS" )"
@@ -731,7 +731,7 @@ function do_command {
 			# do we need an intermediate file? here's a file-less approach with pipe:
 			#
 			#$exectimeout '
-			#	( '"$exec"' ) 2>&1 | if (( $? == 0 ));  then
+			#	( '"$exec"' ) 2>&1 | if (( $? == 0 )); then
 			#		message info "'"$( backslash "$exec" )"'" payload --id='"$cmd_id"'
 			#	else
 			#		message error "'"$( backslash "$exec" )"' (failed, exitcode=$?)" payload --id='"$cmd_id"'
