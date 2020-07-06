@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.7'
+readonly script_version='0.1.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -311,7 +311,7 @@ case "$ASIC_MODEL" in
 	'Antminer L3'*)		do_upgrade_for 'L3'	;;
 
 	*)
-		echo -e "${BRED}$ASIC_MODEL not supported, exiting${NOCOLOR}"
+		echo -e "${BRED}$ASIC_MODEL not supported, exiting...${NOCOLOR}"
 		exit 1
 	;;
 esac
