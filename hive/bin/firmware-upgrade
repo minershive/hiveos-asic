@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.6'
+readonly script_version='0.1.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -39,28 +39,33 @@ hide_certs () {
 			mv -f "$this_file" "${this_file}-disabled" || true
 		fi
 	done
+	is_certs_hidden=1
 }
 
 unhide_certs () {
 	# unhide upgrade scripts, version file and certificates
-	echo '> Enabling cert protection...'
-	for this_file in /etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem \
-					/www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi /www/pages/cgi-bin/upgrade_clear.cgi; do					
-		if [ -f "${this_file}-disabled" ]; then
-			mv -f "${this_file}-disabled" "$this_file" || true
-		fi
-	done
+	if [ "$is_certs_hidden" -eq 1 ]; then
+		echo '> Enabling cert protection...'
+		for this_file in /etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem \
+						 /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi \
+						 /www/pages/cgi-bin/upgrade_clear.cgi; do					
+			if [ -f "${this_file}-disabled" ]; then
+				mv -f "${this_file}-disabled" "$this_file" || true
+			fi
+		done
+		is_certs_hidden=0
+	fi
 }
 
 at_exit () {
 	echo '> Exiting...'
-	rm -rf "$directory_to_unpack_fw" || true
+	rm -rf "${directory_to_unpack_fw:-/tmp/*}" || true
 	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	unhide_certs
 	sync
 	if [ -z "$ok" ]; then
-		echo -e "${RED}$script_basename: Firmware upgrade unexpectedly interrupted${NOCOLOR}"
+		echo -e "${RED}Firmware upgrade unexpectedly interrupted${NOCOLOR}"
 		if [ -s /tmp/upgrade_result ]; then
 			echo '> runme.sh log:'
 			cat /tmp/upgrade_result
@@ -68,7 +73,48 @@ at_exit () {
 	fi
 }
 
-upgrade_l3 () {
+do_upgrade_for () {
+
+	# args
+
+	local upgrade_type="$1"
+
+	# code
+
+	echo -e "> Upgrading firmware for $ASIC_MODEL..."
+
+	# check for .tar.gz extension
+	firmware_filename="$( echo "$URL" | awk -F \/ '{print $NF}' )"
+	if ! { echo "$firmware_filename" | grep -q '.tar.gz'; }; then
+		echo -e "${BYELLOW}Firmware's filename does not contain '.tar.gz', trying anyway...${NOCOLOR}"
+	fi
+
+	# get FARM_HASH from a firmware's filename
+	FARM_HASH="$( echo "$firmware_filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )"
+
+	# get HIVE_HOST_URL from a firmware's filename
+	HIVE_HOST_URL="$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )"
+
+	# remove huge temp files (1M and up)
+	for this_huge_file in $( du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' ); do
+		echo "> Clearing the space, removing $this_huge_file (it's greater than 1M)..."
+		rm "$this_huge_file" || true
+	done
+
+	# create a temp dir
+	directory_to_unpack_fw="/tmp/$$"
+	mkdir "$directory_to_unpack_fw"
+	cd "$directory_to_unpack_fw"
+	trap at_exit EXIT
+
+	# drop caches
+	sync && echo 3 > /proc/sys/vm/drop_caches
+
+	# liftoff!
+	"upgrade_$upgrade_type"
+}
+
+upgrade_L3 () {
 	echo "> Downloading and unpacking $firmware_filename..."
 	curl --silent --fail --insecure "$URL" | tar xvz
 	if [ -f runme.sh ]; then
@@ -106,12 +152,13 @@ upgrade_l3 () {
 	/sbin/reboot -f
 }
 
-upgrade_s9 () {
+upgrade_S9 () {
 #	rm -rf /config/hive/hive
 #	rm -rf /hive ## no longer needed after cleaning /tmp
 	for this_directory in /tmp/*; do
+		# remove all dirs in /tmp that are not links
 		if [ -d "$this_directory" ] && [ ! -L "$this_directory" ] && [ "$this_directory" != "$directory_to_unpack_fw" ]; then
-			rm -rf "$this_directory"
+			rm -rf "$this_directory" || true
 		fi
 	done
 
@@ -119,8 +166,8 @@ upgrade_s9 () {
 	echo "> Downloading and unpacking $firmware_filename..."
 	curl --silent --fail --insecure "$URL" | tar xvz
 	if [ ! -f ubi_info ]; then
-		echo -e "${RED}$script_basename: Incorrect firmware${NOCOLOR}"
-		rm /tmp/*
+		echo -e "${RED}Incorrect firmware (no 'ubi_info' found)${NOCOLOR}"
+		#rm -rf /tmp/* # don't have to do this bc we have at_exit destructor that'll take care of everything
 		exit 1
 	else
 		if [ ! -d /mnt/config ]; then
@@ -160,9 +207,9 @@ upgrade_s9 () {
 			echo '> Executing runme.sh...'
 			sh runme.sh
 			echo '> runme.sh finished'
-			echo -e "${GREEN}$script_basename: Firmware upgrade complete. Rebooting...${NOCOLOR}"
+			echo -e "${GREEN}Firmware upgrade complete. Rebooting...${NOCOLOR}"
 		else
-			echo -e "${RED}$script_basename: Incorrect firmware${NOCOLOR}"
+			echo -e "${RED}Incorrect firmware (no 'runme.sh' found)${NOCOLOR}"
 			exit 1
 		fi
 	fi
@@ -174,14 +221,17 @@ upgrade_s9 () {
 }
 
 upgrade_ro () {
-	[ -e /nvdata/latest.tar.gz ] && rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1
+	# models with read-only fs
+	[ -e /nvdata/latest.tar.gz ] && { rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1 || true; }
 
 	exec 2>"$error_log" # redirect stderr to file
 
+	# save FARM_HASH to the corresponding file
 	if [ "${#FARM_HASH}" -eq 40 ]; then
 		echo "$FARM_HASH" > /config/FARM_HASH
 	fi
 
+	# save HIVE_HOST_URL to the corresponding file
 	if [ -n "$HIVE_HOST_URL" ]; then
 		echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
 	fi
@@ -196,7 +246,7 @@ upgrade_ro () {
 	echo '> runme.sh finished'
 
 	if [ ! -s "$error_log" ]; then
-		echo "$script_basename: Firmware upgrade done. Rebooting..."
+		echo "> Firmware upgrade done. Rebooting..."
 		# TODO should we fork the reboot to bg? so the agent can send a message to server?
 		sleep 10
 		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
@@ -213,6 +263,11 @@ upgrade_ro () {
 readonly error_log="/tmp/$script_basename.log"
 
 
+# vars
+
+is_certs_hidden=0
+
+
 # sources
 
 [ -f /hive/bin/colors ] && . colors
@@ -221,7 +276,7 @@ readonly error_log="/tmp/$script_basename.log"
 # main
 
 export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/hive/bin:/hive/sbin
-[ -f /usr/bin/compile_time ] && ASIC_MODEL="$( sed -n 2p /usr/bin/compile_time )" #Antminer
+[ -f /usr/bin/compile_time ] && ASIC_MODEL="$( sed -n 2p /usr/bin/compile_time )" # Antminer model
 
 print_script_version
 
@@ -230,27 +285,20 @@ case "$1" in
 		print_script_usage
 		exit
 	;;
+
+	'http://'*|'https://'*)
+		URL="$1"
+	;;
+
+	*)
+		print_script_usage
+		exit 1
+	;;
 esac
-
-URL="$1"
-firmware_filename="$( echo "$URL" | awk -F \/ '{print $NF}' )"
-# get FARM_HASH from a firmware's filename
-FARM_HASH="$( echo "$firmware_filename" | awk -F \- '{print $NF}' | sed s/.tar.gz// )"
-HIVE_HOST_URL="$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )"
-
-# remove huge temp files (1M and up)
-du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' | xargs rm -rf
-
-directory_to_unpack_fw="/tmp/$$"
-mkdir "$directory_to_unpack_fw"
-cd "$directory_to_unpack_fw"
-trap at_exit EXIT
-
-sync && echo 3 > /proc/sys/vm/drop_caches
 
 case "$ASIC_MODEL" in
 	'Antminer S9'*		|\
-	'Antminer S10'*)	upgrade_s9;;
+	'Antminer S10'*)	do_upgrade_for 'S9'	;;
 
 	'Antminer S9k'*		|\
 	'Antminer S9SE'*	|\
@@ -258,9 +306,12 @@ case "$ASIC_MODEL" in
 	'Antminer S17'*		|\
 	'Antminer T15'*		|\
 	'Antminer T17'*		|\
-	'Antminer X17'*)	upgrade_ro;;
+	'Antminer X17'*)	do_upgrade_for 'ro'	;;
 
-	'Antminer L3'*)		upgrade_l3;;
+	'Antminer L3'*)		do_upgrade_for 'L3'	;;
 
-	*)					echo "$ASIC_MODEL not supported, exiting"; exit 1;;
+	*)
+		echo -e "${BRED}$ASIC_MODEL not supported, exiting${NOCOLOR}"
+		exit 1
+	;;
 esac
