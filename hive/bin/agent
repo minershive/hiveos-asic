@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.20'
+readonly script_version='0.2.21'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -190,7 +190,7 @@ function get_miner_stats {
 				temp="$(			jq '.[1]	| with_entries( select(.key | test("temp2_\\d+")) )			| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'temp' )
 				chip_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [.[].value | split("-") | max]'								<<< "$STATS" 2> /dev/null )" || error_vars+=( 'chip_temp' )
 				board_temp="$(		jq '.[1]	| with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'board_temp' )
-				fan="$(				jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( 'fan' )
+				fan="$(				jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 + 0.5 | floor ]'			<<< "$STATS" 2> /dev/null )" || error_vars+=( 'fan' )
 				fan_rpm="$(			jq '.[1]	| with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'fan_rpm' )
 				freq="$(			jq '.[1]	| with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'freq' )
 				freq_new="$(		jq '.[1]	| with_entries( select(.key | test("freq\\d+")) )			| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'freq_new' )
@@ -257,22 +257,22 @@ function get_miner_stats {
 				#stats=$(jq --null-input --compact-output --argjson hs "$hs" --argjson temp "$temp" --arg uptime "$uptime" --arg algo "$algo" '{$hs, $temp, $uptime, $algo}')
 
 				uptime="$(		jq --raw-output '.[1].Elapsed' <<< "$STATS" )"
-				hs="$(			jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'								<<< "$STATS" )"
-				temp="$(		jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
-				board_temp="$(	jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
-				fan="$(			jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'	<<< "$STATS" )"
-				fan_rpm="$(		jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
-				freq="$(		jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
-				acn="$(			jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
-				power="$(		jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'								<<< "$STATS" )"
-				status="$(		jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
-				hw_errors="$(	jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'								<<< "$STATS" )"
+				hs="$(			jq '.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'											<<< "$STATS" )"
+				temp="$(		jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'											<<< "$STATS" )"
+				board_temp="$(	jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'											<<< "$STATS" )"
+				fan="$(			jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 + 0.5 | floor ]'	<<< "$STATS" )"
+				fan_rpm="$(		jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'											<<< "$STATS" )"
+				freq="$(		jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )		| to_entries | [.[].value]'											<<< "$STATS" )"
+				acn="$(			jq '.[1] | with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [.[].value]'											<<< "$STATS" )"
+				power="$(		jq '.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'											<<< "$STATS" )"
+				status="$(		jq '.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [.[].value]'											<<< "$STATS" )"
+				hw_errors="$(	jq '.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'											<<< "$STATS" )"
 
 				chain_voltage="$( ant-functions hiveon_voltage <<< "$acn" )"
 				miner_count="$(jq '. | length' <<< "$acn" )"
 				if [[ "$( jq --raw-output length <<< "$freq" )" -ne $miner_count ]]; then
 					freq_new='[]'
-					freq="$( jq '.[1] | with_entries( select(.key | test("frequency")) )			| to_entries | [.[].value]'								<<< "$STATS" )"
+					freq="$( jq '.[1] | with_entries( select(.key | test("frequency")) )			| to_entries | [.[].value]'											<<< "$STATS" )"
 					freq_num="$( jq --raw-output '.[0]' <<< "$freq" )"
 					for (( c=1; c<=miner_count; c++ )); do
 						freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num|tonumber]' <<< "$freq_new" )"
@@ -307,7 +307,7 @@ function get_miner_stats {
 				uptime="$(		jq --raw-output '.[0].Elapsed' <<< "$STATS" )"
 				hs="$(			jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | ."MHS 30S"]'															<<< "$STATS" )"
 				temp="$(		jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | ."Temperature"]'														<<< "$STATS" )"
-				fan="$(			jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) )					| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'												<<< "$STATS" )"
+				fan="$(			jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) )					| to_entries | [.[].value / '"$max_fan_rpm"' * 100 + 0.5 | floor ]'									<<< "$STATS" )"
 				fan_rpm="$(		jq '.[0] | with_entries( select(.key | test("Fan In|Fan Out") ) )					| to_entries | [.[].value ]'																		<<< "$STATS" )"
 				freq="$(		jq '.[0].Frequency as $freq | .[0] | with_entries( select(.key | test("CH\\d+") ) )	| to_entries | [.[].value | $freq ]'																<<< "$STATS" )"
 				acn="$(			jq '.[0] | with_entries( select(.key | test("CH\\d+") ) )							| to_entries | [.[].value | .status | length ]'														<<< "$STATS" )"
@@ -446,7 +446,7 @@ function get_miner_stats {
 #				temp="$(		jq '.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
 				temp="$(		jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
 				board_temp="$(	jq '.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
-				fan="$(			jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 ]'										<<< "$STATS" )"
+				fan="$(			jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value / '"$max_fan_rpm"' * 100 + 0.5 | floor ]'							<<< "$STATS" )"
 				fan_rpm="$(		jq '.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [.[].value]'																	<<< "$STATS" )"
 				freq="$(		jq '.[1] | with_entries( select(.key | test("frequency\\d+")) )		| to_entries | [.[].value]'																	<<< "$STATS" )"
 				miner_count="$(	jq '.[1] | with_entries( select(.key | test("miner_count")) )		| to_entries | .[].value'																	<<< "$STATS" )"
