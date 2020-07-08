@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.12'
+readonly script_version='0.16.13'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1059,16 +1059,21 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	if [ -s /usr/bin/compile_time ]; then
 		ASIC_MANUFACTURER='Bitmain'
 		ASIC_MODEL="$( sed -n '2p' /usr/bin/compile_time )"
+		case "$ASIC_MODEL" in
+			'Blackminer F1'*)
+				ASIC_MANUFACTURER='HashAltCoin'
+			;;
+		esac
 	fi
 
 	# Ebang Ebit
-	if [ -e /opt/system/bank.conf ]; then
+	if [ -f /opt/system/bank.conf ]; then
 		ASIC_MANUFACTURER='Ebang'
 		ASIC_MODEL='ebit'
 	fi
 
 	# Innosilicon
-	if [ -e /etc/hwrevision ]; then
+	if [ -s /etc/hwrevision ]; then
 		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cut -d' ' -f 2 /etc/hwrevision )"
 	elif [ -s /tmp/type ]; then
@@ -1076,6 +1081,7 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cat /tmp/type ).$( cat /tmp/hwver )"
 	fi
+	# TODO for refactor: place hwrevision to ASIC_HWREVISION and then place a human-friendly name to ASIC_MODEL='T2Thf' ??? way too much work...
 
 	# Dayun Zig
 	if [ -s /var/www/html/src/Template/Layout/signin.twig ]; then
@@ -1083,10 +1089,10 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 		# Zig old firmware
 		ASIC_MODEL="$(
 			{
-				grep -Fse 'Zig' /var/www/html/src/Template/Layout/signin.twig ||
-				grep -Fse 'Zig' /var/www/html/src/Template/Users/login.twig
+				grep -Fs -e 'Zig' /var/www/html/src/Template/Layout/signin.twig ||
+				grep -Fs -e 'Zig' /var/www/html/src/Template/Users/login.twig
 			} |
-				grep -Ese 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g'
+				grep -Es -e 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g'
 		)"
 		# Zig new firmware
 		if [ -s /var/www/html/TYPE ]; then
@@ -1096,19 +1102,13 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	fi
 
 	# Todek Toddminer C1 / C1 PRO
-	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
+	if [ -x /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
 		ASIC_MANUFACTURER='Todek'
 		ASIC_MODEL='Toddminer C1'
-		if [ "$( /home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c 'pro' )" -eq 1 ]; then
+		if /home/sm/miner/build/cpuminer -V | head -1 | grep -Fq 'pro'; then
 			ASIC_MODEL="$ASIC_MODEL PRO"
 		fi
 	fi
-
-	# Blackminer?
-	# ...
-	# ...
-	# ...
-	# ...
 }
 
 set_HIVEON_VERSION_variable () {

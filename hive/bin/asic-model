@@ -11,7 +11,7 @@
 
 
 readonly asic_model_script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-readonly asic_model_script_version='1.1.2'
+readonly asic_model_script_version='1.1.3'
 readonly asic_model_script_basename="$( basename "$0" )"
 
 
@@ -25,7 +25,7 @@ readonly asic_model_script_basename="$( basename "$0" )"
 set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	#
 	# !!! shall be sh-friendly
-	# !!! copied from 'selfupgrade' script, please keep it in sync
+	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
 	#
 	ASIC_MODEL='<unknown>'
 	ASIC_MANUFACTURER='<unknown>'
@@ -34,16 +34,21 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	if [ -s /usr/bin/compile_time ]; then
 		ASIC_MANUFACTURER='Bitmain'
 		ASIC_MODEL="$( sed -n '2p' /usr/bin/compile_time )"
+		case "$ASIC_MODEL" in
+			'Blackminer F1'*)
+				ASIC_MANUFACTURER='HashAltCoin'
+			;;
+		esac
 	fi
 
 	# Ebang Ebit
-	if [ -e /opt/system/bank.conf ]; then
+	if [ -f /opt/system/bank.conf ]; then
 		ASIC_MANUFACTURER='Ebang'
 		ASIC_MODEL='ebit'
 	fi
 
 	# Innosilicon
-	if [ -e /etc/hwrevision ]; then
+	if [ -s /etc/hwrevision ]; then
 		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cut -d' ' -f 2 /etc/hwrevision )"
 	elif [ -s /tmp/type ]; then
@@ -51,6 +56,7 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cat /tmp/type ).$( cat /tmp/hwver )"
 	fi
+	# TODO for refactor: place hwrevision to ASIC_HWREVISION and then place a human-friendly name to ASIC_MODEL='T2Thf' ??? way too much work...
 
 	# Dayun Zig
 	if [ -s /var/www/html/src/Template/Layout/signin.twig ]; then
@@ -58,10 +64,10 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 		# Zig old firmware
 		ASIC_MODEL="$(
 			{
-				grep -Fse 'Zig' /var/www/html/src/Template/Layout/signin.twig ||
-				grep -Fse 'Zig' /var/www/html/src/Template/Users/login.twig
+				grep -Fs -e 'Zig' /var/www/html/src/Template/Layout/signin.twig ||
+				grep -Fs -e 'Zig' /var/www/html/src/Template/Users/login.twig
 			} |
-				grep -Ese 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g'
+				grep -Es -e 'title|<a><b>' | sed 's/<[^>]*>//g; s/^ *//g; s/ *$//g'
 		)"
 		# Zig new firmware
 		if [ -s /var/www/html/TYPE ]; then
@@ -71,19 +77,13 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	fi
 
 	# Todek Toddminer C1 / C1 PRO
-	if [ -e /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
+	if [ -x /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
 		ASIC_MANUFACTURER='Todek'
 		ASIC_MODEL='Toddminer C1'
-		if [ "$( /home/sm/miner/build/cpuminer -V | head -1 | grep -m1 -c 'pro' )" -eq 1 ]; then
+		if /home/sm/miner/build/cpuminer -V | head -1 | grep -Fq 'pro'; then
 			ASIC_MODEL="$ASIC_MODEL PRO"
 		fi
 	fi
-
-	# Blackminer?
-	# ...
-	# ...
-	# ...
-	# ...
 }
 
 set_HIVEON_VERSION_variable () {
@@ -121,7 +121,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='hs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		'Antminer A3' )
 			MOUNT='config'
@@ -133,7 +133,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='45'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'Antminer D3' | 'Antminer D3 Blissz'* )
 			MOUNT='config'
@@ -145,7 +145,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='45'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'Antminer DR3' )
 			MOUNT='config'
@@ -157,7 +157,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='941'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'Antminer E3' )
 			MOUNT=''
@@ -167,7 +167,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='mhs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		'Antminer L3+'* | 'Antminer L3++' )
 			MOUNT='config'
@@ -179,7 +179,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='45'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'Antminer S7' )
 			MOUNT=''
@@ -192,7 +192,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='70'
 			#GPIO_LED_RED='23'
 			GPIO_PATH='direction'
-			;;
+		;;
 
 		'Antminer S9' | 'Antminer S9i' | 'Antminer S9 Hydro' | 'Antminer S9j' |\
 		'Antminer S9 (vnish'* | 'Antminer S9'* | 'Antminer S10'* | 'Minecenter S9' )
@@ -207,7 +207,7 @@ function set_ASIC_constants {
 			#GPIO_LED_RED='38'
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='2'
-			;;
+		;;
 
 		'Antminer S9k' | 'Antminer S9 SE' )
 			MOUNT=''
@@ -220,7 +220,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='941'
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='2'
-			;;
+		;;
 	
 		'Antminer S11' )
 			MOUNT=''
@@ -233,7 +233,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='70'
 			#GPIO_LED_RED='71'
 			GPIO_PATH='direction'
-			;;
+		;;
 
 		'Antminer S15' | 'Antminer T15' )
 			MOUNT=''
@@ -246,7 +246,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='941'
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='2'
-			;;
+		;;
 
 		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17'* )
 			MOUNT=''
@@ -259,7 +259,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='941'
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='4'
-			;;
+		;;
 
 		'Antminer T9+'* | 'Antminer T9'* )
 			MOUNT=''
@@ -272,7 +272,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='70'
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='2'
-			;;
+		;;
 
 		'Antminer X3' )
 			MOUNT='config'
@@ -284,7 +284,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='45'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'Antminer Z9'* )
 			MOUNT='config'
@@ -296,7 +296,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='8000'
 			GPIO_LED_RED='941'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'Antminer Z11'* )
 			MOUNT='config'
@@ -308,7 +308,7 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='941'
 			GPIO_PATH='value'
-			;;
+		;;
 
 		'ebit' )
 			MOUNT=''
@@ -320,7 +320,7 @@ function set_ASIC_constants {
 			# shellcheck disable=SC2034
 			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # seems unused. will we need it later?
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		'b29+.g19' )
 			MOUNT=''
@@ -330,7 +330,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='hs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		'd9.g19' )
 			MOUNT=''
@@ -340,7 +340,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		's11.g19' )
 			MOUNT=''
@@ -350,7 +350,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		't3.soc' )
 			MOUNT=''
@@ -360,7 +360,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='khs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		't2th+.soc' | 't2thf+.soc' | 't2thl+.soc' | 't2th.soc' | 't2tz.soc' |\
 		't2thm.soc' | 't2thf.soc' | 't2t+.soc' | 't2ts.soc' | 't2ti.soc' | 't2t.soc' |\
@@ -377,7 +377,7 @@ function set_ASIC_constants {
 			# TODO get rid of the unquoted variables to prevent accidental word splitting
 			TEMP_TOKEN=$( echo -n $STAT_TOKEN.$( echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $( cat /tmp/jwtK ) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$// ) )
 			FANS_COUNT_DEFAULT='3'
-			;;
+		;;
 
 		'T4.G19' )
 			MOUNT=''
@@ -387,7 +387,7 @@ function set_ASIC_constants {
 			CONFIG_PATH='/home/www/conf/miner.conf'
 			HASH='khs'
 			MAX_FAN_RPM='6000'
-			;;
+		;;
 
 		'Zig Z1'* )
 			MOUNT=''
@@ -397,7 +397,8 @@ function set_ASIC_constants {
 			CONFIG_PATH='/var/www/html/resources/cgminer.config'
 			HASH='mhs'
 			MAX_FAN_RPM='4000'
-			;;
+			ASIC_CHAIN_COUNT=4
+		;;
 
 		'Toddminer C1'* )
 			MOUNT=''
@@ -411,7 +412,9 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='7000'
 			# shellcheck disable=SC2076,SC2034
 			[[ "$ASIC_MODEL" =~ 'PRO' ]] && FANS_COUNT_DEFAULT='4'
-			;;
+			# shellcheck disable=SC2034
+			ASIC_CHAIN_COUNT=3
+		;;
 
 		'Blackminer F1'* )
 			if mount | grep -q '/sdcard'; then
@@ -428,7 +431,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED='23'
 			# shellcheck disable=SC2034
 			GPIO_PATH='direction'
-			;;
+		;;
 
 		* )
 			# shellcheck disable=SC2034
@@ -442,7 +445,7 @@ function set_ASIC_constants {
 				MAX_FAN_RPM='6000'
 				GPIO_LED_RED=''
 			}
-			;;
+		;;
 	esac
 }
 
@@ -478,7 +481,7 @@ if ! ( return 0 2>/dev/null ); then
 	echo
 	echo 'ASIC configuration:'
 	echo
-	for variable_name in MOUNT ASIC_ALGO THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM FANS_COUNT_DEFAULT GPIO_PATH GPIO_LED_RED; do
+	for variable_name in MOUNT ASIC_ALGO ASIC_CHAIN_COUNT THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM FANS_COUNT_DEFAULT GPIO_PATH GPIO_LED_RED; do
 		variable_value="${!variable_name-}"
 		[[ -z "$variable_value" ]] && echo -e -n "${GRAY-}"
 		echo -e "     $variable_name=${GREEN-}${variable_value}${NOCOLOR-}"
