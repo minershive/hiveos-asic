@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.8'
+readonly script_version='0.1.9'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -183,12 +183,15 @@ upgrade_S9 () {
 		cat >> /config/network.conf <<-FILEEOF
 			### HIVE HECK ###
 			if [ ! -L /hive-config ] && [ ! -e /hive-config ] && [ -d /config/hive ]; then
-				ln -s /config/hive/hive-config /hive-config
-				export PATH=$PATH:/hive/bin:/hive/sbin
-				export LD_LIBRARY_PATH=/hive/lib
-				cp -rf /hive/share/S9/S69hive /etc/rcS.d/
-				cp -rf /hive/share/S9/.profile /home/root/
-				/hive/bin/hive
+			    ln -s /config/hive/hive-config /hive-config
+			    case "\$PATH" in
+			        *'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+			        *)							export PATH="\$PATH:/hive/bin:/hive/sbin"	;;
+			    esac
+			    export LD_LIBRARY_PATH=/hive/lib
+			    cp -rf /hive/share/S9/S69hive /etc/rcS.d/
+			    cp -rf /hive/share/S9/.profile /home/root/
+			    /hive/bin/hive
 			fi
 		FILEEOF
 

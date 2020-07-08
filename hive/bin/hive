@@ -14,8 +14,7 @@
 # \  /\  /  __/ / _  \  __/ (_| | |_| | | | |  __/  / /\/\ \ (_) | | |  __/ / /\/\ \ | | | |  __/ | | (_| | \__ \
 #  \/  \/ \___| \/ \_/\___|\__, |\__,_|_|_|  \___|  \/    \/\___/|_|  \___| \/    \/_|_| |_|\___|_|  \__,_|_|___/
 #                             |_|
-#export PATH="./:/hive/bin:/hive/sbin:$PATH"
-export PATH=$PATH:/hive/bin:/hive/sbin
+[[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
 export LD_LIBRARY_PATH=/hive/lib
 
 #ASIC_MODEL=`sed -n 2p /usr/bin/compile_time`

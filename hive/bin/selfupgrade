@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.14'
+readonly script_version='0.16.15'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -712,7 +712,10 @@ install_antminer_bmminer () {
 
 	sleep 2
 
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 	#[ -d /hive && ! -L /hive ] && mv -f /hive /config/hive/
 	[ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
@@ -744,7 +747,10 @@ install_antminer_cgminer () {
 
 	sleep 2
 
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
 	if [ ! -e /hive ]; then
@@ -798,7 +804,10 @@ install_antminer_Z9_cgminer () {
 
 	sleep 2
 
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
 	if [ ! -e /hive ]; then
@@ -853,7 +862,10 @@ install_innosilicon () {
 
 	sleep 2
 
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
 	[ ! -L /hive/bin ]		&& [ ! -e /hive/bin ]		&& ln -s /config/hive/bin /hive/bin
@@ -922,12 +934,18 @@ install_innosilicon_innominer () {
 		cat >> /etc/profile <<-FILEEOF
 
 			### HIVE PROFILE ###
-			export PATH=$PATH:/hive/bin:/hive/sbin
+			case "\$PATH" in
+			    *'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+			    *)							export PATH="\$PATH:/hive/bin:/hive/sbin"	;;
+			esac
 			export LD_LIBRARY_PATH=/hive/lib
 		FILEEOF
 	fi
 
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
 	sync
@@ -956,7 +974,10 @@ install_zig () {
 	apt update
 	apt install -y curl screen jq
 	sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' "/hive/bin/$script_basename"
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
 	/hive/bin/hive
@@ -983,7 +1004,10 @@ install_todd () {
 	apt update
 	apt install -y curl screen jq dnsutils
 	sed -i 's/#!\/bin\/sh/#!\/bin\/bash/g' "/hive/bin/$script_basename"
-	export PATH=$PATH:/hive/bin:/hive/sbin
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
 	/hive/bin/hive

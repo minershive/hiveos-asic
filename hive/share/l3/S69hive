@@ -2,76 +2,79 @@
 
 
 get_random_number_between () {
-    awk -v min="$1" -v max="$2" 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
+	awk -v min="$1" -v max="$2" 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'
 }
 
 boot_h () {
-    [ ! -e /hive ] && ln -s /config/hive/hive/ /hive
-    [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
-    [ ! -e /home/root/.profile ] && ln -s /config/hive/home/root/.profile /home/root/.profile
-    [ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
-    [ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
-    cp -rf /hive/share/S9/.profile /home/root/
+	[ ! -e /hive ] && ln -s /config/hive/hive/ /hive
+	[ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+	[ ! -e /home/root/.profile ] && ln -s /config/hive/home/root/.profile /home/root/.profile
+	[ -d /hive-config ] && [ ! -L /hive-config ] && mv -f /hive-config /config/hive/
+	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /config/hive/hive-config/ /hive-config
+	cp -rf /hive/share/S9/.profile /home/root/
 
-    #$FARM_HASH can be defined externally
-    if [ -e /config/FARM_HASH ]; then
-        FARM_HASH=$( cat /config/FARM_HASH )
-        [ ! -z "$FARM_HASH" ] && /hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
-        rm /config/FARM_HASH
-    fi
+	#$FARM_HASH can be defined externally
+	if [ -e /config/FARM_HASH ]; then
+		FARM_HASH=$( cat /config/FARM_HASH )
+		[ ! -z "$FARM_HASH" ] && /hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
+		rm /config/FARM_HASH
+	fi
 
-    /hive/bin/hive > /tmp/hive-boot.log 2>&1
+	/hive/bin/hive > /tmp/hive-boot.log 2>&1
 }
 
 check_h () {
-    cd /tmp
-    if [ -z "$URL" ]; then
-        URL="hiveos.farm"
-    fi
+	cd /tmp
+	if [ -z "$URL" ]; then
+		URL="hiveos.farm"
+	fi
 
-    if [ -s /config/HIVE_HOST_URL ]; then
-        URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
-    fi
+	if [ -s /config/HIVE_HOST_URL ]; then
+		URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
+	fi
 
-    if ! echo "$URL" | grep -q -s -F "download"; then
-        URL='http://download.hiveos.farm'
-    fi
+	if ! echo "$URL" | grep -q -s -F "download"; then
+		URL='http://download.hiveos.farm'
+	fi
 
 
-    if [ "$force_download" = 1 ] || [ ! -e /config/latest.tar.gz ] || ! gunzip -tvf /config/latest.tar.gz >/dev/null 2>&1; then
-        snooze_time="$( get_random_number_between 5 30 )"
-        echo "> ${snooze_time}s random pause (for better bulk update)"
-        sleep "$snooze_time"
-        retries_counter=0
-        until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/client/latest.tar.gz -o /tmp/latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /tmp/latest_new.tar.gz >/dev/null 2>&1; do
-            retries_counter=$(( retries_counter + 1 ))
-            snooze_time="$( get_random_number_between 15 60 )"
-            echo "Error. Try #${retries_counter} in $snooze_time seconds..."
-            sleep "$snooze_time"
-        done
-        cp -rf /tmp/latest_new.tar.gz /config/latest.tar.gz
-        sync
-        [ -e /tmp/latest_new.tar.gz ] && rm /tmp/latest_new.tar.gz
-    fi
+	if [ "$force_download" = 1 ] || [ ! -e /config/latest.tar.gz ] || ! gunzip -tvf /config/latest.tar.gz >/dev/null 2>&1; then
+		snooze_time="$( get_random_number_between 5 30 )"
+		echo "> ${snooze_time}s random pause (for better bulk update)"
+		sleep "$snooze_time"
+		retries_counter=0
+		until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/client/latest.tar.gz -o /tmp/latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /tmp/latest_new.tar.gz >/dev/null 2>&1; do
+			retries_counter=$(( retries_counter + 1 ))
+			snooze_time="$( get_random_number_between 15 60 )"
+			echo "Error. Try #${retries_counter} in $snooze_time seconds..."
+			sleep "$snooze_time"
+		done
+		cp -rf /tmp/latest_new.tar.gz /config/latest.tar.gz
+		sync
+		[ -e /tmp/latest_new.tar.gz ] && rm /tmp/latest_new.tar.gz
+	fi
 
-    echo "> Extracting latest.tar.gz"
-    if [ ! -d /config/hive ]; then
-        mkdir -p /config/hive/hive-config
-    fi
+	echo "> Extracting latest.tar.gz"
+	if [ ! -d /config/hive ]; then
+		mkdir -p /config/hive/hive-config
+	fi
 
-    tar -xzv -f /config/latest.tar.gz
-    [ -L /hive ] && rm /hive
-    cp -rf /tmp/hiveos-asic-*/* /config/hive/
-    [ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
-    rm -rf /tmp/hiveos-asic*
-    sleep 2
+	tar -xzv -f /config/latest.tar.gz
+	[ -L /hive ] && rm /hive
+	cp -rf /tmp/hiveos-asic-*/* /config/hive/
+	[ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
+	rm -rf /tmp/hiveos-asic*
+	sleep 2
 
-    export PATH=$PATH:/hive/bin:/hive/sbin
-    export LD_LIBRARY_PATH=/hive/lib
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
+	export LD_LIBRARY_PATH=/hive/lib
 
-    sleep 2
+	sleep 2
 
-    boot_h & # second run, should refactor?
+	boot_h & # second run, should refactor?
 }
 
 rm -rf /tmp/*.log > /dev/null 2>&1
@@ -79,34 +82,37 @@ rm -rf /tmp/*.log > /dev/null 2>&1
 [ -e /config/hive/hive/sbin/teleconsole ] && rm /config/hive/hive/sbin/teleconsole
 
 if [ -s /config/hive/hive/share/l3/S69hive ] && ! cmp -s /etc/rcS.d/S69hive /config/hive/hive/share/l3/S69hive; then
-    cp -rf /config/hive/hive/share/l3/S69hive /etc/rcS.d/S69hive
-    sh /config/hive/hive/share/l3/S69hive
-    exit 0
+	cp -rf /config/hive/hive/share/l3/S69hive /etc/rcS.d/S69hive
+	sh /config/hive/hive/share/l3/S69hive
+	exit 0
 fi
 
 if [ ! -d /config/hive/hive-config ]; then
-    mkdir -p /config/hive/hive-config
+	mkdir -p /config/hive/hive-config
 fi
 
 if [ -s /etc/hive-url ]; then
-    URL=$( cat /etc/hive-url )
+	URL=$( cat /etc/hive-url )
 fi
 
 if [ -s /config/hive-url ]; then
-    URL=$( cat /config/hive-url )
+	URL=$( cat /config/hive-url )
 fi
 
 if [ "$1" = '-f' ]; then
-    force_download=1
+	force_download=1
 fi
 
-export PATH=$PATH:/hive/bin:/hive/sbin
+case "$PATH" in
+	*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+	*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+esac
 export LD_LIBRARY_PATH=/hive/lib
 
 if [ -e /config/hive/hive/sbin ]; then
-    echo 'boot'
-    boot_h &
+	echo 'boot'
+	boot_h &
 else
-    echo 'check'
-    check_h &
+	echo 'check'
+	check_h &
 fi

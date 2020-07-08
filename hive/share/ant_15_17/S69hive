@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.25'
+readonly script_version='1.0.26'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -387,7 +387,10 @@ executed_by_rc_FLAG=0
 
 # global exports
 
-export PATH=$PATH:/hive/bin:/hive/sbin
+case "$PATH" in
+	*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+	*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+esac
 export LD_LIBRARY_PATH=/hive/lib
 
 
