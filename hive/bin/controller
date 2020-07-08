@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.35'
+readonly script_version='2.1.36'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1697,7 +1697,7 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 
 # global exports
 
-export PATH=$PATH:/hive/bin:/hive/sbin
+[[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin"
 export LD_LIBRARY_PATH=/hive/lib
 
 
