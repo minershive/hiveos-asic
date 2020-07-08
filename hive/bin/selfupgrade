@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.13'
+readonly script_version='0.16.14'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -766,8 +766,10 @@ install_antminer_cgminer () {
 	/hive/bin/hive
 
 	#on cgminer's antminer no cron daemon, run tasks in background
-	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+# legacy cron imitation
+# now it's a /hive/bin/controller built-in
+#	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+#	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
 	sleep 2
 
@@ -818,8 +820,10 @@ install_antminer_Z9_cgminer () {
 	/hive/bin/hive
 
 	#on cgminer's antminer no cron daemon, run tasks in background
-	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+# legacy cron imitation
+# now it's a /hive/bin/controller built-in
+#	nohup bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+#	nohup bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
 	sleep 2
 
@@ -904,9 +908,11 @@ install_innosilicon_innominer () {
 			### HIVE AUTORUN ###
 			[ -e /hive/bin/hive ] && nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log 2>&1; echo "Running Hive..."' > /dev/null 2>&1 &
 			[ -e /hive/bin/hello ] && nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
-			[ -e /hive/bin/cron1 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
-			[ -e /hive/bin/cron2 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 		FILEEOF
+# legacy cron imitation
+# now it's a /hive/bin/controller built-in
+#			[ -e /hive/bin/cron1 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
+#			[ -e /hive/bin/cron2 ] && nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 	fi
 
 	#PATH
