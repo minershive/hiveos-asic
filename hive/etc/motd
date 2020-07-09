@@ -145,12 +145,12 @@ function show_mixed_logs {
 			fi
 			
 			if [[ -s "$miner_status_log" ]]; then
-				while IFS= read line; do
+				while IFS= read -r line; do
 					echo -e "${line}${error_line_marker}"
 				done < <( grep -E 'WARN|ERR' "$miner_status_log" | tail -n "$tail_lines" )
 			fi
 		} | sort -us | {
-			while IFS= read line; do
+			while IFS= read -r line; do
 				if [[ "${line: -${error_line_marker_length}}" == "${error_line_marker}" ]]; then
 					echo -e " ${RED}${line::-${error_line_marker_length}}${NOCOLOR}"
 				else
