@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.37'
+readonly script_version='2.1.38'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -515,7 +515,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 							failed_chain=" #${BASH_REMATCH[1]}"
 							failed_chip="#${BASH_REMATCH[2]} "
 						fi
-						message_header="Chain ${failed_chain}malfunction. Mining restarted. Click for details"
+						message_header="Chain${failed_chain} malfunction. Mining restarted. Click for details"
 						message_advice="Cannot set frequency on asic chip ${failed_chip}on chain${failed_chain}. "
 						message_advice+="Please check the chain and then resold/replace the chip. "
 						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
