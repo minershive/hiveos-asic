@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.15'
+readonly script_version='0.16.16'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -759,7 +759,7 @@ install_antminer_cgminer () {
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 
-	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ -n "$HIVEON_VERSION" ]; then
+	if grep -Fq '### HIVE AUTORUN ###' /config/network.conf || grep -Fq 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ -n "$HIVEON_VERSION" ]; then
 		echo_info '/config/network.conf skipped'
 	else
 		cat >> /config/network.conf <<-FILEEOF
@@ -816,7 +816,7 @@ install_antminer_Z9_cgminer () {
 		ln -s /config/hive/home/root/.profile /home/root/.profile
 	fi
 
-	if grep -F '### HIVE AUTORUN ###' /config/network.conf || grep -F 'ln -s /config/hive/hive/ /hive' /config/network.conf; then
+	if grep -Fq '### HIVE AUTORUN ###' /config/network.conf || grep -Fq 'ln -s /config/hive/hive/ /hive' /config/network.conf; then
 		echo_info '/config/network.conf skipped'
 	else
 		cat >> /config/network.conf <<-FILEEOF
@@ -912,7 +912,7 @@ install_innosilicon_innominer () {
 	[ ! -L /hive-config ] && [ ! -e /hive-config ] && ln -s /innocfg/hive-config/ /hive-config
 
 	#autorun
-	if grep -F '### HIVE AUTORUN ###' /etc/init.d/rcS; then
+	if grep -Fq '### HIVE AUTORUN ###' /etc/init.d/rcS; then
 		echo_info '/etc/init.d/rcS skipped'
 	else
 		cat >> /etc/init.d/rcS <<-FILEEOF
@@ -928,7 +928,7 @@ install_innosilicon_innominer () {
 	fi
 
 	#PATH
-	if grep -F '### HIVE PROFILE ###' /etc/profile; then
+	if grep -Fq '### HIVE PROFILE ###' /etc/profile; then
 		echo_info '/etc/profile skipped'
 	else
 		cat >> /etc/profile <<-FILEEOF
