@@ -1,30 +1,29 @@
-# consts
+#!/hive/sbin/bash
 
-[[ -s /hive/bin/colors ]] && . /hive/bin/colors
-[[ -s /hive/bin/asic-model ]] && . /hive/bin/asic-model
-[[ -s /hive-config/rig.conf ]] && . /hive-config/rig.conf
-readonly separator='·'
 
-if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
-    [[ $(echo $PATH | tr ":" "\n" | grep -c "^/sbin") -eq 0 ]] && export PATH=$PATH:/sbin:/usr/sbin
-fi
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+
 
 # functions
 
 seconds2dhm() {
 	# Usage: seconds2dhm 'time_in_seconds' ['delimiter']
 	# Renders time_in_seconds to 'XXd XXh XXm XXs' string
+
+	# args
 	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS
-	local -r delimiter=' '
 
 	# consts
-
+	local -r delimiter=' '
 	local -i -r days="$(( time_in_seconds / 60 / 60 / 24 ))"
 	local -i -r hours="$(( time_in_seconds / 60 / 60 % 24 ))"
 	local -i -r minutes="$(( time_in_seconds / 60 % 60 ))"
 
 	# code
-
 	(( days > 0 )) && printf '%ud%s' "$days" "$delimiter"
 	(( hours > 0 )) && printf '%uh%s' "$hours" "$delimiter"
 	(( minutes > 0 )) && printf '%um' "$minutes"
@@ -33,10 +32,14 @@ seconds2dhm() {
 }
 
 netmask_to_cidr() {
+	# args
 	local -r netmask="$1"
+
+	# vars
 	local -i cidr=0
 	local x
 	
+	# code
 	x="0$( printf '%o' ${netmask//./ } )"
 
 	while (( x > 0 )); do
@@ -47,16 +50,20 @@ netmask_to_cidr() {
 }
 
 get_uptime_in_dhm() {
-	local -r uptime_raw="$( < /proc/uptime )"
-	local -r uptime_dhm="$( seconds2dhm "${uptime_raw%%.*}" )"
+	# vars
+	local uptime_raw uptime_dhm
+
+	# code
+	uptime_raw=( $( < /proc/uptime ) )
+	uptime_dhm="$( seconds2dhm $(( ${uptime_raw/\.} / 100 )) )"
 	echo "$uptime_dhm"
 }
 
 get_fs_name() {
-	local fs_name=''
-	local fs_RE=''
-	local fs_raw=''
+	# vars
+	local fs_name='' fs_RE='' fs_raw=''
 
+	# code
 	if [[ -s /hive-config/wallet.conf ]]; then
 		fs_RE="### FLIGHT SHEET \"(.*)\" ###"
 		fs_raw="$( < /hive-config/wallet.conf )"
@@ -82,7 +89,7 @@ pretty_print() {
 		if [[ -n "$variable_name" ]]; then
 			printf '%b%s' "$variable_ok_color" "$variable_name"
 		else
-			printf '%b%s' "$variable_empty_color" "<empty>"
+			printf '%b%s' "$variable_empty_color" "[not set]"
 		fi
 
 		if [[ -z "$delimiter" ]]; then
@@ -99,9 +106,9 @@ rematch() {
 	# actually we don't have to use pure bash eh?
 	# rematch 'regex' ['string']
 	local -r regex="$1"
-	local -r string="${2:-$(</dev/stdin)}" # get from arg or stdin
+	local -r string="${2:-$( </dev/stdin )}" # get from arg or stdin
 
-	[[ $string =~ $regex ]]
+	[[ "$string" =~ $regex ]]
 	printf '%s\n' "${BASH_REMATCH[@]:1}"
 }
 
@@ -142,12 +149,22 @@ show_mixed_logs() {
 }
 
 
-# code
+# sources
+
+[[ -s /hive/bin/colors ]] && source /hive/bin/colors
+[[ -s /hive/bin/asic-model ]] && source /hive/bin/asic-model
+[[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
+declare -r separator='·'
+
+
+# main()
+
+[[ "$ASIC_MODEL" =~ 'Toddminer C1' && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add only if not exist
 
 # collect sysinfo
 agent_release_version="$( cat /hive/etc/VERSION 2> /dev/null )"
 agent_build_version="$( cat /hive/etc/build 2> /dev/null )"
-agent_full_version="${agent_release_version:-<not set>}-${agent_build_version:-release}"
+agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-release}"
 
 gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
 
@@ -155,12 +172,12 @@ if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
     mac="$( LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"    
     ip="$( LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
     netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
-    nameserver="$( cat /etc/resolv.conf | grep -v "^#" | head -n 1 | awk '{ print $2}' )"
+    nameserver="$( grep -v -m1 '^#' /etc/resolv.conf | awk '{ print $2 }' )"
 else
     mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"    
-    ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )"
+    ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
     netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
-    nameserver="$( grep -qF 'nameserver' /etc/resolv.conf && grep -F 'nameserver' /etc/resolv.conf | awk '{ print $2}' || awk '{ print $2}' )"
+    nameserver="$( rematch '^nameserver[ \t]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' < /etc/resolv.conf )"
 fi
 
 hostname="$( hostname )"
@@ -176,12 +193,12 @@ fs_name="$( get_fs_name )"
 
 if [[ -n "$HIVEON_VER" ]]; then
 	fw_version="$( sed -n 3p /usr/bin/compile_ver )"
-elif [[ -e "/home/sm/miner/build/cpuminer" ]] && [[ -e "/flask/setHashinJson" ]]; then
-	fw_version=`/home/sm/miner/build/cpuminer -V | head -n 1`
+elif [[ -e /home/sm/miner/build/cpuminer ]] && [[ -e /flask/setHashinJson ]]; then
+	fw_version="$( /home/sm/miner/build/cpuminer -V | head -n 1 )"
 	if [[ "$ASIC_MODEL" == "Toddminer C1" ]]; then
-		fw_version=`echo $fw_version | awk '{ print $3}'`
+		fw_version="$( awk '{ print $3 }' <<< "$fw_version" )"
 	else
-		fw_version=`echo $fw_version | awk '{ print $4}'`
+		fw_version="$( awk '{ print $4 }' <<< "$fw_version" )"
 	fi
 else
 	fw_version="$( sed -n 1p /usr/bin/compile_time )"
@@ -193,7 +210,7 @@ fi
 pretty_print 'host' hostname / 'uptime' uptime / 'local date' local_date
 pretty_print 'ip' ip_w_cidr / 'mac' mac / 'gw' gateway / 'dns' nameserver
 echo
-echo -e "${BPURPLE}${ASIC_MODEL:-<not set>} ${PURPLE}${separator} ${fw_version}${NOCOLOR}"
+echo -e "${BPURPLE}${ASIC_MODEL:-[not set]} ${PURPLE}${separator} ${fw_version}${NOCOLOR}"
 echo
 pretty_print 'Worker' WORKER_NAME / 'Flight sheet' fs_name / 'Client' agent_full_version
 pretty_print 'Farm ID' FARM_ID / 'Rig ID' RIG_ID / 'API server' HIVE_HOST_URL
@@ -204,4 +221,4 @@ fi
 
 echo
 
-show_mixed_logs
+[[ "$1" != '--disable-logs' ]] && show_mixed_logs
