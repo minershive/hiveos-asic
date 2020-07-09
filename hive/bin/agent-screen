@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.8'
+readonly script_version='1.0.9'
 readonly script_basename="$( basename "$0" )"
 readonly DEBUG=0
 
@@ -28,7 +28,7 @@ set -o nounset
 
 function errcho {
 	# uniform error logging to stderr
-	echo -e "Error in $0:${FUNCNAME[1]}(): $*"
+	echo -e "${script_basename}: Error in $0:${FUNCNAME[1]}(): $*"
 } 1>&2
 
 # functions: screen
@@ -207,26 +207,26 @@ function agent_start {
 	# code
 
 	if ! is_screen_session_exist 'agent'; then
-		echo -n "> Starting new agent screen session... "
-		screen_start_session 'agent' && echo "Started." || echo "Error."
+		echo -n "${script_basename}> Starting new agent screen session... "
+		screen_start_session 'agent' && echo 'Started.' || echo 'Error.'
 	else
 		if [[ $message_mode != '--quiet-ok' ]]; then
-			echo "Agent screen session is already running"
+			echo "${script_basename}: Agent screen session is already running"
 		fi
 	fi
 }
 
 function agent_stop {
 	if is_screen_session_exist 'agent'; then
-		echo -n "> Stopping agent screen session... "
-		screen_stop_session 'agent' && echo "Stopped." || echo "Error."
+		echo -n "${script_basename}> Stopping agent screen session... "
+		screen_stop_session 'agent' && echo 'Stopped.' || echo 'Error.'
 	else
-		echo "Agent screen session hasn't been running"
+		echo "${script_basename}: Agent screen session hasn't been running"
 	fi
 }
 
 function agent_restart {
-	echo "> Restarting agent screen session"
+	echo "${script_basename}> Restarting agent screen session"
 	agent_stop
 	agent_start
 }
