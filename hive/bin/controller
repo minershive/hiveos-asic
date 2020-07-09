@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.38'
+readonly script_version='2.1.39'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -678,8 +678,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/tmp/fault.log')
 				event_type='warning'
 				message_header='Miner program fault. Click for details'
-				message_advice="There was a program fault. The miner program has restarted automatically. "
-				message_advice+="Report was sent to developers. You don't have to do anything special, we'll take care."
+				message_advice='There was a miner program fault (due to bugs in the code and/or ASIC hardware). '
+				message_advice+='The miner has been restarted automatically.'
 			;;
 
 			*)
