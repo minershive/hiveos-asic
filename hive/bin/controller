@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.36'
+readonly script_version='2.1.37'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -449,12 +449,13 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 	local -r -i send_messages_enabled=1
 	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>%s'
+	local -r valid_chain_number_RE='^[0-9]+$'
 
 	# vars
 
 	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
 	local message_header message_body message_advice
-	local chain_to_repair=''
+	local parse_error_RE failed_chain='' failed_chip=''
 
 	# code
 
@@ -486,21 +487,39 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 				case "$log_message" in
 
 					*'Chain['*'] PIC init failed!')
-						# 'driver/driver-btm-api.c:242:init_pic_one_chain: Chain[2] PIC init failed!'
 						event_type='error'
-						message_header='Chain error. Click for details'
+						# 'driver/driver-btm-api.c:242:init_pic_one_chain: Chain[2] PIC init failed!'
+						parse_error_RE='Chain[([0-9+])] PIC init failed'
+						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
+						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
 						message_advice='Please get the ASIC to the service or repair shop.'
 					;;
 
 					*'will power off hash board'*)
-						# 'driver/driver-btm-api.c:1445:check_asic_number_with_power_on: Chain 0 only find 3 asic, will power off hash board 0'
 						event_type='error'
-						message_header='Chain error. Click for details'
+						# 'driver/driver-btm-api.c:1445:check_asic_number_with_power_on: Chain 0 only find 3 asic, will power off hash board 0'
+						parse_error_RE='Chain ([0-9]+) only find'
+						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
+						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
 						message_advice="There's a chance that the chain is undervolted and cannot start due to a low voltage. "
 						message_advice+="Sometimes, switching an Overclocking profile to the more aggressive one resolves the issue. "
 						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
+					*'bad clock counter'*)
+						# 17 2.00 (not sure about version)
+						event_type='error'
+						# driver/register.c:699:quick_dump_core_hash_clock_counter: bad clock counter. chain = 0, asic = 7, core = 2, found 1, clock counter 0x00000000
+						parse_error_RE='bad clock counter. chain = ([0-9]+), asic = ([0-9]+)'
+						if [[ "$log_message" =~ $parse_error_RE ]]; then
+							failed_chain=" #${BASH_REMATCH[1]}"
+							failed_chip="#${BASH_REMATCH[2]} "
+						fi
+						message_header="Chain ${failed_chain}malfunction. Mining restarted. Click for details"
+						message_advice="Cannot set frequency on asic chip ${failed_chip}on chain${failed_chain}. "
+						message_advice+="Please check the chain and then resold/replace the chip. "
+						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+					;;
 				esac
 
 			;;
@@ -584,14 +603,14 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					;;
 
 					'Possible manufacturing defects detected'*)
-						# 17 Hiveon 2.00, 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
+						# 17 Hiveon 2.00
+						# 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
 						if [[ -s /config/stop-mining ]]; then
-							chain_to_repair="$( < /config/stop-mining )"
-							valid_chain_number_RE='^[0-9]+$'
-							[[ "$chain_to_repair" =~ $valid_chain_number_RE ]] && chain_to_repair="#$(( chain_to_repair - 1 )) " # chain numbers in the file are 1-based
+							failed_chain="$( < /config/stop-mining )"
+							[[ "$failed_chain" =~ $valid_chain_number_RE ]] && failed_chain="#$(( failed_chain - 1 )) " # chain numbers in the file are 1-based
 						fi
 						event_type='error'
-						message_header="Chain ${chain_to_repair}malfunction. Safe mode activated, mining disabled. Click for details"
+						message_header="Chain ${failed_chain}malfunction. Safe mode activated, mining disabled. Click for details"
 						message_advice='You see, hashboards are placed upright. Heatsinks soldered to chips using a Low Melting Point solder paste. '
 						message_advice+='Sometimes the solder melts a bit and then heatsink begins to slide down due to the gravitation. It slides '
 						message_advice+='right to the next heatsink down south and then KA-BOOM! -- a short-circuit that will ruin a whole hashboard. '
