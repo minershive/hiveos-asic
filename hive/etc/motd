@@ -10,28 +10,34 @@
 
 # functions
 
-seconds2dhm() {
-	# Usage: seconds2dhm 'time_in_seconds' ['delimiter']
+function seconds2dhms {
+	# Usage: seconds2dhms 'time_in_seconds' ['delimiter']
 	# Renders time_in_seconds to 'XXd XXh XXm XXs' string
 
 	# args
-	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS
+	local -i -r time_in_seconds="${1#-}" # strip sign, get abs()
+	local -r delimiter_DEFAULT=' '
+	local -r delimiter="${2-${delimiter_DEFAULT}}"
 
-	# consts
-	local -r delimiter=' '
-	local -i -r days="$(( time_in_seconds / 60 / 60 / 24 ))"
-	local -i -r hours="$(( time_in_seconds / 60 / 60 % 24 ))"
-	local -i -r minutes="$(( time_in_seconds / 60 % 60 ))"
+	# vars
+	local -i days hours minutes seconds
 
 	# code
-	(( days > 0 )) && printf '%ud%s' "$days" "$delimiter"
-	(( hours > 0 )) && printf '%uh%s' "$hours" "$delimiter"
-	(( minutes > 0 )) && printf '%um' "$minutes"
+	((
+		days = time_in_seconds / 60 / 60 / 24,
+		hours = time_in_seconds / 60 / 60 % 24,
+		minutes = time_in_seconds / 60 % 60,
+		seconds = time_in_seconds % 60
+	)) # arithmetic context, GOD I LOVE IT
 
-	printf '\n'
+	(( days ))				&&	printf '%ud%s' "$days" "$delimiter"
+	(( hours ))				&&	printf '%uh%s' "$hours" "$delimiter"
+	(( minutes ))			&&	printf '%um%s' "$minutes"
+	(( ! days && ! hours ))	&&	printf '%s%us' "$delimiter" "$seconds" # seconds only in the first hour
+								printf '\n'
 }
 
-netmask_to_cidr() {
+function netmask_to_cidr {
 	# args
 	local -r netmask="$1"
 
@@ -49,17 +55,18 @@ netmask_to_cidr() {
 	echo "$cidr"
 }
 
-get_uptime_in_dhm() {
+function get_uptime_in_dhm {
 	# vars
-	local uptime_raw uptime_dhm
+	local -a uptime_raw
+	local uptime_dhm
 
 	# code
 	uptime_raw=( $( < /proc/uptime ) )
-	uptime_dhm="$( seconds2dhm $(( ${uptime_raw/\.} / 100 )) )"
+	uptime_dhm="$( seconds2dhms $(( ${uptime_raw/\.} / 100 )) )"
 	echo "$uptime_dhm"
 }
 
-get_fs_name() {
+function get_fs_name {
 	# vars
 	local fs_name='' fs_RE='' fs_raw=''
 
@@ -74,11 +81,13 @@ get_fs_name() {
 	echo "$fs_name"
 }
 
-pretty_print() {
+function pretty_print {
+	# consts
 	local -r label_color="${LGRAY}"
 	local -r variable_ok_color="${BCYAN}"
 	local -r variable_empty_color="${DGRAY}"
 
+	# code
 	while true; do
 		local label="$1"
 		local -n variable_name="$2"
@@ -92,34 +101,41 @@ pretty_print() {
 			printf '%b%s' "$variable_empty_color" "[not set]"
 		fi
 
-		if [[ -z "$delimiter" ]]; then
+		if [[ -n "$delimiter" ]]; then
+			printf ' %b%s ' "${PURPLE}" "$separator"
+			shift 3
+		else
 			printf ' %b\n' "${NOCOLOR}"
 			break
-		else
-			printf ' %b%s ' "${DGRAY}" "$separator"
-			shift 3
 		fi
 	done
 }
 
-rematch() {
+function rematch {
 	# actually we don't have to use pure bash eh?
 	# rematch 'regex' ['string']
+
+	# args
 	local -r regex="$1"
 	local -r string="${2:-$( </dev/stdin )}" # get from arg or stdin
 
+	# code
 	[[ "$string" =~ $regex ]]
 	printf '%s\n' "${BASH_REMATCH[@]:1}"
 }
 
-show_mixed_logs() {
+function show_mixed_logs {
+	# consts
 	local -r controller_log='/config/hive-controller.log'
 	local -r miner_status_log='/nvdata/miner_status.log'
 	local -r error_line_marker='MaRkEr'
 	local -r -i error_line_marker_length="${#error_line_marker}"
 	local -r -i tail_lines=12
+
+	# vars
 	local line=''
 	
+	# code
 	if [[ -s "$controller_log" || -s "$miner_status_log" ]]; then
 		echo -e "${DGRAY}-- Last lines from logs --------------------------------------------------------${NOCOLOR}"
 	
@@ -149,11 +165,15 @@ show_mixed_logs() {
 }
 
 
-# sources
+# global sources
 
 [[ -s /hive/bin/colors ]] && source /hive/bin/colors
 [[ -s /hive/bin/asic-model ]] && source /hive/bin/asic-model
 [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
+
+
+# global consts
+
 declare -r separator='·'
 
 
@@ -162,13 +182,13 @@ declare -r separator='·'
 [[ "$ASIC_MODEL" =~ 'Toddminer C1' && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add only if not exist
 
 # collect sysinfo
-agent_release_version="$( cat /hive/etc/VERSION 2> /dev/null )"
-agent_build_version="$( cat /hive/etc/build 2> /dev/null )"
+[[ -s /hive/etc/VERSION ]] && agent_release_version="$( < /hive/etc/VERSION )"
+[[ -s /hive/etc/build ]] && agent_build_version="$( < /hive/etc/build )"
 agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-release}"
 
 gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
 
-if [[ "$ASIC_MODEL" =~ "Toddminer C1" ]]; then
+if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
     mac="$( LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"    
     ip="$( LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
     netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
@@ -193,18 +213,18 @@ fs_name="$( get_fs_name )"
 
 if [[ -n "$HIVEON_VER" ]]; then
 	fw_version="$( sed -n 3p /usr/bin/compile_ver )"
-elif [[ -e /home/sm/miner/build/cpuminer ]] && [[ -e /flask/setHashinJson ]]; then
+elif [[ -x /home/sm/miner/build/cpuminer ]] && [[ -e /flask/setHashinJson ]]; then
 	fw_version="$( /home/sm/miner/build/cpuminer -V | head -n 1 )"
 	if [[ "$ASIC_MODEL" == "Toddminer C1" ]]; then
 		fw_version="$( awk '{ print $3 }' <<< "$fw_version" )"
 	else
 		fw_version="$( awk '{ print $4 }' <<< "$fw_version" )"
 	fi
-else
+elif [[ -s /usr/bin/compile_time ]]; then
 	fw_version="$( sed -n 1p /usr/bin/compile_time )"
+else
+	fw_version='[unknown]'
 fi
-
-
 
 # print
 pretty_print 'host' hostname / 'uptime' uptime / 'local date' local_date
