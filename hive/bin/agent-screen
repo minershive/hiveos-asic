@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.7'
+readonly script_version='1.0.8'
 readonly script_basename="$( basename "$0" )"
 readonly DEBUG=0
 
@@ -274,7 +274,7 @@ case "${1-}" in
 		if touch "$own_log" 2> /dev/null; then
 			screen -S agent -X -p0 hardcopy -h "$own_log"
 			if [[ -f "$own_log" ]]; then
-				cat "$own_log"
+				{ grep -v -m 1 '^$' && cat; } < "$own_log" # remove blank lines from beginning, https://stackoverflow.com/a/19775127
 				rm "$own_log"
 			fi
 			script_exitcode=0
