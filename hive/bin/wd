@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.2.5'
+readonly script_version='0.2.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -23,9 +23,20 @@ function load_configuration {
 		exit 1
 	fi
 
-	if [[ -z "$WD_ENABLED" || "$WD_ENABLED" == '0' ]]; then
-		log_line warning "Watchdog not enabled (WD_ENABLED='$WD_ENABLED'), exiting"
+	# set to 0 if empty or not defined
+	: "${WD_ENABLED:=0}"
+	: "${WD_REBOOT:=0}"
+	: "${WD_MINER:=0}"
+
+	if (( ! WD_ENABLED )); then
+		log_line warning "Watchdog not enabled, exiting"
 		exit 0
+	fi
+
+	if (( ( ! WD_MINER ) && ( ! WD_REBOOT ) )); then
+		message warn "Restart and reboot timers both set to 0 (zero) minutes. Hahsrate Watchdog disabled. Please configure properly"
+		log_line warning "Restart and reboot timers both set to 0 (zero) minutes. Watchdog not enabled, exiting"
+		exit 1
 	fi
 
 	minhash="$( jq --raw-output ".\"$MINER\"" <<< "$WD_MINHASHES" )"
@@ -37,10 +48,10 @@ function load_configuration {
 }
 
 function set_lastgood {
-	if [[ -f /run/hive/khs ]]; then
-#		lastgood=`stat -c %Y /run/hive/khs`
-#		lastgood="$( date -r /run/hive/khs +%s )"
-		lastgood="$( get_file_last_modified_time_in_seconds /run/hive/khs )"
+	if [[ -f "$khs_file" ]]; then
+#		lastgood=`stat -c %Y "$khs_file"`
+#		lastgood="$( date -r "$khs_file" +%s )"
+		lastgood="$( get_file_last_modified_time_in_seconds "$khs_file" )"
 	else
 		#lastgood=0 can't set it to 0, in case of boot agent may be late
 		printf -v lastgood '%(%s)T' -1 #let's count from now
@@ -51,15 +62,17 @@ function set_lastgood {
 }
 
 function loop {
+	# consts
+	local -r -i seconds_in_24h=$(( 60 * 60 * 24 ))
 
 	# vars
-	local -i khs_decimal minhash_decimal
+	local -i khs_decimal minhash_decimal elapsed_safe_limit
 
 	# code
 	load_configuration
 
-	[[ -f /run/hive/khs ]] && khs="$( < /run/hive/khs )"
-	: "${khs:=0}" # set to 0 if empty or null
+	[[ -f "$khs_file" ]] && khs="$( < "$khs_file" )"
+	: "${khs:=0}" # set to 0 if empty or not defined
 
 	khs_decimal="$( scientific_to_decimal "$khs" )"
 	minhash_decimal="$( scientific_to_decimal "$minhash" )"
@@ -76,25 +89,38 @@ function loop {
 
 	printf -v now '%(%s)T' -1
 	(( elapsed = now - lastgood ))
+	elapsed_safe_limit="$( jq --slurp 'max' <<< "$(( WD_REBOOT * 60 )) $(( WD_MINER * 60 )) $(( seconds_in_24h ))" )" # get max of these numbers
 
+	if (( elapsed > elapsed_safe_limit || elapsed < 0 )); then
+		# most likely the system date was changed
+		# !!! the watchdog limit is 24h or WD_REBOOT or WD_MINER (which is greater)
+		log_line warning "!"
+		log_line warning "! GRR-GRR! Something wrong with the system time?"
+		log_line warning "! Last good result was received a ${WHITE}$( seconds2dhms "$elapsed" )${NOCOLOR} ago"
+		log_line warning "! Watchdog resetted to a current time"
+		log_line warning "!"
+		# let's give another chance: update lastgood to a current datetime
+		set_lastgood
+		return
+	fi
 #
 # checking for a flag file that does indicate that mining is stopped due to some manufacturing defects
 # !!! postponed until the bug in hiveon miner will go away (sometimes it does a mining even if /config/stop-mining file exists
 #
 #	if [[ -s /config/stop-mining ]]; then
-#		log_line warning "Safe mode for $MINER activated, watchdog paused and isn't active for ${WHITE}${elapsed}${NOCOLOR} seconds"
+#		log_line warning "Safe mode for $MINER activated, watchdog paused and isn't active for ${WHITE}$( seconds2dhms "$elapsed" )${NOCOLOR}"
 #		return
 #	fi
 
-	log_line warning "BARK-BARK! $MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" ) ${YELLOW}<${NOCOLOR} ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR} for ${WHITE}${elapsed}${NOCOLOR} seconds"
+	log_line warning "BARK-BARK! $MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" ) ${YELLOW}<${NOCOLOR} ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR} for ${WHITE}$( seconds2dhms "$elapsed" )${NOCOLOR}"
 
-	#Check to reboot first
-	if [[ -n "$WD_REBOOT" ]]; then
+	# check for reboot condition first
+	if (( WD_REBOOT )); then
 		(( reboot_timeout = WD_REBOOT * 60 ))
 		if (( elapsed >= reboot_timeout )); then
 			message danger "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), rebooting"
 			log_line error "!"
-			log_line error "! Rebooting after $WD_REBOOT minutes"
+			log_line error "! Rebooting after $WD_REBOOT minutes of continuous barking"
 			log_line error "!"
 			#sreboot
 			nohup bash -c 'reboot' > /tmp/nohup.log 2>&1 &
@@ -102,13 +128,13 @@ function loop {
 		fi
 	fi
 
-	#Check to restart miner
-	if [[ -n "$WD_MINER" ]]; then
+	# check for restart miner condition
+	if (( WD_MINER )); then
 		(( miner_restart_timeout = WD_MINER * 60 ))
 		if (( miner_restart_count == 0 && elapsed >= miner_restart_timeout )); then
 			message warn "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), restarting"
 			log_line warning "!"
-			log_line warning "! Restarting $MINER after $WD_MINER minutes"
+			log_line warning "! Restarting $MINER after $WD_MINER minutes of continuous barking"
 			log_line warning "!"
 			miner_restart_count=1
 			/hive/bin/miner restart
@@ -122,7 +148,7 @@ function loop {
 declare -r sleep_time=10 # seconds to sleep over iteration
 declare -r OK_MESSAGE_REDUCE=$(( 1 * 60 / sleep_time )) # e.g. only every 12th message will be displayed to reduce log
 declare -r RIG_CONF='/hive-config/rig.conf'
-
+declare -r khs_file='/run/hive/khs'
 
 # vars
 
@@ -180,9 +206,9 @@ case "$1" in
 		print_script_version
 		self_count="$( pgrep_count "$0" )"
 		if (( self_count )); then
-			echo 'Running'
+			echo 'Watchdog is running'
 		else
-			echo 'Not running'
+			echo 'Watchdog is not running'
 		fi
 	;;
 
