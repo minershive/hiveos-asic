@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.39'
+readonly script_version='2.1.40'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -492,7 +492,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						parse_error_RE='Chain[([0-9+])] PIC init failed'
 						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
-						message_advice='Please get the ASIC to the service or repair shop.'
+						message_advice="It could be a bad connection between the chain and the control board. "
+						message_advice+="Please do examine closely the every ribbon cable and its connectors. "
+						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 					*'will power off hash board'*)
@@ -561,6 +563,13 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/nvdata/miner_status.log')
 
 				case "$log_message" in
+					'ERROR_PIC_LOST'*)
+						event_type='error'
+						# 'ERROR_PIC_LOST: PIC init failed'
+						message_advice="It could be a bad connection between the chain and the control board. "
+						message_advice+="Please do examine closely the every ribbon cable and its connectors. "
+						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+					;;
 					'STATUS_'*					)	event_type='skip'		;;
 					'ERROR_'*					)	event_type='error'		;;
 					'WARN_'*					)	event_type='warning'	;;
