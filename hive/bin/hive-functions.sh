@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.3'
+declare -r hive_functions_lib_version='0.34.4'
 #                                        ^^ current number of public functions
 
 
@@ -614,27 +614,27 @@ function seconds2dhms {
 	#
 
 	# args
-
 	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS (just in case)
 	local -r delimiter_DEFAULT=' '
 	local -r delimiter="${2-${delimiter_DEFAULT}}"
 
-	# consts
-
-	local -i -r days="$(( time_in_seconds / 60 / 60 / 24 ))"
-	local -i -r hours="$(( time_in_seconds / 60 / 60 % 24 ))"
-	local -i -r minutes="$(( time_in_seconds / 60 % 60 ))"
-	local -i -r seconds="$(( time_in_seconds % 60 ))"
+	# vars
+	local -i days hours minutes seconds
 
 	# code
+	((
+		days = time_in_seconds / 60 / 60 / 24,
+		hours = time_in_seconds / 60 / 60 % 24,
+		minutes = time_in_seconds / 60 % 60,
+		seconds = time_in_seconds % 60
+	)) # arithmetic context, GOD I LOVE IT
 
-	(( days > 0 ))					&&	printf '%ud%s'	"$days" "$delimiter"
-	(( hours > 0 ))					&&	printf '%uh%s'	"$hours" "$delimiter"
-	(( minutes > 0 ))				&&	printf '%um%s'	"$minutes"
-	(( minutes > 0 && days < 1 ))	&&	printf '%s'		"$delimiter"
-	(( days < 1 ))					&&	printf '%us'	"$seconds" # no seconds if days > 0
-										printf '\n'
+	(( days ))				&&	printf '%ud%s' "$days" "$delimiter"
+	(( hours ))				&&	printf '%uh%s' "$hours" "$delimiter"
+	(( minutes ))			&&	printf '%um%s' "$minutes"
+	(( ! days && ! hours ))	&&	printf '%s%us' "$delimiter" "$seconds" # print seconds only in the first hour
+								printf '\n'
 }
 
 function format_date_in_seconds {
