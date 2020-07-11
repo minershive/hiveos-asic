@@ -354,22 +354,27 @@ In case of issues, please read Bitmain's [control board program recovery manual]
 ## Useful commands
 
 ### ```agent-screen```
-```agent-screen start|stop|restart|log```
+```
+agent-screen start|stop|restart|log
+```
 
 ### ```asic-find``` [Antminer]
-
-To search for an Antminer ASIC among a large number of ASICs, you can make it flash a red LED on its front panel. To do this, execute the command from the Hive OS dashboard or via SSH:
-```asic-find 5```
-The red LED will be blinking for 5 minutes.
+To search for an Antminer ASIC among a large number of ASICs, you can make it flash a red LED on its front panel. To do this, execute the command from the Hive OS dashboard or via SSH: ```asic-find 5```. The red LED will be blinking for 5 minutes.
 
 ### ```asic-oc``` [Antminer]
 Overclock profiles management
-```asic-oc status|factory|retune|clear-cache```
+```
+asic-oc status|factory|retune|clear-cache
+```
+
 ### ```diag-17```
 Series 15/17 diagnostic [Antminer]
+
 ### ```hive-passwd```
-Change or show password for ssh and/or web UI [Antminer]
-```hive-passwd [new_password] [--show] [--default]```
+Change or show password for ssh and/or web UI [Antminer]\
+```
+hive-passwd [new_password] [--show] [--default]
+```
 
 ### ```message```
 Send a message to Hive OS dashboard
@@ -379,11 +384,20 @@ Send a message to Hive OS dashboard
 ```message tag 'your_tag'``` - tag a worker with your_tag\
 
 ### ```miner```
-```miner start|stop|restart|log```
+```
+miner start|stop|restart|log
+```
+
 ### ```selfupgrade```
-```selfupgrade [master]```
+```
+selfupgrade [master]
+```
+
 ### ```ssh-access```
-```ssh-access status```
+```
+ssh-access status
+```
+
 ### ```virus-check```
 
 ### Rename the workers
@@ -392,6 +406,8 @@ To rename the workers in the Hive web interface as the hostname, run the command
 ```sh
 hello hostname
 ```
+
+&nbsp;
 
 Note: almost all commands have a ```--help``` argument.
 
