@@ -371,13 +371,13 @@ asic-oc status|factory|retune|clear-cache
 Series 15/17 diagnostic [Antminer]
 
 ### ```hive-passwd```
-Change or show password for ssh and/or web UI [Antminer]\
+Change or show password for ssh and/or web UI [Antminer]
 ```
 hive-passwd [new_password] [--show] [--default]
 ```
 
 ### ```message```
-Send a message to Hive OS dashboard
+Send a message to Hive OS dashboard\
 ```message success|danger|warning|info "message"``` - send a message to the dashboard\
 ```message file /path/filename``` - send a file to the dashboard\
 ```message file.io|transfer.sh /path/filename``` - send a file to the file sharing service\
