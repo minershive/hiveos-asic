@@ -399,6 +399,9 @@ ssh-access status
 ```
 
 ### ```virus-check```
+```
+virus-check
+```
 
 ### Rename the workers
 
