@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.5'
+declare -r hive_functions_lib_version='0.34.6'
 #                                        ^^ current number of public functions
 
 
@@ -621,6 +621,7 @@ function seconds2dhms {
 
 	# vars
 	local -i days hours minutes seconds
+	local dhms_string
 
 	# code
 	((
@@ -630,11 +631,17 @@ function seconds2dhms {
 		seconds = time_in_seconds % 60
 	)) # arithmetic context, GOD I LOVE IT
 
-	(( days ))				&&	printf '%ud%s' "$days" "$delimiter"
-	(( hours ))				&&	printf '%uh%s' "$hours" "$delimiter"
-	(( minutes ))			&&	printf '%um%s' "$minutes"
-	(( ! days && ! hours ))	&&	printf '%s%us' "$delimiter" "$seconds" # print seconds only in the first hour
-								printf '\n'
+	if (( days )); then
+		dhms_string="${days}d${delimiter}${hours}h${delimiter}${minutes}m"
+	elif (( hours )); then
+		dhms_string="${hours}h${delimiter}${minutes}m"
+	elif (( minutes )); then
+		dhms_string="${minutes}m${delimiter}${seconds}s"
+	else
+		dhms_string="${seconds}s"
+	fi
+
+	echo "$dhms_string"
 }
 
 function format_date_in_seconds {
