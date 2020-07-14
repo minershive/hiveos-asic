@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.21'
+readonly script_version='0.3.22'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -173,7 +173,7 @@ if [[ -n "$file_to_send" ]]; then
 				else
 					file_io_success="$( jq --raw-output '.success' <<< "$filesharing_server_response" )"
 					if [[ "$file_io_success" == 'true' ]]; then
-						(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}OK${NOCOLOR}"
+						(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}SENT${NOCOLOR}"
 						file_io_link="$( jq --raw-output '.link' <<< "$filesharing_server_response" )"
 						file_io_expiry="$( jq --raw-output '.expiry' <<< "$filesharing_server_response" )"
 						echo -e "${script_basename}> Download link ${WHITE}$file_io_link${NOCOLOR} will expire in $file_io_expiry"
@@ -195,7 +195,7 @@ if [[ -n "$file_to_send" ]]; then
 					script_exitcode="$curl_exitcode"
 				else
 					if [[ "$filesharing_server_response" =~ ^https://transfer.sh/ ]]; then
-						(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}OK${NOCOLOR}"
+						(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}SENT${NOCOLOR}"
 						echo -e "${script_basename}> Download link ${WHITE}$filesharing_server_response${NOCOLOR}"
 					else
 						errcho "$console_message ${BRED}SERVER ERROR${NOCOLOR}"
@@ -278,7 +278,7 @@ else
 		jq '.' --color-output <<< "$response" 1>&2 # !!! debug
 		script_exitcode=1
 	else
-		(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}OK${NOCOLOR}"
+		(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}SENT${NOCOLOR}"
 	fi
 fi
 
