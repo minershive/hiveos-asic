@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.40'
+readonly script_version='2.1.41'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -550,6 +550,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 					*'auth failed'*)
 						event_type='warning'
+						# '(http_auth.c.1148) digest: auth failed for  root : wrong password, IP: 127.0.0.1 '
 						message_header='Failed login attempt has been made to the ASIC web interface. Click for details'
 						message_advice="Someone or something has tried to login to the ASIC web interface with a wrong login and/or password. "
 						message_advice+="If it wasn't you -- you MAY have a virus in the local network that trying to brute-force all ASICs "
@@ -1680,6 +1681,7 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
 			for (( job_iterator=0; job_iterator < ${#jobs_to_do[@]}; job_iterator++ )); do
 				job_to_execute="${jobs_to_do[job_iterator]}"
+				# !!! possible flaw: no any timeout
 				eval "$job_to_execute"
 				if (( $? == 0 )); then
 					increment_checkup_counter "$job_to_execute" 'idle'

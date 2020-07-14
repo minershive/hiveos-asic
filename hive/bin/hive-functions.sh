@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.4'
+declare -r hive_functions_lib_version='0.34.5'
 #                                        ^^ current number of public functions
 
 
@@ -257,8 +257,8 @@ function is_first_version_equal_to_second {
 	# code
 
 	if [[ "$first_version" != "$second_version" ]]; then
-		first_version="${first_version//dev/}"
-		second_version="${second_version//dev/}"
+		first_version="${first_version//[[:alpha:]]/}"
+		second_version="${second_version//[[:alpha:]]/}"
 
 		first_version_array=( $first_version )
 		second_version_array=( $second_version )

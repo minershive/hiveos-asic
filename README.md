@@ -367,11 +367,11 @@ Overclock profiles management
 asic-oc status|factory|retune|clear-cache
 ```
 
-### ```diag-17```
-Series 15/17 diagnostic [Antminer]
+### ```diag-17``` [Antminer]
+Series 15/17 diagnostic
 
-### ```hive-passwd```
-Change or show password for ssh and/or web UI [Antminer]
+### ```hive-passwd``` [Antminer]
+Change or show password for ssh and/or web UI
 ```
 hive-passwd [new_password] [--show] [--default]
 ```
