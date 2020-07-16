@@ -195,7 +195,7 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 
 >##### Default SSH login and password:
 >- Antminer: user **root**, password **admin**
->- Innosilicon (ssh/telnet): user **root**, password **blacksheepwall** (or **innot1t2**, or **t1t2t3a5**)
+>- Innosilicon (ssh **OR** telnet on port 8100): user **root**, password **blacksheepwall** (or **innot1t2**, or **t1t2t3a5**)
 
 &nbsp;
 
