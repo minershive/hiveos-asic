@@ -4,591 +4,806 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-. asic-model
+# !!! bash strict mode, no unbound variables
+#set -o nounset # commented out bc still not tested thoroughly
 
-[[ -t 1 ]] && . colors
 
-function config_gen() {
-	RIG_CONF="/hive-config/rig.conf"
-	WALLET_CONF="/hive-config/wallet.conf"
-	MINER_CONFIG="$CONFIG_PATH"
+readonly script_mission='Client for ASICs: Miner config generator'
+readonly script_version='0.1.6'
+readonly script_basename="$( basename "$0" )"
 
-	echo "Generating $MINER_CONFIG"
 
-	[[ ! -f $WALLET_CONF ]] && echo -e "${RED}No wallet config $WALLET_CONF${NOCOLOR}" && return 1
+# functions
 
-	. "$RIG_CONF"
-	. "$WALLET_CONF"
+function echo_ok		{ echo -e "${GRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
+function echo_action	{ echo -e "${GRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
+function echo_info		{ echo -e "${GRAY-}${script_basename}: ${NOCOLOR-}${*}"; }
+function echo_warning	{ echo -e "${GRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
+function echo_error		{ echo -e "${RED-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
 
-	[[ -z $ASICMINER_TEMPLATE ]] && echo -e "${YELLOW}ASICMINER__TEMPLATE is empty${NOCOLOR}" && return 1
-	[[ -z $ASICMINER_URL ]] && echo -e "${YELLOW}ASICMINER__URL is empty${NOCOLOR}" && return 1
+function die {
+	# !!! must be the first line in this function to catch the incoming error code -- do not move
+	local -r incoming_exitcode=$?
 
+	# args
+	local -r message="$1"
+	local -r exitcode="${2:-$incoming_exitcode}"
+
+	# code
+	[[ -n "$message" ]] && echo_error "$message"
+	exit $(( exitcode ))
+}
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+function print_script_usage {
+	echo -e "Usage: ${CYAN-}${script_basename} [-c|--compare] [-p|--print-only] [-q|--quiet] [-v|--verbose]${NOCOLOR-}"
+	echo
+}
+
+function parse_arguments {
+	for this_argument in "$@"; do
+		case "$this_argument" in
+			'-c' | '--compare' )
+				save_config_FLAG=0
+				compare_configs_FLAG=1
+			;;
+
+			'-p' | '--print-only' )
+				save_config_FLAG=0
+			;;
+
+			'-q' | '--quiet' )
+				exec > /dev/null
+			;;
+
+			'-v' | '--verbose' )
+				is_verbose_FLAG=1
+			;;
+
+			'')
+				: ok good to go
+			;;
+
+			'-h'|'--help')
+				print_script_version
+				print_script_usage
+				exit 0
+			;;
+
+			*)
+				print_script_version
+				print_script_usage
+				die "Unknown argument: $this_argument" 1
+			;;
+		esac
+	done
+}
+
+function generate_miner_config {
+	# vars
+	local -i pools_count first_url_count
+	local pool config_global
+	local line varkey varval
+	local template_label template_placeholder
+
+	# code
 	pools_count=1
-	if [[ -n $ASICMINER_TEMPLATE2 || -n $ASICMINER_URL2 ]]; then
-		pools_count=2
-	fi
-	if [[ -n $ASICMINER_TEMPLATE3 || -n $ASICMINER_URL3 ]]; then
-		pools_count=3
-	fi
+	[[ -n "${ASICMINER_TEMPLATE2-}" || -n "${ASICMINER_URL2-}" ]] && pools_count=2
+	[[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]] && pools_count=3
 
 	#use first pool on ASICMINER_URL, if not epmty ASICMINER_URL2 and ASICMINER_URL3
-	#use first and second pool on ASICMINER_URL, if not epmty ASICMINER_URL2 and empty ASICMINER_URL3
+	#use first and second pool on ASICMINER_URL, if not empty ASICMINER_URL2 and empty ASICMINER_URL3
 	pools='[]'
 	first_url_count=3
 	for url in $ASICMINER_URL; do
 		pool='{}'
-		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}'`
-		pool=`jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}'`
-		#[[ ! -z $ASICMINER_PASS ]] &&
-		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}'`
-		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
-		[[ $first_url_count == $pools_count ]] && break
+		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
+		pool="$( jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}' )"
+		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}' )"
+		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		(( first_url_count == pools_count )) && break
 		(( first_url_count-- ))
 	done
-	if [[ -n $ASICMINER_TEMPLATE2 || -n $ASICMINER_URL2 ]]; then
+	if [[ -n "${ASICMINER_TEMPLATE2-}" || -n "${ASICMINER_URL2-}" ]]; then
 		pool='{}'
-		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}'`
-		pool=`jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}'`
-		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}'`
-		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
+		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
+		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}' )"
+		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}' )"
+		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 	fi
-	if [[ -n $ASICMINER_TEMPLATE3 || -n $ASICMINER_URL3 ]]; then
+	if [[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]]; then
 		pool='{}'
-		pool=`jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}'`
-		pool=`jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}'`
-		pool=`jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}'`
-		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
+		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
+		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}' )"
+		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}' )"
+		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 	fi
 
-	pools=`jq --null-input --argjson pools "$pools" '{$pools}'`
+	pools="$( jq --null-input --argjson pools "$pools" '{$pools}' )"
 
-
-#innosilicon A5/A8
-	if [[ $ASIC_MODEL == "T4.G19" ]]; then
+	#innosilicon A5/A8
+	if [[ "$ASIC_MODEL" == "T4.G19" ]]; then
 		pools='{
-"Voltage": 175,
-"PoolNum": "1",
-"UserName1": null,
-"UserName2": null,
-"UserName3": null,
-"Pool3": null,
-"Pool2": null,
-"Pool1": null,
-"Frequency": 1100,
-"perflevel": "2",
-"vidmode": "1",
-"fanmode": "1",
-"fanspeed": "1",
-"Password2": null,
-"Password3": null,
-"Password1": null
-}'
+			"Voltage": 175,
+			"PoolNum": "1",
+			"UserName1": null,
+			"UserName2": null,
+			"UserName3": null,
+			"Pool3": null,
+			"Pool2": null,
+			"Pool1": null,
+			"Frequency": 1100,
+			"perflevel": "2",
+			"vidmode": "1",
+			"fanmode": "1",
+			"fanspeed": "1",
+			"Password2": null,
+			"Password3": null,
+			"Password1": null
+		}'
+		pools="${pools//$'\t'/}"
 		i=1
 		for url in $ASICMINER_URL; do
-			pools=`jq --null-input --argjson pools "$pools" --arg UserName$i "$ASICMINER_TEMPLATE" '$pools + {$UserName'$i'}'`
-			pools=`jq --null-input --argjson pools "$pools" --arg Pool$i "$url" '$pools + {$Pool'$i'}'`
-			pools=`jq --null-input --argjson pools "$pools" --arg Password$i "$ASICMINER_PASS" '$pools + {$Password'$i'}'`
-			pools=`jq --null-input --argjson pools "$pools" --arg PoolNum "$i" '$pools + {$PoolNum}'`
+			pools="$( jq --null-input --argjson pools "$pools" --arg UserName$i "$ASICMINER_TEMPLATE" '$pools + {$UserName'$i'}' )"
+			pools="$( jq --null-input --argjson pools "$pools" --arg Pool$i "$url" '$pools + {$Pool'$i'}' )"
+			pools="$( jq --null-input --argjson pools "$pools" --arg Password$i "$ASICMINER_PASS" '$pools + {$Password'$i'}' )"
+			pools="$( jq --null-input --argjson pools "$pools" --arg PoolNum "$i" '$pools + {$PoolNum}' )"
 			(( i++ ))
 		done
 	fi
-#innosilicon A5/A8 end
+	#innosilicon A5/A8 end
 
-echo "$pools" | jq .
-echo "===="
+	case "$ASIC_MODEL" in
+		'Antminer S9k' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "300",
+				"bitmain-voltage": "950"
+			}'
+		;;
 
-if [[ $ASIC_MODEL == "Antminer S9k" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "300",
-"bitmain-voltage" : "950"
-}'
-elif [[ $ASIC_MODEL == "Antminer S9 SE" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "O",
-"bitmain-voltage" : "950"
-}'
-elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL == "Minecenter S9" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "550",
-"bitmain-voltage" : "0706",
-"multi-version" : "1"
-}'
-elif [[ $ASIC_MODEL == "Antminer A3" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "0"
-}'
-elif [[ $ASIC_MODEL == "Antminer D3" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "0"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer D3 Blissz" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-reboot" : true,
-"bitmain-fan-mode" : "0",
-"bitmain-fan-pwm" : "100",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "469",
-"bitmain-voltage" : "125",
-"bitmain-freq1" : "0",
-"bitmain-voltage1" : "0",
-"bitmain-freq2" : "0",
-"bitmain-voltage2" : "0",
-"bitmain-freq3" : "0",
-"bitmain-voltage3" : "0"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer S9 (vnish" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "W:0/0",
-"bitmain-use-vil" : true,
-"bitmain-autodownscale-watchtimer" : true,
-"bitmain-autodownscale-timer" : "24",
-"bitmain-autodownscale-after" : "60",
-"bitmain-autodownscale-step" : "2",
-"bitmain-autodownscale-min" : "400",
-"bitmain-autodownscale-prec" : "80",
-"bitmain-autodownscale-profile" : "0",
-"bitmain-freq" : "650",
-"bitmain-freq1" : "0",
-"bitmain-freq2" : "0",
-"bitmain-freq3" : "0",
-"bitmain-voltage" : "880",
-"bitmain-voltage1" : "0",
-"bitmain-voltage2" : "0",
-"bitmain-voltage3" : "0",
-"bitmain-chip-freq" : "0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0",
-"bitmain-fan-rpm-off" : "0",
-"multi-version" : "1"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer L3+ (" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-freq" : "384",
-"bitmain-voltage" : "135"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer L3+" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "384"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer L3++" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "450"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer T9+" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version:noncenum",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "550",
-"multi-version" : "1"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer T9" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version:noncenum",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "",
-"bitmain-voltage" : "0706",
-"multi-version" : "1"
-}'
-elif [[ $ASIC_MODEL == "Antminer T17" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-work-mode" : "0",
-"bitmain-freq" : "O",
-"bitmain-voltage" : "1700"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer S17+" || $ASIC_MODEL =~ "Antminer T17+" || $ASIC_MODEL =~ "Antminer S17E" || $ASIC_MODEL =~ "Antminer T17E" || $ASIC_MODEL == "Antminer T17 Hiveon" || $ASIC_MODEL == "Antminer S17 Hiveon" || $ASIC_MODEL == "Antminer X17" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-fan-ctrl" : false,
-"bitmain-fan-pwm" : "100",
-"bitmain-work-mode" : "1",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "O",
-"bitmain-voltage" : "1900"
-}'
-elif [[ $ASIC_MODEL == "Antminer S15" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-fan-ctrl" : false,
-"bitmain-fan-pwm" : "100",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "O",
-"bitmain-voltage" : "1650"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer T15" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-work-mode" : "2",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "300",
-"bitmain-voltage" : "1850"
-}'
-elif [[ $ASIC_MODEL == "Antminer " ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "_ant_voltage=0706",
-"bitmain-voltage" : "0706",
-"multi-version" : "1"
-}'
-elif [[ $ASIC_MODEL == "Antminer E3" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "350",
-"bitmain-voltage" : "0706",
-"multi-version" : "1"
-}'
-elif [[ $ASIC_MODEL =~ "Antminer Z9" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "500"
-}'
-elif [[ $ASIC_MODEL == "Antminer X3" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "0"
-}'
-elif [[ $ASIC_MODEL == "Antminer S7" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "737",
-"bitmain-voltage" : "0706"
-}'
-elif [[ $ASIC_MODEL == "Antminer S11" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "550",
-"bitmain-voltage" : "0706"
-}'
-elif [[ $ASIC_MODEL == "Antminer Z11" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "W:0/0",
-"bitmain-use-vil" : true,
-"bitmain-freq1" : "0",
-"bitmain-freq2" : "0",
-"bitmain-freq3" : "0",
-"bitmain-freq" : "500",
-"bitmain-voltage1" : "0",
-"bitmain-voltage2" : "0",
-"bitmain-voltage3" : "0",
-"bitmain-voltage" : "870"
-}'
-elif [[ $ASIC_MODEL == "Antminer Z11 Nitrous" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "W:0/0",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "731"
-}'
-elif [[ $ASIC_MODEL == "Antminer DR3" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*",
-"bitmain-use-vil" : true,
-"bitmain-freq" : "410"
-}'
-elif [[ $ASIC_MODEL == "b29+.g19" || $ASIC_MODEL == "d9.g19" || $ASIC_MODEL == "s11.g19" ]]; then
-	config_global='{
-"api-listen": true,
-"api-port": "4028",
-"api-allow": "R:0/0,W:127.0.0.1"
-}'
-elif [[ $ASIC_MODEL == "t3.soc" ]]; then
-	config_global='{
-"api-allow" : "R:0/0,W:127.0.0.1",
-"api-description" : "cgminer 4.10.0",
-"api-listen" : true,
-"api-mcast-addr" : "224.0.0.75",
-"api-mcast-code" : "FTW",
-"api-mcast-des" : "",
-"api-mcast-port" : "4028",
-"api-network" : true,
-"api-port" : "4028",
-"api-host" : "0.0.0.0",
-"T1efficient" : true,
-"T1adjust" : "2",
-"T1Pll1" : "822",
-"T1Pll2" : "822",
-"T1Pll3" : "822",
-"T1Pll4" : "1332",
-"T1Pll5" : "1332",
-"T1Pll6" : "1332",
-"T1Pll7" : "1332",
-"T1Pll8" : "1332",
-"T1Volt1" : "319",
-"T1Volt2" : "319",
-"T1Volt3" : "319",
-"T1Volt4" : "404",
-"T1Volt5" : "404",
-"T1Volt6" : "404",
-"T1Volt7" : "404",
-"T1Volt8" : "404",
-"T1VID1" : "29",
-"T1VID2" : "29",
-"T1VID3" : "29",
-"T1VID4" : "0",
-"T1VID5" : "0",
-"T1VID6" : "0",
-"T1VID7" : "0",
-"T1VID8" : "0",
-"fallback-time" : "120",
-"log" : "5",
-"shares" : "0",
-"suggest-diff" : "0",
-"syslog" : true,
-"text-only" : true
-}'
-elif [[ $ASIC_MODEL == "t3h+.soc" || $ASIC_MODEL == "t3+.soc" || $ASIC_MODEL == "t2th+.soc" || $ASIC_MODEL == "t2thf+.soc" || $ASIC_MODEL == "t2thl+.soc" || $ASIC_MODEL == "t2th.soc" || $ASIC_MODEL == "t2tz.soc" || $ASIC_MODEL == "t2thm.soc" || $ASIC_MODEL == "t2thf.soc" || $ASIC_MODEL == "t2t+.soc" || $ASIC_MODEL == "t2ts.soc" || $ASIC_MODEL == "t2ti.soc" || $ASIC_MODEL == "t2t.soc" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-port" : "4028",
-"api-allow" : "R:0/0,W:127.0.0.1",
-"T1factory" : true
-}'
-#	exit 0
-elif [[ $ASIC_MODEL == "T4.G19" ]]; then
-	config_global='{}'
-elif [[ $ASIC_MODEL == "Zig Z1+" ]]; then
-	config_global='{
-"api-allow": "W:0\/0",
-"api-description": "cgminer 4.11.1",
-"api-listen": true,
-"api-mcast-addr": "224.0.0.75",
-"api-mcast-code": "FTW",
-"api-mcast-des": "",
-"api-mcast-port": "4028",
-"api-network": true,
-"api-port": "4028",
-"expiry": "120",
-"failover-switch-delay": "300",
-"log": "5",
-"queue": "9999",
-"scan-time": "60",
-"shares": "0",
-"lyra2rev2-clk": "925",
-"lyra2rev2-asic-x": "4",
-"lyra2rev2-asic-y": "24",
-"lyra2rev2-asic-num": "50",
-"lyra2rev2-cutofftemperature": "50",
-"lyra2rev2-cutofffanspeedin": "100",
-"lyra2rev2-cutofffanspeedout": "100",
-"lyra2rev2-restarthashrate": "7",
-"lyra2rev2-restartfailedcount": "100",
-"lyra2rev2-check-testnonce": true,
-"lyra2rev2-machine-type": "1",
-"lyra2rev2-scan-serial": "\/dev\/ttyS3",
-"lyra2rev2-restartenable": true,
-"lyra2rev2-cutoffenable": false,
-"lyra2rev2-fan": "LV1",
-"lyra2rev2-dynamic-frequency": true
-}'
-elif [[ $ASIC_MODEL == "Zig Z1" ]]; then
-	config_global='{
-"api-allow": "W:0\/0",
-"api-description": "cgminer 4.11.1",
-"api-listen": true,
-"api-mcast-addr": "224.0.0.75",
-"api-mcast-code": "FTW",
-"api-mcast-des": "",
-"api-mcast-port": "4028",
-"api-network": true,
-"api-port": "4028",
-"expiry": "120",
-"failover-switch-delay": "300",
-"log": "5",
-"queue": "9999",
-"scan-time": "60",
-"shares": "0",
-"quiet": true,
-"lyra2rev2-fan": "LV1",
-"lyra2rev2-clk": "900",
-"lyra2rev2-asic-x": "4",
-"lyra2rev2-asic-y": "24",
-"lyra2rev2-asic-num": "50",
-"lyra2rev2-cutofftemperature": "50",
-"lyra2rev2-cutofffanspeedin": "100",
-"lyra2rev2-cutofffanspeedout": "100",
-"lyra2rev2-restarthashrate": "7",
-"lyra2rev2-restartfailedcount": "100",
-"lyra2rev2-check-testnonce": true,
-"lyra2rev2-machine-type": "85",
-"lyra2rev2-scan-serial": "\/dev\/ttyS3",
-"lyra2rev2-restartenable": false,
-"lyra2rev2-cutoffenable": false,
-"lyra2rev2-fan-check": true
-}'
-elif [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-        config_global='{
-"algo" : "ckb",
-"api-bind":"0.0.0.0:4049",
-"threads" : 1,
+		'Antminer S9 SE' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "O",
+				"bitmain-voltage": "950"
+			}'
+		;;
 
-"benchmark" : false,
-"debug" : false,
-"protocol": false,
-"show-diff": false,
-"quiet" : false,
+		'Antminer S9' | 'Antminer S9i' | 'Antminer S9 Hydro' | 'Antminer S9j' | 'Antminer S9'* | 'Antminer S10'* | 'Minecenter S9' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "550",
+				"bitmain-voltage": "0706",
+				"multi-version": "1"
+			}'
+		;;
 
-"platform":     "asic",
-"chip_start":   0,
-"chip_num":     30,
-"chip_step":0,
-"baud": 115200,
-"uart": "/dev/ttyS0",
-"fbdiv":        102,
-"vid": 0,
+		'Antminer A3' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "0"
+			}'
+		;;
 
-"worknamemode": "noip",
-"worknameplace1": "user",
-"worknameplace2": "user",
-"worknameplace3": "user"
-}'
-elif [[ $ASIC_MODEL =~ "Blackminer F1" ]]; then
-	config_global='{
-"api-listen" : true,
-"api-network" : true,
-"fan-ctrl" : true,
-"fan-pwm" : "0",
-"use-vil" : true,
-"freq" : "420",
-"coin-type" : "ckb",
-"api-groups" : "A:stats:pools:devs:summary:version",
-"api-allow" : "A:0/0,W:*"
-}'
-fi
+		'Antminer D3' )
+			config_global='{
+				"api-listen": true,
+			"api-network": true,
+			"api-groups": "A:stats:pools:devs:summary:version",
+			"api-allow": "A:0/0,W:*",
+			"bitmain-use-vil": true,
+			"bitmain-freq": "0"
+			}'
+		;;
 
-	#merge user config options into main config
-	if [[ ! -z $ASICMINER_USER_CONFIG ]]; then
+		'Antminer D3 Blissz'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-reboot": true,
+				"bitmain-fan-mode": "0",
+				"bitmain-fan-pwm": "100",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "469",
+				"bitmain-voltage": "125",
+				"bitmain-freq1": "0",
+				"bitmain-voltage1": "0",
+				"bitmain-freq2": "0",
+				"bitmain-voltage2": "0",
+				"bitmain-freq3": "0",
+				"bitmain-voltage3": "0"
+			}'
+		;;
+
+		'Antminer S9 (vnish'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "W:0/0",
+				"bitmain-use-vil": true,
+				"bitmain-autodownscale-watchtimer": true,
+				"bitmain-autodownscale-timer": "24",
+				"bitmain-autodownscale-after": "60",
+				"bitmain-autodownscale-step": "2",
+				"bitmain-autodownscale-min": "400",
+				"bitmain-autodownscale-prec": "80",
+				"bitmain-autodownscale-profile": "0",
+				"bitmain-freq": "650",
+				"bitmain-freq1": "0",
+				"bitmain-freq2": "0",
+				"bitmain-freq3": "0",
+				"bitmain-voltage": "880",
+				"bitmain-voltage1": "0",
+				"bitmain-voltage2": "0",
+				"bitmain-voltage3": "0",
+				"bitmain-chip-freq": "0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0",
+				"bitmain-fan-rpm-off": "0",
+				"multi-version": "1"
+			}'
+		;;
+
+		'Antminer L3+ ('* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-freq": "384",
+				"bitmain-voltage": "135"
+			}'
+		;;
+
+		'Antminer L3+'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "384"
+			}'
+		;;
+
+		'Antminer L3++'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "450"
+			}'
+		;;
+
+		'Antminer T9+'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version:noncenum",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "550",
+				"multi-version": "1"
+			}'
+		;;
+
+		'Antminer T9'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version:noncenum",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "",
+				"bitmain-voltage": "0706",
+				"multi-version": "1"
+			}'
+		;;
+
+		'Antminer T17'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-work-mode": "0",
+				"bitmain-freq": "O",
+				"bitmain-voltage": "1700"
+			}'
+		;;
+
+		'Antminer S17+'* | 'Antminer T17+'* |\
+		'Antminer S17E'* | 'Antminer T17E'* |\
+		'Antminer T17 Hiveon' | 'Antminer S17 Hiveon' |\
+		'Antminer X17' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-fan-ctrl": false,
+				"bitmain-fan-pwm": "100",
+				"bitmain-work-mode": "1",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "O",
+				"bitmain-voltage": "1900"
+			}'
+		;;
+
+		'Antminer S15' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-fan-ctrl": false,
+				"bitmain-fan-pwm": "100",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "O",
+				"bitmain-voltage": "1650"
+			}'
+		;;
+
+		'Antminer S17'* | 'Antminer T15'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-work-mode": "2",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "300",
+				"bitmain-voltage": "1850"
+			}'
+
+		;;
+
+		'Antminer ')
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "_ant_voltage=0706",
+				"bitmain-voltage": "0706",
+				"multi-version": "1"
+			}'
+		;;
+
+		'Antminer E3' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "350",
+				"bitmain-voltage": "0706",
+				"multi-version": "1"
+			}'
+		;;
+
+		'Antminer Z9'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "500"
+			}'
+		;;
+
+		'Antminer X3' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "0"
+			}'
+		;;
+
+		'Antminer S7' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "737",
+				"bitmain-voltage": "0706"
+			}'
+		;;
+
+		'Antminer S11' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "550",
+				"bitmain-voltage": "0706"
+			}'
+		;;
+
+		'Antminer Z11' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "W:0/0",
+				"bitmain-use-vil": true,
+				"bitmain-freq1": "0",
+				"bitmain-freq2": "0",
+				"bitmain-freq3": "0",
+				"bitmain-freq": "500",
+				"bitmain-voltage1": "0",
+				"bitmain-voltage2": "0",
+				"bitmain-voltage3": "0",
+				"bitmain-voltage": "870"
+			}'
+		;;
+
+		'Antminer Z11 Nitrous' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "W:0/0",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "731"
+			}'
+		;;
+
+		'Antminer DR3' )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "410"
+			}'
+		;;
+
+		'b29+.g19' | 'd9.g19' | 's11.g19' )
+			config_global='{
+				"api-listen": true,
+				"api-port": "4028",
+				"api-allow": "R:0/0,W:127.0.0.1"
+			}'
+		;;
+
+		't3.soc' )
+			config_global='{
+				"api-allow": "R:0/0,W:127.0.0.1",
+				"api-description": "cgminer 4.10.0",
+				"api-listen": true,
+				"api-mcast-addr": "224.0.0.75",
+				"api-mcast-code": "FTW",
+				"api-mcast-des": "",
+				"api-mcast-port": "4028",
+				"api-network": true,
+				"api-port": "4028",
+				"api-host": "0.0.0.0",
+				"T1efficient": true,
+				"T1adjust": "2",
+				"T1Pll1": "822",
+				"T1Pll2": "822",
+				"T1Pll3": "822",
+				"T1Pll4": "1332",
+				"T1Pll5": "1332",
+				"T1Pll6": "1332",
+				"T1Pll7": "1332",
+				"T1Pll8": "1332",
+				"T1Volt1": "319",
+				"T1Volt2": "319",
+				"T1Volt3": "319",
+				"T1Volt4": "404",
+				"T1Volt5": "404",
+				"T1Volt6": "404",
+				"T1Volt7": "404",
+				"T1Volt8": "404",
+				"T1VID1": "29",
+				"T1VID2": "29",
+				"T1VID3": "29",
+				"T1VID4": "0",
+				"T1VID5": "0",
+				"T1VID6": "0",
+				"T1VID7": "0",
+				"T1VID8": "0",
+				"fallback-time": "120",
+				"log": "5",
+				"shares": "0",
+				"suggest-diff": "0",
+				"syslog": true,
+				"text-only": true
+			}'
+		;;
+
+		't3h+.soc' | 't3+.soc' | 't2th+.soc' | 't2thf+.soc' | 't2thl+.soc' | 't2th.soc' |\
+		't2tz.soc' | 't2thm.soc' | 't2thf.soc' | 't2t+.soc' | 't2ts.soc' | 't2ti.soc' | 't2t.soc' )
+			config_global='{
+				"api-listen": true,
+				"api-port": "4028",
+				"api-allow": "R:0/0,W:127.0.0.1",
+				"T1factory": true
+			}'
+		;;
+
+		'T4.G19')
+			config_global='{}'
+		;;
+
+		'Zig Z1+' )
+			config_global='{
+				"api-allow": "W:0\/0",
+				"api-description": "cgminer 4.11.1",
+				"api-listen": true,
+				"api-mcast-addr": "224.0.0.75",
+				"api-mcast-code": "FTW",
+				"api-mcast-des": "",
+				"api-mcast-port": "4028",
+				"api-network": true,
+				"api-port": "4028",
+				"expiry": "120",
+				"failover-switch-delay": "300",
+				"log": "5",
+				"queue": "9999",
+				"scan-time": "60",
+				"shares": "0",
+				"lyra2rev2-clk": "925",
+				"lyra2rev2-asic-x": "4",
+				"lyra2rev2-asic-y": "24",
+				"lyra2rev2-asic-num": "50",
+				"lyra2rev2-cutofftemperature": "50",
+				"lyra2rev2-cutofffanspeedin": "100",
+				"lyra2rev2-cutofffanspeedout": "100",
+				"lyra2rev2-restarthashrate": "7",
+				"lyra2rev2-restartfailedcount": "100",
+				"lyra2rev2-check-testnonce": true,
+				"lyra2rev2-machine-type": "1",
+				"lyra2rev2-scan-serial": "\/dev\/ttyS3",
+				"lyra2rev2-restartenable": true,
+				"lyra2rev2-cutoffenable": false,
+				"lyra2rev2-fan": "LV1",
+				"lyra2rev2-dynamic-frequency": true
+			}'
+		;;
+
+		'Zig Z1' )
+			config_global='{
+				"api-allow": "W:0\/0",
+				"api-description": "cgminer 4.11.1",
+				"api-listen": true,
+				"api-mcast-addr": "224.0.0.75",
+				"api-mcast-code": "FTW",
+				"api-mcast-des": "",
+				"api-mcast-port": "4028",
+				"api-network": true,
+				"api-port": "4028",
+				"expiry": "120",
+				"failover-switch-delay": "300",
+				"log": "5",
+				"queue": "9999",
+				"scan-time": "60",
+				"shares": "0",
+				"quiet": true,
+				"lyra2rev2-fan": "LV1",
+				"lyra2rev2-clk": "900",
+				"lyra2rev2-asic-x": "4",
+				"lyra2rev2-asic-y": "24",
+				"lyra2rev2-asic-num": "50",
+				"lyra2rev2-cutofftemperature": "50",
+				"lyra2rev2-cutofffanspeedin": "100",
+				"lyra2rev2-cutofffanspeedout": "100",
+				"lyra2rev2-restarthashrate": "7",
+				"lyra2rev2-restartfailedcount": "100",
+				"lyra2rev2-check-testnonce": true,
+				"lyra2rev2-machine-type": "85",
+				"lyra2rev2-scan-serial": "\/dev\/ttyS3",
+				"lyra2rev2-restartenable": false,
+				"lyra2rev2-cutoffenable": false,
+				"lyra2rev2-fan-check": true
+			}'
+		;;
+
+		'Toddminer C1'* )
+			config_global='{
+				"algo": "ckb",
+				"api-bind": "0.0.0.0:4049",
+				"threads": 1,
+
+				"benchmark": false,
+				"debug": false,
+				"protocol": false,
+				"show-diff": false,
+				"quiet": false,
+
+				"platform": "asic",
+				"chip_start": 0,
+				"chip_num": 30,
+				"chip_step": 0,
+				"baud": 115200,
+				"uart": "/dev/ttyS0",
+				"fbdiv": 102,
+				"vid": 0,
+
+				"worknamemode": "noip",
+				"worknameplace1": "user",
+				"worknameplace2": "user",
+				"worknameplace3": "user"
+			}'
+		;;
+
+		'Blackminer F1'* )
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"fan-ctrl": true,
+				"fan-pwm": "0",
+				"use-vil": true,
+				"freq": "420",
+				"coin-type": "ckb",
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*"
+			}'
+		;;
+	esac
+
+	config_global="${config_global//$'\t'/}" # remove tabs
+
+	# merge user config options into main config
+	if [[ -n "$ASICMINER_USER_CONFIG" ]]; then
 		while read -r line; do
-			[[ -z $line ]] && continue
-			varkey=$(echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .key')
-			varval=$(echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq -r 'to_entries[] | .value')
-			config_global=$(echo "$config_global" | jq '."'$varkey'"="'$varval'"')
+			[[ -z "$line" ]] && continue # skip empty lines
+			varkey="$( echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq --raw-output 'to_entries[] | .key' )"
+			varval="$( echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq --raw-output 'to_entries[] | .value' )"
+			#config_global="$( jq '."'$varkey'"="'$varval'"' <<< "$config_global" )"
+			config_global="$( jq ".\"$varkey\"=\"$varval\"" <<< "$config_global" )"
 		done <<< "$ASICMINER_USER_CONFIG"
 	fi
 
-	config_global=$(echo "$config_global" | sed s/\"true\"/true/g | sed s/\"false\"/false/g)
-        if [[ $ASIC_MODEL =~ "Toddminer C1" ]]; then
-                pools=$(jq -n --argjson g "$config_global" \
-                        --arg url1 "`echo $pools | jq -r '.pools[0].url'`" \
-                        --arg user1 "`echo $pools | jq -r '.pools[0].user'`" \
-                        --arg pass1 "`echo $pools | jq -r '.pools[0].pass'`" \
-                        --arg url2 "`echo $pools | jq -r '.pools[1].url'`" \
-                        --arg user2 "`echo $pools | jq -r '.pools[1].user'`" \
-                        --arg pass2 "`echo $pools | jq -r '.pools[1].pass'`" \
-                        '{url:$url1, user:$user1, pass:$pass1,backup_url:$url2,backup_user:$user2,backup_pass:$pass2}')
-        fi
-	conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$p * $g'`
+	config_global="${config_global//\"true\"/true}"
+	config_global="${config_global//\"false\"/false}"
 
-	#replace tpl values in whole file
-	[[ -z $EWAL && -z $ZWAL && -z $DWAL ]] && echo -e "${RED}No WAL address is set${NOCOLOR}"
-	[[ ! -z $EWAL ]] && conf=$(sed "s/%EWAL%/$EWAL/g" <<< "$conf")
-	[[ ! -z $DWAL ]] && conf=$(sed "s/%DWAL%/$DWAL/g" <<< "$conf")
-	[[ ! -z $ZWAL ]] && conf=$(sed "s/%ZWAL%/$ZWAL/g" <<< "$conf")
-	[[ ! -z $EMAIL ]] && conf=$(sed "s/%EMAIL%/$EMAIL/g" <<< "$conf")
-	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< "$conf")
+	if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
+		pools="$( jq --null-input --argjson g "$config_global" \
+			--arg url1	"$( jq --raw-output '.pools[0].url'		<<< "$pools" )" \
+			--arg user1	"$( jq --raw-output '.pools[0].user'	<<< "$pools" )" \
+			--arg pass1	"$( jq --raw-output '.pools[0].pass'	<<< "$pools" )" \
+			--arg url2	"$( jq --raw-output '.pools[1].url'		<<< "$pools" )" \
+			--arg user2	"$( jq --raw-output '.pools[1].user'	<<< "$pools" )" \
+			--arg pass2	"$( jq --raw-output '.pools[1].pass'	<<< "$pools" )" \
+			'{url:$url1, user:$user1, pass:$pass1,backup_url:$url2,backup_user:$user2,backup_pass:$pass2}'
+		)"
+	fi
+	conf="$( jq --null-input --argjson g "$config_global" --argjson p "$pools" '$p * $g' )"
 
-#	echo "$conf" | jq .
-	[ ! -z "$conf" ] && echo "$conf" | jq . > "$MINER_CONFIG"
-	chmod 644 "$MINER_CONFIG"
+	# !!! legacy vars, should all be set as "dummy"
+	[[ -z "${EWAL-}" && -z "${ZWAL-}" && -z "${DWAL-}" ]] && echo_error "No WAL address is set"
 
+	#replace %template% with its value in a whole file
+	# !!! legacy, might remove it sometimes
+	for template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME; do
+		local -n template_value="$template_label"
+		template_placeholder="%${template_label}%"
+		[[ -n "$template_value" ]] && conf="${conf//${template_placeholder}/${template_value}}"
+	done
 }
 
-config_gen
+
+# global sources
+
+source asic-model
+source colors
+
+
+# global consts
+
+declare -r RIG_CONF_default='/hive-config/rig.conf'
+declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+declare -r WALLET_CONF='/hive-config/wallet.conf'
+declare -r MINER_CONFIG="$CONFIG_PATH"
+
+
+# global flags
+
+declare -i save_config_FLAG=1 compare_configs_FLAG=0 is_verbose_FLAG=0
+
+
+# global vars
+
+declare -i script_exitcode=0
+
+
+# main
+
+[[ ! -f "$RIG_CONF" ]] && die "No rig config $RIG_CONF" 1
+[[ ! -f "$WALLET_CONF" ]] && die "No wallet config $WALLET_CONF" 1
+
+source "$RIG_CONF"
+source "$WALLET_CONF"
+
+[[ -z "${ASICMINER_TEMPLATE-}" ]] && die 'ASICMINER_TEMPLATE is empty' 1
+[[ -z "${ASICMINER_URL-}" ]] && die 'ASICMINER_URL is empty' 1
+
+parse_arguments "$@"
+
+echo_action 'Generating miner configuration'
+generate_miner_config
+
+if (( ! compare_configs_FLAG )); then
+	if (( is_verbose_FLAG )); then
+		jq '.' <<< "$conf" # show a full configuration
+	else
+		jq '.' <<< "$pools" # show a short version--only pools part
+	fi
+fi
+
+if [[ -n "$conf" ]]; then
+	if (( save_config_FLAG )); then
+		echo_action "Updating $MINER_CONFIG"
+		jq '.' <<< "$conf" > "$MINER_CONFIG"
+		chmod 644 "$MINER_CONFIG" # -rw-rw-r--
+	fi
+else
+	echo_error 'Empty config!'
+fi
+
+if (( compare_configs_FLAG )); then
+	echo_action 'Comparing configs'
+	if [[ -s "$MINER_CONFIG" ]]; then
+		temp_FS_config="/tmp/$( basename "$MINER_CONFIG" ).fs.tmp"
+		temp_working_config="/tmp/$( basename "$MINER_CONFIG" ).working.tmp"
+		jq '.' --sort-keys <<< "$conf" > "$temp_FS_config"
+		jq '.' --sort-keys < "$MINER_CONFIG" > "$temp_working_config"
+		if diff_result="$( diff "$temp_working_config" "$temp_FS_config" )"; then
+			echo_ok 'Configs are identical'
+			script_exitcode=0
+		else
+			echo_warning 'Configs are DIFFERENT'
+			(( is_verbose_FLAG )) && echo "$diff_result"
+			script_exitcode=1
+		fi
+		rm "$temp_FS_config" "$temp_working_config"
+	else
+		echo_error "$MINER_CONFIG not found or empty. Re-generate it first."
+		script_exitcode=2
+	fi
+fi
+
+exit $(( script_exitcode ))
