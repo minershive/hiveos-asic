@@ -13,7 +13,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.6'
+readonly script_version='0.1.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -768,9 +768,9 @@ generate_miner_config
 
 if (( ! compare_configs_FLAG )); then
 	if (( is_verbose_FLAG )); then
-		jq '.' <<< "$conf" # show a full configuration
+		jq '.' --color-output <<< "$conf" # show a full configuration
 	else
-		jq '.' <<< "$pools" # show a short version--only pools part
+		jq '.' --color-output <<< "$pools" # show a short version--only pools part
 	fi
 fi
 
@@ -787,11 +787,11 @@ fi
 if (( compare_configs_FLAG )); then
 	echo_action 'Comparing configs'
 	if [[ -s "$MINER_CONFIG" ]]; then
-		temp_FS_config="/tmp/$( basename "$MINER_CONFIG" ).fs.tmp"
-		temp_working_config="/tmp/$( basename "$MINER_CONFIG" ).working.tmp"
+		temp_FS_config="/tmp/$( basename "$MINER_CONFIG" ).flightsheet.tmp"
+		temp_running_config="/tmp/$( basename "$MINER_CONFIG" ).running.tmp"
 		jq '.' --sort-keys <<< "$conf" > "$temp_FS_config"
-		jq '.' --sort-keys < "$MINER_CONFIG" > "$temp_working_config"
-		if diff_result="$( diff "$temp_working_config" "$temp_FS_config" )"; then
+		jq '.' --sort-keys < "$MINER_CONFIG" > "$temp_running_config"
+		if diff_result="$( diff "$temp_running_config" "$temp_FS_config" )"; then
 			echo_ok 'Configs are identical'
 			script_exitcode=0
 		else
@@ -799,7 +799,7 @@ if (( compare_configs_FLAG )); then
 			(( is_verbose_FLAG )) && echo "$diff_result"
 			script_exitcode=1
 		fi
-		rm "$temp_FS_config" "$temp_working_config"
+		rm "$temp_FS_config" "$temp_running_config"
 	else
 		echo_error "$MINER_CONFIG not found or empty. Re-generate it first."
 		script_exitcode=2
