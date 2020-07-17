@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.6'
+declare -r hive_functions_lib_version='0.34.7'
 #                                        ^^ current number of public functions
 
 
@@ -484,7 +484,7 @@ function get_file_size_in_bytes {
 
 	if [[ -f "$file_name" ]]; then
 		# try stat first
-		if ! stat -c %s "$file_name" 2> /dev/null; then
+		if ! stat -Lc %s "$file_name" 2> /dev/null; then
 			# no stat, parse ls output to array then:
 			ls_output_field=( $( ls -dn "$file_name" ) ) && echo "${ls_output_field[4]}" # print 5th field
 			# -rwxr-xr-x 1 0 0 4745 Apr  3 16:03 log-watcher.sh

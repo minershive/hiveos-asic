@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.22'
+readonly script_version='0.3.23'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -155,7 +155,7 @@ done
 if [[ -n "$file_to_send" ]]; then
 	# if file isn't empty or it's a named pipe -- for <() redirections like 'message file <( ./script )'
 	if [[ -s "$file_to_send" || -p "$file_to_send" ]]; then
-		file_size="$( stat -c %s "$file_to_send" 2> /dev/null )"
+		file_size="$( stat -Lc %s "$file_to_send" 2> /dev/null )"
 		console_message="Sending $file_to_send (${file_size} bytes) to $file_send_method..."
 		case "$file_send_method" in
 
