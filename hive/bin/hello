@@ -17,7 +17,7 @@ set -o nounset
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.9'
+readonly script_version='0.1.10'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -337,7 +337,7 @@ function serve_hiveon_model_cache {
 
 	# consts
 	local -r antminer_stock_version_file='/usr/bin/compile_time'
-	local -r antminer_hiveon_version_file='/usr/bin/compile_ver'
+	local -r hiveon_version_file='/usr/bin/compile_ver'
 	local -r saved_model_file='/hive-config/model'
 	local -r compile_ver_blacklist_RE='(TEST|Antminer X17|[Uu]nknown)'
 
@@ -346,13 +346,13 @@ function serve_hiveon_model_cache {
 
 	# code
 	# try to get ASIC model from miner's log
-	if [[ -f "$antminer_hiveon_version_file" && -s /var/log/log ]]; then
+	if [[ -f "$hiveon_version_file" && -s /var/log/log ]]; then
 		MODELH_detected="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
 	fi
 
 	# remove saved model file if it contains 'TEST'
 	# shellcheck disable=SC2076
-	if [[ -s "$antminer_hiveon_version_file" && "$( < "$antminer_hiveon_version_file" )" =~ 'TEST' ]]; then
+	if [[ -s "$hiveon_version_file" && "$( < "$hiveon_version_file" )" =~ 'TEST' ]]; then
 		[[ -f "$saved_model_file" ]] && rm "$saved_model_file"
 		MODELH_detected=''
 	fi
@@ -375,7 +375,7 @@ function serve_hiveon_model_cache {
 			fi
 			if [[ "$MODELH_saved" != "$MODELH_detected" ]]; then
 				# if detected model is different -- save detected model to file
-				message info "ASIC model detected: $MODELH_detected"
+				message info "ASIC model re-detected: $MODELH_detected"
 				echo "$MODELH_detected" > "$saved_model_file"
 			fi
 		fi
@@ -383,9 +383,9 @@ function serve_hiveon_model_cache {
 
 	[[ -s "$saved_model_file" ]] && MODELH_detected="$( < "$saved_model_file" )"
 
-	if [[ -n "$MODELH_detected" && -s "$antminer_hiveon_version_file" ]]; then
+	if [[ -n "$MODELH_detected" && -s "$hiveon_version_file" ]]; then
 		# add 'Hiveon' to compile_* files
-		sed "2s/.*/${MODELH_detected} Hiveon/" -i "$antminer_hiveon_version_file"
+		sed "2s/.*/${MODELH_detected} Hiveon/" -i "$hiveon_version_file"
 		sed "2s/.*/${MODELH_detected} Hiveon/" -i "$antminer_stock_version_file"
 	fi
 }
