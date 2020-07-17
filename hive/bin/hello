@@ -17,7 +17,7 @@ set -o nounset
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.8'
+readonly script_version='0.1.9'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -342,7 +342,7 @@ function serve_hiveon_model_cache {
 	local -r compile_ver_blacklist_RE='(TEST|Antminer X17|[Uu]nknown)'
 
 	# vars
-	local MODELH_detected MODELH_saved
+	local MODELH_detected='' MODELH_saved=''
 
 	# code
 	# try to get ASIC model from miner's log
