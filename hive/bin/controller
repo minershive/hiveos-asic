@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.41'
+readonly script_version='2.1.42'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -129,7 +129,6 @@ function initialize_dictionaries {																	(( script_debug )) && debugch
 											#				list_checkup_counters
 											#
 											#				print_checkup_summary_report
-
 }
 
 
@@ -522,6 +521,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						message_advice+="Please check the chain and then resold/replace the chip. "
 						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
+
 				esac
 
 			;;
@@ -564,17 +564,61 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/nvdata/miner_status.log')
 
 				case "$log_message" in
+
+					'ERROR_POWER_LOST'*)
+						event_type='error'
+						# 'ERROR_POWER_LOST: power set failed!'
+						message_header='Power lost. Click for details'
+						message_advice="It could be a problem with the miner PSU. "
+						message_advice+="Please do examine closely the every power cable and connector. "
+						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+					;;
+
 					'ERROR_PIC_LOST'*)
 						event_type='error'
 						# 'ERROR_PIC_LOST: PIC init failed'
+						message_header='PIC init failed. Click for details'
+						message_advice="PIC is a smart voltage regulator. Every hashboard has one PIC. "
+						message_advice="The easiest case could be a bad connection between the chain and the control board. "
+						message_advice+="Please do examine closely the every ribbon cable and its connectors. Then examine hashboard. "
+						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+					;;
+
+					'ERROR_SOC_INIT'*)
+						event_type='error'
+						# 'ERROR_SOC_INIT: soc init failed!'
+						message_header='SOC init failed. Click for details'
 						message_advice="It could be a bad connection between the chain and the control board. "
 						message_advice+="Please do examine closely the every ribbon cable and its connectors. "
 						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
+
+					'WARN_NET_LOST'*)
+						event_type='warning'
+						# 'WARN_NET_LOST: network connection lost'
+						message_header='Network lost for a few seconds. Click for details'
+						message_advice="The miner have lost a network connection for more than a minute. The cause could be:
+										1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
+										2) Hanging router -> reboot router;
+										3) Your ISP -> contact your service provider;
+										4) A random Internet glitch."
+					;;
+
+					'ERROR_NET_LOST'*)
+						event_type='error'
+						# 'ERROR_NET_LOST: network connection lost'
+						message_header='Network lost for a few minutes. Click for details'
+						message_advice="The miner have lost a network connection for more than a minute. The cause could be:
+										1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
+										2) Hanging router -> reboot router;
+										3) Your ISP -> contact your service provider."
+					;;
+
 					'STATUS_'*					)	event_type='skip'		;;
 					'ERROR_'*					)	event_type='error'		;;
 					'WARN_'*					)	event_type='warning'	;;
 					*							)	event_type='warning'	;;
+
 				esac
 
 			;;
@@ -631,6 +675,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					*)
 						event_type='warning'
 					;;
+
 				esac
 				# cut milliseconds from watchdog messages like
 				# ST17: 'Total rate is 0 after 1870.000000 seconds, restart'
@@ -642,6 +687,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/tmp/auto-tune')														# S9
 
 				case "$log_message" in
+
 					'Config parse:'*)
 						# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
 						event_type='ok'
@@ -711,7 +757,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					"$log_timestamp ${TZ-GMT}" \
 					"${event_type^^}" \
 					"$log_message" \
-					"$message_advice"
+					"${message_advice//$'\t'/}" # remove tabs
 
 				echo "$message_body" | message "$event_type" "$message_header" payload > /dev/null
 			fi
@@ -734,7 +780,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 
 	# vars
 
-	local previous_lines_quantity current_lines_quantity log_to_check log_to_check_sanitized
+	local previous_lines_quantity current_lines_quantity this_log this_log_sanitized
 	local -i previous_log_size=0
 	local -i current_log_size=0
 	local -i tail_from_line=0
@@ -743,52 +789,62 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 
 	# code
 
-	for log_to_check in "${logs_list[@]}"; do
+	for this_log in "${logs_list[@]}"; do
 		current_lines_quantity=''
 
-		if [[ -s "$log_to_check" ]]; then
+		if [[ -s "$this_log" ]]; then
 			# file is exist and not empty
 			# don't waste resources to count lines on every iteration, check file size first
-			current_log_size="$( get_file_size_in_bytes "$log_to_check" )"
+			current_log_size="$( get_file_size_in_bytes "$this_log" )"
 
 			# is it first time run?
-			if ! previous_log_size="$( get_hash_value 'file_attribute' "$log_to_check" 'size' )"; then
+			if ! previous_log_size="$( get_hash_value 'file_attribute' "$this_log" 'size' )"; then
 				# first run, init vars
-				current_lines_quantity="$( wc -l < "$log_to_check" )"
+				current_lines_quantity="$( wc -l < "$this_log" )"
 				previous_log_size="$current_log_size"
 			fi
 
 			if (( current_log_size != previous_log_size )); then # log file was changed
 
 				if (( current_log_size > previous_log_size )); then # a few lines was added
-					previous_lines_quantity="$( get_hash_value 'file_attribute' "$log_to_check" 'lines' )" # get previous lines count
+					previous_lines_quantity="$( get_hash_value 'file_attribute' "$this_log" 'lines' )" # get previous lines count
 				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
 					previous_lines_quantity=0
 				fi
 
 				is_something_found=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-				current_lines_quantity="$( wc -l < "$log_to_check" )" # get current lines count
+				current_lines_quantity="$( wc -l < "$this_log" )" # get current lines count
+
+				if (( previous_lines_quantity > current_lines_quantity )); then # a wild guess that the file was truncated
+					# !!! small debug
+					errcho "$this_log was truncated? size ${previous_log_size}b -> ${current_log_size}b, lines $previous_lines_quantity -> $current_lines_quantity, tail_from_line: $tail_from_line, how_much_new_lines: $how_much_new_lines"
+					previous_lines_quantity=0
+				fi
+
 				(( tail_from_line = previous_lines_quantity + 1 ))
 				(( how_much_new_lines = current_lines_quantity - previous_lines_quantity ))
-				printf -v log_to_check_sanitized '%q' "$log_to_check"
+				printf -v this_log_sanitized '%q' "$this_log"
 
 				if (( current_log_size > previous_log_size )); then # a few lines was added
-					tail -n "+$tail_from_line" "$log_to_check" | head -n "$how_much_new_lines"
-				elif (( current_log_size < previous_log_size )); then # guess that file was truncated
-					tail -n 100 "$log_to_check" # tail not cat -- better be safe than sorry
+					tail -n "+$tail_from_line" "$this_log" | head -n "$how_much_new_lines" ||
+						errcho "$this_log size ${previous_log_size}b -> ${current_log_size}b, lines $previous_lines_quantity -> $current_lines_quantity, tail_from_line: $tail_from_line, how_much_new_lines: $how_much_new_lines"
+				elif (( current_log_size < previous_log_size )); then # a wild guess that the file was truncated
+					# tail not cat -- better be safe than sorry
+					tail -n 100 "$this_log" ||
+						errcho "$this_log size ${previous_log_size}b -> ${current_log_size}b, lines $previous_lines_quantity -> $current_lines_quantity, tail_from_line: $tail_from_line, how_much_new_lines: $how_much_new_lines"
 				fi | {
-						sed 's|$|'"${unique_delimiter}${log_to_check_sanitized}"'|' --
+						sed 's|$|'"${unique_delimiter}${this_log_sanitized}"'|' --
 					}
 			fi
 
 			# save current values
-			set_hash_value 'file_attribute' "$log_to_check" 'size' "$current_log_size"
+			set_hash_value 'file_attribute' "$this_log" 'size' "$current_log_size"
 			if [[ -n "$current_lines_quantity" ]]; then
-				set_hash_value 'file_attribute' "$log_to_check" 'lines' "$current_lines_quantity"
+				set_hash_value 'file_attribute' "$this_log" 'lines' "$current_lines_quantity"
 			fi
 		else
 			# file not found or empty
-			set_hash_value 'file_attribute' "$log_to_check" 'size' 0
+			set_hash_value 'file_attribute' "$this_log" 'size' 0
 		fi
 	done
 
@@ -874,7 +930,7 @@ function shrink_system_logs {																		(( script_debug )) && debugcho
 		if [[ -s "$this_log" ]]; then
 			current_number_of_lines_in_log="$( wc -l < "$this_log" )"
 			if (( current_number_of_lines_in_log > log_lines_shrink_limit )); then
-				print_controller_log_entry "$event_type_for_log" "Shrink log $this_log, $current_number_of_lines_in_log to $log_lines_shrink_limit"
+				print_controller_log_entry "$event_type_for_log" "Shrink log $this_log, $current_number_of_lines_in_log lines to $log_lines_shrink_limit lines"
 				# shellcheck disable=SC2005,SC2094
 				echo "$( tail -n "$log_lines_shrink_limit" "$this_log" )" > "$this_log" # !!! there could be a race condition someday
 			fi
@@ -893,16 +949,33 @@ function drop_caches {																				(( script_debug )) && debugcho
 	#
 
 	# code
-
 	sync && echo 3 > /proc/sys/vm/drop_caches
 }
 
 function wipe_memory {																				(( script_debug )) && debugcho
 
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message=''			# error|warning|info|success
+
+	# vars
+
+	local -a files_greater_than_1M
+	local -i this_file_size
+	local this_file
+
 	# code
 
+	files_greater_than_1M=( $( LANG=C du -h /tmp/* /var/log/* | awk '/^[0-9\.]+[MG]/{ print $2 }' ) )
+
+	for this_file in "${files_greater_than_1M[@]}"; do
+		this_file_size="$( get_file_size_in_bytes "$this_file" )"
+		print_controller_log_entry "$event_type_for_log" "Remove large file $this_file ($this_file_size bytes >= 1Mb)"
+		rm "$this_file"
+	done
+
 	drop_caches
-	du -h /tmp/* /var/log/* | grep -Fe 'M'$'\t' -- | awk '{print $2}' | tee >( xargs rm )
 }
 
 function check_ntpd {																				(( script_debug )) && debugcho
@@ -1000,7 +1073,8 @@ function sync_time_via_hive_server { # not used atm
 #
 # checkup:is_it_the_past
 # checkup:is_memory_full
-# checkup:is_configs_in_sync
+# checkup:is_miner_config_in_sync_with_FS
+# checkup:is_hiveon_config_in_sync
 # checkup:is_build_updated
 # checkup:is_virus_found
 # checkup:is_NAND_in_RO_mode
@@ -1081,7 +1155,48 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_configs_in_sync {																(( script_debug )) && debugcho
+function checkup:is_miner_config_in_sync_with_FS {													(( script_debug )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message='warning'	# error|warning|info|success
+
+	# consts
+
+	local -r initial_crontab_entry="*/5 * * * *	$FUNCNAME"
+	local -r further_crontab_entry="@hourly		$FUNCNAME"
+
+	# vars
+
+	local -i this_crontab_element
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	if ! asicminer-config --compare --quiet; then
+		snore 2 # an average asicminer-config timing on S17 is 0.5s
+		if ! asicminer-config --compare --quiet; then
+			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+			print_controller_log_entry "$event_type_for_log" 'Miner config does not match the Flight Sheet config'
+			asicminer-config --compare --verbose | message "$event_type_for_message" 'Miner config does not match the Flight Sheet. Click for details' payload
+
+			# adjust crontab, get this checkup to run once in a hour
+			for this_crontab_element in "${!crontab[@]}"; do
+				case "${crontab[this_crontab_element]}" in
+					"$initial_crontab_entry")	crontab[this_crontab_element]="$further_crontab_entry"
+												print_controller_log_entry 'info' "Adjusting crontab for '$FUNCNAME' to run once in an hour"
+												break											;;
+					"$further_crontab_entry")	break											;;
+				esac
+			done
+		fi
+	fi
+
+	return $(( is_something_happened ))
+}
+
+function checkup:is_hiveon_config_in_sync {															(( script_debug )) && debugcho
 
 	# templates
 
@@ -1092,16 +1207,23 @@ function checkup:is_configs_in_sync {																(( script_debug )) && debug
 	local -r HIVEON_CONF='/hive-config/hiveon.conf'
 	local -r ASIC_CONF='/config/config.conf'
 
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
 	# code
 
-	if [[ -e "$HIVEON_CONF" ]] && ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
+	if [[ -f "$HIVEON_CONF" ]] && ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
 		snore 1
 		if ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
-			print_controller_log_entry "$event_type_for_log" "$ASIC_CONF changed, sending it to back-end..."
+			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+			print_controller_log_entry "$event_type_for_log" "$ASIC_CONF changed, sending it to the back-end..."
 			cp -f "$ASIC_CONF" "$HIVEON_CONF"
 			ant-functions send_hiveon_config
 		fi
 	fi
+
+	return $(( is_something_happened ))
 }
 
 function checkup:is_build_updated {																	(( script_debug )) && debugcho
@@ -1470,16 +1592,28 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 
 function execute:cache_hive_ip {																	(( script_debug )) && debugcho
 
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
 	# code
 
-	/hive/bin/cache-hive-ip > /dev/null
+	/hive/bin/cache-hive-ip > /dev/null || is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+
+	return $(( is_something_happened ))
 }
 
 function execute:agent_screen_dontattach {															(( script_debug )) && debugcho
 
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
 	# code
 
-	/hive/bin/agent-screen dontattach
+	/hive/bin/agent-screen dontattach || is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+
+	return $(( is_something_happened ))
 }
 
 
@@ -1657,7 +1791,7 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 
 	# consts
 
-	local -r -i loop_duration_in_s=60 # for debug purposes, 60 in production
+	local -r -i loop_duration_in_s=60 # 60 seconds for production. you can change it for the debug purposes
 
 	# vars
 
@@ -1674,14 +1808,14 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 			# do wait for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
 			print_controller_log_entry "$event_type_for_log" "Upgrade running, skipping checks..."
 			increment_checkup_counter 'upgrade_running' 'alarm'
-		elif pgrep_quiet 'S69hive'; then
+		elif pgrep_quiet 'S69hive|/hive/bin/hive|hive_autorun'; then
 			print_controller_log_entry "$event_type_for_log" "Hive starting, skipping checks..."
 		else
 			# do cron work
 			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
 			for (( job_iterator=0; job_iterator < ${#jobs_to_do[@]}; job_iterator++ )); do
 				job_to_execute="${jobs_to_do[job_iterator]}"
-				# !!! possible flaw: no any timeout
+				# !!! possible flaw: we have no any time limits here
 				eval "$job_to_execute"
 				if (( $? == 0 )); then
 					increment_checkup_counter "$job_to_execute" 'idle'
@@ -1739,14 +1873,15 @@ declare time_source # ntpd|ntpdate|hive
 # crontab
 
 # shellcheck disable=SC2034
-declare -r -a crontab=(
+declare -a crontab=(
+	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
 	'* * * * *		checkup:is_it_the_past'
 	'* * * * *		checkup:is_memory_full'
 	'* * * * *		checkup:is_build_updated'
 	'* * * * *		checkup:is_virus_found'
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
-	'* * * * *		checkup:is_configs_in_sync'
+	'* * * * *		checkup:is_hiveon_config_in_sync'
 	'*/5 * * * *	execute:agent_screen_dontattach'
 	'@hourly		checkup:is_NAND_in_RO_mode'
 	'@hourly		execute:cache_hive_ip'
@@ -1759,7 +1894,6 @@ declare -r -a crontab=(
 
 #TODO:
 #watchdog alert
-#pool checks
 #DNS checks
 #wd
 # extended virus checks
