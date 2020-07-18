@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.42'
+readonly script_version='2.1.43'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -419,7 +419,8 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 
 	# code
 
-	_log_date_by_ref='--empty-timestamp--'
+#	_log_date_by_ref='--empty-timestamp--'
+	_log_date_by_ref='---no-time-stamp---'
 	_log_message_by_ref="${log_line}"
 
 	for this_format in ${date_formats_dictionary['list_by_incidence']}; do
@@ -447,13 +448,13 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 	# consts
 
 	local -r -i send_messages_enabled=1
-	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>%s'
+	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>%b'
 	local -r valid_chain_number_RE='^[0-9]+$'
 
 	# vars
 
 	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
-	local message_header message_body message_advice
+	local message_header message_tip
 	local parse_error_RE failed_chain='' failed_chip=''
 
 	# code
@@ -477,7 +478,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 
 		event_type='skip'
 		message_header=''
-		message_advice=''
+		message_tip=''
 
 		case "$log_name" in
 
@@ -491,9 +492,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						parse_error_RE='Chain[([0-9+])] PIC init failed'
 						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
-						message_advice="It could be a bad connection between the chain and the control board. "
-						message_advice+="Please do examine closely the every ribbon cable and its connectors. "
-						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+						message_tip="It could be a bad connection between the chain and the control board. "
+						message_tip+="Please do examine closely the every ribbon cable and its connectors. "
+						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 					*'will power off hash board'*)
@@ -502,9 +503,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						parse_error_RE='Chain ([0-9]+) only find'
 						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
-						message_advice="There's a chance that the chain is undervolted and cannot start due to a low voltage. "
-						message_advice+="Sometimes, switching an Overclocking profile to the more aggressive one resolves the issue. "
-						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+						message_tip="There's a chance that the chain is undervolted and cannot start due to a low voltage. "
+						message_tip+="Sometimes, switching an Overclocking profile to the more aggressive one resolves the issue. "
+						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 					*'bad clock counter'*)
@@ -517,16 +518,16 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 							failed_chip="#${BASH_REMATCH[2]} "
 						fi
 						message_header="Chain${failed_chain} malfunction. Mining restarted. Click for details"
-						message_advice="Cannot set frequency on asic chip ${failed_chip}on chain${failed_chain}. "
-						message_advice+="Please check the chain and then resold/replace the chip. "
-						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+						message_tip="Cannot set frequency on asic chip ${failed_chip}on chain${failed_chain}. "
+						message_tip+="Please check the chain and then resold/replace the chip. "
+						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 				esac
 
 			;;
 
-			'/var/log/messages')													# S9 only?
+			'/var/log/messages')													# S9 only? Z11 too
 
 				case "$log_message" in
 
@@ -538,6 +539,19 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					*'Temp Err!'*)
 						event_type='error'
 						message_header='Temperature sensor error. Click for details'
+					;;
+
+					*'No servers were found'*)
+						event_type='error'
+						# Jul 18 13:07:36 (none) local0.err cgminer[998]: No servers were found that could be used to get work from.
+						# Jul 18 13:07:36 (none) local0.err cgminer[998]: Please check the details from the list below of the servers you have input
+						# Jul 18 13:07:36 (none) local0.err cgminer[998]: Most likely you have input the wrong URL, forgotten to add a port, or have not set up workers
+						# Jul 18 13:07:36 (none) local0.warn cgminer[998]: Pool: 0  URL: stratum+tcp://zec.ss.poolin.com:443  User: stoffel.S2101b  Password: 123
+						# Jul 18 13:07:36 (none) local0.warn cgminer[998]: Pool: 1  URL: stratum+tcp://zec.ss.poolin.com:1883  User: stoffel.S2101b  Password: 123
+						# Jul 18 13:07:36 (none) local0.warn cgminer[998]: Pool: 2  URL: stratum+tcp://zec.ss.poolin.com:25  User: stoffel.S2101b  Password: 123
+						# Jul 18 13:07:36 (none) local0.err cgminer[998]: No servers could be used! Exiting.
+						message_header='Unable to connect to the pool. Click for details'
+						message_tip="$( grep -Ev '\.info|\.debug|\.notice|thread|kernel' /var/log/messages | tail -n 30 )"
 					;;
 
 				esac
@@ -552,9 +566,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						event_type='warning'
 						# '(http_auth.c.1148) digest: auth failed for  root : wrong password, IP: 127.0.0.1 '
 						message_header='Failed login attempt has been made to the ASIC web interface. Click for details'
-						message_advice="Someone or something has tried to login to the ASIC web interface with a wrong login and/or password. "
-						message_advice+="If it wasn't you -- you MAY have a virus in the local network that trying to brute-force all ASICs "
-						message_advice+="in the vicinity. Please be advised."
+						message_tip="Someone or something has tried to login to the ASIC web interface with a wrong login and/or password. "
+						message_tip+="If it wasn't you -- you MAY have a virus in the local network that trying to brute-force all ASICs "
+						message_tip+="in the vicinity. Please be advised."
 					;;
 
 				esac
@@ -569,55 +583,55 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						event_type='error'
 						# 'ERROR_POWER_LOST: power set failed!'
 						message_header='Power lost. Click for details'
-						message_advice="It could be a problem with the miner PSU. "
-						message_advice+="Please do examine closely the every power cable and connector. "
-						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+						message_tip="It could be a problem with the miner PSU. "
+						message_tip+="Please do examine closely the every power cable and connector. "
+						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 					'ERROR_PIC_LOST'*)
 						event_type='error'
 						# 'ERROR_PIC_LOST: PIC init failed'
 						message_header='PIC init failed. Click for details'
-						message_advice="PIC is a smart voltage regulator. Every hashboard has one PIC. "
-						message_advice="The easiest case could be a bad connection between the chain and the control board. "
-						message_advice+="Please do examine closely the every ribbon cable and its connectors. Then examine hashboard. "
-						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+						message_tip="PIC is a smart voltage regulator. Every hashboard has one PIC.\n"
+						message_tip+="The easiest case could be a bad connection between the chain and the control board. "
+						message_tip+="Please do examine closely the every ribbon cable and its connectors. Then examine hashboard. "
+						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 					'ERROR_SOC_INIT'*)
 						event_type='error'
 						# 'ERROR_SOC_INIT: soc init failed!'
 						message_header='SOC init failed. Click for details'
-						message_advice="It could be a bad connection between the chain and the control board. "
-						message_advice+="Please do examine closely the every ribbon cable and its connectors. "
-						message_advice+="If that doesn't help, please get the ASIC to the service or repair shop."
+						message_tip="It could be a bad connection between the chain and the control board. "
+						message_tip+="Please do examine closely the every ribbon cable and its connectors. "
+						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
 					'WARN_NET_LOST'*)
 						event_type='warning'
 						# 'WARN_NET_LOST: network connection lost'
 						message_header='Network lost for a few seconds. Click for details'
-						message_advice="The miner have lost a network connection for more than a minute. The cause could be:
-										1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
-										2) Hanging router -> reboot router;
-										3) Your ISP -> contact your service provider;
-										4) A random Internet glitch."
+						message_tip="The miner have lost a network connection for more than a minute. The cause could be:
+									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
+									2) Hanging router -> reboot router;
+									3) Your ISP -> contact your service provider;
+									4) A random Internet glitch."
 					;;
 
 					'ERROR_NET_LOST'*)
 						event_type='error'
 						# 'ERROR_NET_LOST: network connection lost'
 						message_header='Network lost for a few minutes. Click for details'
-						message_advice="The miner have lost a network connection for more than a minute. The cause could be:
-										1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
-										2) Hanging router -> reboot router;
-										3) Your ISP -> contact your service provider."
+						message_tip="The miner have lost a network connection for more than a minute. The cause could be:
+									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
+									2) Hanging router -> reboot router;
+									3) Your ISP -> contact your service provider."
 					;;
 
-					'STATUS_'*					)	event_type='skip'		;;
-					'ERROR_'*					)	event_type='error'		;;
-					'WARN_'*					)	event_type='warning'	;;
-					*							)	event_type='warning'	;;
+					'STATUS_'*		)	event_type='skip'		;;
+					'ERROR_'*		)	event_type='error'		;;
+					'WARN_'*		)	event_type='warning'	;;
+					*				)	event_type='warning'	;;
 
 				esac
 
@@ -665,11 +679,11 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						fi
 						event_type='error'
 						message_header="Chain ${failed_chain}malfunction. Safe mode activated, mining disabled. Click for details"
-						message_advice='You see, hashboards are placed upright. Heatsinks soldered to chips using a Low Melting Point solder paste. '
-						message_advice+='Sometimes the solder melts a bit and then heatsink begins to slide down due to the gravitation. It slides '
-						message_advice+='right to the next heatsink down south and then KA-BOOM! -- a short-circuit that will ruin a whole hashboard. '
-						message_advice+='Be adviced to send the ASIC to the service.<hr>Despite the risk, you might consider to resume mining: '
-						message_advice+='just send a command <code>miner start</code>'
+						message_tip='You see, hashboards are placed upright. Heatsinks soldered to chips using a Low Melting Point solder paste. '
+						message_tip+='Sometimes the solder melts a bit and then heatsink begins to slide down due to the gravitation. It slides '
+						message_tip+='right to the next heatsink down south and then KA-BOOM! -- a short-circuit that will ruin a whole hashboard. '
+						message_tip+='Be adviced to send the ASIC to the service.<hr>Despite the risk, you might consider to resume mining: '
+						message_tip+='just send a command <code>miner start</code>'
 					;;
 
 					*)
@@ -692,8 +706,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
 						event_type='ok'
 						message_header='Auto-tune is started. Click for details'
-						message_advice='Auto-tune is started. It will take 30-300 minutes. '
-						message_advice+='Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
+						message_tip='Auto-tune is started. It will take 30-300 minutes. '
+						message_tip+='Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
 					;;
 
 #					'Auto tune is done'*)
@@ -713,8 +727,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					'Tune started'*)
 						event_type='ok'
 						message_header='Auto-tune is started. Click for details'
-						message_advice='Auto-tune is started. It will take 30-90 minutes. '
-						message_advice+='Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
+						message_tip='Auto-tune is started. It will take 30-90 minutes. '
+						message_tip+='Please DO NOT power off, restart or apply another overclocking profile until the auto-tune is over.'
 					;;
 
 #					'All is ok'*)
@@ -734,8 +748,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 			'/tmp/fault.log')
 				event_type='warning'
 				message_header='Miner program fault. Click for details'
-				message_advice='There was a miner program fault (due to bugs in the code and/or ASIC hardware). '
-				message_advice+='The miner has been restarted automatically.'
+				message_tip='There was a miner program fault (due to bugs in the code and/or ASIC hardware). '
+				message_tip+='The miner has been restarted automatically.'
 			;;
 
 			*)
@@ -751,15 +765,12 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 				[[ -z "$message_header" ]] && message_header="$log_message"
 
 				# shellcheck disable=SC2059
-				printf -v message_body \
-					"$message_body_template" \
+				printf "$message_body_template" \
 					"$log_name" \
 					"$log_timestamp ${TZ-GMT}" \
 					"${event_type^^}" \
 					"$log_message" \
-					"${message_advice//$'\t'/}" # remove tabs
-
-				echo "$message_body" | message "$event_type" "$message_header" payload > /dev/null
+					"${message_tip//$'\t'/}" | message "$event_type" "$message_header" --payload --silent
 			fi
 		fi
 	done
@@ -1146,7 +1157,7 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		print_controller_log_entry "$event_type_for_log" "Memory low: $free_memory Mb"
 		print_top="$( top -b -n1 | head -n "$top_lines_count" )"
-		echo -e "$print_top" | tee >( message "$event_type_for_message" 'System memory low, tried to clean up the logs' payload > /dev/null )
+		echo -e "$print_top" | tee >( message "$event_type_for_message" 'System memory low, tried to clean up the logs' --payload --silent )
 
 		shrink_system_logs
 		wipe_memory
@@ -1179,7 +1190,7 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_debug )
 		if ! asicminer-config --compare --quiet; then
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry "$event_type_for_log" 'Miner config does not match the Flight Sheet config'
-			asicminer-config --compare --verbose | message "$event_type_for_message" 'Miner config does not match the Flight Sheet. Click for details' payload
+			asicminer-config --compare --verbose | message "$event_type_for_message" 'Miner config does not match the Flight Sheet. Click for details' --payload --silent
 
 			# adjust crontab, get this checkup to run once in a hour
 			for this_crontab_element in "${!crontab[@]}"; do
@@ -1327,7 +1338,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 
 			message_header="Client $what_happened from $saved_Client_version to $actual_Client_version"
 			print_controller_log_entry "$event_type_for_log" "$message_header"
-			message "$event_type_for_message" "$message_header" > /dev/null
+			message "$event_type_for_message" "$message_header" --silent
 
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
@@ -1337,7 +1348,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 			message_header="$actual_VERSION_file missed, please check"
 			print_controller_log_entry 'warning' "$message_header"
 			# shellcheck disable=SC2012
-			ls -ALl /hive/etc /hive-config | message 'warning' "$message_header" payload > /dev/null
+			ls -ALl /hive/etc /hive-config | message 'warning' "$message_header" --payload --silent
 			set_checkup_counter "$FUNCNAME" 'actual_VERSION_file_missed' 1
 		fi
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
@@ -1424,9 +1435,9 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 			# !!! flaw: if another virus will arise, no message will be sent till reboot
 			# one time action
 			print_controller_log_entry "$event_type_for_log" "$message_header"
-			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" payload > /dev/null )
+			echo -e "$virus_report" | tee >( message "$event_type_for_message" "$message_header" --payload --silent )
 			if (( assign_tag_to_worker )); then
-				message tag "$tag_label" > /dev/null
+				message tag "$tag_label" --silent
 			fi
 			set_checkup_counter "$FUNCNAME" 'message_sent' 1
 		fi
@@ -1473,7 +1484,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 				if (( write_failed_FLAG )); then
 					message_header="Cannot write to $directory_to_check. NAND is in the read-only state, the ASIC may need a service"
 					print_controller_log_entry "$event_type_for_log" "$message_header"
-					message "$event_type_for_message" "$message_header" > /dev/null
+					message "$event_type_for_message" "$message_header" --silent
 					set_checkup_counter "$FUNCNAME" 'message_sent' 1
 					is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 				fi
@@ -1510,7 +1521,7 @@ function checkup:is_overclock_profile_exist {														(( script_debug )) &&
 			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
 				# one time action
 				print_controller_log_entry "$event_type_for_log" 'OC profile not found or empty'
-				message "$event_type_for_message" "$message_header" > /dev/null
+				message "$event_type_for_message" "$message_header" --silent
 				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 1
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			fi
@@ -1544,7 +1555,7 @@ function checkup:is_fw_signed {																		(( script_debug )) && debugcho
 		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) == 0 )); then
 			# one time action
 			print_controller_log_entry "$event_type_for_log" 'Firmware is unsigned'
-			message "$event_type_for_message" "$message_header" > /dev/null
+			message "$event_type_for_message" "$message_header" --silent
 			set_checkup_counter "$FUNCNAME" 'fw_is_unsigned' 1
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
