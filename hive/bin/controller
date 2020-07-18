@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.43'
+readonly script_version='2.1.44'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -551,7 +551,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						# Jul 18 13:07:36 (none) local0.warn cgminer[998]: Pool: 2  URL: stratum+tcp://zec.ss.poolin.com:25  User: stoffel.S2101b  Password: 123
 						# Jul 18 13:07:36 (none) local0.err cgminer[998]: No servers could be used! Exiting.
 						message_header='Unable to connect to the pool. Click for details'
-						message_tip="$( grep -Ev '\.info|\.debug|\.notice|thread|kernel' /var/log/messages | tail -n 30 )"
+						message_tip="$( grep -iE 'pool|url|server' /var/log/messages | tail )"
 					;;
 
 				esac
