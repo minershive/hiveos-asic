@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.22'
+readonly script_version='0.2.23'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -602,7 +602,7 @@ function loop {
 	fi
 
 	for this_URL in "${HIVE_URL_collection[@]}"; do
-		log_line info "Sending stats to ${this_URL}..."
+		log_line info "Sending stats (${#request} bytes) to ${this_URL}..."
 		response="$( jq '.' --compact-output <<< "$request" |
 			curl --insecure --location --data @- \
 			--connect-timeout 15 --max-time 25 --silent --fail \
