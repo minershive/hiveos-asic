@@ -423,7 +423,7 @@ case "$1" in
 			rm -f /config/stop-mining
 			miner_restart
 			echo -e "${YELLOW}Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP${NOCOLOR}"
-			message ok "Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP"
+			message ok "Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP" --silent
 		fi
 	;;
 
