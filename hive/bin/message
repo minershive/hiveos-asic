@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.23'
+readonly script_version='0.3.24'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -43,6 +43,7 @@ function print_script_usage {
 	echo -e "  ${CYAN}--header=your_header${NOCOLOR}   - use a custom message header: 'message file /var/log/log --header=kernel.log'"
 	echo -e "  ${CYAN}--payload${NOCOLOR}              - add payload to a message (payload is read from stdin)"
 	echo -e "  ${CYAN}-s${NOCOLOR}, ${CYAN}--silent${NOCOLOR}           - silent mode, report only errors"
+	echo -e "  ${CYAN}-v${NOCOLOR}, ${CYAN}--verbose${NOCOLOR}          - verbose mode, show request & response"
 	echo
 	echo 'Message type aliases: ok|error|err|warn|default'
 	echo
@@ -56,7 +57,7 @@ declare message_type message_header message_color
 declare id='' id_json payload='' payload_json
 declare request response
 declare file_to_send='' file_size
-declare -i script_exitcode=0 is_silent_FLAG=0
+declare -i script_exitcode=0 is_silent_FLAG=0 is_verbose_FLAG=0
 declare console_message=''
 
 
@@ -143,6 +144,10 @@ for this_argument in "${@:3}"; do
 
 		'-s'|'--silent')
 			is_silent_FLAG=1
+		;;
+
+		'-v'|'--verbose')
+			is_verbose_FLAG=1
 		;;
 
 		*)
@@ -249,6 +254,11 @@ else
 	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)..."
 fi
 
+if (( is_verbose_FLAG )); then
+	echo -n 'Request: '
+	jq --color-output '.' <<< "$request"
+fi
+
 # send a message
 HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
 response="$(
@@ -259,12 +269,19 @@ response="$(
 	<<< "$request"
 )" # curl options removed (for greater reliability on the weak links): --connect-timeout 15 --max-time 25
 
+if (( is_verbose_FLAG )); then
+	echo -n 'Response: '
+	jq --color-output '.' <<< "$response"
+fi
+
 # check curl result
 curl_exitcode=$?
 if (( curl_exitcode )); then
 	errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
 	errcho "$( human-curl-error "$curl_exitcode" )"
-	[[ -n "$response" ]] && errcho "Response: $response"
+	if (( ! is_verbose_FLAG )) && [[ -n "$response" ]]; then
+		errcho "Response: $response"
+	fi
 	script_exitcode="$curl_exitcode"
 else
 	# parse the server answer
