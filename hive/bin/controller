@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.44'
+readonly script_version='2.1.45'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -493,7 +493,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
 						message_tip="It could be a bad connection between the chain and the control board. "
-						message_tip+="Please do examine closely the every ribbon cable and its connectors. "
+						message_tip+="Please do examine closely the every ribbon and power cable, its connectors and sockets. Clean them out."
+						message_tip+='\n'
 						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
@@ -505,6 +506,10 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
 						message_tip="There's a chance that the chain is undervolted and cannot start due to a low voltage. "
 						message_tip+="Sometimes, switching an Overclocking profile to the more aggressive one resolves the issue. "
+						message_tip+='\n'
+						message_tip+="It could be a bad connection between the chain and the control board. "
+						message_tip+="Please do examine closely the every ribbon and power cable, its connectors and sockets. Clean them out."
+						message_tip+='\n'
 						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
@@ -583,8 +588,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						event_type='error'
 						# 'ERROR_POWER_LOST: power set failed!'
 						message_header='Power lost. Click for details'
-						message_tip="It could be a problem with the miner PSU. "
-						message_tip+="Please do examine closely the every power cable and connector. "
+						message_tip="It could be a problem with the miner PSU or the power transmission from the PSU to the hashboards. "
+						message_tip+="Please do examine closely the every power cable and its connectors and sockets. Clean them out."
+						message_tip+='\n'
 						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
@@ -592,9 +598,12 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						event_type='error'
 						# 'ERROR_PIC_LOST: PIC init failed'
 						message_header='PIC init failed. Click for details'
-						message_tip="PIC is a smart voltage regulator. Every hashboard has one PIC.\n"
+						message_tip="PIC is a smart voltage regulator. On each hashboard there's the only one PIC."
+						message_tip+='\n'
 						message_tip+="The easiest case could be a bad connection between the chain and the control board. "
-						message_tip+="Please do examine closely the every ribbon cable and its connectors. Then examine hashboard. "
+						message_tip+="Please do examine closely the every ribbon cable, connector and socket. Clean them out. "
+						message_tip+="Examine the hashboard."
+						message_tip+='\n'
 						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
@@ -603,7 +612,8 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						# 'ERROR_SOC_INIT: soc init failed!'
 						message_header='SOC init failed. Click for details'
 						message_tip="It could be a bad connection between the chain and the control board. "
-						message_tip+="Please do examine closely the every ribbon cable and its connectors. "
+						message_tip+="Please do examine closely the every ribbon cable, connector and socket. Clean them out."
+						message_tip+='\n'
 						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
@@ -647,31 +657,35 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					;;
 
 					'Found'*'red chips'*)
-						# S9, 'Found 1 red chips, restart'
-						event_type='ok'
+						# S9: 'Found 1 red chips, restart'
+						event_type='info'
+						message_header='Auto-tune found a low hashrate chip, fixing'
 					;;
 
-					'Chain '*'found '*)
-						# 17: 'Chain 1: found 1 bad domains'
+					'Chain '*'found '*'domains')
+						# ST17: 'Chain 1: found 1 bad domains'
 						event_type='info'
+						message_header='Auto-tune found a low hashrate domain, fixing'
 					;;
 
 					*'domains fixed'*)
+						# ST17: 'Red domains fixed, restart'
 						event_type='ok'
+						message_header='Auto-tune fixed a low hashrate domain, miner restarted'
 					;;
 
 					'Activating profile '*)
-						# 17, 'Activating profile 11'
+						# ST17, 'Activating profile 11'
 						event_type='skip'
 					;;
 
 					'Re-run cgminer to check temerature sensor type again!')
-						# 17
+						# ST17
 						event_type='skip'
 					;;
 
 					'Possible manufacturing defects detected'*)
-						# 17 Hiveon 2.00
+						# ST17 Hiveon 2.00
 						# 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
 						if [[ -s /config/stop-mining ]]; then
 							failed_chain="$( < /config/stop-mining )"
@@ -739,6 +753,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 					'Achieved '*)
 						# 'Achieved maximum number of restarts'
 						event_type='warning'
+						message_header='Auto-tune attempts are maxed out'
 					;;
 
 				esac
