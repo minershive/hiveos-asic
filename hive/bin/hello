@@ -17,7 +17,7 @@ set -o nounset
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.10'
+readonly script_version='0.1.11'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -119,7 +119,7 @@ function print_json_with_header {
 	local JSON="$2"
 
 	# code
-	echo -ne "${GRAY}${script_basename}:${NOCOLOR} $header "
+	echo -ne "${GRAY}${script_basename}:${NOCOLOR} $header (${#JSON} bytes) "
 	jq --compact-output --color-output '.' <<< "$JSON"
 }
 
@@ -518,7 +518,8 @@ boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 # construct a request
 # shellcheck disable=SC2016
 request_json="$(
-	jq --null-input \
+	jq \
+		--null-input --compact-output \
 		--arg uid "$uid" \
 		--arg rig_id "$RIG_ID" \
 		--arg passwd "$RIG_PASSWD" \
@@ -557,7 +558,7 @@ fi
 # add hostname as a worker name to request_json
 if [[ -n "$arg_hostname" ]]; then
 	# shellcheck disable=SC2016
-	request_json="$( jq --arg worker_name "$arg_hostname" '. * {"params": {$worker_name}}' <<< "$request_json" )"
+	request_json="$( jq --arg worker_name "$arg_hostname" --compact-output '. * {"params": {$worker_name}}' <<< "$request_json" )"
 fi
 
 # show request json

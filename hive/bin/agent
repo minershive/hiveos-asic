@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.23'
+readonly script_version='0.2.24'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -557,25 +557,27 @@ function loop {
 	cpuavg="$( IFS=','; echo "${cpuavg_array[*]::3}" )"
 	df="$( df -h "/${MOUNT}" | awk '{ print $4 }' | tail -n 1 | sed 's/%//' )"
 
-	request="$( jq --null-input \
-		--arg rig_id "$RIG_ID" \
-		--arg passwd "$RIG_PASSWD" \
-		--arg miner "$MINER" \
-		--argjson meta "$meta" \
-		--argjson miner_stats "$stats" \
-		--arg total_khs "$khs" \
-		--arg avg_khs "$khs_av" \
-		--arg system_status "$system_status" \
-		--arg df "$df" \
-		--argjson cpuavg "[$cpuavg]" \
-		'{
-			"method": "stats", "jsonrpc": "2.0", "id": 0,
-			"params": {
-				$rig_id, $passwd, $miner, $meta,
-				$miner_stats, $total_khs, $avg_khs, $system_status,
-				$df, $cpuavg
-			}
-		}'
+	request="$(
+		jq \
+			--null-input --compact-output \
+			--arg rig_id "$RIG_ID" \
+			--arg passwd "$RIG_PASSWD" \
+			--arg miner "$MINER" \
+			--argjson meta "$meta" \
+			--argjson miner_stats "$stats" \
+			--arg total_khs "$khs" \
+			--arg avg_khs "$khs_av" \
+			--arg system_status "$system_status" \
+			--arg df "$df" \
+			--argjson cpuavg "[$cpuavg]" \
+			'{
+				"method": "stats", "jsonrpc": "2.0", "id": 0,
+				"params": {
+					$rig_id, $passwd, $miner, $meta,
+					$miner_stats, $total_khs, $avg_khs, $system_status,
+					$df, $cpuavg
+				}
+			}'
 	)"
 
 	jq '.' --compact-output <<< "$request"
