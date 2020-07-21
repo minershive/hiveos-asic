@@ -268,7 +268,7 @@ function get_miner_stats {
 				fi
 
 				uptime="$(		jq --raw-output '.[1].Elapsed' <<< "$STATS" )"
-				hs="$(			jq '.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]]'	<<< "$STATS" )" || error_vars+=( 'hs' )
+				hs="$(			jq '.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'	<<< "$STATS" )" || error_vars+=( 'hs' )
 				temp="$(		jq '.[1]	| with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( 'temp' )
 				board_temp="$(	jq '.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( 'board_temp' )
 				fan="$(			jq --argjson max_fan_rpm "$max_fan_rpm" \
