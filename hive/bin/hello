@@ -12,7 +12,7 @@
 
 
 # !!! bash strict mode, no unbound variables
-set -o nounset
+#set -o nounset
 
 
 # Sends hello to Hive, receives config files, restarts miner
