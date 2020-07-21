@@ -1900,7 +1900,6 @@ declare time_source # ntpd|ntpdate|hive
 
 # shellcheck disable=SC2034
 declare -a crontab=(
-	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
 	'* * * * *		checkup:is_it_the_past'
 	'* * * * *		checkup:is_memory_full'
 	'* * * * *		checkup:is_build_updated'
@@ -1913,6 +1912,7 @@ declare -a crontab=(
 	'@hourly		execute:cache_hive_ip'
 	'@midnight		print_checkup_summary_report'
 )
+#	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
 #	'* * * * *		checkup:is_fw_signed' # forging ahead
 
 

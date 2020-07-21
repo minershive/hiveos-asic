@@ -341,7 +341,7 @@ function generate_miner_config {
 			}'
 		;;
 
-		'Antminer S17+'* | 'Antminer T17+'* |\
+		'Antminer S17+ Hiveon'* | 'Antminer T17+'* |\
 		'Antminer S17E'* | 'Antminer T17E'* |\
 		'Antminer T17 Hiveon' | 'Antminer S17 Hiveon' |\
 		'Antminer X17' )
@@ -356,6 +356,19 @@ function generate_miner_config {
 				"bitmain-use-vil": true,
 				"bitmain-freq": "O",
 				"bitmain-voltage": "1900"
+			}'
+		;;
+
+		'Antminer S17+' )
+			config_global='{
+				"api-listen" : true,
+				"api-network" : true,
+				"api-groups" : "A:stats:pools:devs:summary:version",
+				"api-allow" : "A:0/0,W:*",
+				"bitmain-use-vil" : true,
+				"bitmain-work-mode" : "0",
+				"bitmain-freq" : "O",
+				"bitmain-voltage" : "1900"
 			}'
 		;;
 
