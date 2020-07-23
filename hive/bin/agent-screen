@@ -253,7 +253,8 @@ declare -i script_exitcode
 # global exports
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin"
-export LD_LIBRARY_PATH=/hive/lib
+[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
+#export LD_LIBRARY_PATH=/hive/lib
 
 # traps
 
