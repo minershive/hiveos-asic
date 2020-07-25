@@ -9,6 +9,7 @@ Type=forking
 ExecStart=/hive/bin/hive
 Environment="LD_LIBRARY_PATH=/hive/lib"
 ExecStartPre=/bin/sleep 30
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target

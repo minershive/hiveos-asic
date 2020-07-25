@@ -201,7 +201,7 @@ function get_miner_stats {
 				hw_errors="$(		jq '.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'hw_errors' )
 #				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [.[].value]'													<<< "$STATS" 2> /dev/null )" || error_vars+=( 'power' )
 				power="$(			jq '.[1]	| with_entries( select(.key | test("chain_power\\d+")) ) 	| to_entries | from_entries'												<<< "$STATS" 2> /dev/null )" || error_vars+=( 'power' )
-				asicboost="$(		jq '[.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( 'asicboost' )
+				asicboost="$(		jq '.[1]	| with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( 'asicboost' )
 				ar="$(				jq --compact-output --arg pool "$active_pool" \
 										'.[$pool|tonumber] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'					<<< "$pool_stats" 2> /dev/null )" || error_vars+=( 'ar' )
 
