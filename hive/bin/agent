@@ -218,7 +218,7 @@ function get_miner_stats {
 					--argjson temp "$temp" --argjson board_temp "$board_temp" --argjson fan "$fan" --argjson fan_rpm "$fan_rpm" \
 					--argjson freq "$freq" --argjson chain_voltage "$chain_voltage" --argjson acn "$acn" --argjson power "$power" \
 					--argjson hw_errors "$hw_errors" --argjson status "$status" \
-					--arg uptime "$uptime" --argjson ar "$ar" --argjson asicboost "$asicboost" \
+					--arg uptime "$uptime" --argjson ar "$ar" --arg asicboost "$asicboost" \
 					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}' \
 					2> /dev/null
 				)" || error_vars+=( 'stats' )
