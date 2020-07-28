@@ -13,7 +13,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.7'
+readonly script_version='0.1.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -44,20 +44,37 @@ function print_script_version {
 }
 
 function print_script_usage {
-	echo -e "Usage: ${CYAN-}${script_basename} [-c|--compare] [-p|--print-only] [-q|--quiet] [-v|--verbose]${NOCOLOR-}"
+	echo -e "Usage: ${CYAN-}${script_basename} [OPTIONS]${NOCOLOR-}"
+	echo
+	echo -e "   ${WHITE-}-d, --dry-run${GRAY-}                 generate config but do not save${NOCOLOR-}"
+	echo -e "   ${WHITE-}-f, --full-compare${GRAY-}            compare Flight Sheet vs actual miner config${NOCOLOR-}"
+	echo -e "   ${WHITE-}-p, --pools-only-compare${GRAY-}      compare Flight Sheet vs actual miner config, pools section only${NOCOLOR-}"
+	echo -e "   ${WHITE-}-q, --quiet${GRAY-}                   quiet mode, only errors displayed${NOCOLOR-}"
+	echo -e "   ${WHITE-}-v, --verbose${GRAY-}                 verbose mode, show full config after generation${NOCOLOR-}"
 	echo
 }
 
 function parse_arguments {
+	# default behaviour
+	save_config_FLAG=1
+	is_verbose_FLAG=0
+	compare_configs_ENUM=compare_NONE
+
+	# code
 	for this_argument in "$@"; do
 		case "$this_argument" in
-			'-c' | '--compare' )
+			'-d' | '--dry-run' )
 				save_config_FLAG=0
-				compare_configs_FLAG=1
 			;;
 
-			'-p' | '--print-only' )
+			'-f' | '--full-compare' )
 				save_config_FLAG=0
+				compare_configs_ENUM=compare_FULL
+			;;
+
+			'-p' | '--pools-only-compare' )
+				save_config_FLAG=0
+				compare_configs_ENUM=compare_POOLS
 			;;
 
 			'-q' | '--quiet' )
@@ -753,9 +770,16 @@ declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r MINER_CONFIG="$CONFIG_PATH"
 
 
+# global enums
+
+declare -r -i compare_NONE=0
+declare -r -i compare_FULL=1
+declare -r -i compare_POOLS=2
+
+
 # global flags
 
-declare -i save_config_FLAG=1 compare_configs_FLAG=0 is_verbose_FLAG=0
+declare -i save_config_FLAG is_verbose_FLAG compare_configs_ENUM
 
 
 # global vars
@@ -776,14 +800,14 @@ source "$WALLET_CONF"
 
 parse_arguments "$@"
 
-echo_action 'Generating miner configuration'
+echo_action 'Generating miner config from the Flight Sheet'
 generate_miner_config
 
-if (( ! compare_configs_FLAG )); then
+if (( ! compare_configs_ENUM )); then
 	if (( is_verbose_FLAG )); then
 		jq '.' --color-output <<< "$conf" # show a full configuration
 	else
-		jq '.' --color-output <<< "$pools" # show a short version--only pools part
+		jq '.' --color-output <<< "$pools" # show a short version--only pools section
 	fi
 fi
 
@@ -794,17 +818,26 @@ if [[ -n "$conf" ]]; then
 		chmod 644 "$MINER_CONFIG" # -rw-rw-r--
 	fi
 else
-	echo_error 'Empty config!'
+	echo_error 'Empty config'
 fi
 
-if (( compare_configs_FLAG )); then
-	echo_action 'Comparing configs'
+if (( compare_configs_ENUM )); then
+	if (( compare_configs_ENUM == compare_POOLS )); then
+		key_filter='.pools'
+		echo_action 'Comparing generated config vs actual miner config (pools section only)'
+	else
+		key_filter='.'
+		echo_action 'Comparing generated config vs actual miner config (full compare)'
+	fi
+
 	if [[ -s "$MINER_CONFIG" ]]; then
 		temp_FS_config="/tmp/$( basename "$MINER_CONFIG" ).flightsheet.tmp"
-		temp_running_config="/tmp/$( basename "$MINER_CONFIG" ).running.tmp"
-		jq '.' --sort-keys <<< "$conf" > "$temp_FS_config"
-		jq '.' --sort-keys < "$MINER_CONFIG" > "$temp_running_config"
-		if diff_result="$( diff "$temp_running_config" "$temp_FS_config" )"; then
+		temp_actual_config="/tmp/$( basename "$MINER_CONFIG" ).actual.tmp"
+
+		jq "$key_filter" --sort-keys <<< "$conf" > "$temp_FS_config"
+		jq "$key_filter" --sort-keys < "$MINER_CONFIG" > "$temp_actual_config"
+
+		if diff_result="$( diff "$temp_actual_config" "$temp_FS_config" )"; then
 			echo_ok 'Configs are identical'
 			script_exitcode=0
 		else
@@ -812,9 +845,9 @@ if (( compare_configs_FLAG )); then
 			(( is_verbose_FLAG )) && echo "$diff_result"
 			script_exitcode=1
 		fi
-		rm "$temp_FS_config" "$temp_running_config"
+		rm "$temp_FS_config" "$temp_actual_config"
 	else
-		echo_error "$MINER_CONFIG not found or empty. Re-generate it first."
+		echo_error "$MINER_CONFIG not found or empty. Generate it first."
 		script_exitcode=2
 	fi
 fi

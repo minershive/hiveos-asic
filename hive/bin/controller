@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.45'
+readonly script_version='2.1.46'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -1197,15 +1197,16 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_debug )
 
 	local -i this_crontab_element
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+	local compare_result
 
 	# code
 
-	if ! asicminer-config --compare --quiet; then
+	if ! asicminer-config --pools-only-compare --quiet; then
 		snore 2 # an average asicminer-config timing on S17 is 0.5s
-		if ! asicminer-config --compare --quiet; then
+		if ! compare_result="$( asicminer-config --pools-only-compare --verbose )"; then
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry "$event_type_for_log" 'Miner config does not match the Flight Sheet config'
-			asicminer-config --compare --verbose | message "$event_type_for_message" 'Miner config does not match the Flight Sheet. Click for details' --payload --silent
+			tee <<< "$compare_result" >( message "$event_type_for_message" 'Miner config does not match the Flight Sheet. Click for details' --payload --silent )
 
 			# adjust crontab, get this checkup to run once in a hour
 			for this_crontab_element in "${!crontab[@]}"; do
@@ -1901,6 +1902,7 @@ declare time_source # ntpd|ntpdate|hive
 
 # shellcheck disable=SC2034
 declare -a crontab=(
+	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
 	'* * * * *		checkup:is_it_the_past'
 	'* * * * *		checkup:is_memory_full'
 	'* * * * *		checkup:is_build_updated'
@@ -1913,7 +1915,6 @@ declare -a crontab=(
 	'@hourly		execute:cache_hive_ip'
 	'@midnight		print_checkup_summary_report'
 )
-#	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
 #	'* * * * *		checkup:is_fw_signed' # forging ahead
 
 
