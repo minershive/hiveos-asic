@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.6'
+readonly script_version='0.1.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -199,7 +199,7 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 			kill_miner_FLAG=1
 
 			rm -rf "$current_profile_file" > /dev/null 2>&1
-			message info 'Auto-tune is OFF. Running on non-optimal factory settings'
+			message info 'Auto-tune is OFF. Running on non-optimal factory settings' --silent
 			;;
 
 		'retune'|'re-tune')
@@ -208,7 +208,7 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 
 			if [[ -s "$current_profile_file" ]]; then
 				sed -i "s|tune_status=${tune_status_DONE}|tune_status=${tune_status_TUNING}|" "$current_profile_file" > /dev/null 2>&1
-				message ok 'Re-tune is started'
+				message ok 'Re-tune is started' --silent
 			fi
 			;;
 
@@ -253,7 +253,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 			kill_miner_FLAG=1
 
 			rm -rf "$current_profile_file" > /dev/null 2>&1
-			message info 'Auto-tune is OFF. Running on non-optimal factory settings'
+			message info 'Auto-tune is OFF. Running on non-optimal factory settings' --silent
 			;;
 
 		'retune'|'re-tune')
@@ -262,7 +262,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 
 			if [[ -s "$current_profile_file" ]]; then
 				sed -i "s|tune_status=${tune_status_DONE}|tune_status=${tune_status_TUNING}|" "$current_profile_file" > /dev/null 2>&1
-				message ok 'Re-tune is started'
+				message ok 'Re-tune is started' --silent
 			fi
 			;;
 
@@ -276,7 +276,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 			if [[ -s "/config/profiles/$profile_id/profile.txt" ]]; then
 				wait_for_tuning_FLAG=0
 				cp -rf "/config/profiles/$profile_id/"* /config
-				message info 'Using saved profile, no need to tune'
+				message info 'Using saved profile, no need to tune' --silent
 			else
 				wait_for_tuning_FLAG=1
 # it was duct tape of sorts
