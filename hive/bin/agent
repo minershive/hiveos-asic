@@ -350,6 +350,7 @@ function get_miner_stats {
 		't2ti.soc'						|\
 		't2ts.soc'						|\
 		't2tz.soc'						|\
+		't1.g19'						|\
 		't3.soc'|'t3+.soc'|'t3h+.soc')
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
 			stats_raw="$( get_stats_raw )"

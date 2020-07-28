@@ -51,6 +51,9 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	if [ -s /etc/hwrevision ]; then
 		ASIC_MANUFACTURER='Innosilicon'
 		ASIC_MODEL="$( cut -d' ' -f 2 /etc/hwrevision )"
+		if uname -a | grep -q dragonMint; then
+			ASIC_MANUFACTURER='DragonMint'
+		fi
 	elif [ -s /tmp/type ]; then
 		# Innosilicon A5/8
 		ASIC_MANUFACTURER='Innosilicon'
@@ -361,6 +364,17 @@ function set_ASIC_constants {
 			HASH='khs'
 			MAX_FAN_RPM='6000'
 		;;
+
+		't1.g19' )
+			MOUNT=''
+			ASIC_ALGO='sha256'
+			THIS_MINER_NAME='cgminer'
+			LOG_PATH='/tmp/log/volAnalys0.log'
+			CONFIG_PATH='/config/cgminer.conf'
+			HASH='mhs'
+			MAX_FAN_RPM='6000'
+		;;
+
 
 		't2th+.soc' | 't2thf+.soc' | 't2thl+.soc' | 't2th.soc' | 't2tz.soc' |\
 		't2thm.soc' | 't2thf.soc' | 't2t+.soc' | 't2ts.soc' | 't2ti.soc' | 't2t.soc' |\

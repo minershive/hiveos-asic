@@ -649,7 +649,7 @@ execute_install_routine () {
 		'Antminer Z9'*)			echo 'Antminer Z9';				do_install_for 'antminer_Z9_cgminer'	;;
 		'Antminer Z11'*)		echo 'Antminer Z11';			do_install_for 'antminer_Z9_cgminer'	;;
 
-		# Innosilicon
+		# Innosilicon, dragonMint
 
 		'b29+.g19')				echo 'Innosilicon A9';			do_install_for 'innosilicon'			;;
 		'd9.g19')				echo 'Innosilicon D9';			do_install_for 'innosilicon'			;;
@@ -669,6 +669,7 @@ execute_install_routine () {
 		't3+.soc')				echo 'Innosilicon T3+';			do_install_for 'innosilicon'			;;
 		't3h+.soc')				echo 'Innosilicon T3H+';		do_install_for 'innosilicon'			;;
 		'T4.G19')				echo 'Innosilicon A8';			do_install_for 'innosilicon_innominer'	;;
+		't1.g19')				echo 'DragonMint T1';			do_install_for 'dragonMint'	;;
 
 		# Zig
 
@@ -892,6 +893,60 @@ install_innosilicon () {
 	bash -c "/hive/bin/firstrun $FARM_HASH"
 	systemctl start hive.service
 }
+
+install_dragonMint () {
+	#
+	#
+	#
+
+	mount -o remount,rw,relatime -t ubifs ubi0:rootfs /
+	[ ! -d /config/hive ]	&& mkdir -p /config/hive
+	[ ! -d /hive ]			&& mkdir /hive
+
+	### untar was right here
+
+	echo_action 'Copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /config/hive/						|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/bin" /config/hive/							|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/etc" /config/hive/							|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/sbin" /hive/									|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/lib" /hive/									|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh		|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/innosilicon/"* /etc/systemd/system/	|| die 'Copy error'
+
+	sleep 2
+
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
+	export LD_LIBRARY_PATH=/hive/lib
+
+	[ ! -L /hive/bin ]		&& [ ! -e /hive/bin ]		&& ln -s /config/hive/bin /hive/bin
+	[ ! -L /hive/etc ]		&& [ ! -e /hive/etc ]		&& ln -s /config/hive/etc /hive/etc
+	[ ! -L /hive-config ]	&& [ ! -e /hive-config ]	&& ln -s /config/hive/hive-config/ /hive-config
+	[ ! -L /hive/sbin/nc ]	&& [ ! -e /hive/sbin/nc ]	&& ln -s /hive/sbin/busybox.nosuid /hive/sbin/nc
+
+	#systemd autorun and cron
+	systemctl daemon-reload
+	systemctl is-enabled hive.service > /dev/null
+	[ $? -eq 1 ] && systemctl enable hive.service
+	systemctl start hive.service
+	systemctl is-enabled hive-agent-screen.timer > /dev/null
+	[ $? -eq 1 ] && systemctl enable hive-agent-screen.timer
+	systemctl start hive-agent-screen.timer
+	systemctl is-enabled hive-cache-ip.timer > /dev/null
+	[ $? -eq 1 ] && systemctl enable hive-cache-ip.timer
+	systemctl start hive-cache-ip.timer
+
+	sleep 2
+	nohup sync && sleep 600 && mount -o remount,ro,relatime -t ubifs ubi0:rootfs / &
+
+	# FARM_HASH could be defined externaly or by command-line option
+	bash -c "/hive/bin/firstrun $FARM_HASH"
+	systemctl start hive.service
+}
+
 
 install_innosilicon_innominer () {
 	#

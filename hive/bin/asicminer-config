@@ -584,6 +584,28 @@ function generate_miner_config {
 			}'
 		;;
 
+		't1.g19' )
+			config_global='{
+				"api-allow": "R:0/0,W:127.0.0.1",
+				"api-description": "cgminer 4.10.0",
+				"api-listen": true,
+				"api-mcast-addr": "224.0.0.75",
+				"api-mcast-code": "FTW",
+				"api-mcast-des": "",
+				"api-mcast-port": "4028",
+				"api-network": true,
+				"api-port": "4028",
+				"api-host": "0.0.0.0",
+				"T1noauto": true,
+				"fallback-time": "120",
+				"log": "5",
+				"shares": "0",
+				"suggest-diff": "0",
+				"syslog": true,
+				"text-only": true
+			}'
+		;;
+
 		't3h+.soc' | 't3+.soc' | 't2th+.soc' | 't2thf+.soc' | 't2thl+.soc' | 't2th.soc' |\
 		't2tz.soc' | 't2thm.soc' | 't2thf.soc' | 't2t+.soc' | 't2ts.soc' | 't2ti.soc' | 't2t.soc' )
 			config_global='{

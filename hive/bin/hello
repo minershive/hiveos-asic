@@ -184,6 +184,8 @@ function get_asic_json {
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T2Ti-25T", "logic_version": .[0]}'	)";;
 		't3h+.soc'				)
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T3H+", "logic_version": .[0]}'		)";;
+		't1.g19'				)
+			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "DragonMint T1", "logic_version": .[0]}'		)";;
 		'Zig Z1+'				)
 			asic_json="$(	jq_raw_input_then_slurp /var/www/html/VERSION	'{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'			)";;
 		'Zig Z1'				)
