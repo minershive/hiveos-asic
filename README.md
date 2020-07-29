@@ -62,6 +62,11 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |X3|•|•|•|•|
 |Z9, Z9-Mini|•|•|•|•|
 |Z11|•|•|•|•|
+**DragonMint**
+|DragonMint T1|•|•|•|•|
+**HashAltCoin**
+|Blackminer F1, F1+, F1-MINI|•|•|•|•|
+|Blackminer F1-Ultra, F1-MINI+|•|•|•|•|
 **Innosilicon**
 |A5/A8 (need test)|•|•|•|•|
 |A9 ZMaster|•|•|•|•|
@@ -71,9 +76,6 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 |T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T|•|•|•|•|
 **Todek**
 |Toddminer C1, C1 PRO|•|•|•|•|
-**HashAltCoin**
-|Blackminer F1, F1+, F1-MINI|•|•|•|•|
-|Blackminer F1-Ultra, F1-MINI+|•|•|•|•|
 **Zig**
 |Z1, Z1+|•|•|•|•|
 
@@ -97,6 +99,11 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
   - X3
   - Z9, Z9-Mini
   - Z11
+- DragonMint
+  - DragonMint T1
+- HashAltCoin
+   - Blackminer F1, Blackminer F1+, Blackminer F1-MINI
+   - Blackminer F1-Ultra, Blackminer F1-MINI+
 - Innosilicon
   - A5/A8 (need test)
   - A9 ZMaster
@@ -106,9 +113,6 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
   - T3H+, T3+, T2Th+, T2Thf+, T2Thl+, T2Th, T2Tz-30T, T2Thm, T2Thf, T2T+ (32T), T2Ts-26T, T2Ti-25T, T2T-24T
 - Todek
   - Toddminer C1, C1 PRO
-- HashAltCoin
-   - Blackminer F1, Blackminer F1+, Blackminer F1-MINI
-   - Blackminer F1-Ultra, Blackminer F1-MINI+
 - Zig
   - Z1, Z1+
 
@@ -195,6 +199,7 @@ Force setup *FARM_HASH* or *RIG_ID* and password, change API Server URL:
 
 >##### Default SSH login and password:
 >- Antminer: user **root**, password **admin**
+>- DragonMint T1: user **root**, password **dr4g0nhash**
 >- Innosilicon (ssh **OR** telnet on port 8100): user **root**, password **blacksheepwall** (or **innot1t2**, or **t1t2t3a5**)
 
 &nbsp;
@@ -254,7 +259,7 @@ cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/m
 
 To see all selfupgrade options, run ```selfupgrade --help```
 
-To install specific version you should provide a release number: ```selfupgrade 0.1-14```
+To install specific version you should provide a release number: ```selfupgrade 0.1-13```
 
 If you want to reinstall current version, add ```--force```: ```selfupgrade --force```
 
