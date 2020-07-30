@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.34.7'
+declare -r hive_functions_lib_version='0.35.0'
 #                                        ^^ current number of public functions
 
 
@@ -684,6 +684,7 @@ function get_system_uptime_in_seconds {
 	# 'test -s' - do not work on procfs files
 	# 'test -r' - file exists and readable 
 	if [[ -r /proc/uptime ]]; then
+		# /proc/uptime sample: '143377.33 68759.84'
 		uptime_line=( $( < /proc/uptime ) )
 		system_uptime_in_seconds=$(( ${uptime_line/\.} / 100 ))
 	elif [[ -r /proc/sched_debug ]]; then
@@ -698,6 +699,32 @@ function get_system_uptime_in_seconds {
 	fi
 
 	printf '%u\n' "$system_uptime_in_seconds"
+}
+
+function get_system_uptime_in_milliseconds {
+	#
+	# Usage: get_system_uptime_in_milliseconds
+	#
+
+	# vars
+
+	local -a uptime_line
+	local -i system_uptime_in_milliseconds
+
+	# code
+
+	# 'test -s' - do not work on procfs files
+	# 'test -r' - file exists and readable 
+	if [[ -r /proc/uptime ]]; then
+		# /proc/uptime sample: '143377.33 68759.84'
+		uptime_line=( $( < /proc/uptime ) )
+		system_uptime_in_milliseconds=$(( ${uptime_line/\.} * 10 ))
+	else
+		errcho '/proc/uptime not found'
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+
+	printf '%u\n' "$system_uptime_in_milliseconds"
 }
 
 function snore {
