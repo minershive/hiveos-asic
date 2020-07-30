@@ -331,6 +331,16 @@ cd /tmp && wget https://raw.githubusercontent.com/minershive/hiveos-asic/master/
 
 &nbsp;
 
+### Blackminer F1 series by Hash Altcoin Technologies
+FPGA miners based on Xilinx K7 325t (Gen1) and 420t (Gen2) which works like multialgo ASICs
+
+Installation using FARM_HASH
+```sh
+cd /tmp && curl -kLsO https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/bin/selfupgrade && sh selfupgrade master --github --farm-hash=YOUR_FARM_HASH
+```
+
+&nbsp;
+
 ## Recovery boot images
 
 ### Antminer
