@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.2.6'
+readonly script_version='0.2.7'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -19,7 +19,7 @@ function load_configuration {
 	if [[ -f "$RIG_CONF" ]]; then
 		source "$RIG_CONF"
 	else
-		echo -e "${RED}Config file $RIG_CONF not found${NOCOLOR}"
+		log_line error "Config file $RIG_CONF not found, exiting"
 		exit 1
 	fi
 
@@ -29,13 +29,13 @@ function load_configuration {
 	: "${WD_MINER:=0}"
 
 	if (( ! WD_ENABLED )); then
-		log_line warning "Watchdog not enabled, exiting"
+		log_line warning 'Watchdog not enabled, exiting'
 		exit 0
 	fi
 
 	if (( ( ! WD_MINER ) && ( ! WD_REBOOT ) )); then
-		message warn "Restart and reboot timers both set to 0 (zero) minutes. Hahsrate Watchdog disabled. Please configure properly"
-		log_line warning "Restart and reboot timers both set to 0 (zero) minutes. Watchdog not enabled, exiting"
+		message warn 'Restart and reboot timers both set to 0 (zero) minutes. Hahsrate Watchdog disabled. Please configure properly'
+		log_line warning 'Restart and reboot timers both set to 0 (zero) minutes. Watchdog not enabled, exiting'
 		exit 1
 	fi
 
@@ -89,16 +89,16 @@ function loop {
 
 	printf -v now '%(%s)T' -1
 	(( elapsed = now - lastgood ))
-	elapsed_safe_limit="$( jq --slurp 'max' <<< "$(( WD_REBOOT * 60 )) $(( WD_MINER * 60 )) $(( seconds_in_24h ))" )" # get max of these numbers
+	elapsed_safe_limit="$( jq --slurp 'max' <<< "$(( WD_REBOOT * 60 )) $(( WD_MINER * 60 )) $(( seconds_in_24h ))" )" #"# get max of these numbers
 
 	if (( elapsed > elapsed_safe_limit || elapsed < 0 )); then
 		# most likely the system date was changed
 		# !!! the watchdog limit is 24h or WD_REBOOT or WD_MINER (which is greater)
-		log_line warning "!"
-		log_line warning "! GRR-GRR! Something wrong with the system time?"
-		log_line warning "! Last good result was received a ${WHITE}$( seconds2dhms "$elapsed" )${NOCOLOR} ago"
-		log_line warning "! Watchdog resetted to a current time"
-		log_line warning "!"
+		log_line warning '!'
+		log_line warning '! GRR-GRR! Something wrong with the system time?'
+		log_line warning "! The last valid result was received a ${WHITE}$( seconds2dhms "$elapsed" )${NOCOLOR} ago"
+		log_line warning '! Watchdog resetted to a current time'
+		log_line warning '!'
 		# let's give another chance: update lastgood to a current datetime
 		set_lastgood
 		return
@@ -119,12 +119,12 @@ function loop {
 		(( reboot_timeout = WD_REBOOT * 60 ))
 		if (( elapsed >= reboot_timeout )); then
 			message danger "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), rebooting"
-			log_line error "!"
+			log_line error '!'
 			log_line error "! Rebooting after $WD_REBOOT minutes of continuous barking"
-			log_line error "!"
+			log_line error '!'
 			#sreboot
-			nohup bash -c 'reboot' > /tmp/nohup.log 2>&1 &
-			return #for testing and if it does not work)
+			nohup bash -c 'reboot' > /tmp/nohup.log 2>&1 & disown
+			return # for testing and in case it does not work
 		fi
 	fi
 
@@ -133,9 +133,9 @@ function loop {
 		(( miner_restart_timeout = WD_MINER * 60 ))
 		if (( miner_restart_count == 0 && elapsed >= miner_restart_timeout )); then
 			message warn "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), restarting"
-			log_line warning "!"
+			log_line warning '!'
 			log_line warning "! Restarting $MINER after $WD_MINER minutes of continuous barking"
-			log_line warning "!"
+			log_line warning '!'
 			miner_restart_count=1
 			/hive/bin/miner restart
 		fi
