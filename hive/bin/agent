@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.27'
+readonly script_version='0.2.28'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -580,6 +580,12 @@ function loop {
 
 	# code
 
+	if ! which 'jq' > /dev/null; then
+		# TODO we could assemble a simple request even without jq, but does it worth it?
+		log_line error "jq not found, waiting..."
+		return
+	fi
+
 	if [[ ! -f "$RIG_CONF" ]]; then
 		log_line error "Config file $RIG_CONF not found, waiting..."
 		return
@@ -588,6 +594,7 @@ function loop {
 	if [[ ! -f "$WALLET_CONF" ]]; then
 		log_line error "Wallet file $WALLET_CONF not found"
 	fi
+
 
 	# each time read config again
 	source "$RIG_CONF"
