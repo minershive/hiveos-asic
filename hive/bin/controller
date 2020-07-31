@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.48'
+readonly script_version='2.1.49'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -624,10 +624,10 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						event_type='warning'
 						# 'WARN_NET_LOST: network connection lost'
 						message_header='Network lost for a few seconds. Click for details'
-						message_tip="The miner have lost a network connection for more than a minute. The cause could be:
-									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
-									2) Hanging router -> reboot router;
-									3) Your ISP -> contact your service provider;
+						message_tip="The miner have lost a network connection for a few seconds. The cause could be:
+									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable --> check connectors & cabling;
+									2) Hanging router --> reboot router;
+									3) Your ISP --> contact your service provider;
 									4) A random Internet glitch."
 					;;
 
@@ -636,9 +636,9 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 						# 'ERROR_NET_LOST: network connection lost'
 						message_header='Network lost for a few minutes. Click for details'
 						message_tip="The miner have lost a network connection for more than a minute. The cause could be:
-									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable -> check connectors & cabling;
-									2) Hanging router -> reboot router;
-									3) Your ISP -> contact your service provider."
+									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable --> check connectors & cabling;
+									2) Hanging router --> reboot router;
+									3) Your ISP --> contact your service provider."
 					;;
 
 					'STATUS_'*		)	event_type='skip'		;;
