@@ -51,7 +51,7 @@ function get_datetime_from_server {
 
 	# vars
 	local server_answer
-	local -i date_from_server_in_seconds curl_exitcode attempts_counter.
+	local -i date_from_server_in_seconds curl_exitcode attempts_counter
 
 	# code
 	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # !!! will be needed to start WD later
@@ -150,7 +150,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 		mount -t tmpfs -o size=100m tmpfs /mnt/ramdisk
 	fi
 elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer X17" ]]; then
-	echo_action 'Applying crontab'
+	#echo_action 'Applying crontab'
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
