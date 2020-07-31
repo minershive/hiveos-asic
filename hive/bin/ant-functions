@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.6'
+declare -r ant_functions_lib_version='0.1.7'
 
 
 # !!! bash strict mode, no unbound variables
@@ -138,7 +138,7 @@ function is_hiveon_fw_signed {
 	# code
 
 	for first_match in /etc/*.pem; do
-		[ -s "$first_match" ] && is_certs_exist=1
+		[[ -s "$first_match" ]] && is_certs_exist=1
 		break
 	done
 
@@ -153,25 +153,37 @@ function hiveon_status {
 	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
 
-	system_status=$(jq -r '.[0].Type' <<< "$input_text")
+	# vars
+	local -i tune_board=0 tune_chip=0
+	local system_status
 
-	if [[ -n $system_status ]]; then
-		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then #)'# syntax highlighting fix
-			system_status="$( echo "$system_status" | grep '(' | sed 's/.*(\|).*//g' )"
+	# code
+	system_status="$( jq --raw-output '.[0].Type' <<< "$input_text" )"
+	system_status="${system_status/(S9 6-boards)}" # remove '(S9 6-boards)'
+
+	if [[ -n "$system_status" ]]; then
+		if [[ "$system_status" =~ \(([^()]*)\)[^\(\)]*$ ]]; then # anything inside the last pair of brackets
+			system_status="${BASH_REMATCH[1]}"
 		else
 			system_status='mining'
 		fi
 	fi
 
+#	if [[ -n "$system_status" ]]; then
+#		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then #)'# syntax highlighting fix
+#			system_status="$( echo "$system_status" | grep '(' | sed 's/.*(\|).*//g' )"
+#		else
+#			system_status='mining'
+#		fi
+#	fi
+
 	#Hiveon before 17 series
-	if [[ $system_status == 'mining' && -n "$HIVEON_VERSION" ]]; then
-		local tune_board=0
-		local tune_chip=0
-		if [ -e /www/pages/cgi-bin/check-auto-tune-running.cgi ]; then
-			tune_board=$(sh /www/pages/cgi-bin/check-auto-tune-running.cgi)
+	if [[ "$system_status" == 'mining' && -n "$HIVEON_VERSION" ]]; then
+		if [[ -s /www/pages/cgi-bin/check-auto-tune-running.cgi ]]; then
+			tune_board="$( sh /www/pages/cgi-bin/check-auto-tune-running.cgi )"
 		fi
-		if [ -e /www/pages/cgi-bin/check-auto-chip-tune-running.cgi ]; then
-			tune_chip=$(sh /www/pages/cgi-bin/check-auto-chip-tune-running.cgi)
+		if [[ -s /www/pages/cgi-bin/check-auto-chip-tune-running.cgi ]]; then
+			tune_chip="$( sh /www/pages/cgi-bin/check-auto-chip-tune-running.cgi )"
 		fi
 
 		#L3 without check-auto-tune-running.cgi
@@ -183,11 +195,12 @@ function hiveon_status {
 			fi
 		fi
 
-		if [[ $tune_board -eq 1 || $tune_chip -eq 1 ]]; then
+		if (( tune_board || tune_chip )); then
 			system_status='tuning'
 		fi
 	fi
-	echo $system_status
+
+	echo "$system_status"
 }
 
 #get voltage
@@ -202,23 +215,27 @@ function hiveon_voltage {
 	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
 
-	voltage_list="[]"
-	if [ -e /www/pages/cgi-bin/get_adv_config.cgi ]; then
-		voltage_mask=$(echo "$input_text" | jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end')
-		voltage_list_pre=($(sh /www/pages/cgi-bin/get_adv_config.cgi | grep bitmain-voltage | awk -F\= '{print $2/100}'))
-		n=0
-		declare -a format_list
-		for chain in $voltage_mask; do
-			if [ $chain == 1 ]; then
-				chain=${voltage_list_pre[$n]}
-				(( n++ )) #check?
+	# vars
+	local -a voltage_mask voltage_list_pre
+	local -i this_chain pre_iterator=0
+	local this_chain_voltage IFS
+
+	# code
+	if [[ -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
+		voltage_mask=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
+		voltage_list_pre=( $( sh /www/pages/cgi-bin/get_adv_config.cgi | awk -F '=' '/bitmain-voltage/{print $2/100}' ) )
+
+		for (( this_chain=0; this_chain < ${#voltage_mask[@]}; this_chain++ )); do
+			if (( voltage_mask[this_chain] )); then
+				this_chain_voltage="${voltage_list_pre[pre_iterator++]}"
+				#[[ "$this_chain_voltage" == 'null' ]] && this_chain_voltage=0
+				voltage_mask[this_chain]="$this_chain_voltage"
 			fi
-			format_list+=($chain)
 		done
-		voltage_list=$(echo ${format_list[@]} | jq -s '.')
 	fi
 
-	echo $voltage_list
+	IFS=','
+	echo "[${voltage_mask[*]}]"
 }
 
 #get power chain id
@@ -232,24 +249,24 @@ function hiveon_power {
 	local -r power="${1-}"
 	local -r acn="${2-}"
 
-#echo $acn
-	power_list="[]"
-	power_mask=$(echo "$acn" | jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end')
-	power_list_pre=$( jq . <<< $power )
-	n=1
+	# vars
+	local -a power_mask
+	local -i this_chain
+	local this_chain_power IFS
 
-	declare -a format_list
-	for chain in $power_mask; do
-		if [ $chain == 1 ]; then
-			chain=$(echo $power | jq .chain_power$n)
-#			(( n++ ))
+	# code
+	power_mask=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$acn" ) )
+
+	for (( this_chain=0; this_chain < ${#power_mask[@]}; this_chain++ )); do
+		if (( power_mask[this_chain] )); then
+			this_chain_power="$( jq ".chain_power$(( this_chain + 1 ))" <<< "$power" )" #"#
+			[[ "$this_chain_power" == 'null' ]] && this_chain_power=0
+			power_mask[this_chain]="$this_chain_power"
 		fi
-		(( n++ ))
-		format_list+=($chain)
 	done
-	power_list=$(echo ${format_list[@]} | jq -s '.')
 
-	echo $power_list
+	IFS=','
+	echo "[${power_mask[*]}]"
 }
 
 
@@ -258,9 +275,11 @@ function hiveon_default_config {
 	#
 	# Usage: hiveon_default_config
 	#
+	# reset hiveon config to default
 
-	if [ -e "/etc/config.conf.e" ]; then
-		cp -rf "/etc/config.conf.e" "/config/config.conf"
+	if [[ -f /etc/config.conf.e ]]; then
+		cp -rf /etc/config.conf.e /config/config.conf
+		message info 'Firmware config reset to default'
 		ant-functions send_hiveon_config
 		miner restart
 	fi
@@ -272,6 +291,7 @@ function send_hiveon_config {
 	#
 	# Usage: send_hiveon_config
 	#
+	# send hiveon config to API server
 
 	local request hiveon_config
 
@@ -281,9 +301,12 @@ function send_hiveon_config {
 		exit 0
 	fi
 
-	hiveon_config=$(cat /config/config.conf | tr -d $'\r' | jq -Rrnc 'inputs | match("(.*)=(.*)") | .captures | {(.[0].string): (.[1].string)}' | jq -s add)
+	hiveon_config="$( tr -d $'\r' < /config/config.conf |
+		jq --raw-input --raw-output --null-input --compact-output 'inputs | match("(.*)=(.*)") | .captures | {(.[0].string): (.[1].string)}' |
+			jq --slurp add
+	)"
 
-	request="$( jq -n \
+	request="$( jq --null-input --compact-output \
 		--arg rig_id "$RIG_ID" \
 		--arg passwd "$RIG_PASSWD" \
 		--argjson hiveon_config "$hiveon_config" \
@@ -295,9 +318,11 @@ function send_hiveon_config {
 			}
 		}'
 	)"
-	jq '.' -c <<< "$request"
+	echo -n 'Request: '
+	jq --compact-output '.' <<< "$request"
+	echo
 
-#duplicate code
+#duplicate code from agent
 	HIVE_URL="$HIVE_HOST_URL"
 	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index for original HIVE_HOST_URL
 	# !!! duct tape
@@ -315,26 +340,49 @@ function send_hiveon_config {
 	fi
 
 	for this_URL in "${HIVE_URL_collection[@]}"; do
-		echo "Sending stats to ${this_URL}..."
-		response="$( jq '.' -c <<< "$request" |
+		this_URL="${this_URL%/}" # cut the trailing slash, if any (like as in rocketchain's local API server URL)
+		echo "Sending config to $this_URL..."
+		response="$( jq --compact-output '.' <<< "$request" |
 			curl --insecure --location --data @- \
 			--connect-timeout 15 --max-time 25 --silent --fail \
-			-XPOST "${this_URL}/worker/api?id_rig=$RIG_ID&method=set_asic_config" -H 'Content-Type: application/json'
+			-XPOST "$this_URL/worker/api?id_rig=$RIG_ID&method=set_asic_config" -H 'Content-Type: application/json'
 		)"
-		exitcode=$?
-		if (( exitcode )); then
-			echo "Error sending stats (curl error $exitcode), trying next URL..."
+		curl_exitcode=$?
+		if [[ -n "$response" ]]; then
+			echo -n 'Response: '
+			jq --compact-output --color-output '.' <<< "$response"
+			response_message="$( jq --raw-output '.message' <<< "$response" )"
+			case "$response_message" in
+				'Wrong password')
+					echo "Firmware config sending error: invalid password"
+					message err 'Firmware config sending error' --payload --silent <<< "Invalid password: API Server $this_URL does not validate password '$RIG_PASSWD'"
+					break
+				;;
+				'Invalid method')
+					echo "Firmware config sending error: server does not support 'set_asic_config' method"
+					message err 'Firmware config sending error' --payload --silent <<< "Invalid method: API Server $this_URL does not support 'set_asic_config' method"
+					break
+				;;
+				*)
+					echo "Firmware config sending error. Unknown response '$response_message'"
+			esac
+		fi
+
+		if (( curl_exitcode )); then
+			echo "Error sending config (curl error $curl_exitcode), trying next URL..."
 		else
 			break
 		fi
 	done
 
-	message info "Firmware config changed"
-
+	message info 'Firmware config updated' --silent
 }
 
 
+# sources
+
 source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
+
 
 # consts
 
