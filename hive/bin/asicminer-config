@@ -6,14 +6,16 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
+# Linted by shellcheck 0.3.7
+#
 
 
 # !!! bash strict mode, no unbound variables
-#set -o nounset # commented out bc still not tested thoroughly
+#set -o nounset # commented out for production bc still not tested thoroughly
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.8'
+readonly script_version='0.1.9'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -21,9 +23,9 @@ readonly script_basename="$( basename "$0" )"
 
 function echo_ok		{ echo -e "${GRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
 function echo_action	{ echo -e "${GRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
-function echo_info		{ echo -e "${GRAY-}${script_basename}: ${NOCOLOR-}${*}"; }
+function echo_info		{ echo -e "${GRAY-}${script_basename}: ${NOCOLOR-}${*}${NOCOLOR-}"; }
 function echo_warning	{ echo -e "${GRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
-function echo_error		{ echo -e "${RED-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
+function echo_error		{ echo -e "${GRAY-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
 
 function die {
 	# !!! must be the first line in this function to catch the incoming error code -- do not move
@@ -55,10 +57,12 @@ function print_script_usage {
 }
 
 function parse_arguments {
-	# default behaviour
-	save_config_FLAG=1
-	is_verbose_FLAG=0
-	compare_configs_ENUM=compare_NONE
+	# default flow
+	((
+		save_config_FLAG=1,
+		is_verbose_FLAG=0,
+		compare_configs_ENUM=compare_NONE
+	))
 
 	# code
 	for this_argument in "$@"; do
@@ -68,13 +72,11 @@ function parse_arguments {
 			;;
 
 			'-f' | '--full-compare' )
-				save_config_FLAG=0
-				compare_configs_ENUM=compare_FULL
+				(( compare_configs_ENUM = compare_FULL ))
 			;;
 
 			'-p' | '--pools-only-compare' )
-				save_config_FLAG=0
-				compare_configs_ENUM=compare_POOLS
+				(( compare_configs_ENUM = compare_POOLS ))
 			;;
 
 			'-q' | '--quiet' )
@@ -104,12 +106,13 @@ function parse_arguments {
 	done
 }
 
-function generate_miner_config {
+function generate_miner_configuration {
 	# vars
-	local -i pools_count first_url_count
-	local pool config_global
+	local -i pools_count pool_index first_url_count
+	local pool pools config_global
 	local line varkey varval
 	local template_label template_placeholder
+	local final_configuration
 
 	# code
 	pools_count=1
@@ -122,28 +125,38 @@ function generate_miner_config {
 	first_url_count=3
 	for url in $ASICMINER_URL; do
 		pool='{}'
-		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
-		pool="$( jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}' )"
-		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}' )"
-		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		# shellcheck disable=SC2016
+		{
+			pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
+			pool="$( jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}' )"
+			pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}' )"
+			pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		}
 		(( first_url_count == pools_count )) && break
 		(( first_url_count-- ))
 	done
 	if [[ -n "${ASICMINER_TEMPLATE2-}" || -n "${ASICMINER_URL2-}" ]]; then
 		pool='{}'
-		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
-		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}' )"
-		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}' )"
-		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		# shellcheck disable=SC2016
+		{
+			pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
+			pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}' )"
+			pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}' )"
+			pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		}
 	fi
 	if [[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]]; then
 		pool='{}'
-		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
-		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}' )"
-		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}' )"
-		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		# shellcheck disable=SC2016
+		{
+			pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
+			pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}' )"
+			pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}' )"
+			pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+		}
 	fi
 
+	# shellcheck disable=SC2016
 	pools="$( jq --null-input --argjson pools "$pools" '{$pools}' )"
 
 	#innosilicon A5/A8
@@ -166,14 +179,17 @@ function generate_miner_config {
 			"Password3": null,
 			"Password1": null
 		}'
-		pools="${pools//$'\t'/}"
-		i=1
+		pools="${pools//$'\t'/}" # remove tabs
+		pool_index=1
 		for url in $ASICMINER_URL; do
-			pools="$( jq --null-input --argjson pools "$pools" --arg UserName$i "$ASICMINER_TEMPLATE" '$pools + {$UserName'$i'}' )"
-			pools="$( jq --null-input --argjson pools "$pools" --arg Pool$i "$url" '$pools + {$Pool'$i'}' )"
-			pools="$( jq --null-input --argjson pools "$pools" --arg Password$i "$ASICMINER_PASS" '$pools + {$Password'$i'}' )"
-			pools="$( jq --null-input --argjson pools "$pools" --arg PoolNum "$i" '$pools + {$PoolNum}' )"
-			(( i++ ))
+			# shellcheck disable=SC2016
+			{
+				pools="$( jq --null-input --argjson pools "$pools" --arg "UserName${pool_index}" "$ASICMINER_TEMPLATE" '$pools + {$UserName'$pool_index'}' )"
+				pools="$( jq --null-input --argjson pools "$pools" --arg "Pool${pool_index}" "$url" '$pools + {$Pool'$pool_index'}' )"
+				pools="$( jq --null-input --argjson pools "$pools" --arg "Password${pool_index}" "$ASICMINER_PASS" '$pools + {$Password'$pool_index'}' )"
+				pools="$( jq --null-input --argjson pools "$pools" --arg PoolNum "$pool_index" '$pools + {$PoolNum}' )"
+			}
+			(( pool_index++ ))
 		done
 	fi
 	#innosilicon A5/A8 end
@@ -378,14 +394,14 @@ function generate_miner_config {
 
 		'Antminer S17+' )
 			config_global='{
-				"api-listen" : true,
-				"api-network" : true,
-				"api-groups" : "A:stats:pools:devs:summary:version",
-				"api-allow" : "A:0/0,W:*",
-				"bitmain-use-vil" : true,
-				"bitmain-work-mode" : "0",
-				"bitmain-freq" : "O",
-				"bitmain-voltage" : "1900"
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-work-mode": "0",
+				"bitmain-freq": "O",
+				"bitmain-voltage": "1900"
 			}'
 		;;
 
@@ -753,6 +769,7 @@ function generate_miner_config {
 	config_global="${config_global//\"false\"/false}"
 
 	if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
+		# shellcheck disable=SC2016
 		pools="$( jq --null-input --argjson g "$config_global" \
 			--arg url1	"$( jq --raw-output '.pools[0].url'		<<< "$pools" )" \
 			--arg user1	"$( jq --raw-output '.pools[0].user'	<<< "$pools" )" \
@@ -763,18 +780,22 @@ function generate_miner_config {
 			'{url:$url1, user:$user1, pass:$pass1,backup_url:$url2,backup_user:$user2,backup_pass:$pass2}'
 		)"
 	fi
-	conf="$( jq --null-input --argjson g "$config_global" --argjson p "$pools" '$p * $g' )"
+
+	# shellcheck disable=SC2016
+	final_configuration="$( jq --null-input --argjson g "$config_global" --argjson p "$pools" '$p * $g' )"
 
 	# !!! legacy vars, should all be set as "dummy"
 	[[ -z "${EWAL-}" && -z "${ZWAL-}" && -z "${DWAL-}" ]] && echo_error "No WAL address is set"
 
 	#replace %template% with its value in a whole file
-	# !!! legacy, might remove it sometimes
+	# !!! legacy, might to remove it sometimes
 	for template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME; do
 		local -n template_value="$template_label"
 		template_placeholder="%${template_label}%"
-		[[ -n "$template_value" ]] && conf="${conf//${template_placeholder}/${template_value}}"
+		[[ -n "$template_value" ]] && final_configuration="${final_configuration//${template_placeholder}/${template_value}}"
 	done
+
+	echo "$final_configuration"
 }
 
 
@@ -807,12 +828,17 @@ declare -i save_config_FLAG is_verbose_FLAG compare_configs_ENUM
 # global vars
 
 declare -i script_exitcode=0
+declare generated_miner_configuration key_filter
 
 
 # main
 
-[[ ! -f "$RIG_CONF" ]] && die "No rig config $RIG_CONF" 1
-[[ ! -f "$WALLET_CONF" ]] && die "No wallet config $WALLET_CONF" 1
+parse_arguments "$@"
+
+echo_info "$script_mission $script_version"
+
+[[ ! -f "$RIG_CONF" ]] && die "Rig config $RIG_CONF not found" 1
+[[ ! -f "$WALLET_CONF" ]] && die "Wallet $WALLET_CONF not found" 1
 
 source "$RIG_CONF"
 source "$WALLET_CONF"
@@ -820,47 +846,50 @@ source "$WALLET_CONF"
 [[ -z "${ASICMINER_TEMPLATE-}" ]] && die 'ASICMINER_TEMPLATE is empty' 1
 [[ -z "${ASICMINER_URL-}" ]] && die 'ASICMINER_URL is empty' 1
 
-parse_arguments "$@"
-
 echo_action 'Generating miner config from the Flight Sheet'
-generate_miner_config
+generated_miner_configuration="$( generate_miner_configuration )"
+
+if [[ -z "$generated_miner_configuration" ]]; then
+	die 'Cannot generate config, exiting' 1
+fi
 
 if (( ! compare_configs_ENUM )); then
 	if (( is_verbose_FLAG )); then
-		jq '.' --color-output <<< "$conf" # show a full configuration
+		key_filter='.' # show a full config
 	else
-		jq '.' --color-output <<< "$pools" # show a short version--only pools section
+		key_filter='.pools' # show a short config -- only pools section
 	fi
-fi
 
-if [[ -n "$conf" ]]; then
+	jq "$key_filter" <<< "$generated_miner_configuration"
+
 	if (( save_config_FLAG )); then
 		echo_action "Updating $MINER_CONFIG"
-		jq '.' <<< "$conf" > "$MINER_CONFIG"
+		jq '.' <<< "$generated_miner_configuration" > "$MINER_CONFIG"
 		chmod 644 "$MINER_CONFIG" # -rw-rw-r--
+	else
+		echo_warning "Dry run, updating $MINER_CONFIG skipped"
 	fi
 else
-	echo_error 'Empty config'
-fi
-
-if (( compare_configs_ENUM )); then
-	if (( compare_configs_ENUM == compare_POOLS )); then
-		key_filter='.pools'
-		echo_action 'Comparing generated config vs actual miner config (pools section only)'
-	else
-		key_filter='.'
-		echo_action 'Comparing generated config vs actual miner config (full compare)'
-	fi
+	case "$compare_configs_ENUM" in
+		"$compare_POOLS")
+			key_filter='.pools'
+			echo_action 'Comparing generated config vs actual miner config (pools section only)'
+		;;
+		"$compare_FULL")
+			key_filter='.'
+			echo_action 'Comparing generated config vs actual miner config (full compare)'
+		;;
+	esac
 
 	if [[ -s "$MINER_CONFIG" ]]; then
 		temp_FS_config="/tmp/$( basename "$MINER_CONFIG" ).flightsheet.tmp"
 		temp_actual_config="/tmp/$( basename "$MINER_CONFIG" ).actual.tmp"
 
-		jq "$key_filter" --sort-keys <<< "$conf" > "$temp_FS_config"
+		jq "$key_filter" --sort-keys <<< "$generated_miner_configuration" > "$temp_FS_config"
 		jq "$key_filter" --sort-keys < "$MINER_CONFIG" > "$temp_actual_config"
 
 		if diff_result="$( diff "$temp_actual_config" "$temp_FS_config" )"; then
-			echo_ok 'Configs are identical'
+			echo_ok 'Configs are OK (identical)'
 			script_exitcode=0
 		else
 			echo_warning 'Configs are DIFFERENT'
