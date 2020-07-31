@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.47'
+readonly script_version='2.1.48'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -827,7 +827,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 			# don't waste resources to count lines on every iteration, check file size first
 			current_log_size="$( get_file_size_in_bytes "$this_log" )"
 
-			# is it first time run?
+			# is it a first time run?
 			if ! previous_log_size="$( get_hash_value 'file_attribute' "$this_log" 'size' )"; then
 				# first run, init vars
 				current_lines_quantity="$( wc -l < "$this_log" )"
@@ -875,6 +875,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 		else
 			# file not found or empty
 			set_hash_value 'file_attribute' "$this_log" 'size' 0
+			set_hash_value 'file_attribute' "$this_log" 'lines' 0
 		fi
 	done
 
@@ -1207,7 +1208,7 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_debug )
 
 	if ! asicminer-config --pools-only-compare --quiet; then
 		snore 2 # an average asicminer-config timing on S17 is 0.5s
-		if ! compare_result="$( asicminer-config --pools-only-compare --verbose )"; then
+		if ! compare_result="$( asicminer-config --pools-only-compare --verbose 2>&1 )"; then
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry "$event_type_for_log" 'Miner config does not match the Flight Sheet config'
 			tee <<< "$compare_result" >( message "$event_type_for_message" 'Miner config does not match the Flight Sheet. Click for details' --payload --silent )
@@ -1861,7 +1862,7 @@ function do_cron_jobs_indefinitely {																(( script_debug )) && debugc
 		(( execution_time_in_s = time_after_execution_in_s - time_before_execution_in_s ))
 
 		if (( execution_time_in_s > $( calculate_percent_from_number 80 "$loop_duration_in_s" ) )); then
-			print_controller_log_entry "$event_type_for_log" "Controller lagging: routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${loop_duration_in_s}s )"
+			print_controller_log_entry "$event_type_for_log" "Controller lagging? Routine checkup took ${execution_time_in_s}s ( > 80% of an idle time which is ${loop_duration_in_s}s )"
 			increment_checkup_counter 'controller_lagging' 'alarm'
 		fi
 
