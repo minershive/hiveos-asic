@@ -120,7 +120,7 @@ function print_json_with_header {
 
 	# code
 	echo -ne "${GRAY}${script_basename}:${NOCOLOR} $header (${#JSON} bytes) "
-	jq --compact-output --color-output '.' <<< "$JSON"
+	jq --compact-output '.' <<< "$JSON"
 }
 
 function get_ips_json {
@@ -413,7 +413,7 @@ function send_hello_packet {
 		fi
 		server_response_json="$(
 			curl --insecure --location --data @- $timeout_options --silent \
-			-XPOST "${HIVE_URL}?id_rig=$RIG_ID&method=hello" \
+			-XPOST "${HIVE_URL}?id_rig=${RIG_ID-}&method=hello" \
 			-H "Content-Type: application/json" \
 			<<< "$request_json"
 		)"
@@ -524,8 +524,8 @@ request_json="$(
 	jq \
 		--null-input --compact-output \
 		--arg uid "$uid" \
-		--arg rig_id "$RIG_ID" \
-		--arg passwd "$RIG_PASSWD" \
+		--arg rig_id "${RIG_ID-}" \
+		--arg passwd "${RIG_PASSWD-}" \
 		--arg farm_hash "${FARM_HASH-}" \
 		--arg boot_time "$boot_POSIX_time" \
 		--arg boot_event "$arg_boot_FLAG" \
@@ -575,13 +575,13 @@ server_response_json="$( send_hello_packet )" ||
 print_json_with_header 'Received response' "$server_response_json" ||
 	die 'Error while parsing JSON response'
 
-server_error="$( jq '.error' --raw-output <<< "$server_response_json" )"
+server_error="$( jq --raw-output '.error' <<< "$server_response_json" )"
 [[ -n "$server_error" && "$server_error" != 'null' ]] &&
-	die "$( jq '.error.message' --raw-output <<< "$server_response_json" )" 1
+	die "$( jq --raw-output '.error.message' <<< "$server_response_json" )" 1
 
 
 # Save config and check it ================================================================
-received_config="$( jq '.result.config' --raw-output <<< "$server_response_json" )"
+received_config="$( jq --raw-output '.result.config' <<< "$server_response_json" )"
 [[ -z "$received_config" || "$received_config" == 'null' ]] &&
 	die 'No config field in response' 1
 echo "$received_config" > "$RIG_CONF" && echo_ok 'Received config saved'
@@ -601,7 +601,7 @@ fi
 
 
 # Wallet config ================================================================
-received_wallet="$( jq '.result.wallet' --raw-output <<< "$server_response_json" )"
+received_wallet="$( jq --raw-output '.result.wallet' <<< "$server_response_json" )"
 if [[ -n "$received_wallet" && "$received_wallet" != 'null' ]]; then
 	echo "$received_wallet" > "$WALLET_CONF" && echo_ok 'Received wallet saved'
 fi
