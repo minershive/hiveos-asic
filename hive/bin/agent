@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.31'
+readonly script_version='0.2.32'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -36,7 +36,7 @@ function debug_print_variable {
 		(( ${#this_var} > max_length )) && max_length="${#this_var}"
 	done
 
-	printf "${DGRAY}%s %-${max_length}.${max_length}s %8.8s %4.4s  %s %s${NOCOLOR}\n" "$debug_prefix" 'variable' 'bytes' 'idx' 'value'
+	printf "${DGRAY}%s %-${max_length}.${max_length}s %8.8s %4.4s  %s %s${NOCOLOR}\n" "$debug_prefix" 'var' 'bytes' 'idx' 'value'
 
 	for this_var_name in $( printf '%s\n' "$@" | sort ); do
 		JSON_array_size=''
@@ -247,12 +247,11 @@ function get_miner_stats {
 
 	# traps
 
-	function check_khs_and_stats {
-		[[ -z "$khs" ]] && khs=0
-		[[ -z "$khs_av" ]] && khs_av=0
-		[[ -z "$stats" ]] && stats='null'
+	function sanitize_khs {
+		[[ -z "$khs"	]] && khs=0
+		[[ -z "$khs_av"	]] && khs_av=0
 	}
-	trap 'check_khs_and_stats' RETURN
+	trap 'sanitize_khs' RETURN
 
 	# code
 
@@ -344,8 +343,8 @@ function get_miner_stats {
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					--argjson	'ar'			"$ar"					--argjson	'asicboost'	"$asicboost" \
 					\
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power,
-					$hw_errors, $status, $uptime, $ar, $asicboost} | with_entries( select( .value != null ) )' \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn,
+					$power, $hw_errors, $status, $uptime, $ar, $asicboost}' \
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
@@ -432,8 +431,8 @@ function get_miner_stats {
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					--argjson	'ar'			"$ar" \
 					\
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power,
-					$hw_errors, $status, $uptime, $ar} | with_entries( select( .value != null ) )' \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn,
+					$power, $hw_errors, $status, $uptime, $ar}' \
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
@@ -472,7 +471,7 @@ function get_miner_stats {
 					--argjson	'freq'			"$freq"					--argjson	'acn'		"$acn" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					\
-					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime} | with_entries( select( .value != null ) )' \
+					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}' \
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
@@ -522,7 +521,7 @@ function get_miner_stats {
 					--argjson	'acn'			"$acn"					--argjson	'hw_errors'	"$hw_errors" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					\
-					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime} | with_entries( select( .value != null ) )' \
+					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}' \
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
@@ -560,7 +559,7 @@ function get_miner_stats {
 					--argjson	'freq'			"$freq"					--argjson	'acn'		"$acn" \
 					--argjson	'hw_errors'		"$hw_errors"			--argjson	'uptime'	"$uptime" \
 					\
-					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime} | with_entries( select( .value != null ) )' \
+					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}' \
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
@@ -645,8 +644,8 @@ function get_miner_stats {
 					--argjson	'ar'			"$ar"					--argjson	'hw_errors'	"$hw_errors" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					\
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power,
-					$ar, $hw_errors, $status, $uptime} | with_entries( select( .value != null ) )' \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $ar,
+					$hw_errors, $status, $uptime}' \
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
@@ -664,6 +663,21 @@ function get_miner_stats {
 	(( ${#error_vars[@]} )) && log_line warning "Missing keys: ${error_vars[*]}"
 }
 
+function get_loadavg_as_json {
+	# vars
+	local -a loadavg_array
+	local IFS
+
+	# code
+	loadavg_array=( $( < /proc/loadavg ) ) # /proc/loadavg: '1.24 1.25 1.34 3/251 5135'
+	IFS=','
+	echo "[${loadavg_array[*]::3}]"
+}
+
+function get_diskfree {
+	df -h "/${MOUNT}" | awk '{ print $4 }' | tail -n 1 | sed 's/%//'
+}
+
 function loop {
 
 	# vars
@@ -678,8 +692,8 @@ function loop {
 
 	if ! which 'jq' > /dev/null; then
 		# TODO we could assemble a simple request even without jq, but does it worth it?
-		log_line error "jq not found, waiting..."
-		return
+		# !!! DONE
+		log_line error 'jq not found'
 	fi
 
 	if [[ ! -f "$RIG_CONF" ]]; then
@@ -690,7 +704,6 @@ function loop {
 	if [[ ! -f "$WALLET_CONF" ]]; then
 		log_line error "Wallet file $WALLET_CONF not found"
 	fi
-
 
 	# each time read config again
 	source "$RIG_CONF"
@@ -723,69 +736,57 @@ function loop {
 	echo "$khs" > /run/hive/khs
 
 	# shellcheck disable=SC2153
-	[[ -n "$META" ]] && meta="$META" || meta='null'
-	cpuavg_array=( $( < /proc/loadavg ) )
-	cpuavg="$( IFS=','; echo "${cpuavg_array[*]::3}" )"
-	df="$( df -h "/${MOUNT}" | awk '{ print $4 }' | tail -n 1 | sed 's/%//' )"
-
-	if [[ -n "$stats" && "$stats" != 'null' ]]; then
-		# full stats
-		JSON_request_template='
-			{
-				"method": "stats", "jsonrpc": "2.0", "id": 0,
-				"params": {
-					$rig_id, $passwd, $miner, $meta,
-					$miner_stats, $total_khs, $avg_khs, $system_status,
-					$df, $cpuavg
-				}
-			}'
-	else
-		# shorten version
-		JSON_request_template='
-			{
-				"method": "stats", "jsonrpc": "2.0", "id": 0,
-				"params": {
-					$rig_id, $passwd, $miner, $meta,
-					$system_status,
-					$df, $cpuavg
-				}
-			}'
-	fi
+	cpuavg="$( get_loadavg_as_json )"
+	df="$( get_diskfree )"
 
 	# construct a request
+	sanitize_vars_for_argjson 'RIG_ID' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
 	request="$(
 		jq \
 			--null-input --compact-output \
 			--argjson rig_id "$RIG_ID" \
 			--arg passwd "$RIG_PASSWD" \
 			--arg miner "$MINER" \
-			--argjson meta "$meta" \
+			--argjson meta "$META" \
 			--argjson miner_stats "$stats" \
 			--argjson total_khs "$khs" \
 			--argjson avg_khs "$khs_av" \
 			--arg system_status "$system_status" \
 			--arg df "$df" \
-			--argjson cpuavg "[$cpuavg]" \
-			"$JSON_request_template"
-	)"
-
-	# fall-back
-	if [[ $? -ne 0 || -z "$request" ]]; then
-		log_line error 'Something went wrong while constructing a JSON request. Fall back to a simplified form...'
-		request="$(
-			jq \
-				--null-input --compact-output \
-				--arg rig_id "$RIG_ID" \
-				--arg passwd "$RIG_PASSWD" \
-				--arg miner "$MINER" \
-				--arg system_status "$system_status" \
-				'{
+			--argjson cpuavg "$cpuavg" \
+			\
+				'def walk(f):
+					. as $in
+					| if type == "object" then
+						reduce keys_unsorted[] as $key
+						( {}; . + { ($key):  ($in[$key] | walk(f)) } ) | f
+					elif type == "array" then map( walk(f) ) | f
+					else f
+					end;
+				{
 					"method": "stats", "jsonrpc": "2.0", "id": 0,
 					"params": {
-						$rig_id, $passwd, $miner, $system_status
+						$rig_id, $passwd, $miner, $meta,
+						$miner_stats, $total_khs, $avg_khs,
+						$system_status,
+						$df, $cpuavg
 					}
-				}'
-		)"
+				} | walk(
+						if type == "object" then
+							with_entries(select( .value != null and .value != {} and .value != [] ))
+						elif type == "array" then
+							map(select( . != null and . != {} and .!= [] ))
+						else
+							.
+						end
+					)' # remove: 1. empty objects; 2. empty arrays; 3. keys with null value
+	)"
+
+	# fall-back route (like in case of broken jq)
+	if [[ $? -ne 0 || -z "$request" ]]; then
+		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
+		debug_print_variable RIG_ID META stats khs khs_av cpuavg
+		request="{\"method\":\"stats\",\"jsonrpc\":\"2.0\",\"id\":0,\"params\":{\"rig_id\":${RIG_ID},\"passwd\":\"${RIG_PASSWD}\",\"miner\":\"$MINER\",\"system_status\":\"$system_status\"}}"
 	fi
 
 	jq '.' --compact-output <<< "$request"
@@ -815,10 +816,13 @@ function loop {
 		log_line info "Sending stats (${#request} bytes) to ${this_URL}..."
 		time_start_sending_stats="$( get_system_uptime_in_milliseconds )"
 		response="$(
-			jq '.' --compact-output <<< "$request" |
-				curl --verbose --trace-time --insecure --location --data @- \
+			curl \
+				--verbose --trace-time --insecure --location --data @- \
 				--connect-timeout 15 --max-time 25 --silent --fail \
-				-XPOST "${this_URL}/worker/api?id_rig=$RIG_ID&method=stats" -H 'Content-Type: application/json' \
+				--request POST "${this_URL}/worker/api?id_rig=$RIG_ID&method=stats" \
+				--header 'Content-Type: application/json' \
+				\
+				<<< "$request" \
 				2> "$latest_curl_log"
 		)"
 		curl_exitcode=$?
@@ -849,6 +853,8 @@ function loop {
 		log_line error "Error response received in ${WHITE}${time_wasted_sending_stats_in_s}s:${NOCOLOR} $error"
 		return 1
 	fi
+
+	#jq '.result.confseq' <<< "$response"
 
 	command="$( jq --raw-output '.result.command' <<< "$response" )"
 
