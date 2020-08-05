@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.28'
+readonly script_version='0.2.29'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -604,8 +604,8 @@ function get_miner_stats {
 				active_pool="$(	jq '[. as $object | keys[] | select($object[.]."Stratum Active" == true and $object[.]."Priority" <= 3) as $pool | select($object[$pool]."Getworks")] | .[0]'	<<< "$pool_stats" )"
 
 				uptime="$(		jq --raw-output		'.[1].Elapsed'																													<<< "$STATS" )"
-				hs="$(			jq --compact-output	 .[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hs#$?" )
-#				temp="$(		jq --compact-output	 .[1]	| with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
+				hs="$(			jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hs#$?" )
+#				temp="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
 				temp="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
 				board_temp="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "board_temp#$?" )
 				fan="$(			jq --compact-output --argjson max_fan_rpm "$max_fan_rpm" \
