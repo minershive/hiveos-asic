@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.29'
+readonly script_version='0.2.30'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -73,7 +73,7 @@ function sanitize_vars_for_argjson {
 	#
 
 	# consts
-	local -r JSON_safe_stub='""'
+	local -r JSON_safe_stub='null'
 
 	# vars
 	local this_var_ref this_var
@@ -240,7 +240,6 @@ function get_miner_stats {
 	local algo hs_units uptime hashrate_raw hashrate_raw_avg
 	local stats_pool_raw pool_stats active_pool
 	local hs temp chip_temp board_temp fan fan_rpm freq freq_new acn status chain_voltage hw_errors power asicboost ar
-	local JSON_stats_template
 
 	# arrays
 
@@ -334,14 +333,6 @@ function get_miner_stats {
 				[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
 				[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
 
-				if [[ "$asicboost" == '0' || "$asicboost" == '1' ]]; then
-					# set asicboost status
-					JSON_stats_template='{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost}'
-				else
-					# skip asicboost status
-					JSON_stats_template='{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar}'
-				fi
-
 				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan' 'fan_rpm' 'freq' 'chain_voltage' 'acn' 'power' 'hw_errors' 'status' 'uptime' 'ar' 'asicboost'
 				stats="$( jq --null-input --compact-output \
 					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
@@ -352,7 +343,7 @@ function get_miner_stats {
 					--argjson	'power'			"$power"				--argjson	'hw_errors'	"$hw_errors" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					--argjson	'ar'			"$ar"					--argjson	'asicboost'	"$asicboost" \
-					"$JSON_stats_template" \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar, $asicboost} | with_entries( select( .value != null ) )' \
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				#debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
@@ -437,7 +428,7 @@ function get_miner_stats {
 					--argjson	'power'			"$power"				--argjson	'hw_errors'	"$hw_errors" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
 					--argjson	'ar'			"$ar" \
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar}' \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn, $power, $hw_errors, $status, $uptime, $ar} | with_entries( select( .value != null ) )' \
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 #				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
@@ -474,7 +465,7 @@ function get_miner_stats {
 					--argjson	'fan'			"$fan"					--argjson	'fan_rpm'	"$fan_rpm" \
 					--argjson	'freq'			"$freq"					--argjson	'acn'		"$acn" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
-					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}' \
+					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime} | with_entries( select( .value != null ) )' \
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 #				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
@@ -522,7 +513,7 @@ function get_miner_stats {
 					--argjson	'fan'			"$fan"					--argjson	'freq'		"$freq" \
 					--argjson	'acn'			"$acn"					--argjson	'hw_errors'	"$hw_errors" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
-					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}' \
+					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime} | with_entries( select( .value != null ) )' \
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 #				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
@@ -558,7 +549,7 @@ function get_miner_stats {
 					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
 					--argjson	'freq'			"$freq"					--argjson	'acn'		"$acn" \
 					--argjson	'hw_errors'		"$hw_errors"			--argjson	'uptime'	"$uptime" \
-					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}' \
+					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime} | with_entries( select( .value != null ) )' \
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 #				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
@@ -641,7 +632,7 @@ function get_miner_stats {
 					--argjson	'acn'			"$acn"					--argjson	'power'		"$power" \
 					--argjson	'ar'			"$ar"					--argjson	'hw_errors'	"$hw_errors" \
 					--argjson	'status'		"$status"				--argjson	'uptime'	"$uptime" \
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $ar, $hw_errors, $status, $uptime}' \
+					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $ar, $hw_errors, $status, $uptime} | with_entries( select( .value != null ) )' \
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 #				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
