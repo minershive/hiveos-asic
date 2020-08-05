@@ -195,7 +195,7 @@ function generate_miner_configuration {
 	#innosilicon A5/A8 end
 
 	case "$ASIC_MODEL" in
-		'Antminer S9k' )
+		'Antminer S9k'* )
 			config_global='{
 				"api-listen": true,
 				"api-network": true,
@@ -207,7 +207,7 @@ function generate_miner_configuration {
 			}'
 		;;
 
-		'Antminer S9 SE' )
+		'Antminer S9 SE'* )
 			config_global='{
 				"api-listen": true,
 				"api-network": true,

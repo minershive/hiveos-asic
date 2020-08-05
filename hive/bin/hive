@@ -116,7 +116,7 @@ ${NOCOLOR-}
 "
 
 
-if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL == "Antminer S9 SE" || $ASIC_MODEL == "Antminer S9k" ]]; then
+if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL =~ "Antminer S9 SE" || $ASIC_MODEL =~ "Antminer S9k" ]]; then
 	: nothing
 	#echo_action 'Applying crontab'
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &

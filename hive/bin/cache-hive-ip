@@ -78,6 +78,8 @@ function set_hostfile {
 		'Antminer S10'*			|\
 		'Antminer S9i'			|\
 		'Antminer S9j'			|\
+		'Antminer S9 SE Hiveon'	|\
+		'Antminer S9k Hiveon'	|\
 		'Minecenter S9'			|\
 		'Antminer S9 Hydro'		|\
 		'Antminer E3'			|\

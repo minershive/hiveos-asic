@@ -212,7 +212,7 @@ function set_ASIC_constants {
 			FANS_COUNT_DEFAULT='2'
 		;;
 
-		'Antminer S9k' | 'Antminer S9 SE' )
+		'Antminer S9k'* | 'Antminer S9 SE'* )
 			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'

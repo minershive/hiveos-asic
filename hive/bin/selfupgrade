@@ -625,8 +625,8 @@ execute_install_routine () {
 		'Antminer T9'			|\
 		'Minecenter S9')		echo "$ASIC_MODEL";				do_install_for 'antminer_bmminer'		;;
 
-		'Antminer S9 SE'		|\
-		'Antminer S9k'			|\
+		'Antminer S9 SE'*		|\
+		'Antminer S9k'*			|\
 		'Antminer S15'			|\
 		'Antminer T15')			echo "$ASIC_MODEL";				do_install_for 'antminer_bmminer_ro'	;;
 
