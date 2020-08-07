@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.7'
+declare -r ant_functions_lib_version='0.1.8'
 
 
 # !!! bash strict mode, no unbound variables
@@ -160,6 +160,8 @@ function hiveon_status {
 	# code
 	system_status="$( jq --raw-output '.[0].Type' <<< "$input_text" )"
 	system_status="${system_status/(S9 6-boards)}" # remove '(S9 6-boards)'
+	# should we remove space too ' (S9 6-boards)'
+	#                             ^ ???
 
 	if [[ -n "$system_status" ]]; then
 		if [[ "$system_status" =~ \(([^()]*)\)[^\(\)]*$ ]]; then # anything inside the last pair of brackets
@@ -218,20 +220,26 @@ function hiveon_voltage {
 	# vars
 	local -a voltage_mask voltage_list_pre
 	local -i this_chain pre_iterator=0
-	local this_chain_voltage IFS
+	local this_chain_voltage IFS adv_config
 
 	# code
 	if [[ -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
 		voltage_mask=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
-		voltage_list_pre=( $( sh /www/pages/cgi-bin/get_adv_config.cgi | awk -F '=' '/bitmain-voltage/{print $2/100}' ) )
-
-		for (( this_chain=0; this_chain < ${#voltage_mask[@]}; this_chain++ )); do
-			if (( voltage_mask[this_chain] )); then
-				this_chain_voltage="${voltage_list_pre[pre_iterator++]}"
-				#[[ "$this_chain_voltage" == 'null' ]] && this_chain_voltage=0
-				voltage_mask[this_chain]="$this_chain_voltage"
-			fi
-		done
+		adv_config="$( sh /www/pages/cgi-bin/get_adv_config.cgi | awk -F '=' '/bitmain-voltage/{print $2/100}' )"
+		if [[ -n "$adv_config" ]]; then
+			voltage_list_pre=( $adv_config )
+			for (( this_chain=0; this_chain < ${#voltage_mask[@]}; this_chain++ )); do
+				if (( voltage_mask[this_chain] )); then
+					this_chain_voltage="${voltage_list_pre[pre_iterator++]}"
+					#[[ "$this_chain_voltage" == 'null' ]] && this_chain_voltage=0
+					voltage_mask[this_chain]="$this_chain_voltage"
+				fi
+			done
+		else
+			# it seems that we have no (or empty) /config/config.conf
+			errcho 'Empty output from /www/pages/cgi-bin/get_adv_config.cgi. Please check /config/config.conf'
+			voltage_mask=()
+		fi
 	fi
 
 	IFS=','
