@@ -17,18 +17,18 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.11'
+readonly script_version='0.1.12'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
 
 # functions
 
-function echo_ok		{ echo -e "${GRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
-function echo_action	{ echo -e "${GRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
-function echo_info		{ echo -e "${GRAY-}${script_basename}: ${NOCOLOR-}${*}"; }
-function echo_warning	{ echo -e "${GRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
-function echo_error		{ echo -e "${RED-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
+function echo_ok		{ echo -e "${LGRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
+function echo_action	{ echo -e "${LGRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
+function echo_info		{ echo -e "${LGRAY-}${script_basename}: ${NOCOLOR-}${*}"; }
+function echo_warning	{ echo -e "${LGRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
+function echo_error		{ echo -e "${RED-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } # 1>&2 # commented temporary, for cgi-bin script
 
 function die {
 	# !!! must be the first line in this function to catch the incoming error code -- do not move
@@ -109,18 +109,31 @@ function jq_raw_input_then_slurp {
 	fi
 }
 
-function print_json_with_header {
+function print_JSON_with_header {
 	#
-	# Usage: print_json_with_header 'header message' 'JSON'
+	# Usage: print_JSON_with_header 'header' 'JSON'
 	#
 
 	# args
 	local header="$1"
-	local JSON="$2"
+	local expected_JSON="$2"
+
+	# vars
+	local checked_JSON entity_to_print
+	local -i entity_size
 
 	# code
-	echo -ne "${GRAY}${script_basename}:${NOCOLOR} $header (${#JSON} bytes) "
-	jq --compact-output '.' <<< "$JSON"
+	if checked_JSON="$( jq --compact-output '.' <<< "$expected_JSON" 2> /dev/null )"; then
+		entity_type='JSON'
+		entity_to_print="$checked_JSON"
+	else
+		entity_type='string'
+		entity_to_print="$expected_JSON"
+	fi
+
+	entity_size="${#entity_to_print}"
+	echo -e "${LGRAY}${script_basename}:${NOCOLOR} $header ($entity_type $entity_size bytes)"
+	echo "$entity_to_print"
 }
 
 function get_ips_json {
@@ -518,6 +531,28 @@ fans_count="$( get_fans_count )"
 boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 
 
+JSON_request_template='
+	{
+		"method": "hello", "jsonrpc": "2.0", "id": 0,
+		"params": {
+'
+
+if [[ -n "${FARM_HASH-}" ]]; then
+	JSON_request_template+='$farm_hash,'
+else
+	JSON_request_template+='$rig_id, $passwd,'
+fi
+
+JSON_request_template+='
+		$uid, $boot_time, $boot_event, $ip, $net_interfaces,
+		"mb": {$manufacturer, $product},
+		"cpu": {$model, $cores, $aes},
+		$asic, $asic_chain_count,
+		$kernel, $version, $fans_count
+	}
+}'
+
+
 # construct a request
 # shellcheck disable=SC2016
 request_json="$(
@@ -538,25 +573,18 @@ request_json="$(
 		--arg kernel "$kernel" \
 		--arg version "$hive_client_version" \
 		--arg fans_count "$fans_count" \
-		'{
-			"method": "hello", "jsonrpc": "2.0", "id": 0,
-			"params": {
-				$rig_id, $passwd, $farm_hash, $uid,
-				$boot_time, $boot_event, $ip, $net_interfaces,
-				"mb": {$manufacturer, $product},
-				"cpu": {$model, $cores, $aes},
-				$asic, $asic_chain_count,
-				$kernel, $version, $fans_count
-			}
-		}'
+		\
+		"$JSON_request_template"
 )"
 
-# try to get worker name from /config/HIVE_WORKER_NAME
+
+# try to get a worker name from /config/HIVE_WORKER_NAME
 if [[ -s /config/HIVE_WORKER_NAME ]]; then
 	arg_hostname="$( < /config/HIVE_WORKER_NAME )"
 	echo_info "File /config/HIVE_WORKER_NAME found, using its content as a new worker name: $arg_hostname"
 	rm /config/HIVE_WORKER_NAME
 fi
+
 
 # add hostname as a worker name to request_json
 if [[ -n "$arg_hostname" ]]; then
@@ -564,20 +592,29 @@ if [[ -n "$arg_hostname" ]]; then
 	request_json="$( jq --arg worker_name "$arg_hostname" --compact-output '. * {"params": {$worker_name}}' <<< "$request_json" )"
 fi
 
+
 # show request json
-print_json_with_header 'Sending request' "$request_json"
+print_JSON_with_header 'Sending request' "$request_json"
+echo
+
 
 # send the hello packet
 server_response_json="$( send_hello_packet )" ||
 	die "Unable to connect to $HIVE_HOST_URL. No attempts left, exiting..." #404 is not a bad exit code
 
-# show server response and then check json
-print_json_with_header 'Received response' "$server_response_json" ||
-	die 'Error while parsing JSON response'
 
-server_error="$( jq --raw-output '.error' <<< "$server_response_json" )"
-[[ -n "$server_error" && "$server_error" != 'null' ]] &&
-	die "$( jq --raw-output '.error.message' <<< "$server_response_json" )" 1
+# show server response
+print_JSON_with_header 'Received response' "$server_response_json"
+echo
+
+
+# and then check json
+if server_error="$( jq --raw-output '.error' <<< "$server_response_json" )"; then
+	[[ -n "$server_error" && "$server_error" != 'null' ]] &&
+		die "$( jq --raw-output '.error.message' <<< "$server_response_json" )" 1
+else
+	die 'Error while parsing JSON response'
+fi
 
 
 # Save config and check it ================================================================
