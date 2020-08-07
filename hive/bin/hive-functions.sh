@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.35.0'
+declare -r hive_functions_lib_version='0.35.1'
 #                                        ^^ current number of public functions
 
 
@@ -66,34 +66,36 @@ function debugcho {
 
 function log_line {
 	#
-	# Usage: log_line 'ok|info|error|warning' 'log_entry'
+	# Usage: log_line 'ok|info|error|warning|debug' 'log_entry'
 	#
 
 	# args
-
 	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __event_type="${1:-info}"
-	local -r __log_entry="${2:-}"
+	local -r __log_entry="${2:-empty}"
 
 	# consts
-
 	local -r -A __event_color_dictionary=(
 		['warning']="${YELLOW}"
+		['debug']="${BPURPLE}"
 		['error']="${RED}"
 		['info']="${DGRAY}"
 		['ok']="${GREEN}"
 	)
-
-	# code
-
 	# wd			2 chars
 	# agent			5
 	# watchdog		8
 	# controller	10
+	local -r -i __basename_max_length=10
 
+	# vars
+	local __basename_color
+
+	# code
+	__basename_color="${__event_color_dictionary[$__event_type]}"
+	[[ -z "$__basename_color"  ]] && __basename_color="${NOCOLOR}" # any unsupported event
 	# shellcheck disable=SC2154
-	printf '%b%(%F %T)T %b%-10.10s%b %b%b\n' "${DGRAY}" -1 "${__event_color_dictionary[$__event_type]}" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
-#	printf '%b%(%F %T)T %b%s%b %b%b\n' "${DGRAY}" -1 "${__event_color_dictionary[$__event_type]}" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
+	printf '%b%(%F %T)T %b%-*.*s%b %b%b\n' "${DGRAY}" -1 "$__basename_color" "$__basename_max_length" "$__basename_max_length" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
 }
 
 
