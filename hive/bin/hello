@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.12'
+readonly script_version='0.1.13'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -90,6 +90,20 @@ function parse_arguments {
 			;;
 		esac
 	done
+}
+
+function is_JSON_string_empty_or_null {
+	# args
+	local -r JSON_string="$1"
+	# code
+	[[ -z "$JSON_string" || "$JSON_string" == 'null' ]]
+}
+
+function is_JSON_string_not_empty_or_null {
+	# args
+	local -r JSON_string="$1"
+	# code
+	[[ -n "$JSON_string" && "$JSON_string" != 'null' ]]
 }
 
 function jq_raw_input_then_slurp {
@@ -238,7 +252,7 @@ function get_uid {
 		fi
 	done
 	# shellcheck disable=SC2128
-	# "Expanding an array without an index only gives the first element." -- yes, sure, let's use a useful side effect
+	# "Expanding an array without an index only gives the first element." -- yes, sure, let's use this useful side effect
 	echo "$uid"
 }
 
@@ -409,14 +423,14 @@ function send_hello_packet {
 	# try to send the hello packet (10 times max, every next pause will be longer and longer)
 
 	# consts
-	local -r -i max_attempts=10
+	local -r -i max_connection_attempts=10
 
 	# vars
 	local -i attempts_counter curl_exitcode
-	local timeout_options server_response_json
+	local timeout_options server_response
 
 	# code
-	for (( attempts_counter = 1; attempts_counter <= max_attempts; attempts_counter++ )); do
+	for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
 		if (( attempts_counter == 1 )); then
 			# lower timeouts for the first connection attempt
 			timeout_options='--connect-timeout 15 --max-time 25'
@@ -424,16 +438,16 @@ function send_hello_packet {
 			# default timeouts
 			timeout_options=''
 		fi
-		server_response_json="$(
+		server_response="$(
 			curl --insecure --location --data @- $timeout_options --silent \
-			-XPOST "${HIVE_URL}?id_rig=${RIG_ID-}&method=hello" \
-			-H "Content-Type: application/json" \
+			--request POST "${HIVE_HOST_URL}/worker/api?id_rig=${RIG_ID-}&method=hello" \
+			--header "Content-Type: application/json" \
 			<<< "$request_json"
 		)"
 		curl_exitcode=$?
 		if (( curl_exitcode )); then
 			echo_error "$( human-curl-error $(( curl_exitcode )) )"
-			[[ -n "$server_response_json" ]] && echo_error "$server_response_json"
+			[[ -n "$server_response" ]] && echo_error "$server_response"
 			echo_error "Error connecting to $HIVE_HOST_URL (attempt #$attempts_counter), sleeping for ${attempts_counter}s..."
 			sleep $(( attempts_counter ))
 		else
@@ -441,7 +455,7 @@ function send_hello_packet {
 		fi
 	done
 
-	echo "$server_response_json"
+	echo "$server_response"
 	return $(( curl_exitcode ))
 }
 
@@ -459,6 +473,7 @@ declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
+declare -r FARM_HASH_valid_RE='^[[:xdigit:]]{40}$'
 
 
 # flags
@@ -477,12 +492,11 @@ declare mb_manufacturer mb_product
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
 [[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
-#export LD_LIBRARY_PATH=/hive/lib
 
 
 # sources
 
-source colors
+[[ -z "${FARM_HASH-}" ]] && source colors # turn the colors off for cgi-bin script
 
 
 # main
@@ -501,7 +515,6 @@ fi
 [[ -z "${FARM_HASH-}" && -z "${RIG_ID-}" ]] && die "Please use FARM_HASH or RIG_ID in $RIG_CONF" 1
 [[ -n "${RIG_ID-}" && -z "${RIG_PASSWD-}" ]] && die "No RIG_PASSWD in $RIG_CONF" 1
 [[ -z "${HIVE_HOST_URL-}" ]] && die "No HIVE_HOST_URL in $RIG_CONF" 1
-HIVE_URL="$HIVE_HOST_URL/worker/api"
 
 source asic-model
 [[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add if not exist
@@ -531,28 +544,6 @@ fans_count="$( get_fans_count )"
 boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 
 
-JSON_request_template='
-	{
-		"method": "hello", "jsonrpc": "2.0", "id": 0,
-		"params": {
-'
-
-if [[ -n "${FARM_HASH-}" ]]; then
-	JSON_request_template+='$farm_hash,'
-else
-	JSON_request_template+='$rig_id, $passwd,'
-fi
-
-JSON_request_template+='
-		$uid, $boot_time, $boot_event, $ip, $net_interfaces,
-		"mb": {$manufacturer, $product},
-		"cpu": {$model, $cores, $aes},
-		$asic, $asic_chain_count,
-		$kernel, $version, $fans_count
-	}
-}'
-
-
 # construct a request
 # shellcheck disable=SC2016
 request_json="$(
@@ -561,9 +552,8 @@ request_json="$(
 		--arg uid "$uid" \
 		--arg rig_id "${RIG_ID-}" \
 		--arg passwd "${RIG_PASSWD-}" \
-		--arg farm_hash "${FARM_HASH-}" \
 		--arg boot_time "$boot_POSIX_time" \
-		--arg boot_event "$arg_boot_FLAG" \
+		--argjson boot_event "$arg_boot_FLAG" \
 		--argjson ip "$ips_json" \
 		--argjson net_interfaces "$net_interfaces_json" \
 		--arg model "$cpu_model" --arg cores "$cpu_cores" --arg aes "$aes" \
@@ -573,8 +563,17 @@ request_json="$(
 		--arg kernel "$kernel" \
 		--arg version "$hive_client_version" \
 		--arg fans_count "$fans_count" \
-		\
-		"$JSON_request_template"
+		'{
+			"method": "hello", "jsonrpc": "2.0", "id": 0,
+			"params": {
+				$rig_id, $passwd,
+				$uid, $boot_time, $boot_event, $ip, $net_interfaces,
+				"mb": {$manufacturer, $product},
+				"cpu": {$model, $cores, $aes},
+				$asic, $asic_chain_count,
+				$kernel, $version, $fans_count
+			}
+		}'
 )"
 
 
@@ -590,6 +589,17 @@ fi
 if [[ -n "$arg_hostname" ]]; then
 	# shellcheck disable=SC2016
 	request_json="$( jq --arg worker_name "$arg_hostname" --compact-output '. * {"params": {$worker_name}}' <<< "$request_json" )"
+fi
+
+
+# add FARM_HASH to request_json
+if [[ -n "${FARM_HASH-}" ]]; then
+	if [[ "$FARM_HASH" =~ $FARM_HASH_valid_RE ]]; then
+		# shellcheck disable=SC2016
+		request_json="$( jq --arg farm_hash "$FARM_HASH" --compact-output '. * {"params": {$farm_hash}}' <<< "$request_json" )"
+	else
+		echo_error "Invalid FARM_HASH '$FARM_HASH' (${#FARM_HASH} bytes), will not be used"
+	fi
 fi
 
 
@@ -610,18 +620,20 @@ echo
 
 # and then check json
 if server_error="$( jq --raw-output '.error' <<< "$server_response_json" )"; then
-	[[ -n "$server_error" && "$server_error" != 'null' ]] &&
-		die "$( jq --raw-output '.error.message' <<< "$server_response_json" )" 1
+	if is_JSON_string_not_empty_or_null "$server_error"; then
+		die "Server responded with error '$( jq --raw-output '.error.message' <<< "$server_response_json" )'" 1
+	fi
 else
-	die 'Error while parsing JSON response'
+	die 'Error while parsing server response as a JSON'
 fi
 
 
 # Save config and check it ================================================================
 received_config="$( jq --raw-output '.result.config' <<< "$server_response_json" )"
-[[ -z "$received_config" || "$received_config" == 'null' ]] &&
-	die 'No config field in response' 1
-echo "$received_config" > "$RIG_CONF" && echo_ok 'Received config saved'
+if is_JSON_string_empty_or_null "$received_config"; then
+	die 'No "config" field in server response' 1
+fi
+echo "$received_config" > "$RIG_CONF" && echo_ok 'Received config saved' || echo_error 'Received config NOT saved'
 # re-read rig.conf
 source "$RIG_CONF"
 #hostname-check
@@ -639,8 +651,8 @@ fi
 
 # Wallet config ================================================================
 received_wallet="$( jq --raw-output '.result.wallet' <<< "$server_response_json" )"
-if [[ -n "$received_wallet" && "$received_wallet" != 'null' ]]; then
-	echo "$received_wallet" > "$WALLET_CONF" && echo_ok 'Received wallet saved'
+if is_JSON_string_not_empty_or_null "$received_wallet"; then
+	echo "$received_wallet" > "$WALLET_CONF" && echo_ok 'Received wallet saved' || echo_error 'Received wallet NOT saved'
 fi
 
 
