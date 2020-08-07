@@ -9,8 +9,11 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.32'
+readonly script_version='0.2.33'
 readonly script_basename="$( basename "$0" )"
+#
+readonly is_DEBUG=0
+readonly is_DEBUG_stats=0 # to show all stats' variables inside get_miner_stats()
 
 
 # !!! bash strict mode, no unbound variables
@@ -348,7 +351,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				#debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -436,7 +439,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-#				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -475,7 +478,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-#				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -525,7 +528,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-#				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -563,7 +566,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-#				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -574,7 +577,7 @@ function get_miner_stats {
 			# shellcheck disable=SC2071
 			# bc of float comparison
 			[[ "$khs" > '0' ]] && system_status='mining'
-#			debug_print_variable stats
+			(( is_DEBUG_stats )) && debug_print_variable stats
 		;;
 
 		'Blackminer F1'*)
@@ -649,7 +652,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-#				debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -686,7 +689,6 @@ function loop {
 	local -i time_start_collecting_stats time_start_sending_stats
 	local time_wasted_collecting_stats_in_s time_wasted_sending_stats_in_s
 	local PUSH_INTERVAL custom_interval_message
-	local JSON_request_template
 
 	# code
 
@@ -739,57 +741,70 @@ function loop {
 	cpuavg="$( get_loadavg_as_json )"
 	df="$( get_diskfree )"
 
+	# get saved last_cmd_id
+	local LAST_CMD_ID
+	#
+	if [[ -s "$LAST_CMD_ID_file" ]]; then
+		LAST_CMD_ID="$( < "$LAST_CMD_ID_file" )"
+		(( is_DEBUG )) && log_line debug "[DEBUG] $LAST_CMD_ID_file content is $LAST_CMD_ID"
+	else
+		LAST_CMD_ID=''
+	fi
+
+	(( is_DEBUG )) && log_line debug "[DEBUG] saved LAST_CMD_ID is '$LAST_CMD_ID'"
+
 	# construct a request
-	sanitize_vars_for_argjson 'RIG_ID' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
+	sanitize_vars_for_argjson 'RIG_ID' 'LAST_CMD_ID' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
 	request="$(
-		jq \
-			--null-input --compact-output \
-			--argjson rig_id "$RIG_ID" \
-			--arg passwd "$RIG_PASSWD" \
-			--arg miner "$MINER" \
-			--argjson meta "$META" \
-			--argjson miner_stats "$stats" \
-			--argjson total_khs "$khs" \
-			--argjson avg_khs "$khs_av" \
-			--arg system_status "$system_status" \
-			--arg df "$df" \
-			--argjson cpuavg "$cpuavg" \
+		jq --null-input --compact-output \
+			--argjson	rig_id			"$RIG_ID" \
+			--arg		passwd			"$RIG_PASSWD" \
+			--argjson	last_cmd_id		"$LAST_CMD_ID" \
+			--arg		miner			"$MINER" \
+			--argjson	meta			"$META" \
+			--argjson	miner_stats		"$stats" \
+			--argjson	total_khs		"$khs" \
+			--argjson	avg_khs			"$khs_av" \
+			--arg		system_status	"$system_status" \
+			--arg		df				"$df" \
+			--argjson	cpuavg			"$cpuavg" \
 			\
-				'def walk(f):
-					. as $in
-					| if type == "object" then
-						reduce keys_unsorted[] as $key
-						( {}; . + { ($key):  ($in[$key] | walk(f)) } ) | f
-					elif type == "array" then map( walk(f) ) | f
-					else f
-					end;
-				{
-					"method": "stats", "jsonrpc": "2.0", "id": 0,
-					"params": {
-						$rig_id, $passwd, $miner, $meta,
-						$miner_stats, $total_khs, $avg_khs,
-						$system_status,
-						$df, $cpuavg
-					}
-				} | walk(
-						if type == "object" then
-							with_entries(select( .value != null and .value != {} and .value != [] ))
-						elif type == "array" then
-							map(select( . != null and . != {} and .!= [] ))
-						else
-							.
-						end
-					)' # remove: 1. empty objects; 2. empty arrays; 3. keys with null value
+			'def walk(f):
+				. as $in
+				| if type == "object" then
+					reduce keys_unsorted[] as $key
+					( {}; . + { ($key):  ($in[$key] | walk(f)) } ) | f
+				elif type == "array" then map( walk(f) ) | f
+				else f
+				end;
+			{
+				"method": "stats", "jsonrpc": "2.0", "id": 0,
+				"params": {
+					$rig_id, $passwd, $last_cmd_id,
+					$miner, $meta,
+					$miner_stats, $total_khs, $avg_khs,
+					$system_status, $df, $cpuavg
+				}
+			} | walk(
+					if type == "object" then
+						with_entries(select( .value != null and .value != {} and .value != [] ))
+					elif type == "array" then
+						map(select( . != null and . != {} and .!= [] ))
+					else
+						.
+					end
+				)' # remove: 1. empty objects; 2. empty arrays; 3. keys with null value
 	)"
 
-	# fall-back route (like in case of broken jq)
+	# fall-back route (like in case of a broken jq)
 	if [[ $? -ne 0 || -z "$request" ]]; then
 		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
-		debug_print_variable RIG_ID META stats khs khs_av cpuavg
+		debug_print_variable 'RIG_ID' 'LAST_CMD_ID' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
 		request="{\"method\":\"stats\",\"jsonrpc\":\"2.0\",\"id\":0,\"params\":{\"rig_id\":${RIG_ID},\"passwd\":\"${RIG_PASSWD}\",\"miner\":\"$MINER\",\"system_status\":\"$system_status\"}}"
 	fi
 
-	jq '.' --compact-output <<< "$request"
+	# show the request, password cloaked
+	jq '.params.passwd=$cloaked_pass' --arg cloaked_pass "${RIG_PASSWD//?/*}" --compact-output <<< "$request"
 
 	if [[ -z "$RIG_ID" ]]; then
 		log_line warning "No RIG_ID, skipping sending stats"
@@ -843,6 +858,10 @@ function loop {
 		return "$curl_exitcode"
 	fi
 
+
+	# errors processing
+	local error
+	#
 	error="$( jq --raw-output '.error' <<< "$response" )"
 	if (( $? )); then
 		log_line error "Invalid response received in ${WHITE}${time_wasted_sending_stats_in_s}s:${NOCOLOR}\n$response"
@@ -854,21 +873,61 @@ function loop {
 		return 1
 	fi
 
-	#jq '.result.confseq' <<< "$response"
 
+	# command processing
+	local command
+	#
 	command="$( jq --raw-output '.result.command' <<< "$response" )"
+	if [[ $command != 'OK' ]]; then
+		log_line info "Server answer: $( jq --compact-output --color-output '.result' <<< "$response" )"
+	else
+		if [[ -f "$LAST_CMD_ID_file" ]]; then
+			(( is_DEBUG )) && log_line debug "[DEBUG] removing $LAST_CMD_ID_file"
+			rm "$LAST_CMD_ID_file"
+		fi
+	fi
 
-	[[ $command != 'OK' ]] && jq --compact-output '.result' <<< "$response"
 
+	# confseq processing
+	local confseq_received confseq_saved
+	#
+	confseq_received="$( jq --raw-output '.result.confseq' <<< "$response" )"
+	if [[ -n "$confseq_received" && "$confseq_received" != 'null' ]]; then
+		if [[ -s "$CONFSEQ_file" ]]; then
+			confseq_saved="$( < "$CONFSEQ_file" )"
+		else
+			# first time run, just save current confseq
+			confseq_saved="$confseq_received"
+			echo "$confseq_received" > "$CONFSEQ_file"
+		fi
+
+		if (( confseq_saved != confseq_received )); then
+			log_line warning "Configuration sequence update: $confseq_saved -> $confseq_received"
+			# save updated confseq
+			echo "$confseq_received" > "$CONFSEQ_file"
+			if [[ "$command" != 'config' || "$command" != 'wallet' ]]; then
+				log_line action "Let's say hello again" # (and then get an updated config)
+				hello # TODO do fork to bg?
+			fi
+		fi
+	else
+		log_line warning "Server answer lacks 'confseq' key, confseq processing skipped"
+	fi
+
+
+	# to batch or not to batch
+	local body
+	local -i commands_count this_command_index
+	#
 	if [[ "$command" != 'batch' ]]; then
 		body="$( jq --compact-output '.result' <<< "$response" )"
 		do_command
 	else
-		count="$( jq '.result.commands | length' <<< "$response" )"
-		log_line info "Got $count batch commands"
-		for (( i=0; i < count; i++ )); do
-			body="$( jq --compact-output ".result.commands[$i]" <<< "$response" )"
-			command=
+		commands_count="$( jq '.result.commands | length' <<< "$response" )"
+		log_line info "Got $commands_count batch commands"
+		for (( this_command_index = 0; this_command_index < commands_count; this_command_index++ )); do
+			body="$( jq --compact-output --argjson index "$this_command_index" '.result.commands[$index]' <<< "$response" )"
+			command="$( jq --raw-output '.command' <<< "$body" )" # get command for batch
 			do_command
 		done
 	fi
@@ -883,26 +942,33 @@ function backslash {
 }
 
 function do_command {
-	# vars
+	# consts
+	local -r command_log="/tmp/${script_basename}-${command// /-}.log"
 
-	local command_log cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
+	# vars
+	local cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
 	local -i curl_exitcode exec_exitcode time_limit
 	#local TMUX	# let's test it later
 
 	# code
+#	[[ -z "$command" ]] && command="$( jq --raw-output '.command' <<< "$body" )" #get command for batch
 
-	[[ -z "$command" ]] && command="$( jq --raw-output '.command' <<< "$body" )" #get command for batch
-	command_log="/tmp/${script_basename}-${command// /-}.log"
-
-	#Optional command identifier
+	# cmd_id processing (optional command identifier)
 	cmd_id="$( jq --raw-output '.id' <<< "$body" )"
-	[[ "$cmd_id" == 'null' ]] && cmd_id=
+	[[ "$cmd_id" == 'null' ]] && cmd_id=''
+	# save last cmd_id
+	(( is_DEBUG )) && log_line debug "[DEBUG] incoming cmd_id is '$cmd_id'"
+	if (( cmd_id > 0 )); then
+		(( is_DEBUG )) && log_line debug "[DEBUG] saving cmd_id '$cmd_id' to $LAST_CMD_ID_file"
+		echo "$cmd_id" > "$LAST_CMD_ID_file"
+	fi
 
 	log_line ok "'$command' received in ${WHITE}${time_wasted_sending_stats_in_s}s"
 
 	case "$command" in
 		'OK')
+			# do nothing
 			:
 		;;
 
@@ -1140,7 +1206,7 @@ function do_command {
 					message warn 'Error restarting miner' --id="$cmd_id" --silent
 				fi
 			else
-				message error 'No "ASIC" config given' --id="$cmd_id" --silent
+				message error 'No "asic" config given' --id="$cmd_id" --silent
 			fi
 		;;
 
@@ -1155,11 +1221,16 @@ function do_command {
 
 # consts
 
+# paths to conf files
 declare -r RIG_CONF='/hive-config/rig.conf'
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r HIVEON_CONF='/hive-config/hiveon.conf'
 declare -r HIVEON_CONF_VOLT='/hive-config/hiveon.conf'
 declare -r ASIC_CONF='/config/config.conf'
+# path to runtime vars
+declare -r LAST_CMD_ID_file='/run/hive/last_cmd_id'
+declare -r CONFSEQ_file='/run/hive/confseq'
+
 declare -r latest_curl_log="/tmp/${script_basename}-curl.log"
 declare -r miner_API_host='localhost'
 declare -r -i miner_API_port=4028
