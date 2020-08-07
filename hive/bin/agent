@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.33'
+readonly script_version='0.2.34'
 readonly script_basename="$( basename "$0" )"
 #
 readonly is_DEBUG=0
@@ -86,6 +86,9 @@ function sanitize_vars_for_argjson {
 		local -n this_var="$this_var_ref"
 		if [[ -z "$this_var" ]]; then
 			#errcho "\$$this_var_ref is empty"
+			this_var="$JSON_safe_stub"
+		elif ! jq --compact-output '.' <<< "$this_var" > /dev/null 2>&1; then
+			errcho "\$$this_var_ref is not a valid JSON: '$this_var'"
 			this_var="$JSON_safe_stub"
 		fi
 	done
