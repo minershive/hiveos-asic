@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.8'
+declare -r ant_functions_lib_version='0.1.9'
 
 
 # !!! bash strict mode, no unbound variables
@@ -301,8 +301,10 @@ function send_hiveon_config {
 	#
 	# send hiveon config to API server
 
+	# vars
 	local request hiveon_config
 
+	# code
 	source "$RIG_CONF"
 	if [[ -z "$RIG_ID" ]]; then
 		echo "No RIG_ID, skipping sending config"
@@ -351,9 +353,10 @@ function send_hiveon_config {
 		this_URL="${this_URL%/}" # cut the trailing slash, if any (like as in rocketchain's local API server URL)
 		echo "Sending config to $this_URL..."
 		response="$( jq --compact-output '.' <<< "$request" |
-			curl --insecure --location --data @- \
-			--connect-timeout 15 --max-time 25 --silent --fail \
-			-XPOST "$this_URL/worker/api?id_rig=$RIG_ID&method=set_asic_config" -H 'Content-Type: application/json'
+			curl --insecure --location --data @- --silent \
+			--connect-timeout 15 --max-time 25  \
+			--request POST "$this_URL/worker/api?id_rig=$RIG_ID&method=set_asic_config" \
+			--header 'Content-Type: application/json'
 		)"
 		curl_exitcode=$?
 		if [[ -n "$response" ]]; then
@@ -361,18 +364,24 @@ function send_hiveon_config {
 			jq --compact-output --color-output '.' <<< "$response"
 			response_message="$( jq --raw-output '.message' <<< "$response" )"
 			case "$response_message" in
+				'Not a Hiveon ASIC')
+					echo "Firmware config sending error: Not a Hiveon ASIC"
+					message err 'Not a Hiveon firmware (cannot send firmware config)' --silent
+				;;
 				'Wrong password')
 					echo "Firmware config sending error: invalid password"
 					message err 'Firmware config sending error' --payload --silent <<< "Invalid password: API Server $this_URL does not validate password '$RIG_PASSWD'"
-					break
 				;;
 				'Invalid method')
 					echo "Firmware config sending error: server does not support 'set_asic_config' method"
 					message err 'Firmware config sending error' --payload --silent <<< "Invalid method: API Server $this_URL does not support 'set_asic_config' method"
-					break
+				;;
+				'')
+					# all is ok
 				;;
 				*)
-					echo "Firmware config sending error. Unknown response '$response_message'"
+					echo "Firmware config sending error? Unknown response '$response_message'"
+				;;
 			esac
 		fi
 
@@ -383,7 +392,7 @@ function send_hiveon_config {
 		fi
 	done
 
-	message info 'Firmware config updated' --silent
+	[[ -z "$response_message" && "$curl_exitcode" -eq 0 )) && message info 'Firmware config updated' --silent
 }
 
 
