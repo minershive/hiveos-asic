@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.9'
+declare -r ant_functions_lib_version='0.1.10'
 
 
 # !!! bash strict mode, no unbound variables
@@ -330,7 +330,6 @@ function send_hiveon_config {
 	)"
 	echo -n 'Request: '
 	jq --compact-output '.' <<< "$request"
-	echo
 
 #duplicate code from agent
 	HIVE_URL="$HIVE_HOST_URL"
@@ -376,7 +375,7 @@ function send_hiveon_config {
 					echo "Firmware config sending error: server does not support 'set_asic_config' method"
 					message err 'Firmware config sending error' --payload --silent <<< "Invalid method: API Server $this_URL does not support 'set_asic_config' method"
 				;;
-				'')
+				'null'|'')
 					# all is ok
 				;;
 				*)
@@ -392,7 +391,10 @@ function send_hiveon_config {
 		fi
 	done
 
-	[[ -z "$response_message" && "$curl_exitcode" -eq 0 )) && message info 'Firmware config updated' --silent
+	if (( ! curl_exitcode )) && [[ -z "$response_message" || "$response_message" == 'null' ]]; then
+		echo "Firmware config sent to server"
+		message info 'Firmware config sent to server' --silent
+	fi
 }
 
 
