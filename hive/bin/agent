@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.36'
+readonly script_version='0.2.37'
 readonly script_basename="$( basename "$0" )"
 #
 readonly is_DEBUG=0
@@ -666,7 +666,7 @@ function get_miner_stats {
 	esac
 
 	# show vars with errors, if any
-	(( ${#error_vars[@]} )) && log_line warning "Missing keys: ${error_vars[*]}"
+	(( ${#error_vars[@]} )) && log_line debug "Missing keys: ${error_vars[*]}"
 }
 
 function get_loadavg_as_json {
@@ -685,16 +685,13 @@ function get_diskfree {
 }
 
 function loop {
-
 	# vars
-
 	local -i khs_decimal curl_exitcode
 	local -i time_start_collecting_stats time_start_sending_stats
 	local time_wasted_collecting_stats_in_s time_wasted_sending_stats_in_s
 	local PUSH_INTERVAL custom_interval_message
 
 	# code
-
 	if ! which 'jq' > /dev/null; then
 		# TODO we could assemble a simple request even without jq, but does it worth it?
 		# !!! DONE
@@ -715,11 +712,11 @@ function loop {
 	source "$WALLET_CONF"
 
 	# if rig config contains PUSH_INTERVAL then change default to custom
-	if [[ -n "${PUSH_INTERVAL-}" ]] && (( PUSH_INTERVAL != default_push_interval )); then
+	if [[ -n "${PUSH_INTERVAL-}" ]] && (( PUSH_INTERVAL != push_interval_DEFAULT )); then
 		INTERVAL="$PUSH_INTERVAL"
 		custom_interval_message="${LGRAY}[push interval ${INTERVAL}s]${NOCOLOR} "
 	else
-		INTERVAL="$default_push_interval"
+		INTERVAL="$push_interval_DEFAULT"
 		custom_interval_message=''
 	fi
 
@@ -732,40 +729,67 @@ function loop {
 	get_miner_stats "$MINER"
 	time_wasted_collecting_stats_in_s="$( get_time_difference_in_s $(( time_start_collecting_stats )) )"
 
+
+	# compute and write Accepted/Rejected ratio
+	local arr_raw arr_raw_rounded arr_x100_to_write arr_to_display
+	arr_x100_to_write='null'
+	if is_JSON_string_not_empty_or_null "$stats"; then
+		arr_raw="$(
+			jq '.ar |
+				. as [$a,$r,$i] |
+					if $a > 0 then
+						100 - ( $r / $a * 100 )
+					elif $r > 0 then
+						0
+					else
+						null
+					end
+			' <<< "$stats"
+		)"
+		if is_JSON_string_not_empty_or_null "$arr_raw"; then
+			printf -v arr_raw_rounded '%.2f' "$arr_raw"
+			arr_x100_to_write="${arr_raw_rounded//.}"
+			arr_to_display=" (${arr_raw_rounded//.00}% accepted)" # also remove trailing .00
+		fi
+	fi
+	(( is_DEBUG )) && log_line debug "[DEBUG] arr_raw $arr_raw, arr_x100_to_write $arr_x100_to_write"
+	echo "$arr_x100_to_write" > "$arr_FILE"
+
+
 	khs_decimal="$( scientific_to_decimal "$khs" )"
 	if (( khs_decimal > 0 )); then
-		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
 	else
-		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
 	fi
 	# write khs to file for watchdog
-	echo "$khs" > /run/hive/khs
-	# compute Accepted ratio
-	#jq '. as [$a,$r,$i] | if $a > 0 then (($r+$i) / $a * 100) else 100 end' <<< '[100,10,0]'
+	echo "$khs" > "$khs_FILE"
+
 
 	# shellcheck disable=SC2153
 	cpuavg="$( get_loadavg_as_json )"
 	df="$( get_diskfree )"
 
-	# get saved last_cmd_id
-	local LAST_CMD_ID
-	#
-	if [[ -s "$LAST_CMD_ID_file" ]]; then
-		LAST_CMD_ID="$( < "$LAST_CMD_ID_file" )"
-		(( is_DEBUG )) && log_line debug "[DEBUG] $LAST_CMD_ID_file content is $LAST_CMD_ID"
-	else
-		LAST_CMD_ID=''
-	fi
 
-	(( is_DEBUG )) && log_line debug "[DEBUG] saved LAST_CMD_ID is '$LAST_CMD_ID'"
+	# get saved last_cmd_id
+	local last_cmd_id
+	#
+	if [[ -s "$last_cmd_id_FILE" ]]; then
+		last_cmd_id="$( < "$last_cmd_id_FILE" )"
+		(( is_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $last_cmd_id"
+	else
+		last_cmd_id=''
+	fi
+	(( is_DEBUG )) && log_line debug "[DEBUG] saved last_cmd_id is '$last_cmd_id'"
+
 
 	# construct a request
-	sanitize_vars_for_argjson 'RIG_ID' 'LAST_CMD_ID' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
+	sanitize_vars_for_argjson 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
 	request="$(
 		jq --null-input --compact-output \
 			--argjson	rig_id			"$RIG_ID" \
 			--arg		passwd			"$RIG_PASSWD" \
-			--argjson	last_cmd_id		"$LAST_CMD_ID" \
+			--argjson	last_cmd_id		"$last_cmd_id" \
 			--arg		miner			"$MINER" \
 			--argjson	meta			"$META" \
 			--argjson	miner_stats		"$stats" \
@@ -802,10 +826,11 @@ function loop {
 				)' # remove: 1. empty objects; 2. empty arrays; 3. keys with null value
 	)"
 
-	# fall-back route (like in case of a broken jq)
+	# fall-back route (like in case of a broken jq or some)
 	if [[ $? -ne 0 || -z "$request" ]]; then
 		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
-		debug_print_variable 'RIG_ID' 'LAST_CMD_ID' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
+		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
+		# good ol' bash string assembly
 		request="{\"method\":\"stats\",\"jsonrpc\":\"2.0\",\"id\":0,\"params\":{\"rig_id\":${RIG_ID},\"passwd\":\"${RIG_PASSWD}\",\"miner\":\"$MINER\",\"system_status\":\"$system_status\"}}"
 	fi
 
@@ -874,7 +899,7 @@ function loop {
 		return 1
 	fi
 
-	if [[ -n "$error" && "$error" != 'null' ]]; then
+	if is_JSON_string_not_empty_or_null "$error"; then
 		log_line error "Error response received in ${WHITE}${time_wasted_sending_stats_in_s}s:${NOCOLOR} $error"
 		return 1
 	fi
@@ -884,13 +909,14 @@ function loop {
 	local command
 	#
 	command="$( jq --raw-output '.result.command' <<< "$response" )"
-	if [[ $command != 'OK' ]]; then
-		log_line info "Server answer: $( jq --compact-output --color-output '.result' <<< "$response" )"
-	else
-		if [[ -f "$LAST_CMD_ID_file" ]]; then
-			(( is_DEBUG )) && log_line debug "[DEBUG] removing $LAST_CMD_ID_file"
-			rm "$LAST_CMD_ID_file"
+	if [[ $command == 'OK' ]]; then
+		if [[ -f "$last_cmd_id_FILE" ]]; then
+			(( is_DEBUG )) && log_line debug "[DEBUG] removing $last_cmd_id_FILE"
+			rm "$last_cmd_id_FILE"
 		fi
+	else
+		log_line info "Server answer: $( jq --compact-output --color-output '.result' <<< "$response" )"
+		skip_the_sleep=1
 	fi
 
 
@@ -898,30 +924,30 @@ function loop {
 	local confseq_received confseq_saved
 	#
 	confseq_received="$( jq --raw-output '.result.confseq' <<< "$response" )"
-	if [[ -n "$confseq_received" && "$confseq_received" != 'null' ]]; then
-		if [[ -s "$CONFSEQ_file" ]]; then
-			confseq_saved="$( < "$CONFSEQ_file" )"
+	if is_JSON_string_not_empty_or_null "$confseq_received"; then
+		if [[ -s "$confseq_FILE" ]]; then
+			confseq_saved="$( < "$confseq_FILE" )"
 		else
 			# first time run, just save current confseq
 			confseq_saved="$confseq_received"
-			echo "$confseq_received" > "$CONFSEQ_file"
+			echo "$confseq_received" > "$confseq_FILE"
 		fi
 
 		if (( confseq_saved != confseq_received )); then
 			# save updated confseq
-			echo "$confseq_received" > "$CONFSEQ_file"
+			echo "$confseq_received" > "$confseq_FILE"
 			case "$command" in
 				'config' | 'wallet' | 'asic_oc' | 'asic' )
-					log_line info "Config command received. Config sequence updated: $confseq_saved -> $confseq_received"
+					log_line debug "[DEBUG] config command received. Config sequence updated: $confseq_saved -> $confseq_received"
 				;;
 				*)
-					log_line action "No config command received, but config sequence updated: $confseq_saved -> $confseq_received. Let's say hello again" # (and then get an updated config)
+					log_line debug "[DEBUG] no config command received, but config sequence updated: $confseq_saved -> $confseq_received. Let's say hello again..." # (and then get an updated config)
 					hello # TODO fork to bg?
 				;;
 			esac
 		fi
 	else
-		log_line warning "Server answer lacks 'confseq' key, confseq processing skipped"
+		(( is_DEBUG )) && log_line debug "[DEBUG] server answer lacks 'confseq' key, confseq processing skipped"
 	fi
 
 
@@ -970,8 +996,8 @@ function do_command {
 	# save last cmd_id
 	(( is_DEBUG )) && log_line debug "[DEBUG] incoming cmd_id is '$cmd_id'"
 	if (( cmd_id > 0 )); then
-		(( is_DEBUG )) && log_line debug "[DEBUG] saving cmd_id '$cmd_id' to $LAST_CMD_ID_file"
-		echo "$cmd_id" > "$LAST_CMD_ID_file"
+		(( is_DEBUG )) && log_line debug "[DEBUG] saving cmd_id '$cmd_id' to $last_cmd_id_FILE"
+		echo "$cmd_id" > "$last_cmd_id_FILE"
 	fi
 
 	log_line ok "'$command' received in ${WHITE}${time_wasted_sending_stats_in_s}s"
@@ -1072,7 +1098,7 @@ function do_command {
 					message error "'"$( backslash "$exec" )"' (failed, exitcode=$exec_exitcode)" --payload --id='"$cmd_id"' --silent < "$agent_exec_log"
 				fi
 				rm "$agent_exec_log" > /dev/null 2>&1
-			' > "$command_log" 2>&1 &
+			' > "$command_log" 2>&1 & disown
 		;;
 
 		'asic_oc')
@@ -1112,7 +1138,7 @@ function do_command {
 		'config')
 			config="$( jq --raw-output '.config' <<< "$body" )"
 			justwrite="$( jq --raw-output '.justwrite' <<< "$body" )" #don't restart miner, just write config, maybe WD settings will be updated
-			if [[ -n "$config" && $config != 'null' ]]; then
+			if is_JSON_string_not_empty_or_null "$config"; then
 				#scan for password change
 				echo "$config" > /tmp/rig.conf.new
 				while read -r line; do
@@ -1146,7 +1172,7 @@ function do_command {
 					fi
 
 					error="$( jq --raw-output '.error' <<< "$response" )"
-					if [[ -n "$error" && "$error" != 'null' ]]; then
+					if is_JSON_string_not_empty_or_null "$error"; then
 						log_line error "Server error: $( jq --raw-output '.error.message' <<< "$response" )"
 						return 1
 					fi
@@ -1161,7 +1187,7 @@ function do_command {
 
 				# Save wallet if given -----------------------------------------------
 				wallet="$( jq --raw-output '.wallet' <<< "$body" )"
-				[[ -n "$wallet" && "$wallet" != 'null' ]] && echo "$wallet" > "$WALLET_CONF"
+				is_JSON_string_not_empty_or_null "$wallet" && echo "$wallet" > "$WALLET_CONF"
 
 				# Overclocking if given in config --------------------------------------
 #				oc_if_changed
@@ -1189,7 +1215,7 @@ function do_command {
 
 		'wallet')
 			wallet="$( jq --raw-output '.wallet' <<< "$body" )"
-			if [[ -n "$wallet" && "$wallet" != 'null' ]]; then
+			if is_JSON_string_not_empty_or_null "$wallet"; then
 				echo "$wallet" > "$WALLET_CONF" && sync
 
 				justwrite=
@@ -1208,7 +1234,7 @@ function do_command {
 
 		'asic')
 			hiveon_config="$( jq --raw-output '.asic' <<< "$body" )"
-			if [[ -n "$hiveon_config" && "$hiveon_config" != 'null' ]]; then
+			if is_JSON_string_not_empty_or_null "$hiveon_config"; then
 				grep -v '^_' <<< "$hiveon_config" > "$HIVEON_CONF"
 				grep -v '^_' <<< "$hiveon_config" > "$ASIC_CONF"
 				grep '^_' <<< "$hiveon_config" > "$HIVEON_CONF_VOLT"
@@ -1232,6 +1258,31 @@ function do_command {
 	esac
 }
 
+function sleep_with_progress_bar {
+	#
+	# print a shrinking progress bar while sleeping
+	#
+	# Usage: sleep_with_progress_bar 'seconds_to_sleep'
+	#
+
+	# args
+	local -r -i seconds_to_sleep="$1"
+
+	# vars
+	local -i this_step
+	local seconds_remaining_as_spaces seconds_remaining_as_dots
+
+	# code
+
+	for (( this_step = 0; this_step < seconds_to_sleep; this_step++ )); do
+		printf -v seconds_remaining_as_spaces '%*s' $(( seconds_to_sleep - this_step ))
+		seconds_remaining_as_dots="${seconds_remaining_as_spaces// /.}"
+		printf '\r%b%s%b%*s\r' "${DGRAY}" "$seconds_remaining_as_dots" "${NOCOLOR}" "$this_step"
+		snore 1
+	done
+	printf '\r%*s\n' "$seconds_to_sleep" # clear the line and then \n
+}
+
 
 # consts
 
@@ -1242,20 +1293,22 @@ declare -r HIVEON_CONF='/hive-config/hiveon.conf'
 declare -r HIVEON_CONF_VOLT='/hive-config/hiveon.conf'
 declare -r ASIC_CONF='/config/config.conf'
 # path to runtime vars
-declare -r LAST_CMD_ID_file='/run/hive/last_cmd_id'
-declare -r CONFSEQ_file='/run/hive/confseq'
+declare -r khs_FILE='/run/hive/khs'
+declare -r arr_FILE='/run/hive/arr' # Accepted/Rejected ratio * 100
+declare -r last_cmd_id_FILE='/run/hive/last_cmd_id'
+declare -r confseq_FILE='/run/hive/confseq'
 
 declare -r latest_curl_log="/tmp/${script_basename}-curl.log"
 declare -r miner_API_host='localhost'
 declare -r -i miner_API_port=4028
-declare -r -i default_push_interval=10
+declare -r -i push_interval_DEFAULT=10
 
 # vars
 
 declare MINER='asicminer'
 declare khs khs_av system_status stats
-declare -i INTERVAL=default_push_interval https_disabled_message_sent=0
-declare -i time_wasted_general time_remaining_general
+declare -i INTERVAL=push_interval_DEFAULT https_disabled_message_sent=0
+declare -i time_wasted_general time_remaining_general skip_the_sleep
 declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
 	[2]='http://api.hiveos.farm'
 	[3]='http://paris.hiveos.farm'
@@ -1288,7 +1341,7 @@ fi
 
 log_line ok "$script_mission, version $script_version started"
 log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
-echo
+	echo
 
 # (re)starting wd
 
@@ -1302,20 +1355,22 @@ wd start &
 
 while true; do
 	SECONDS=0
+	skip_the_sleep=0
+
 	loop
 
-	(( time_wasted_general = SECONDS ))
-	(( time_remaining_general = INTERVAL - time_wasted_general ))
-
-	if (( time_remaining_general > 0 )); then
-		# print a pretty progress line
-		for (( i=0; i < INTERVAL; i++ )); do
-			printf -v spaces '%*s' $(( INTERVAL - i ))
-			printf '\r%b%s%b%*s\r' "${DGRAY}" "${spaces// /.}" "${NOCOLOR}" "$i"
-			snore 1
-		done
-		printf '\r%*s\n' "$INTERVAL"
+	if (( skip_the_sleep )); then
+		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
+		(( is_DEBUG )) && { echo; log_line warning "[DEBUG] skip the nap to improve responsiveness after receiving a command"; }
 	else
-		log_line warning "Stats sending interval ${time_wasted_general}s >= ${INTERVAL}s, idle time is ${time_remaining_general}s"
+		(( time_wasted_general = SECONDS ))
+		(( time_remaining_general = INTERVAL - time_wasted_general ))
+
+		if (( time_remaining_general > 0 )); then
+			sleep_with_progress_bar "$INTERVAL"
+		else
+			echo
+			log_line warning "Stats sending interval ${time_wasted_general}s >= ${INTERVAL}s, idle time is ${time_remaining_general}s"
+		fi
 	fi
 done
