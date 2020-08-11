@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.34'
+readonly script_version='0.2.35'
 readonly script_basename="$( basename "$0" )"
 #
 readonly is_DEBUG=0
@@ -738,7 +738,10 @@ function loop {
 	else
 		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
 	fi
+	# write khs to file for watchdog
 	echo "$khs" > /run/hive/khs
+	# compute Accepted ratio
+	#jq '. as [$a,$r,$i] | if $a > 0 then (($r+$i) / $a * 100) else 100 end' <<< '[100,10,0]'
 
 	# shellcheck disable=SC2153
 	cpuavg="$( get_loadavg_as_json )"
@@ -905,13 +908,17 @@ function loop {
 		fi
 
 		if (( confseq_saved != confseq_received )); then
-			log_line warning "Configuration sequence update: $confseq_saved -> $confseq_received"
 			# save updated confseq
 			echo "$confseq_received" > "$CONFSEQ_file"
-			if [[ "$command" != 'config' || "$command" != 'wallet' ]]; then
-				log_line action "Let's say hello again" # (and then get an updated config)
-				hello # TODO do fork to bg?
-			fi
+			case "$command" in
+				'config' | 'wallet' | 'asic_oc' | 'asic' )
+					log_line info "Config command received. Config sequence updated: $confseq_saved -> $confseq_received"
+				;;
+				*)
+					log_line action "No config command received, but config sequence updated: $confseq_saved -> $confseq_received. Let's say hello again" # (and then get an updated config)
+					hello # TODO fork to bg?
+				;;
+			esac
 		fi
 	else
 		log_line warning "Server answer lacks 'confseq' key, confseq processing skipped"
@@ -1077,11 +1084,10 @@ function do_command {
 				asic_oc_cmd='asic_oc'
 			fi
 			screen -dm -S autotune bash -c '
-				echo 'Auto-tune parameters:'
+				echo "Auto-tune parameters:"
 				echo
 				jq "." <<< "$asic_oc"
 				echo
-				echo -n 'Tuning... '
 				'"$asic_oc_cmd"' "$asic_oc" 2>&1 | tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Auto-tune is finished. Click for details" --payload --id='"$cmd_id"' --silent < '"$command_log"'
