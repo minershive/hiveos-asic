@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.35.1'
+declare -r hive_functions_lib_version='0.37.0'
 #                                        ^^ current number of public functions
 
 
@@ -299,6 +299,34 @@ function is_integer {
 	# code
 
 	[[ "$string_to_check" =~ $integer_definition_RE ]]
+}
+
+function is_JSON_string_empty_or_null {
+	#
+	# Usage: is_JSON_string_empty_or_null 'JSON_string_to_check'
+	#
+
+	# args
+
+	local -r JSON_string_to_check="$1"
+
+	# code
+
+	[[ -z "$JSON_string_to_check" || "$JSON_string_to_check" == 'null' ]]
+}
+
+function is_JSON_string_not_empty_or_null {
+	#
+	# Usage: is_JSON_string_not_empty_or_null 'JSON_string_to_check'
+	#
+
+	# args
+
+	local -r JSON_string_to_check="$1"
+
+	# code
+
+	[[ -n "$JSON_string_to_check" && "$JSON_string_to_check" != 'null' ]]
 }
 
 
