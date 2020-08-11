@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.37'
+readonly script_version='0.3.0'
 readonly script_basename="$( basename "$0" )"
 #
 readonly is_DEBUG=0
@@ -684,12 +684,76 @@ function get_diskfree {
 	df -h "/${MOUNT}" | awk '{ print $4 }' | tail -n 1 | sed 's/%//'
 }
 
+function get_saved_last_cmd_id {
+	# vars
+	local saved_last_cmd_id
+
+	# code
+	if [[ -s "$last_cmd_id_FILE" ]]; then
+		saved_last_cmd_id="$( < "$last_cmd_id_FILE" )"
+		(( is_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $saved_last_cmd_id"
+	else
+		saved_last_cmd_id=''
+	fi
+
+	(( is_DEBUG )) && log_line debug "[DEBUG] saved_last_cmd_id is '$saved_last_cmd_id'"
+	echo "$saved_last_cmd_id"
+}
+
+function process_khs_and_arr {
+	# compute, display and write out 'arr' (Accepted/Rejected Ratio) and 'khs' for watchdog
+
+	# vars
+	local -i khs_decimal
+	local arr_rounded_to_2 arr_to_display
+
+	# code
+
+	# arr section
+	if is_JSON_string_not_empty_or_null "$stats"; then
+		arr_rounded_to_2="$(
+			jq 'def roundit: . * 100.0 + 0.5 | floor / 100.0;
+				try (
+					.ar | . as [$accepted,$rejected,$incorrect] | add |
+					if . > 10 then
+						$accepted / . * 100 | roundit
+					else
+						null
+					end
+				)
+				catch null
+			' <<< "$stats"
+		)"
+	fi
+
+	if is_JSON_string_not_empty_or_null "$arr_rounded_to_2"; then
+		arr_to_display=" (${arr_rounded_to_2}% accepted)"
+		printf '%.0f\n' "$arr_rounded_to_2" > "$arr_FILE"
+	else
+		arr_to_display=''
+		printf 'null\n' > "$arr_FILE"
+	fi
+	(( is_DEBUG )) && debug_print_variable 'arr_rounded_to_2'
+
+	# khs section
+	khs_decimal="$( scientific_to_decimal "$khs" )"
+	if (( khs_decimal > 0 )); then
+		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+	else
+		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+	fi
+
+	# write khs to file for watchdog
+	echo "$khs" > "$khs_FILE"
+}
+
 function loop {
 	# vars
-	local -i khs_decimal curl_exitcode
+	local -i curl_exitcode
 	local -i time_start_collecting_stats time_start_sending_stats
 	local time_wasted_collecting_stats_in_s time_wasted_sending_stats_in_s
 	local PUSH_INTERVAL custom_interval_message
+	local cpuavg df last_cmd_id
 
 	# code
 	if ! which 'jq' > /dev/null; then
@@ -729,59 +793,11 @@ function loop {
 	get_miner_stats "$MINER"
 	time_wasted_collecting_stats_in_s="$( get_time_difference_in_s $(( time_start_collecting_stats )) )"
 
+	process_khs_and_arr
 
-	# compute and write Accepted/Rejected ratio
-	local arr_raw arr_raw_rounded arr_x100_to_write arr_to_display
-	arr_x100_to_write='null'
-	if is_JSON_string_not_empty_or_null "$stats"; then
-		arr_raw="$(
-			jq '.ar |
-				. as [$a,$r,$i] |
-					if $a > 0 then
-						100 - ( $r / $a * 100 )
-					elif $r > 0 then
-						0
-					else
-						null
-					end
-			' <<< "$stats"
-		)"
-		if is_JSON_string_not_empty_or_null "$arr_raw"; then
-			printf -v arr_raw_rounded '%.2f' "$arr_raw"
-			arr_x100_to_write="${arr_raw_rounded//.}"
-			arr_to_display=" (${arr_raw_rounded//.00}% accepted)" # also remove trailing .00
-		fi
-	fi
-	(( is_DEBUG )) && log_line debug "[DEBUG] arr_raw $arr_raw, arr_x100_to_write $arr_x100_to_write"
-	echo "$arr_x100_to_write" > "$arr_FILE"
-
-
-	khs_decimal="$( scientific_to_decimal "$khs" )"
-	if (( khs_decimal > 0 )); then
-		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
-	else
-		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
-	fi
-	# write khs to file for watchdog
-	echo "$khs" > "$khs_FILE"
-
-
-	# shellcheck disable=SC2153
 	cpuavg="$( get_loadavg_as_json )"
 	df="$( get_diskfree )"
-
-
-	# get saved last_cmd_id
-	local last_cmd_id
-	#
-	if [[ -s "$last_cmd_id_FILE" ]]; then
-		last_cmd_id="$( < "$last_cmd_id_FILE" )"
-		(( is_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $last_cmd_id"
-	else
-		last_cmd_id=''
-	fi
-	(( is_DEBUG )) && log_line debug "[DEBUG] saved last_cmd_id is '$last_cmd_id'"
-
+	last_cmd_id="$( get_saved_last_cmd_id )"
 
 	# construct a request
 	sanitize_vars_for_argjson 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
@@ -1361,7 +1377,8 @@ while true; do
 
 	if (( skip_the_sleep )); then
 		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
-		(( is_DEBUG )) && { echo; log_line warning "[DEBUG] skip the nap to improve responsiveness after receiving a command"; }
+		echo
+		(( is_DEBUG )) && log_line warning '[DEBUG] skip the nap to improve responsiveness after receiving a command'
 	else
 		(( time_wasted_general = SECONDS ))
 		(( time_remaining_general = INTERVAL - time_wasted_general ))
