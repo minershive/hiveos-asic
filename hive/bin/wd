@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.2.7'
+readonly script_version='0.2.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -40,7 +40,7 @@ function load_configuration {
 	fi
 
 	minhash="$( jq --raw-output ".\"$MINER\"" <<< "$WD_MINHASHES" )"
-	if [[ -z "$minhash" || "$minhash" == 'null' ]]; then
+	if is_JSON_string_empty_or_null "$minhash"; then
 		message warn "Minimal hashrate for $MINER is not set. You have to configure Hashrate Watchdog"
 		log_line error "Minimal hashrate for $MINER is not set in config, exiting"
 		exit 1
