@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.2.35'
+readonly script_version='0.2.36'
 readonly script_basename="$( basename "$0" )"
 #
 readonly is_DEBUG=0
@@ -1132,7 +1132,12 @@ function do_command {
 						--arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 						'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}'
 					)"
-					response="$( curl --insecure --location --data @- --connect-timeout 15 --max-time 25 --silent -XPOST "${HIVE_URL}/worker/api?id_rig=$RIG_ID&method=password_change_received" -H "Content-Type: application/json" <<< "$request" )"
+					response="$(
+						curl --insecure --location --data @- --connect-timeout 15 --max-time 25 --silent \
+						--request POST "${HIVE_URL}/worker/api?id_rig=$RIG_ID&method=password_change_received" \
+						--header "Content-Type: application/json" \
+						<<< "$request"
+					)"
 
 					curl_exitcode=$?
 					if (( curl_exitcode != 0 )); then

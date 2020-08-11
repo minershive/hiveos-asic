@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.26'
+readonly script_version='0.3.27'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -264,7 +264,7 @@ HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HI
 response="$(
 	curl \
 		--insecure --location --data @- --silent \
-		-XPOST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
+		--request POST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
 		--header 'Content-Type: application/json' \
 	<<< "$request"
 )" # curl options removed (for greater reliability on the weak links): --connect-timeout 15 --max-time 25
