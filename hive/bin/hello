@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.14'
+readonly script_version='0.1.15'
 readonly script_basename="$( basename "$0" )"
 readonly script_debug=0
 
@@ -400,8 +400,9 @@ function serve_hiveon_model_cache {
 
 	if [[ -n "$MODELH_detected" ]]; then
 		if [[ "$MODELH_detected" =~ $compile_ver_blacklist_RE ]]; then
-			# do nothing, only warn user
+			# only warn user
 			message warning "ASIC model detected: $MODELH_detected"
+			MODELH_detected=''
 		else
 			if [[ -s "$saved_model_file" ]]; then
 				# if model is saved -- get a saved model
