@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.2.0'
+readonly script_version='0.3.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -23,9 +23,56 @@ set -o nounset
 
 # functions
 
-function print_script_version {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
-	echo
+function echo_action_begin		{ echo -en "${LGRAY-}${script_basename}> ${WHITE-}${*}...${BRED-} "; }
+function echo_action_success	{ echo -e "${BGREEN-}${*}${NOCOLOR-}"; }
+function echo_action_failed		{ echo -e "${BRED-}${*}${NOCOLOR-}"; }
+
+function echo_ok		{ echo -e "${LGRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
+function echo_action	{ echo -e "${LGRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
+function echo_info		{ echo -e "${LGRAY-}${script_basename}: ${NOCOLOR-}${*}"; }
+function echo_warning	{ echo -e "${LGRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
+function echo_error		{ echo -e "${LGRAY-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } # 1>&2 # commented temporary, for cgi-bin script
+
+function die {
+	# !!! must be the first line in this function to catch the incoming error code -- do not move
+	local -r incoming_exitcode=$?
+
+	# args
+	local -r message="$1"
+	local -r exitcode="${2:-$incoming_exitcode}"
+
+	# code
+	[[ -n "$message" ]] && echo_error "$message"
+	exit $(( exitcode ))
+}
+
+function echo_script_version {
+	echo_info "$script_mission $script_version"
+}
+
+function sleep_with_progress_bar {
+	#
+	# print a shrinking progress bar while sleeping
+	#
+	# Usage: sleep_with_progress_bar 'seconds_to_sleep'
+	#
+
+	# args
+	local -r -i seconds_to_sleep="$1"
+
+	# vars
+	local -i this_step
+	local seconds_remaining_as_spaces seconds_remaining_as_dots
+
+	# code
+
+	for (( this_step = 0; this_step < seconds_to_sleep; this_step++ )); do
+		printf -v seconds_remaining_as_spaces '%*s' $(( seconds_to_sleep - this_step ))
+		seconds_remaining_as_dots="${seconds_remaining_as_spaces// /.}"
+		printf '\r%b%s%b%*s\r' "${DGRAY}" "$seconds_remaining_as_dots" "${NOCOLOR}" "$this_step"
+		sleep 1
+	done
+	printf '\r%*s\n' "$seconds_to_sleep" # clear the line and then \n
 }
 
 function gethostbyname {
@@ -36,12 +83,14 @@ function gethostbyname {
 
 	# args
 	local -r host="$1"
-	local -r domain_server="${2-}"
+	local domain_server="${2-}"
 
 	# vars
 	local nslookup_output
 
 	# code
+	[[ "$domain_server" == 'local' ]] && domain_server=''
+	# shellcheck disable=SC2086
 	if nslookup_output="$( nslookup "$host" $domain_server )"; then
 		echo "$nslookup_output"									|
 			grep -A 4 Name										|	# get a first line starting with 'Name' and +4 lines down
@@ -57,13 +106,10 @@ function gethostbyname {
 }
 
 function set_hostfile {
-
 	# consts
-
 	local -r abracadabra='MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo='
 
 	# code
-
 	case "$ASIC_MODEL" in
 		'Antminer S9k'			|\
 		'Antminer S9 SE')
@@ -110,7 +156,8 @@ function set_hostfile {
 
 # global sources
 
-. /hive/bin/asic-model
+[[ -t 1 ]] && source colors
+source /hive/bin/asic-model
 
 
 # global exports
@@ -120,86 +167,79 @@ function set_hostfile {
 
 # global consts
 
-declare -r RIG_CONF='/hive-config/rig.conf'
+declare -r RIG_CONF_default='/hive-config/rig.conf'
+declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+declare -r hostfile_backup='/hive-config/hosts'
+declare -r -a resolvers_list=( 'local' '8.8.8.8' '1.1.1.1' )
+declare -r -i attempts_limit=30
 
 
 # global vars
 
-declare hostfile=''
+declare hostfile HIVE_HOST_URL_stripped ip_address
+declare -i this_attempt
 
 
 # main
 
-print_script_version
+echo_script_version
 set_hostfile
 
-if [[ -f "$hostfile" && ! -w "$hostfile" ]]; then
-	echo "$hostfile is read-only, exiting..."
-	exit 1
-fi
+[[ -f "$hostfile" && ! -w "$hostfile" ]] && die "$hostfile is read-only, exiting" 1
 
 #add host ip
 #/hive/bin/hostname-check
 
 if [[ -f "$RIG_CONF" ]]; then
 	source "$RIG_CONF"
-	if [[ -z "$HIVE_HOST_URL" ]]; then
-		echo "HIVE_HOST_URL is empty"
-		exit 1
-	fi
+	[[ -z "$HIVE_HOST_URL" ]] && die 'HIVE_HOST_URL is empty' 1
 else
-	echo "No $RIG_CONF"
-	exit 1
+	die "$RIG_CONF not found" 1
 fi
 
 #Resolve host and write it to /etc/hosts
 
 #HOST="hiveos.farm"
 #HOST="$( awk -F'/' '{print $3}' <<< "$HIVE_HOST_URL" )" # get domain name without trailing slash
-IFS=/ read -r _ _ HOST <<< "$HIVE_HOST_URL" # get domain name without trailing slash (and without awk)
+IFS=/ read -r _ _ HIVE_HOST_URL_stripped <<< "$HIVE_HOST_URL" # get domain name without trailing slash (and without awk)
 
-if [[ -z "$HOST" ]]; then
-	echo "Unable to parse hostname from $HIVE_HOST_URL"
-	exit 1
-fi
+[[ -z "$HIVE_HOST_URL_stripped" ]] && die "Unable to parse hostname from $HIVE_HOST_URL" 1
 
-for i in {1..30}; do
-	if ip_address="$( gethostbyname "$HOST" )" && [[ -n "$ip_address" && "$ip_address" != '127.0.0.1' ]]; then
-		echo "> $HOST resolved by a local resolver to $ip_address"
-		break
-	else
-		echo "> Local resolver failed ($HOST=$ip_address)"
-		if ip_address="$( gethostbyname "$HOST" 8.8.8.8 )" && [[ -n "$ip_address" && "$ip_address" != '127.0.0.1' ]]; then
-			echo "> $HOST resolved by a 8.8.8.8 resolver to $ip_address"
+for (( this_attempt = 1; this_attempt <= attempts_limit; this_attempt++ )); do
+	for this_resolver in "${resolvers_list[@]}"; do
+		echo_action_begin "Resolving '$HIVE_HOST_URL_stripped' by $this_resolver resolver"
+		if ip_address="$( gethostbyname "$HIVE_HOST_URL_stripped" "$this_resolver" )" && [[ -n "$ip_address" && "$ip_address" != '127.0.0.1' ]]; then
+			echo_action_success "$ip_address"
 			break
 		else
-			echo "> 8.8.8.8 resolver failed ($HOST=$ip_address)"
-			if ip_address="$( gethostbyname "$HOST" 1.1.1.1 )" && [[ -n "$ip_address" && "$ip_address" != '127.0.0.1' ]]; then
-				echo "> $HOST resolved by a 1.1.1.1 resolver to $ip_address"
-				break
-			else
-				echo "> 1.1.1.1 resolver failed ($HOST=$ip_address), no resolvers left"
-				ip_address=''
-			fi
+			[[ -n "$ip_address" ]] && echo_action_failed "$ip_address"
+			ip_address=''
 		fi
-	fi
+	done
+	[[ -n "$ip_address" ]] && break
 
-	echo "Waiting for nslookup (attempt #$i)..."
-	sleep 2
+	(( this_attempt < attempts_limit )) && echo_warning "Still no resolve in attempt #$this_attempt. Wait a bit before starting over..."
+
+	if [[ -t 1 ]]; then
+		sleep_with_progress_bar 2
+	else
+		sleep 2
+	fi
 done
 
 if [[ -z "$ip_address" ]]; then
-	echo "Unable to resolve $HOST"
-	[[ -f /hive-config/hosts ]] && cp -rf /hive-config/hosts "$hostfile"
-#	message warn "Unable to resolve $HOST"
-	exit 0
+	if [[ -f "$hostfile_backup" ]]; then
+		echo_action "Restoring $hostfile from $hostfile_backup"
+		cp -rf "$hostfile_backup" "$hostfile"
+	fi
+	die "Unable to resolve $HIVE_HOST_URL_stripped, exiting" 0
 fi
 
 if [[ -s "$hostfile" ]]; then
 	old_hosts="$( < "$hostfile" )"
 	old_hosts+=$'\n'
 else
-	echo "$hostfile not found"
+	echo_error "$hostfile not found"
 	old_hosts=''
 fi
 
@@ -208,19 +248,24 @@ new_hosts="# DO NOT EDIT. All changes will be overwritten by $script_basename
 127.0.0.1 localhost.localdomain localhost
 
 # HIVE HOST CACHE BEGIN
-$ip_address $HOST
+$ip_address $HIVE_HOST_URL_stripped
 "
 
 # mind the flash memory wear ant tear
 if [[ "$old_hosts" != "$new_hosts" ]]; then
-	echo "> Writing DNS resolve '$ip_address' to $hostfile"
+	echo_action "Updating $hostfile with a new address"
+	[[ -e "$hostfile" ]] && rm -rf "$hostfile" # covering a weird edge case where hostfile is a directory
 	echo "$new_hosts" > "$hostfile"
 	sync
 else
-	echo "Server IP has not been changed, $hostfile update skipped"
+	echo_info "Server address hasn't been changed, $hostfile update skipped"
 fi
 
-if ! cmp -s "$hostfile" /hive-config/hosts; then
-	cp -rf "$hostfile" /hive-config/hosts
+if [[ -s "$hostfile_backup" ]] && cmp -s "$hostfile" "$hostfile_backup"; then
+	: ok good to go
+else
+	echo_warning "Backup hostfile $hostfile_backup is outdated or not found"
+	echo_action "Updating $hostfile_backup"
+	cp -rf "$hostfile" "$hostfile_backup"
 	sync
 fi
