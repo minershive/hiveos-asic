@@ -15,17 +15,17 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.9'
+readonly script_version='0.1.10'
 readonly script_basename="$( basename "$0" )"
 
 
 # functions
 
-function echo_ok		{ echo -e "${GRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
-function echo_action	{ echo -e "${GRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
-function echo_info		{ echo -e "${GRAY-}${script_basename}: ${NOCOLOR-}${*}${NOCOLOR-}"; }
-function echo_warning	{ echo -e "${GRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
-function echo_error		{ echo -e "${GRAY-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
+function echo_ok		{ echo -e "${LGRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
+function echo_action	{ echo -e "${LGRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
+function echo_info		{ echo -e "${LGRAY-}${script_basename}: ${NOCOLOR-}${*}${NOCOLOR-}"; }
+function echo_warning	{ echo -e "${LGRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
+function echo_error		{ echo -e "${LGRAY-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
 
 function die {
 	# !!! must be the first line in this function to catch the incoming error code -- do not move
@@ -801,7 +801,7 @@ function generate_miner_configuration {
 
 # global sources
 
-source asic-model
+source asic-model || die '/hive/bin/asic-model not found' 1
 source colors
 
 
