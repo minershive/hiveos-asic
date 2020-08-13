@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.3.1'
+readonly script_version='0.3.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -883,16 +883,16 @@ function loop {
 				--request POST "${this_URL}/worker/api?id_rig=$RIG_ID&method=stats" \
 				--header 'Content-Type: application/json' \
 				\
-				<<< "$request" \
-				2> "$latest_curl_log"
+			<<< "$request" \
+			2> "$latest_curl_log"
 		)"
 		curl_exitcode=$?
 		time_wasted_sending_stats_in_s="$( get_time_difference_in_s $(( time_start_sending_stats )) )"
 
 		if (( curl_exitcode )); then
-			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s. Connection log:"
-			cat "$latest_curl_log"
-			log_line error "Trying the next URL..."
+			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
+			echo "$( < "$latest_curl_log" )"
+			log_line warning "Trying the next URL..."
 		else
 			break
 		fi
@@ -910,12 +910,12 @@ function loop {
 	#
 	error="$( jq --raw-output '.error' <<< "$response" )"
 	if (( $? )); then
-		log_line error "Invalid response received in ${WHITE}${time_wasted_sending_stats_in_s}s:${NOCOLOR}\n$response"
+		log_line error "Invalid response received in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}:\n$response"
 		return 1
 	fi
 
 	if is_JSON_string_not_empty_or_null "$error"; then
-		log_line error "Error response received in ${WHITE}${time_wasted_sending_stats_in_s}s:${NOCOLOR} $error"
+		log_line error "Error response received in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}: $error"
 		return 1
 	fi
 
@@ -1155,14 +1155,12 @@ function do_command {
 			justwrite="$( jq --raw-output '.justwrite' <<< "$body" )" #don't restart miner, just write config, maybe WD settings will be updated
 			if is_JSON_string_not_empty_or_null "$config"; then
 				#scan for password change
-				echo "$config" > /tmp/rig.conf.new
 				while read -r line; do
 					if [[ "$line" =~ ^RIG_PASSWD=\"(.*)\" ]]; then
 						NEW_PASSWD="${BASH_REMATCH[1]}"
 						break
 					fi
-				done < /tmp/rig.conf.new
-				rm /tmp/rig.conf.new
+				done <<< "$config"
 
 				# Password change ---------------------------------------------------
 				if [[ "$RIG_PASSWD" != "$NEW_PASSWD" ]]; then
@@ -1386,7 +1384,7 @@ while true; do
 			sleep_with_progress_bar "$INTERVAL"
 		else
 			echo
-			log_line warning "Stats sending interval ${time_wasted_general}s >= ${INTERVAL}s, idle time is ${time_remaining_general}s"
+			log_line warning "Stats sending interval ${time_wasted_general}s >= ${INTERVAL}s, overtime is ${time_remaining_general/-}s"
 		fi
 	fi
 done

@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.12'
+readonly script_version='1.0.13'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -290,7 +290,7 @@ case "${1-}" in
 	;;
 
 	*)
-		errcho "Unknown argument '$this_argument'"
+		errcho "Unknown argument '${1-}'"
 		script_exitcode=1
 	;;
 esac
