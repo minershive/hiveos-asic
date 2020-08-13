@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.7'
+readonly script_version='0.1.8'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -182,7 +182,7 @@ if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODE
 	killall tune-yellow > /dev/null 2>&1
 	nohup su - "$su_user" -c "/usr/bin/auto-tune"
 	if grep -q 'enable_auto_chip=1' "$current_profile_file"; then
-		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null' &
+		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 & disown
 	fi
 	echo 'Autotune config applied!'
 
@@ -414,7 +414,7 @@ else
 	snore 1
 	nohup su - "$su_user" -c "/usr/bin/auto-tune"
 	if grep -q 'enable_auto_chip=1' "$current_profile_file"; then
-		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune 1> /dev/null 2> /dev/null' &
+		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 & disown
 	fi
 	echo 'Autotune config applied'
 fi
