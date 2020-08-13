@@ -17,8 +17,10 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.16'
+readonly script_version='0.1.17'
 readonly script_basename="$( basename "$0" )"
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # functions
@@ -27,6 +29,7 @@ function echo_ok		{ echo -e "${LGRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLO
 function echo_action	{ echo -e "${LGRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
 function echo_info		{ echo -e "${LGRAY-}${script_basename}: ${NOCOLOR-}${*}"; }
 function echo_warning	{ echo -e "${LGRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
+function echo_debug		{ echo -e "${LGRAY-}${script_basename}: ${BPURPLE-}[DEBUG] ${*}${NOCOLOR-}"; } 1>&2
 function echo_error		{ echo -e "${RED-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } # 1>&2 # commented temporary, for cgi-bin script
 
 function die {
@@ -143,16 +146,20 @@ function print_JSON_with_header {
 		color_option='--monochrome-output'
 	fi
 
-	if checked_JSON="$( jq --compact-output "$color_option" '.' <<< "$expected_JSON" 2> /dev/null )"; then
-		entity_type='JSON'
+	if [[ -z "$expected_JSON" ]]; then
+		entity_type='empty,'
+		entity_to_print="$expected_JSON"
+	elif checked_JSON="$( jq --compact-output "$color_option" '.' <<< "$expected_JSON" 2> /dev/null )"; then
+		entity_type='JSON,'
 		entity_to_print="$checked_JSON"
 	else
-		entity_type='string'
+		entity_type='string,'
 		entity_to_print="$expected_JSON"
 	fi
 
 	entity_size="${#entity_to_print}"
-	echo -e "${LGRAY}${script_basename}:${NOCOLOR} $header ($entity_type $entity_size bytes):"
+	echo -en "${LGRAY}${script_basename}:${NOCOLOR} $header ($entity_type $entity_size bytes)"
+	(( entity_size )) && echo ':' || echo
 	echo "$entity_to_print"
 }
 
@@ -431,48 +438,50 @@ function send_hello_packet {
 
 	# args
 	local -r server_URL="$1"
-	local -r -n server_request_string="$2"
-	local -r -n server_response_string="$3"
+	local -r -n server_request_by_ref="$2"
+	local -r -n server_response_by_ref="$3"
 
 	# consts
+	local -r -i curl_initial_connect_timeout=5
 	local -r -i max_connection_attempts=10
 
 	# vars
-	local -i attempts_counter curl_exitcode
-	local timeout_options server_response jq_test_result
+	local -i attempts_counter curl_connect_timeout curl_max_time curl_exitcode
+	local server_response_sanity_check
 
 	# code
-	print_JSON_with_header "Sending request to $server_URL" "$server_request_string"
+	print_JSON_with_header "Sending request to $server_URL" "$server_request_by_ref"
 	echo
 
 	for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
-		if (( attempts_counter == 1 )); then
-			# lower timeouts for the first connection attempt
-			timeout_options='--connect-timeout 15 --max-time 25'
-		else
-			# default timeouts
-			timeout_options=''
-		fi
-
-		# server sanity test first
-		server_response_string="$( curl --silent $timeout_options "$server_URL/worker/api?a=b" )"
+		(( curl_connect_timeout = curl_initial_connect_timeout + attempts_counter ))
+		(( curl_max_time = curl_connect_timeout * 2 + 1 ))
+		# server sanity check first
+		(( script_DEBUG )) && echo_debug 'Connecting #1 for sanity check...'
+		server_response_sanity_check="$(
+			curl \
+				--silent --connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
+				"$server_URL/worker/api?a=b"
+		)"
 		curl_exitcode=$?
 
 		if (( ! curl_exitcode )); then
-		#echo_error 'connected ok'
-			if [[ -n "$server_response_string" ]]; then
-				#echo_error 'response not empty ok'
-				if jq_test_result="$( jq 'if .error and .error.code then true else false end' <<< "$server_response_string" 2> /dev/null )"; then
-					#echo_error 'jq ok'
-					# this is the Hive API server
-					server_response_string="$(
-						curl --insecure --location --data @- --silent $timeout_options \
-						--request POST "$server_URL/worker/api?id_rig=${RIG_ID-}&method=hello" \
-						--header "Content-Type: application/json" \
-						<<< "$server_request_string"
+		(( script_DEBUG )) && echo_debug 'Server connected [OK]'
+			if [[ -n "$server_response_sanity_check" ]]; then
+				(( script_DEBUG )) && echo_debug 'Server response is not empty [OK]'
+				if jq --exit-status '.error and .error.code' <<< "$server_response_sanity_check" > /dev/null 2>&1; then
+					# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
+					(( script_DEBUG )) && echo_debug 'Server is the Hive API server. Connecting #2 for config...'
+					server_response_by_ref="$(
+						curl \
+							--insecure --location --data @- --silent \
+							--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
+							--request POST "$server_URL/worker/api?id_rig=${RIG_ID-}&method=hello" \
+							--header "Content-Type: application/json" \
+						<<< "$server_request_by_ref"
 					)"
 					curl_exitcode=$?
-					break
+					(( ! curl_exitcode )) && break
 				else
 					echo_error "Not the Hive API response received from $server_URL. No second chances provided for this error."
 					curl_exitcode=1
@@ -483,19 +492,18 @@ function send_hello_packet {
 				curl_exitcode=1
 				break
 			fi
-		else
-			echo_error "$( human-curl-error $(( curl_exitcode )) )"
-			[[ -n "$server_response_string" ]] && print_JSON_with_header 'Server response' "$server_response_string"
-			echo_error "Error connecting to $server_URL (attempt #$attempts_counter), sleeping for ${attempts_counter}s..."
-			sleep $(( attempts_counter ))
 		fi
+
+		echo_error "$( human-curl-error $(( curl_exitcode )) )"
+		[[ -n "$server_response_by_ref" ]] && print_JSON_with_header 'Server response' "$server_response_by_ref"
+		echo_error "Connection attempt #$attempts_counter failed, will try again in ${attempts_counter}s..."
+		sleep $(( attempts_counter ))
 	done
 
 	# show the server response
-	if [[ -n "$server_response_string" ]]; then
-		print_JSON_with_header 'Received response' "$server_response_json"
-		echo
-	fi
+	echo
+	print_JSON_with_header 'Received response' "$server_response_by_ref"
+	echo
 
 	return $(( curl_exitcode ))
 }
@@ -527,6 +535,7 @@ declare -i arg_restartminer_FLAG=0		# will need to restart miner after
 
 declare arg_hostname=''
 declare mb_manufacturer mb_product
+declare server_request_json server_response_json
 
 
 # exports
@@ -587,7 +596,7 @@ boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 
 # construct a request
 # shellcheck disable=SC2016
-request_json="$(
+server_request_json="$(
 	jq \
 		--null-input --compact-output \
 		--arg uid "$uid" \
@@ -626,18 +635,18 @@ if [[ -s /config/HIVE_WORKER_NAME ]]; then
 fi
 
 
-# add hostname as a worker name to request_json
+# add hostname as a worker name to server_request_json
 if [[ -n "$arg_hostname" ]]; then
 	# shellcheck disable=SC2016
-	request_json="$( jq --arg worker_name "$arg_hostname" --compact-output '. * {"params": {$worker_name}}' <<< "$request_json" )"
+	server_request_json="$( jq --arg worker_name "$arg_hostname" --compact-output '. * {"params": {$worker_name}}' <<< "$server_request_json" )"
 fi
 
 
-# add FARM_HASH to request_json
+# add FARM_HASH to server_request_json
 if [[ -n "${FARM_HASH-}" ]]; then
 	if [[ "$FARM_HASH" =~ $FARM_HASH_valid_RE ]]; then
 		# shellcheck disable=SC2016
-		request_json="$( jq --arg farm_hash "$FARM_HASH" --compact-output '. * {"params": {$farm_hash}}' <<< "$request_json" )"
+		server_request_json="$( jq --arg farm_hash "$FARM_HASH" --compact-output '. * {"params": {$farm_hash}}' <<< "$server_request_json" )"
 	else
 		echo_error "Invalid FARM_HASH '$FARM_HASH' (${#FARM_HASH} bytes), will not be used"
 	fi
@@ -645,7 +654,8 @@ fi
 
 
 # send the hello packet
-send_hello_packet "$HIVE_HOST_URL" 'request_json' 'server_response_json' ||
+# mind the VarByRef function's parameters
+send_hello_packet "$HIVE_HOST_URL" 'server_request_json' 'server_response_json' ||
 	die "Error connecting to $HIVE_HOST_URL. No attempts left, exiting..." #404 is not a bad exit code
 
 
@@ -657,6 +667,14 @@ if server_error="$( jq --raw-output '.error' <<< "$server_response_json" )"; the
 else
 	die 'Error while parsing server response as a JSON'
 fi
+
+
+# TODO save and apply asic/asic_oc config
+#
+# issue: duplicate code
+#
+# solution: we could decouple command-processing module from the agent and make it a separate entity
+# that can execute requests from agent aaaand.. hello!
 
 
 # Save config and check it ================================================================
