@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.10'
+declare -r ant_functions_lib_version='0.1.11'
 
 
 # !!! bash strict mode, no unbound variables
@@ -229,9 +229,10 @@ function hiveon_voltage {
 		if [[ -n "$adv_config" ]]; then
 			voltage_list_pre=( $adv_config )
 			for (( this_chain=0; this_chain < ${#voltage_mask[@]}; this_chain++ )); do
-				if (( voltage_mask[this_chain] )); then
+				if [[ "${voltage_mask[this_chain]}" != '0' ]]; then
 					this_chain_voltage="${voltage_list_pre[pre_iterator++]}"
-					#[[ "$this_chain_voltage" == 'null' ]] && this_chain_voltage=0
+					# covering edge case:  if voltage_list_pre length < number of voltage_mask's entries that are > 0
+					[[ -z "$this_chain_voltage" ]] && this_chain_voltage=0
 					voltage_mask[this_chain]="$this_chain_voltage"
 				fi
 			done
