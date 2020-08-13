@@ -690,12 +690,12 @@ function get_saved_last_cmd_id {
 	# code
 	if [[ -s "$last_cmd_id_FILE" ]]; then
 		saved_last_cmd_id="$( < "$last_cmd_id_FILE" )"
-		(( script_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $saved_last_cmd_id"
+		(( script_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $saved_last_cmd_id" 1>&2 # TODO modify library to bear this redirection
 	else
 		saved_last_cmd_id=''
 	fi
 
-	(( script_DEBUG )) && log_line debug "[DEBUG] saved_last_cmd_id is '$saved_last_cmd_id'"
+	(( script_DEBUG )) && log_line debug "[DEBUG] saved_last_cmd_id is '$saved_last_cmd_id'" 1>&2
 	echo "$saved_last_cmd_id"
 }
 
