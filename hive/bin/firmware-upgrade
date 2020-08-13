@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.9'
+readonly script_version='0.1.10'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -58,7 +58,6 @@ unhide_certs () {
 }
 
 at_exit () {
-	echo '> Exiting...'
 	rm -rf "${directory_to_unpack_fw:-/tmp/*}" || true
 	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
@@ -71,6 +70,7 @@ at_exit () {
 			cat /tmp/upgrade_result
 		fi
 	fi
+	echo '> Exiting...'
 }
 
 do_upgrade_for () {
@@ -249,7 +249,7 @@ upgrade_ro () {
 	echo '> runme.sh finished'
 
 	if [ ! -s "$error_log" ]; then
-		echo "> Firmware upgrade done. Rebooting..."
+		echo "> Firmware upgrade done. Reboot in 10 seconds..."
 		# TODO should we fork the reboot to bg? so the agent can send a message to server?
 		sleep 10
 		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
