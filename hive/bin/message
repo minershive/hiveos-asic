@@ -11,8 +11,10 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.27'
+readonly script_version='0.3.28'
 readonly script_basename="$( basename "$0" )"
+#
+readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -291,8 +293,10 @@ else
 		errcho "$console_message ${BRED}API SERVER ERROR${NOCOLOR}"
 		[[ -n "$error" && "$error" != "null" ]] && errcho "API server response: $error"
 		[[ -n "$errors" && "$errors" != "null" ]] && errcho "API server response: $errors"
-		errcho "[DEBUG] Full JSON response:"
-		jq '.' --color-output <<< "$response" 1>&2 # !!! debug
+		if (( script_DEBUG )); then
+			errcho "[DEBUG] Full JSON response:"
+			jq '.' --color-output <<< "$response" 1>&2
+		fi
 		script_exitcode=1
 	else
 		(( ! is_silent_FLAG )) && echo -e "${script_basename}> $console_message ${BGREEN}SENT${NOCOLOR}"

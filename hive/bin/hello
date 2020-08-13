@@ -17,9 +17,8 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.15'
+readonly script_version='0.1.16'
 readonly script_basename="$( basename "$0" )"
-readonly script_debug=0
 
 
 # functions

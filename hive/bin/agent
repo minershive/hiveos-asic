@@ -9,11 +9,10 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.3.0'
+readonly script_version='0.3.1'
 readonly script_basename="$( basename "$0" )"
 #
-readonly is_DEBUG=0
-readonly is_DEBUG_stats=0 # to show all stats' variables inside get_miner_stats()
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -354,7 +353,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -442,7 +441,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -481,7 +480,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -531,7 +530,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -569,7 +568,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -580,7 +579,7 @@ function get_miner_stats {
 			# shellcheck disable=SC2071
 			# bc of float comparison
 			[[ "$khs" > '0' ]] && system_status='mining'
-			(( is_DEBUG_stats )) && debug_print_variable stats
+			(( script_DEBUG )) && debug_print_variable stats
 		;;
 
 		'Blackminer F1'*)
@@ -655,7 +654,7 @@ function get_miner_stats {
 					\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
-				(( is_DEBUG_stats )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
+				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan fan_rpm freq freq_new chain_voltage acn power hw_errors status uptime ar asicboost
 			fi
 		;;
 
@@ -691,12 +690,12 @@ function get_saved_last_cmd_id {
 	# code
 	if [[ -s "$last_cmd_id_FILE" ]]; then
 		saved_last_cmd_id="$( < "$last_cmd_id_FILE" )"
-		(( is_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $saved_last_cmd_id"
+		(( script_DEBUG )) && log_line debug "[DEBUG] $last_cmd_id_FILE content is $saved_last_cmd_id"
 	else
 		saved_last_cmd_id=''
 	fi
 
-	(( is_DEBUG )) && log_line debug "[DEBUG] saved_last_cmd_id is '$saved_last_cmd_id'"
+	(( script_DEBUG )) && log_line debug "[DEBUG] saved_last_cmd_id is '$saved_last_cmd_id'"
 	echo "$saved_last_cmd_id"
 }
 
@@ -733,7 +732,7 @@ function process_khs_and_arr {
 		arr_to_display=''
 		printf 'null\n' > "$arr_FILE"
 	fi
-	(( is_DEBUG )) && debug_print_variable 'arr_rounded_to_2'
+	(( script_DEBUG )) && debug_print_variable 'arr_rounded_to_2'
 
 	# khs section
 	khs_decimal="$( scientific_to_decimal "$khs" )"
@@ -927,7 +926,7 @@ function loop {
 	command="$( jq --raw-output '.result.command' <<< "$response" )"
 	if [[ $command == 'OK' ]]; then
 		if [[ -f "$last_cmd_id_FILE" ]]; then
-			(( is_DEBUG )) && log_line debug "[DEBUG] removing $last_cmd_id_FILE"
+			(( script_DEBUG )) && log_line debug "[DEBUG] removing $last_cmd_id_FILE"
 			rm "$last_cmd_id_FILE"
 		fi
 	else
@@ -963,7 +962,7 @@ function loop {
 			esac
 		fi
 	else
-		(( is_DEBUG )) && log_line debug "[DEBUG] server answer lacks 'confseq' key, confseq processing skipped"
+		(( script_DEBUG )) && log_line debug "[DEBUG] server answer lacks 'confseq' key, confseq processing skipped"
 	fi
 
 
@@ -1010,9 +1009,9 @@ function do_command {
 	cmd_id="$( jq --raw-output '.id' <<< "$body" )"
 	[[ "$cmd_id" == 'null' ]] && cmd_id=''
 	# save last cmd_id
-	(( is_DEBUG )) && log_line debug "[DEBUG] incoming cmd_id is '$cmd_id'"
+	(( script_DEBUG )) && log_line debug "[DEBUG] incoming cmd_id is '$cmd_id'"
 	if (( cmd_id > 0 )); then
-		(( is_DEBUG )) && log_line debug "[DEBUG] saving cmd_id '$cmd_id' to $last_cmd_id_FILE"
+		(( script_DEBUG )) && log_line debug "[DEBUG] saving cmd_id '$cmd_id' to $last_cmd_id_FILE"
 		echo "$cmd_id" > "$last_cmd_id_FILE"
 	fi
 
@@ -1378,7 +1377,7 @@ while true; do
 	if (( skip_the_sleep )); then
 		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
 		echo
-		(( is_DEBUG )) && log_line warning '[DEBUG] skip the nap to improve responsiveness after receiving a command'
+		(( script_DEBUG )) && log_line warning '[DEBUG] skip the nap to improve responsiveness after receiving a command'
 	else
 		(( time_wasted_general = SECONDS ))
 		(( time_remaining_general = INTERVAL - time_wasted_general ))

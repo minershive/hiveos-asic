@@ -12,9 +12,10 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.49'
+readonly script_version='2.1.50'
 readonly script_basename="$( basename "$0" )"
-readonly script_debug=0
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -24,7 +25,7 @@ set -o nounset
 
 # functions
 
-function print_script_usage {																		(( script_debug )) && debugcho
+function print_script_usage {																		(( script_DEBUG )) && debugcho
 
 	# code
 
@@ -35,7 +36,7 @@ function print_script_usage {																		(( script_debug )) && debugcho
 	echo
 }
 
-function parse_arguments {																			(( script_debug )) && debugcho "$@"
+function parse_arguments {																			(( script_DEBUG )) && debugcho "$@"
 
 	# args
 
@@ -71,7 +72,7 @@ function parse_arguments {																			(( script_debug )) && debugcho "$@"
 	esac
 }
 
-function initialize_dictionaries {																	(( script_debug )) && debugcho
+function initialize_dictionaries {																	(( script_DEBUG )) && debugcho
 
 	# local consts
 
@@ -150,7 +151,7 @@ function initialize_dictionaries {																	(( script_debug )) && debugch
 # list_checkup_counters
 #
 
-function generate_hash_key {																		(( script_debug )) && debugcho "$@"
+function generate_hash_key {																		(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: generate_hash_key 'key_name' 'method_name'
 	#
@@ -173,7 +174,7 @@ function generate_hash_key {																		(( script_debug )) && debugcho "$@
 	echo "$key"
 }
 
-function is_hash_key_set {																			(( script_debug )) && debugcho "$@"
+function is_hash_key_set {																			(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: is_hash_key_set 'hashtable_by_ref' 'key_name' 'method_name'
 	#
@@ -195,7 +196,7 @@ function is_hash_key_set {																			(( script_debug )) && debugcho "$@"
 	[[ -n "${hashtable_by_ref[${key}]-}" ]]
 }
 
-function get_hash_value {																			(( script_debug )) && debugcho "$@"
+function get_hash_value {																			(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: get_hash_value 'hashtable_by_ref' 'key_name' 'method_name'
 	#
@@ -225,7 +226,7 @@ function get_hash_value {																			(( script_debug )) && debugcho "$@"
 	fi
 }
 
-function set_hash_value {																			(( script_debug )) && debugcho "$@"
+function set_hash_value {																			(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: set_hash_value 'hashtable_by_ref' 'key_name' 'method_name' ['value_to_set'(DEFAULT=0)]
 	#
@@ -251,7 +252,7 @@ function set_hash_value {																			(( script_debug )) && debugcho "$@"
 	hashtable_by_ref["${key}"]="$value_to_set"
 }
 
-function is_checkup_counter_set {																	(( script_debug )) && debugcho "$@"
+function is_checkup_counter_set {																	(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: is_checkup_counter_set 'checkup_name' 'counter_name'
 	#
@@ -272,7 +273,7 @@ function is_checkup_counter_set {																	(( script_debug )) && debugcho
 	[[ -n "${checkup_counters[${key}]-}" ]]
 }
 
-function get_checkup_counter {																		(( script_debug )) && debugcho "$@"
+function get_checkup_counter {																		(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: get_checkup_counter 'checkup_name' 'counter_name'
 	#
@@ -293,7 +294,7 @@ function get_checkup_counter {																		(( script_debug )) && debugcho "
 	echo "${checkup_counters[${key}]:=0}" # take care of unbound var, hadn't figured out a pretty way
 }
 
-function set_checkup_counter {																		(( script_debug )) && debugcho "$@"
+function set_checkup_counter {																		(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: set_checkup_counter 'checkup_name' 'counter_name' ['value_to_set'(DEFAULT=1)]
 	#
@@ -316,7 +317,7 @@ function set_checkup_counter {																		(( script_debug )) && debugcho "
 	checkup_counters["${key}"]="$value_to_set"
 }
 
-function increment_checkup_counter {																(( script_debug )) && debugcho "$@"
+function increment_checkup_counter {																(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: increment_checkup_counter 'checkup_name' 'counter_name'
 	#
@@ -338,7 +339,7 @@ function increment_checkup_counter {																(( script_debug )) && debugc
 	(( checkup_counters["${key}"]++ ))
 }
 
-function reset_checkup_counter {																	(( script_debug )) && debugcho "$@"
+function reset_checkup_counter {																	(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: reset_checkup_counter 'checkup_name' 'counter_name'
 	#
@@ -360,7 +361,7 @@ function reset_checkup_counter {																	(( script_debug )) && debugcho 
 	(( checkup_counters["${key}"]=0 ))
 }
 
-function list_checkup_counters {																	(( script_debug )) && debugcho
+function list_checkup_counters {																	(( script_DEBUG )) && debugcho
 	#
 	# Usage: list_checkup_counters
 	#
@@ -401,7 +402,7 @@ function list_checkup_counters {																	(( script_debug )) && debugcho
 # shrink_system_logs
 #
 
-function split_log_line_to_date_and_message {														(( script_debug )) && debugcho "$@"
+function split_log_line_to_date_and_message {														(( script_DEBUG )) && debugcho "$@"
 	#
 	# split_log_line_to_date_and_message 'log_line' 'date_var_by_ref' 'message_var_by_ref'
 	#
@@ -440,7 +441,7 @@ function split_log_line_to_date_and_message {														(( script_debug )) &&
 	done
 }
 
-function filter_lines_send_messages {																(( script_debug )) && debugcho
+function filter_lines_send_messages {																(( script_DEBUG )) && debugcho
 	#
 	# get lines from stdin, parse them and send a message, if necessary
 	#
@@ -795,7 +796,7 @@ function filter_lines_send_messages {																(( script_debug )) && debug
 	done
 }
 
-function get_new_lines_from_log {																	(( script_debug )) && debugcho "$@"
+function get_new_lines_from_log {																	(( script_DEBUG )) && debugcho "$@"
 	#
 	# get_new_lines_from_log 'log_name' ['log_name'...]
 	#
@@ -882,7 +883,7 @@ function get_new_lines_from_log {																	(( script_debug )) && debugcho
 	return $(( is_something_found ))
 }
 
-function print_last_lines_from_own_log {															(( script_debug )) && debugcho "$@"
+function print_last_lines_from_own_log {															(( script_DEBUG )) && debugcho "$@"
 	#
 	# print_last_lines_from_own_log [all]
 	#
@@ -913,7 +914,7 @@ function print_last_lines_from_own_log {															(( script_debug )) && deb
 	fi
 }
 
-function print_controller_log_entry {																(( script_debug )) && debugcho "$@"
+function print_controller_log_entry {																(( script_DEBUG )) && debugcho "$@"
 	#
 	# print_controller_log_entry 'event_type' 'log_message' ['timestamp_in_plaintext']
 	#
@@ -938,7 +939,7 @@ function print_controller_log_entry {																(( script_debug )) && debug
 	return $(( exitcode_OK ))
 }
 
-function shrink_system_logs {																		(( script_debug )) && debugcho
+function shrink_system_logs {																		(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -974,7 +975,7 @@ function shrink_system_logs {																		(( script_debug )) && debugcho
 # auxillary
 #
 
-function drop_caches {																				(( script_debug )) && debugcho
+function drop_caches {																				(( script_DEBUG )) && debugcho
 	#
 	# warning: frequent use of this function may increase NAND wear and tear
 	#
@@ -983,7 +984,7 @@ function drop_caches {																				(( script_debug )) && debugcho
 	sync && echo 3 > /proc/sys/vm/drop_caches
 }
 
-function wipe_memory {																				(( script_debug )) && debugcho
+function wipe_memory {																				(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1009,7 +1010,7 @@ function wipe_memory {																				(( script_debug )) && debugcho
 	drop_caches
 }
 
-function check_ntpd {																				(( script_debug )) && debugcho
+function check_ntpd {																				(( script_DEBUG )) && debugcho
 
 	# code
 
@@ -1027,7 +1028,7 @@ function check_ntpd {																				(( script_debug )) && debugcho
 	fi
 }
 
-function sync_time_with_ntpdate {																	(( script_debug )) && debugcho
+function sync_time_with_ntpdate {																	(( script_DEBUG )) && debugcho
 
 	# code
 
@@ -1116,7 +1117,7 @@ function sync_time_via_hive_server { # not used atm
 # print_checkup_summary_report
 #
 
-function checkup:is_it_the_past {																	(( script_debug )) && debugcho
+function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1152,7 +1153,7 @@ function checkup:is_it_the_past {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_memory_full {																	(( script_debug )) && debugcho
+function checkup:is_memory_full {																	(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1186,7 +1187,7 @@ function checkup:is_memory_full {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_miner_config_in_sync_with_FS {													(( script_debug )) && debugcho
+function checkup:is_miner_config_in_sync_with_FS {													(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1228,7 +1229,7 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_debug )
 	return $(( is_something_happened ))
 }
 
-function checkup:is_hiveon_config_in_sync {															(( script_debug )) && debugcho
+function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1258,7 +1259,7 @@ function checkup:is_hiveon_config_in_sync {															(( script_debug )) && 
 	return $(( is_something_happened ))
 }
 
-function checkup:is_build_updated {																	(( script_debug )) && debugcho
+function checkup:is_build_updated {																	(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1378,7 +1379,7 @@ function checkup:is_build_updated {																	(( script_debug )) && debugc
 	return $(( is_something_happened ))
 }
 
-function checkup:is_virus_found {																	(( script_debug )) && debugcho
+function checkup:is_virus_found {																	(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1468,7 +1469,7 @@ function checkup:is_virus_found {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debugcho
+function checkup:is_NAND_in_RO_mode {																(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1518,7 +1519,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_debug )) && debug
 	return $(( is_something_happened ))
 }
 
-function checkup:is_overclock_profile_exist {														(( script_debug )) && debugcho
+function checkup:is_overclock_profile_exist {														(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1558,7 +1559,7 @@ function checkup:is_overclock_profile_exist {														(( script_debug )) &&
 	return $(( is_something_happened ))
 }
 
-function checkup:is_fw_signed {																		(( script_debug )) && debugcho
+function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1591,7 +1592,7 @@ function checkup:is_fw_signed {																		(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:are_logs_updated {																	(( script_debug )) && debugcho
+function checkup:are_logs_updated {																	(( script_DEBUG )) && debugcho
 
 	# consts
 
@@ -1622,7 +1623,7 @@ function checkup:are_logs_updated {																	(( script_debug )) && debugc
 	return $(( is_something_happened ))
 }
 
-function execute:cache_hive_ip {																	(( script_debug )) && debugcho
+function execute:cache_hive_ip {																	(( script_DEBUG )) && debugcho
 
 	# vars
 
@@ -1635,7 +1636,7 @@ function execute:cache_hive_ip {																	(( script_debug )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function execute:agent_screen_dontattach {															(( script_debug )) && debugcho
+function execute:agent_screen_dontattach {															(( script_DEBUG )) && debugcho
 
 	# vars
 
@@ -1649,7 +1650,7 @@ function execute:agent_screen_dontattach {															(( script_debug )) && d
 }
 
 
-function print_checkup_summary_report {																(( script_debug )) && debugcho
+function print_checkup_summary_report {																(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1707,7 +1708,7 @@ function print_checkup_summary_report {																(( script_debug )) && deb
 # do_cron_jobs_indefinitely
 #
 
-function populate_array_with_actual_cron_jobs {														(( script_debug )) && debugcho "$@"
+function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) && debugcho "$@"
 	#
 	# Usage: populate_array_with_actual_cron_jobs 'crontab_array_name' 'jobs_to_do_array'
 	#
@@ -1801,7 +1802,7 @@ function populate_array_with_actual_cron_jobs {														(( script_debug )) 
 	done
 }
 
-function wait_for_next_minute {																		(( script_debug )) && debugcho
+function wait_for_next_minute {																		(( script_DEBUG )) && debugcho
 
 	# if seconds is 00 at the start, wait for a full minute
 	while (( $( format_date_in_seconds -1 '%-S' ) % 60 == 0 )); do
@@ -1814,7 +1815,7 @@ function wait_for_next_minute {																		(( script_debug )) && debugcho
 
 }
 
-function do_cron_jobs_indefinitely {																(( script_debug )) && debugcho
+function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugcho
 
 	# templates
 

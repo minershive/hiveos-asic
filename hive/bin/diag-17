@@ -9,8 +9,9 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
-readonly script_version='1.14.8'
-readonly DEBUG=0
+readonly script_version='1.14.9'
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -63,12 +64,12 @@ set_view() {
 		readonly terminal_width="$( stty size | cut -d' ' -f2 )"
 	else
 		readonly terminal_width="$terminal_width_DEFAULT"
-		(( DEBUG )) && echo "No terminal, use default width $terminal_width."
+		(( script_DEBUG )) && echo "No terminal, use default width $terminal_width."
 	fi
 
 	for this_view in ${view_settings[views_list]}; do
 		(( table_width = ${view_settings[${this_view}.first_column_width]} + ( ${view_settings[${this_view}.data_column_width]} * days_to_look_back ) ))
-		(( DEBUG )) && echo "'$this_view' view, table width $table_width, terminal width $terminal_width"
+		(( script_DEBUG )) && echo "'$this_view' view, table width $table_width, terminal width $terminal_width"
 		if (( table_width <= terminal_width )); then
 			current_view="$this_view"
 			break
@@ -117,7 +118,7 @@ create_calendar() {
 		(( current_day_in_seconds -= 24 * 60 * 60 )) # get 24h back
 	done
 
-	if (( DEBUG )); then
+	if (( script_DEBUG )); then
 		printf 'DEBUG> last_days_calendar array: '
 		printf '[%s] ' "${last_days_calendar[@]}"
 		printf '\n\n'
@@ -150,7 +151,7 @@ get_filtered_log() {
 	local -r files_to_grep="$( find "$logs_dir" '/var/log/' -name log -type f )"
 
 	# WARNING: debug is extremely slow (20-30 minutes) on arm machines.
-	if (( DEBUG )); then
+	if (( script_DEBUG )); then
 		echo -n "DEBUG> 'log' files found: "
 		wc -l -- <<< "$files_to_grep"
 
@@ -193,7 +194,7 @@ get_unique_events_from_log() {
 
 	readarray -t error_domains < <( cat "$log" | cut -d ' ' -f 3 | sort -su )  # get list of error types (unique)
 
-	if (( DEBUG )); then
+	if (( script_DEBUG )); then
 		printf 'DEBUG> error domains: '
 		printf '[%s] ' "${error_domains[@]}"
 		printf '\n\n'
@@ -202,12 +203,12 @@ get_unique_events_from_log() {
 	for error_domain in "${error_domains[@]}"; do
 		log_events+=( "${domain_prefix}${error_domain#*:}" )
 		readarray -t -O "${#log_events[@]}" log_events < <( grep -F -e "$error_domain" -- "$log" | cut -d ' ' -f 4- | sort -su )  # get list of events (unique)
-		if (( DEBUG )); then
+		if (( script_DEBUG )); then
 			echo "Domain: '$error_domain' (${#log_events[@]})"
 		fi
 	done
 
-	if (( DEBUG )); then
+	if (( script_DEBUG )); then
 		printf 'DEBUG> log events: '
 		set | grep log_events= | grep -v grep
 		#printf '[%s] ' "${log_events[@]}"

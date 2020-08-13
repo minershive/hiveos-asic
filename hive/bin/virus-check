@@ -11,9 +11,10 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.5.2'
+readonly script_version='0.5.3'
 readonly script_basename="$( basename "$0" )"
-readonly DEBUG=0
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -382,7 +383,7 @@ declare -r -i status_DANGER=$(( 10#10 )) # 10#2, status_DANGER+status_WARNING=3
 # global sources
 
 source asic-model
-if (( DEBUG )); then
+if (( script_DEBUG )); then
 	source hive-functions.sh
 else
 	source /hive/bin/hive-functions.sh
@@ -405,7 +406,7 @@ if (( ! is_silent )); then
 	print_script_version
 fi
 
-(( DEBUG )) && { ASIC_MANUFACTURER='Bitmain'; ASIC_MODEL='Antminer S17 Hiveon'; }
+(( script_DEBUG )) && { ASIC_MANUFACTURER='Bitmain'; ASIC_MODEL='Antminer S17 Hiveon'; }
 
 case "${ASIC_MANUFACTURER-}" in
 	'Bitmain')

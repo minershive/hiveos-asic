@@ -9,9 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: Your First Run'
-readonly script_version='0.1.1'
+readonly script_version='0.1.2'
 readonly script_basename="$( basename "$0" )"
-readonly script_debug=0
 
 
 # functions

@@ -9,14 +9,16 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.11'
+readonly script_version='1.0.12'
 readonly script_basename="$( basename "$0" )"
-readonly script_DEBUG=0
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
+#
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
 #
-# !!! also can be started from cron and on startup !!!
+# !!! also can be started from cron/selfupgrade/controller and on startup !!!
 #
 
 
