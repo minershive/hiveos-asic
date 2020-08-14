@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.37.0'
+declare -r hive_functions_lib_version='0.37.1'
 #                                        ^^ current number of public functions
 
 
@@ -433,7 +433,8 @@ function big_decimal_to_human {
 
 	local digits_after_period=''
 	local -i magnitude_index=0
-	local magnitude_char=( '' 'k' 'M' 'G' 'T' 'P' 'E' 'Y' 'Z' )
+	local magnitude_char=( '' 'k'  'M'  'G'  'T'  'P'  'E' 'Y'   'Z' )
+	#                          kilo Mega Giga Tera Peta Exa Yotta Zetta 
 
 	# code
 
