@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.50'
+readonly script_version='2.1.51'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -456,7 +456,7 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 
 	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
 	local message_header message_tip
-	local parse_error_RE failed_chain='' failed_chip=''
+	local parse_error_RE failed_chain='' failed_chip='' from_suspicious_IP=''
 
 	# code
 
@@ -574,10 +574,12 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					*'auth failed'*)
 						event_type='warning'
 						# '(http_auth.c.1148) digest: auth failed for  root : wrong password, IP: 127.0.0.1 '
+						parse_error_RE='IP: (([0-9]{1,3}\.){3}[0-9]{1,3})'
+						[[ "$log_message" =~ $parse_error_RE ]] && from_suspicious_IP=" from IP ${BASH_REMATCH[1]}"
 						message_header='Failed login attempt has been made to the ASIC web interface. Click for details'
-						message_tip="Someone or something has tried to login to the ASIC web interface with a wrong login and/or password. "
-						message_tip+="If it wasn't you -- you MAY have a virus in the local network that trying to brute-force all ASICs "
-						message_tip+="in the vicinity. Please be advised."
+						message_tip="Someone or something$from_suspicious_IP has tried to login to the ASIC web interface with "
+						message_tip+="a wrong login and/or password. If it wasn't you -- you MAY have a virus in the local network "
+						message_tip+="that trying to brute-force all ASICs in the vicinity. Please be advised."
 					;;
 
 				esac
