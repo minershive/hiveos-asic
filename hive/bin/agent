@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.3.2'
+readonly script_version='0.3.3'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1118,8 +1118,9 @@ function do_command {
 
 		'asic_oc')
 			export asic_oc="$( jq --raw-output '.asic_oc' <<< "$body" )"
-			# !!! a secret feature                   vvvvvvvvvvvvvvvvvvvvvvvvvv
-			if (( HIVEON_VERSION_major >= 2 )) || [[ -f /config/use-new-asic-oc ]]; then
+			[[ -f /config/use-new-asic-oc ]] && mv /config/use-new-asic-oc /hive-config/use-new-asic-oc # adjusting legacy location to an actual one
+			# !!!                      a secret feature vvvvvvvvvvvvvvvvvvvvvvvvvvvv
+			if (( HIVEON_VERSION_major >= 2 )) || [[ -f /hive-config/use-new-asic-oc ]]; then
 				asic_oc_cmd='asic-oc'
 			else
 				asic_oc_cmd='asic_oc'
