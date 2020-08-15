@@ -301,6 +301,7 @@ esac
 
 case "$ASIC_MODEL" in
 	'Antminer S9'*		|\
+	'Antminer T9'*		|\
 	'Antminer S10'*)	do_upgrade_for 'S9'	;;
 
 	'Antminer S9k'*		|\
