@@ -98,7 +98,7 @@ do_upgrade_for () {
 	# remove huge temp files (1M and up)
 	for this_huge_file in $( du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' ); do
 		echo "> Clearing the space, removing $this_huge_file (it's greater than 1M)..."
-		rm "$this_huge_file" || true
+		rm -rf "$this_huge_file" || true
 	done
 
 	# create a temp dir
