@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.10'
+readonly script_version='0.1.11'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -95,7 +95,7 @@ do_upgrade_for () {
 	# get HIVE_HOST_URL from a firmware's filename
 	HIVE_HOST_URL="$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )"
 
-	# remove huge temp files (1M and up)
+	# remove huge temp files/directories (1M and up)
 	for this_huge_file in $( du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' ); do
 		echo "> Clearing the space, removing $this_huge_file (it's greater than 1M)..."
 		rm -rf "$this_huge_file" || true
