@@ -1,0 +1,74 @@
+{
+  "1" : {
+    "freq_from" : "500",
+    "freq_to" : "575",
+    "voltage_from" : "800",
+    "voltage_to" : "800",
+    "slow_freq_start" : "500",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "830"
+  },
+  "2" : {
+    "freq_from" : "500",
+    "freq_to" : "606",
+    "voltage_from" : "800",
+    "voltage_to" : "810",
+    "slow_freq_start" : "550",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "830"
+  },
+  "3" : {
+    "freq_from" : "500",
+    "freq_to" : "643",
+    "voltage_from" : "800",
+    "voltage_to" : "820",
+    "slow_freq_start" : "550",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "840"
+  },
+  "4" : {
+    "freq_from" : "500",
+    "freq_to" : "668",
+    "voltage_from" : "800",
+    "voltage_to" : "830",
+    "slow_freq_start" : "600",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "850"
+  },
+  "5" : {
+    "freq_from" : "550",
+    "freq_to" : "718",
+    "voltage_from" : "800",
+    "voltage_to" : "830",
+    "slow_freq_start" : "650",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "850"
+  },
+  "6" : {
+    "freq_from" : "550",
+    "freq_to" : "750",
+    "voltage_from" : "800",
+    "voltage_to" : "840",
+    "slow_freq_start" : "650",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "860"
+  },
+  "7" : {
+    "freq_from" : "550",
+    "freq_to" : "775",
+    "voltage_from" : "800",
+    "voltage_to" : "850",
+    "slow_freq_start" : "700",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "860"
+  },
+  "8" : {
+    "freq_from" : "650",
+    "freq_to" : "800",
+    "voltage_from" : "800",
+    "voltage_to" : "860",
+    "slow_freq_start" : "500",
+    "slow_freq_step" : "50",
+    "slow_volt_max" : "870"
+  }
+}
