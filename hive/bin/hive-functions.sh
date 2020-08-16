@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.37.1'
+declare -r hive_functions_lib_version='0.37.2'
 #                                        ^^ current number of public functions
 
 
@@ -230,7 +230,7 @@ function is_first_floating_number_bigger_than_second {
 
 	# 1. trivial test based on string comparison
 	if [[ "$first_number" == "$second_number" ]]; then
-		 false
+		false
 	# 2. compare a part before the dot as numbers
 	elif (( ${first_number%.*} == ${second_number%.*} )); then
 		[[ "${first_number#*.}" > "${second_number#*.}" ]] # intentional text compare
@@ -391,7 +391,7 @@ function set_bits_by_mask {
 	#
 	# Usage: set_bits_by_mask 'variable_by_ref' 'bitmask_by_ref'
 	#
-	
+
 	# args
 
 	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
@@ -420,32 +420,49 @@ function scientific_to_decimal {
 
 function big_decimal_to_human {
 	#
-	# Usage: big_decimal_to_human 'big_decimal_number' ['base_units']
+	# Usage: big_decimal_to_human 'big_decimal_number' ['name_of_unit']
 	#
 
 	# args
 
 	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	big_decimal_number=${1:-0}
-	base_units=${2:-}
+	name_of_unit=${2:-}
 
 	# vars
 
-	local digits_after_period=''
-	local -i magnitude_index=0
-	local magnitude_char=( '' 'k'  'M'  'G'  'T'  'P'  'E' 'Y'   'Z' )
-	#                          kilo Mega Giga Tera Peta Exa Yotta Zetta 
+	local period_and_two_digits='' sign=''
+	local -i remainder_rounded_to_two_digits
+	local -i magnitude_index=0 # 0  1    2    3    4    5    6   7     8
+	local magnitude_char=(		'' 'k'  'M'  'G'  'T'  'P'  'E' 'Y'   'Z' )
+	#								kilo Mega Giga Tera Peta Exa Yotta Zetta
 
 	# code
 
-	while (( big_decimal_number > 1000 )); do
-		printf -v digits_after_period ".%02d" $(( big_decimal_number % 1000 * 100 / 1000 ))
+	# check for negative
+	if (( big_decimal_number < 0 )); then
+		(( big_decimal_number = -big_decimal_number )) # strip off the sign
+		sign='-'
+	fi
+
+	while (( big_decimal_number >= 1000 )); do
+		(( remainder_rounded_to_two_digits = ( big_decimal_number + 5 ) % 1000 / 10 ))
+
+		if (( remainder_rounded_to_two_digits == 0 )); then
+			# discard '.00'
+			period_and_two_digits=''
+		elif (( remainder_rounded_to_two_digits % 10 == 0 )); then
+			# strip off a trailing '0'
+			printf -v period_and_two_digits '.%01u' $(( remainder_rounded_to_two_digits / 10 ))
+		else
+			# print as is
+			printf -v period_and_two_digits '.%02u' "$remainder_rounded_to_two_digits"
+		fi
+
 		(( big_decimal_number /= 1000, magnitude_index++ ))
 	done
 
-	[[ $digits_after_period =~ \.00 ]] && digits_after_period=''
-	[[ $digits_after_period =~ \.[0-9]0 ]] && digits_after_period="${digits_after_period::-1}"
-	echo "${big_decimal_number}${digits_after_period} ${magnitude_char[${magnitude_index}]}${base_units}"
+	echo "${sign}${big_decimal_number}${period_and_two_digits} ${magnitude_char[${magnitude_index}]}${name_of_unit}"
 }
 
 function khs_to_human_friendly_hashrate {
@@ -713,7 +730,7 @@ function get_system_uptime_in_seconds {
 	# code
 
 	# 'test -s' - do not work on procfs files
-	# 'test -r' - file exists and readable 
+	# 'test -r' - file exists and readable
 	if [[ -r /proc/uptime ]]; then
 		# /proc/uptime sample: '143377.33 68759.84'
 		uptime_line=( $( < /proc/uptime ) )
@@ -745,7 +762,7 @@ function get_system_uptime_in_milliseconds {
 	# code
 
 	# 'test -s' - do not work on procfs files
-	# 'test -r' - file exists and readable 
+	# 'test -r' - file exists and readable
 	if [[ -r /proc/uptime ]]; then
 		# /proc/uptime sample: '143377.33 68759.84'
 		uptime_line=( $( < /proc/uptime ) )
@@ -846,7 +863,7 @@ function pgrep_count {
 	#
 	# pgrep --count naive emulator
 	#
-	
+
 	# args
 
 	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
@@ -871,7 +888,7 @@ function pgrep_quiet {
 	#
 	# pgrep --quiet naive emulator
 	#
-	
+
 	# args
 
 	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
