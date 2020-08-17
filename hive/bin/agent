@@ -283,7 +283,7 @@ function get_miner_stats {
 		'Antminer T15'					|\
 		'Antminer T17'*					|\
 		'Antminer X17'*)
-			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n' | sed 's/}{/},{/' | jq '.'
 			stats_raw="$( get_stats_raw )"
 			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"

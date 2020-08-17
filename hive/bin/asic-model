@@ -11,7 +11,7 @@
 
 
 readonly asic_model_script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-readonly asic_model_script_version='1.1.3'
+readonly asic_model_script_version='1.1.4'
 readonly asic_model_script_basename="$( basename "$0" )"
 
 
@@ -27,8 +27,10 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
 	#
-	ASIC_MODEL='<unknown>'
-	ASIC_MANUFACTURER='<unknown>'
+
+	# code
+	ASIC_MODEL='<unknown>' # global var
+	ASIC_MANUFACTURER='<unknown>' # global var
 
 	# Bitmain Antminer
 	if [ -s /usr/bin/compile_time ]; then
@@ -95,13 +97,13 @@ set_HIVEON_VERSION_variable () {
 	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
 	#
 
-	# vars
-	HIVEON_VER='' # deprecated in favor of the more clear HIVEON_VERSION
-	HIVEON_VERSION=''
-	HIVEON_VERSION_major=-1 # default: no Hiveon
+	# code
+	HIVEON_VER='' # global var. deprecated in favor of the more clear HIVEON_VERSION
+	HIVEON_VERSION='' # global var
+	HIVEON_VERSION_major=-1 # global var. default: no Hiveon
 
 	# code
-	if [ -s /usr/bin/compile_ver ]; then 
+	if [ -s /usr/bin/compile_ver ]; then
 		HIVEON_VERSION="$( awk -F'@' 'NR==3 {print $1; exit}' < /usr/bin/compile_ver )"
 		# shellcheck disable=SC2034
 		HIVEON_VER="$HIVEON_VERSION" # legacy
@@ -113,8 +115,13 @@ set_HIVEON_VERSION_variable () {
 }
 
 function set_ASIC_constants {
+	# args
 	local -r ASIC_MODEL="${1-}"
 
+	# vars
+	local firmware_version
+
+	# code
 	case "$ASIC_MODEL" in
 		'Antminer ' )
 			MOUNT=''
@@ -224,7 +231,7 @@ function set_ASIC_constants {
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='2'
 		;;
-	
+
 		'Antminer S11' )
 			MOUNT=''
 			ASIC_ALGO='sha256'
@@ -311,6 +318,10 @@ function set_ASIC_constants {
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='941'
 			GPIO_PATH='value'
+			# tweak for the latest firmware
+			if firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$firmware_version" == 'Thu Oct 24 11:09:07 CST 2019' ]]; then
+				HASH='hs'
+			fi
 		;;
 
 		'ebit' )
