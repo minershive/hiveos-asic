@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.5.3'
+readonly script_version='0.6.0'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -25,6 +25,7 @@ set -o nounset
 # functions
 
 function print_script_usage {
+	# code
 	echo -e "Usage: ${CYAN-}${script_basename} [--nocolor] [-s|--silent]${NOCOLOR-}"
 	echo
 	echo -e "  ${WHITE-}--nocolor${NOCOLOR-}       b/w mode"
@@ -33,8 +34,12 @@ function print_script_usage {
 }
 
 function parse_arguments {
-	for ARG in "$@"; do
-		case "$ARG" in
+	# vars
+	local this_ARG
+
+	# code
+	for this_ARG in "$@"; do
+		case "$this_ARG" in
 			'--audit')
 				print_i_am_doing_fine_then_exit
 				;;
@@ -59,7 +64,6 @@ function pretty_print {
 	(( is_silent )) && return
 
 	# args
-
 	# shellcheck disable=SC2154
 	(( $# > 4 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r label_color="${1-}"
@@ -68,7 +72,6 @@ function pretty_print {
 	local -r message_text="${4-}"
 
 	# code
-
 	printf "%b%${label_format}s %b%s%b\n" "$label_color" "$label_text" "$message_color" "$message_text" "${NOCOLOR-}"
 }
 
@@ -76,14 +79,12 @@ function pretty_table_header {
 	(( is_silent )) && return
 
 	# args
-
 	(( $# > 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local label_text=''
 	local -r message_color="${2-${GRAY-}}"
 	local -r message_text="${1-}"
 
 	# code
-
 	echo
 	pretty_print '' '' "$message_color" "$message_text"
 	echo
@@ -93,37 +94,48 @@ function pretty_table_row {
 	(( is_silent )) && return
 
 	# args
-
 	(( $# > 3 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r label_text="${1-}"
 	local -r message_color="${2-}"
 	local -r message_text="${3-}"
 
 	# code
-
 	pretty_print '' "$label_text" "$message_color" "$message_text"
 }
 
+function get_md5sum_of_file {
+	# args
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_to_hash="${1-}"
+
+	# vars
+	local -a md5_string_array=()
+
+	# code
+	if is_program_in_the_PATH 'md5sum'; then
+		md5_string_array=( $( md5sum "$file_to_hash" ) )
+		echo "${md5_string_array[0]}"
+	else
+		errcho 'md5sum not found'
+	fi
+}
+
 function check_ntpd_size {
-
 	# consts
-
 	local -r label_text='ntpd size'
 	local -r ntpd_file='/usr/bin/ntpd'
 
 	# vars
-
 	local -i ntpd_size=0
 
 	# code
-
 	if [[ -s "$ntpd_file" ]]; then
 		ntpd_size="$( get_file_size_in_bytes "$ntpd_file" )"
 		#if cksum /usr/bin/ntpd  | grep -q '892955227 358832 /usr/bin/ntpd'; then # T9+
 		if (( ntpd_size < 500000 )); then
-			pretty_table_row "$label_text" "${GREEN-}" "looks ok, size $ntpd_size is less than 0.5 Mb"
+			pretty_table_row "$label_text" "${GREEN-}" "looks OK (size $ntpd_size is less than 0.5 Mb)"
 		else
-			pretty_table_row "$label_text" "${BYELLOW-}" "very suspicious! size $ntpd_size is greater than 0.5 Mb"
+			pretty_table_row "$label_text" "${BYELLOW-}" "very suspicious! Size $ntpd_size is greater than 0.5 Mb"
 			set_bits_by_mask audit_status status_WARNING
 		fi
 	# K.I.S.S.
@@ -133,13 +145,10 @@ function check_ntpd_size {
 }
 
 function check_nightswitcher {
-
 	# consts
-
 	local -r label_text='Nightswitcher'
 
 	# code
-
 	if [[ -e /config/bNminer.conf ]]; then
 		pretty_table_row "$label_text" "${BRED-}" 'virus signature found: /config/bNminer.conf'
 		set_bits_by_mask audit_status status_DANGER
@@ -148,19 +157,16 @@ function check_nightswitcher {
 	fi
 }
 
-function check_antbuild_old { # not used
-
+function check_antbuild_NOT_USED { # not used
 	# consts
 
 	local -r label_text='Antbuild'
 
 	# vars
-
 	local -i status_bitmask
 	local message_color
 
 	# code
-
 	if [[ -n "$HIVEON_VERSION" ]]; then
 		status_bitmask=$(( status_WARNING ))
 		message_color="${BYELLOW-}"
@@ -171,44 +177,40 @@ function check_antbuild_old { # not used
 
 	if [[ -e /etc/ld.so.preload || -e /usr/bin/build || -e /usr/bin/egrep ]]; then
 		# old1
-		pretty_table_row "$label_text" "$message_color" "v2 (uncured) found"
+		pretty_table_row "$label_text" "$message_color" 'v2 (uncured) found'
 		# shellcheck disable=SC2034
 		set_bits_by_mask audit_status status_bitmask
 	else
 		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
 				# old2
-				pretty_table_row "$label_text" "$message_color" "v1 (cured) found"
+				pretty_table_row "$label_text" "$message_color" 'v1 (cured) found'
 				set_bits_by_mask audit_status status_bitmask
 		else
 			# shellcheck disable=SC2076
 			if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
 				# new
-				pretty_table_row "$label_text" "$message_color" "v2 found"
+				pretty_table_row "$label_text" "$message_color" 'v2 found'
 				set_bits_by_mask audit_status status_bitmask
 			else
-				pretty_table_row "$label_text" "${GREEN-}" "not found"
+				pretty_table_row "$label_text" "${GREEN-}" 'not found'
 			fi
 		fi
 	fi
 }
 
 function check_antbuild {
-
 	# consts
-
 	local -r label_text='Antbuild'
 
 	# vars
-
 	local -i status_bitmask
 	local message_color hiveon_specific_message
 
 	# code
-
 	if [[ -n "$HIVEON_VERSION" ]]; then
 		status_bitmask=$(( status_WARNING ))
 		message_color="${BYELLOW-}"
-		hiveon_specific_message="Virus blocked by Hiveon firmware."
+		hiveon_specific_message='Virus blocked by Hiveon firmware.'
 	else
 		# shellcheck disable=SC2034
 		status_bitmask=$(( status_DANGER ))
@@ -222,35 +224,36 @@ function check_antbuild {
 		set_bits_by_mask audit_status status_bitmask
 	fi
 
-	# old2
-	if is_program_in_the_PATH 'cksum'; then
-		if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
-			pretty_table_row "$label_text" "$message_color" "v1 (cured) found. $hiveon_specific_message"
+	if [[ "$ASIC_MODEL" =~ 'Antminer S9' && "$HIVEON_VERSION" == '1.02' ]]; then
+
+		# old2
+		if is_program_in_the_PATH 'cksum'; then
+			if [[ -s /lib/modules/bitmain_axi.ko ]] && cksum /lib/modules/bitmain_axi.ko | grep -q '1596665532 7415 /lib/modules/bitmain_axi.ko'; then
+				pretty_table_row "$label_text" "$message_color" "v1 (cured) found. $hiveon_specific_message"
+				set_bits_by_mask audit_status status_bitmask
+			fi
+		fi
+
+		# new
+		# shellcheck disable=SC2076
+		if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
+			pretty_table_row "$label_text" "$message_color" "v2 found. $hiveon_specific_message"
 			set_bits_by_mask audit_status status_bitmask
 		fi
-	fi
 
-	# new
-	# shellcheck disable=SC2076
-	if [[ "$( uname -r )" =~ 'g16220c3' ]]; then
-		pretty_table_row "$label_text" "$message_color" "v2 found. $hiveon_specific_message"
-		set_bits_by_mask audit_status status_bitmask
 	fi
 
 	if (( ! audit_status )); then
-		pretty_table_row "$label_text" "${GREEN-}" "not found"
+		pretty_table_row "$label_text" "${GREEN-}" 'not found'
 	fi
 }
 
 function check_bitmsfser_info {
-
 	# consts
-
 	local -r label_text='bitmsfser.info'
 	local -r virus_signature='bitmsfser.info'
 
 	# code
-
 	if grep -Fqsm 1 "$virus_signature" /etc/hosts; then
 		pretty_table_row "$label_text" "${BRED-}" 'virus signature found in /etc/hosts'
 		set_bits_by_mask audit_status status_DANGER
@@ -260,9 +263,7 @@ function check_bitmsfser_info {
 }
 
 function check_for_suspicious_files {
-
 	# consts
-
 	local -r label_text='suspicious file'
 	local -r persistent_storage_file_name="/hive-config/${script_basename}.list"
 	local -r -a suspicious_files_list=(
@@ -274,40 +275,39 @@ function check_for_suspicious_files {
 	)
 
 	# vars
-
 	local -a list_from_persistent_storage_indexed=()
 	local -A list_from_persistent_storage_hash=()
 	local -i deleted_counter=0 zombie_counter=0
+	local this_file
 
 	# code
-
 	# load list of previously discovered files from a persistent storage
 	if [[ -f "$persistent_storage_file_name" ]]; then
 		readarray -t list_from_persistent_storage_indexed < "$persistent_storage_file_name"
-		for file in "${list_from_persistent_storage_indexed[@]}"; do
-			list_from_persistent_storage_hash["$file"]=1
+		for this_file in "${list_from_persistent_storage_indexed[@]}"; do
+			list_from_persistent_storage_hash["$this_file"]=1
 		done
 	fi
 
-	for file in "${suspicious_files_list[@]}"; do
+	for this_file in "${suspicious_files_list[@]}"; do
 		# had this file being discovered (and then deleted) earlier?
-		if (( ${list_from_persistent_storage_hash[${file}]-0} > 0 )); then
+		if (( ${list_from_persistent_storage_hash[${this_file}]-0} > 0 )); then
 			# yes, it was deleted. does it still exist?
-			if [[ -e "$file" ]]; then
+			if [[ -e "$this_file" ]]; then
 				# yes. wow it came back from the dead! definitely a virus.
-				pretty_table_row "$label_text" "${BYELLOW-}" "$file was deleted earlier but showed up again. Delete again..."
+				pretty_table_row "$label_text" "${BYELLOW-}" "$this_file was deleted earlier but showed up again. Delete again..."
 				# TODO proactive measures: do truncate and chmod?
-				rm -rf "$file" || pretty_table_row '' "${BRED-}" "$file deleting error"
+				rm -rf "$this_file" || pretty_table_row '' "${BRED-}" "$this_file deleting error"
 				(( zombie_counter++ ))
 			fi
 		else
 			# no, it not on the list
-			if [[ -e "$file" ]]; then
+			if [[ -e "$this_file" ]]; then
 				# first time discover
-				pretty_table_row "$label_text" "${GREEN-}" "$file found, deleting..."
-				rm -rf "$file" || pretty_table_row '' "${BRED-}" "$file deleting error"
+				pretty_table_row "$label_text" "${GREEN-}" "$this_file found, deleting..."
+				rm -rf "$this_file" || pretty_table_row '' "${BRED-}" "$this_file deleting error"
 				# add the name to a persistent storage
-				echo "$file" >> "$persistent_storage_file_name"
+				echo "$this_file" >> "$persistent_storage_file_name"
 				(( deleted_counter++ ))
 			fi
 		fi
@@ -316,33 +316,33 @@ function check_for_suspicious_files {
 	(( zombie_counter )) && set_bits_by_mask audit_status status_WARNING
 	# K.I.S.S.
 	#(( deleted_counter )) && pretty_table_row '' "${YELLOW-}" "$deleted_counter found and deleted"
-	! (( zombie_counter || deleted_counter )) && pretty_table_row "$label_text" "${GREEN-}" "not found"
+	! (( zombie_counter || deleted_counter )) && pretty_table_row "$label_text" "${GREEN-}" 'not found'
 }
 
-function print_md5 {
+function check_system_files {
 	(( is_silent )) && return
 
 	# consts
-
-	local -r -a files_to_check=(
-		'/usr/bin/ntpd'
-		'/lib/modules/bitmain_axi.ko'
+	local -r label_text='system file md5'
+	local -r -A files_to_check=(
+		['/usr/bin/ntpd']='bb965c01fbba97604b94813fcdaa0829 94699039a78b6ee320b2e1a5c436527a e5b8378fc39c16f4adbf0503fa988d6f'
+		['/lib/modules/bitmain_axi.ko']='e78d5effe8c1e4afd1cf514ba23844d1 f552505dcf1e7c61be414a40d6352684 27a0a0bfeee0d919ef03ba534caab51c'
 	)
 
 	# vars
-
-	local -a md5_string=()
-	local file size
+	local this_file_name this_file_size this_file_md5
 
 	# code
-
-	for file in "${files_to_check[@]}"; do
-		if [[ -s "$file" ]]; then
-			size="$( get_file_size_in_bytes "$file" )"
-			md5_string=( $( md5sum "$file" ) )
-			printf '%bmd5 %s, size %ub, file %-30.30s%b\n' "${GRAY-}" "${md5_string[0]}" "${size}" "${file}" "${NOCOLOR-}"
-		else
-			printf '%b%s not found%b\n' "${GRAY-}" "${file}" "${NOCOLOR-}"
+	for this_file_name in "${!files_to_check[@]}"; do
+		if [[ -f "$this_file_name" ]]; then
+			this_file_size="$( get_file_size_in_bytes "$this_file_name" )"
+			this_file_md5="$( get_md5sum_of_file "$this_file_name" )"
+			if [[ "${files_to_check[$this_file_name]}" =~ "$this_file_md5" ]]; then
+				pretty_table_row "$label_text" "${GREEN-}" "$this_file_name OK"
+			else
+				pretty_table_row "$label_text" "${BRED-}" "$this_file_name FAIL: $this_file_md5, $this_file_size bytes"
+				set_bits_by_mask audit_status status_WARNING
+			fi
 		fi
 	done
 }
@@ -351,7 +351,6 @@ function print_etc_hosts {
 	(( is_silent )) && return
 
 	# code
-
 	echo -e -n "${GRAY-}"
 	cat /etc/hosts
 	echo -e -n "${NOCOLOR-}"
@@ -361,13 +360,12 @@ function print_summary {
 	(( is_silent )) && return
 
 	# code
-
 	if (( audit_status == status_OK)); then
-		pretty_table_row "ASIC STATUS" "${BGREEN-}" 'OK'
+		pretty_table_row 'ASIC STATUS' "${BGREEN-}" 'OK'
 	elif (( audit_status == status_WARNING )); then
-		pretty_table_row "ASIC STATUS" "${BYELLOW-}" 'VULNERABLE'
+		pretty_table_row 'ASIC STATUS' "${BYELLOW-}" 'VULNERABLE'
 	else
-		pretty_table_row "ASIC STATUS" "${BRED-}" 'IN DANGER'
+		pretty_table_row 'ASIC STATUS' "${BRED-}" 'IN DANGER'
 	fi
 }
 
@@ -410,6 +408,8 @@ fi
 
 case "${ASIC_MANUFACTURER-}" in
 	'Bitmain')
+		pretty_table_row 'model' "${WHITE-}" "$ASIC_MODEL ($ASIC_MANUFACTURER)"
+		[[ -n "${HIVEON_VERSION-}" ]] && pretty_table_row 'version' "${WHITE-}" "Hiveon $HIVEON_VERSION"
 		pretty_table_header 'KNOWN VIRUSES CHECK'
 		check_antbuild
 		check_bitmsfser_info
@@ -417,6 +417,7 @@ case "${ASIC_MANUFACTURER-}" in
 
 		pretty_table_header 'SUSPICIOUS ITEMS CHECK'
 		check_ntpd_size
+		check_system_files
 		check_for_suspicious_files
 
 		pretty_table_header 'SUMMARY'
@@ -424,27 +425,47 @@ case "${ASIC_MANUFACTURER-}" in
 
 		pretty_table_header
 		pretty_table_header 'TECHNICAL DETAILS FOR SUPPORT'
-		pretty_table_row '' '' "$ASIC_MODEL ($ASIC_MANUFACTURER)"
-		pretty_table_header 'Checksums'
-		print_md5
 		pretty_table_header '/etc/hosts'
 		print_etc_hosts
 		;;
 	*)
-		pretty_table_header "Antminer not detected (model: $ASIC_MODEL), exiting..."
+		pretty_table_header "Antminer not detected ($ASIC_MANUFACTURER $ASIC_MODEL), exiting..."
 		;;
 esac
 
 exit $(( audit_status ))
 
+
 #
 # md5 library
 #
 
-# Series 9
-bb965c01fbba97604b94813fcdaa0829  /usr/bin/ntpd
+S9 Hiveon 1.02/S9 msk 5.1
+bb965c01fbba97604b94813fcdaa0829  /usr/bin/ntpd 358832 bytes
 e78d5effe8c1e4afd1cf514ba23844d1  /lib/modules/bitmain_axi.ko
+3.14.0-xilinx-ga36f3af-dirty  uname -r
 
-# Series 17
-94699039a78b6ee320b2e1a5c436527a  /usr/bin/ntpd
+T17 stock/T17 Hiveon 2.00/S17e Hiveon 1.00/S17 Hiveon 2.00/Z11 stock
+94699039a78b6ee320b2e1a5c436527a  /usr/bin/ntpd 447336 bytes
 f552505dcf1e7c61be414a40d6352684  /lib/modules/bitmain_axi.ko
+4.6.0-xilinx-gff8137b-dirty  uname -r
+
+T9 Hiveon 1.02
+bb965c01fbba97604b94813fcdaa0829  /usr/bin/ntpd 358832 bytes
+27a0a0bfeee0d919ef03ba534caab51c  /lib/modules/bitmain_axi.ko
+3.14.0-xilinx-gb190cb0-dirty  uname -r
+
+S9 msk 5.0
+bb965c01fbba97604b94813fcdaa0829  usr/bin/ntpd
+27a0a0bfeee0d919ef03ba534caab51c  lib/modules/bitmain_axi.ko
+???  uname -r
+
+T9 Hiveon 1.03
+bb965c01fbba97604b94813fcdaa0829  /usr/bin/ntpd 358832 bytes
+27a0a0bfeee0d919ef03ba534caab51c  /lib/modules/bitmain_axi.ko
+3.14.0-xilinx-g16220c3  uname -r
+
+L3+ Hiveon 1.00
+e5b8378fc39c16f4adbf0503fa988d6f  /usr/bin/ntpd 447336 bytes
+—  /lib/modules/bitmain_axi.ko
+3.8.13  uname -r
