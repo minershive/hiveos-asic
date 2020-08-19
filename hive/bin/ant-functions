@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.11'
+declare -r ant_functions_lib_version='0.1.12'
 
 
 # !!! bash strict mode, no unbound variables
@@ -148,9 +148,11 @@ function is_hiveon_fw_signed {
 #get status
 function hiveon_status {
 	#
+	# Usage: hiveon_status 'ERR_NO_STATS'
 	# Usage: hiveon_status '{JSON}'
+	# Usage: hiveon_status <<< '{JSON}'
 	#
-	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# <= 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
 
 	# vars
@@ -158,29 +160,34 @@ function hiveon_status {
 	local system_status
 
 	# code
-	system_status="$( jq --raw-output '.[0].Type' <<< "$input_text" )"
-	system_status="${system_status/(S9 6-boards)}" # remove '(S9 6-boards)'
-	# should we remove space too ' (S9 6-boards)'
-	#                             ^ ???
+	if [[ -n "$input_text" && "$input_text" != 'ERR_NO_STATS' ]]; then
+		system_status="$( jq --raw-output '.[0].Type' <<< "$input_text" )"
+		system_status="${system_status/(S9 6-boards)}" # remove '(S9 6-boards)'
+		# should we remove space too ' (S9 6-boards)'
+		#                             ^ ???
 
-	if [[ -n "$system_status" ]]; then
-		if [[ "$system_status" =~ \(([^()]*)\)[^\(\)]*$ ]]; then # anything inside the last pair of brackets
-			system_status="${BASH_REMATCH[1]}"
-		else
-			system_status='mining'
+		if [[ -n "$system_status" ]]; then
+			if [[ "$system_status" =~ \(([^()]*)\)[^\(\)]*$ ]]; then # anything inside the last pair of brackets
+				system_status="${BASH_REMATCH[1]}"
+			else
+				system_status='mining'
+			fi
 		fi
+
+		# previous variant of a '(S9 6-boards)' processing
+		#if [[ -n "$system_status" ]]; then
+		#	if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then #)'# syntax highlighting fix
+		#		system_status="$( echo "$system_status" | grep '(' | sed 's/.*(\|).*//g' )"
+		#	else
+		#		system_status='mining'
+		#	fi
+		#fi
+	else
+		system_status='ERR_NO_STATS'
 	fi
 
-#	if [[ -n "$system_status" ]]; then
-#		if grep -v 'S9 6-boards' <<< "$system_status" | grep -Fq '('; then #)'# syntax highlighting fix
-#			system_status="$( echo "$system_status" | grep '(' | sed 's/.*(\|).*//g' )"
-#		else
-#			system_status='mining'
-#		fi
-#	fi
-
 	#Hiveon before 17 series
-	if [[ "$system_status" == 'mining' && -n "$HIVEON_VERSION" ]]; then
+	if [[ -n "$HIVEON_VERSION" && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
 		if [[ -s /www/pages/cgi-bin/check-auto-tune-running.cgi ]]; then
 			tune_board="$( sh /www/pages/cgi-bin/check-auto-tune-running.cgi )"
 		fi
@@ -201,6 +208,8 @@ function hiveon_status {
 			system_status='tuning'
 		fi
 	fi
+
+	[[ "$system_status" == 'ERR_NO_STATS' ]] && system_status='NA'
 
 	echo "$system_status"
 }

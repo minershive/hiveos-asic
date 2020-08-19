@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.3.3'
+readonly script_version='0.3.4'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -262,7 +262,6 @@ function get_miner_stats {
 
 	khs=0				# global
 	khs_av=0			# global
-	system_status='NA'	# global
 	stats=''			# global
 
 	algo="$ASIC_ALGO"
@@ -286,6 +285,7 @@ function get_miner_stats {
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n' | sed 's/}{/},{/' | jq '.'
 			stats_raw="$( get_stats_raw )"
 			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				system_status="$( ant-functions hiveon_status 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
 			else
 				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API (like S9): '}{' -> '},{'
@@ -295,7 +295,7 @@ function get_miner_stats {
 				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
 				reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH" khs_av
 
-				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
+				system_status="$( ant-functions hiveon_status "$STATS" )"
 
 				if stats_pool_raw="$( get_pools_raw )"; then
 					if pool_stats="$( jq --compact-output '.POOLS' <<< "$stats_pool_raw" )"; then
@@ -367,6 +367,7 @@ function get_miner_stats {
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
 			stats_raw="$( get_stats_raw )"
 			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+				system_status="$( ant-functions hiveon_status 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
 			else
 				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API: '}{' -> '},{'
@@ -380,7 +381,7 @@ function get_miner_stats {
 				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
 				reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH" khs_av
 
-				system_status="$( ant-functions hiveon_status <<< "$STATS" )"
+				system_status="$( ant-functions hiveon_status "$STATS" )"
 
 				if stats_pool_raw="$( get_pools_raw )"; then
 					if pool_stats="$( jq --compact-output '.POOLS' <<< "$stats_pool_raw" )"; then
