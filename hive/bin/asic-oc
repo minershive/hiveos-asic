@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.17'
+readonly script_version='0.6.18'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -717,10 +717,10 @@ function tune_9 {
 
 	if (( script_DEBUG )); then
 		if [[ ! -f /config/config.conf ]]; then
-			echo '[DEBUG] /config/config.conf not found (but it have to be)'
+			echo '  [DEBUG] /config/config.conf not found (but it have to be)'
 		fi
 		if [[ -f "$autotune_debug_log" ]]; then
-			echo '[DEBUG] Auto-tune log:'
+			echo '> [DEBUG] Auto-tune log:'
 			cat "$autotune_debug_log"
 			echo
 			rm "$autotune_debug_log"
@@ -728,11 +728,11 @@ function tune_9 {
 	fi
 
 	if [[ -s "$autotune_log" ]]; then
-		echo 'Auto-tune log:'
+		echo '> Auto-tune log:'
 		cat "$autotune_log"
 		echo
 	else
-		(( script_DEBUG )) && echo "[DEBUG] $autotune_log is empty or not found"
+		(( script_DEBUG )) && echo "  [DEBUG] $autotune_log is empty or not found"
 	fi
 
 	if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
