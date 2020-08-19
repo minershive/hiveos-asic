@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.15'
+readonly script_version='0.6.16'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -716,7 +716,14 @@ function tune_9 {
 		rm /tmp/auto-tune.nohup.log
 	fi
 
+	if [[ -s /tmp/auto-tune ]]; then
+		echo 'Auto-tune log:'
+		cat /tmp/auto-tune
+		echo
+	fi
+
 	if grep -q 'enable_auto_chip=1' "$active_profile_file_w_path"; then
+		echo '> Forking chip tuning to the backgound...'
 		if (( is_lighttpd_not_running_as_root_FLAG )); then
 			nohup su - "$lighttpd_owner" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 & disown
 		else
