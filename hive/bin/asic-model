@@ -11,7 +11,7 @@
 
 
 readonly asic_model_script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-readonly asic_model_script_version='1.1.5'
+readonly asic_model_script_version='1.1.6'
 readonly asic_model_script_basename="$( basename "$0" )"
 
 
@@ -280,6 +280,7 @@ function set_ASIC_constants {
 			HASH='ghs'
 			MAX_FAN_RPM='6000'
 			GPIO_LED_RED='70'
+			[[ "$HIVEON_VERSION" == '1.03' ]] && GPIO_LED_RED='37' # test
 			GPIO_PATH='direction'
 			FANS_COUNT_DEFAULT='2'
 		;;
