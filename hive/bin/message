@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Messenger'
-readonly script_version='0.3.28'
+readonly script_version='0.3.29'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -59,7 +59,7 @@ declare message_type message_header message_color
 declare id='' id_json payload='' payload_json
 declare request response
 declare file_to_send='' file_size
-declare -i script_exitcode=0 is_silent_FLAG=0 is_verbose_FLAG=0
+declare -i curl_exitcode script_exitcode=0 is_silent_FLAG=0 is_verbose_FLAG=0
 declare console_message=''
 
 
@@ -263,13 +263,31 @@ fi
 
 # send a message
 HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
-response="$(
-	curl \
-		--insecure --location --data @- --silent \
-		--request POST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
-		--header 'Content-Type: application/json' \
-	<<< "$request"
-)" # curl options removed (for greater reliability on the weak links): --connect-timeout 15 --max-time 25
+
+# let's try to connect
+declare -r -i curl_initial_connect_timeout=5
+declare -r -i max_connection_attempts=10
+declare -i attempts_counter curl_connect_timeout curl_max_time
+
+for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
+	(( curl_connect_timeout = curl_initial_connect_timeout + attempts_counter ))
+	(( curl_max_time = curl_connect_timeout * 2 + 1 ))
+	response="$(
+		curl \
+			--insecure --location --data @- --silent \
+			--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
+			--request POST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
+			--header 'Content-Type: application/json' \
+		<<< "$request"
+	)"
+	curl_exitcode=$?
+	if (( curl_exitcode )); then
+		errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR} (attempt #$attempts_counter)"
+		errcho "$( human-curl-error "$curl_exitcode" )"
+	else
+		break
+	fi
+done
 
 if (( is_verbose_FLAG )); then
 	echo -n 'Response: '
@@ -277,7 +295,6 @@ if (( is_verbose_FLAG )); then
 fi
 
 # check curl result
-curl_exitcode=$?
 if (( curl_exitcode )); then
 	errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
 	errcho "$( human-curl-error "$curl_exitcode" )"
