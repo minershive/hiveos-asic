@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.12'
+declare -r ant_functions_lib_version='0.1.13'
 
 
 # !!! bash strict mode, no unbound variables
@@ -218,42 +218,91 @@ function hiveon_status {
 function hiveon_voltage {
 	#
 	# Usage: hiveon_voltage '[...,0,0,X,X,X,0,...]'
-	#
-	# If the API does not return voltage
 	# Example acn=[0,0,0,0,0,63,63,63,0,0,0,0,0,0,0,0]
+	#
+	# If the API does not return voltage, get it from the advanced config
 	#
 
 	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
 
 	# vars
-	local -a voltage_mask voltage_list_pre
-	local -i this_chain pre_iterator=0
-	local this_chain_voltage IFS adv_config
+	local -a voltage_mask_array voltage_mask_only_non_zeroes_array voltage_list_array
+	local -i voltage_mask_chain_count voltage_list_chain_count
+	local -i this_chain voltage_list_iterator=0 voltage_list_index=0
+	local this_chain_voltage IFS voltages_from_adv_config
 
 	# code
 	if [[ -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
-		voltage_mask=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
-		adv_config="$( sh /www/pages/cgi-bin/get_adv_config.cgi | awk -F '=' '/bitmain-voltage/{print $2/100}' )"
-		if [[ -n "$adv_config" ]]; then
-			voltage_list_pre=( $adv_config )
-			for (( this_chain=0; this_chain < ${#voltage_mask[@]}; this_chain++ )); do
-				if [[ "${voltage_mask[this_chain]}" != '0' ]]; then
-					this_chain_voltage="${voltage_list_pre[pre_iterator++]}"
-					# covering edge case:  if voltage_list_pre length < number of voltage_mask's entries that are > 0
-					[[ -z "$this_chain_voltage" ]] && this_chain_voltage=0
-					voltage_mask[this_chain]="$this_chain_voltage"
-				fi
-			done
+		# '[0,0,0,0,0,63,63,63,0,0,0,0,0,0,0,0]' -> '0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0' -> ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 )
+		voltage_mask_array=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
+		# ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 ) -> ( 1,1,1 )
+		voltage_mask_only_non_zeroes_array=( ${voltage_mask_array[@]//0} )
+		voltage_mask_chain_count="${#voltage_mask_only_non_zeroes_array[@]}"
+		if (( voltage_mask_chain_count )); then
+			#
+			# sh /www/pages/cgi-bin/get_adv_config.cgi output:
+			#bitmain-voltage1=820
+			#bitmain-voltage2=820
+			#bitmain-voltage3=840
+			voltages_from_adv_config="$( sh /www/pages/cgi-bin/get_adv_config.cgi | awk -F '=' '/bitmain-voltage[0-9]+/{print $2/100}' )"
+			#
+			if [[ -n "$voltages_from_adv_config" ]]; then
+				voltage_list_array=( $voltages_from_adv_config )
+				voltage_list_chain_count="${#voltage_list_array[@]}"
+				for (( this_chain=0; this_chain < ${#voltage_mask_array[@]}; this_chain++ )); do
+					# voltage_mask_array=( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 )
+					# voltage_list_array=( 8.20 8.20 8.40 )
+					if [[ "${voltage_mask_array[this_chain]}" != '0' ]]; then
+						this_chain_voltage="${voltage_list_array[voltage_list_index]:-0}" # covering edge case: if voltage_list_array length < number of voltage_mask_array's entries that are > 0
+						voltage_mask_array[this_chain]="$this_chain_voltage"
+						(( voltage_list_iterator++ ))
+
+						# too smart
+						#if (( (voltage_mask_chain_count == voltage_list_chain_count) || (voltage_mask_chain_count % voltage_list_chain_count != 0) )); then
+						# let's keep it simple
+						if (( voltage_mask_chain_count != 9 )); then
+							# simply progress the index
+							(( voltage_list_index++ ))
+						else
+							# !!! experimental
+							# especially for T9 with the virtual chains (3 physical -> 9 virtual):
+							#
+							# visual chart:
+							#
+							# voltage_list_array        ( 8.2, 8.2, 8.4 ) #3
+							# voltage_mask_array        ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 ) #3
+							# voltage_list_iterator                 0 1 2
+							# voltage_list_index                    0 1 2
+							# voltage_list_iterator % (3/3)         0 0 0
+							#
+							# voltage_list_array        ( 8.2, 8.2, 8.4 ) #3
+							# voltage_mask_array        ( 0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0 ) #9
+							# voltage_list_iterator           0 1 2 3 4 5 6 7 8
+							# voltage_list_index              0 0 0 1 1 1 2 2 2
+							# voltage_list_iterator % (9/3)   0 1 2 0 1 2 0 1 2
+							#
+							(( quotient = voltage_mask_chain_count / voltage_list_chain_count ))
+							(( quotient = quotient < 1 ? 1 : quotient ))
+							(( voltage_list_iterator % quotient == 0 ? voltage_list_index++ : skip ))
+						fi
+					fi
+				done
+			else
+				errcho 'No voltages found in the output of /www/pages/cgi-bin/get_adv_config.cgi. Please check /config/config.conf'
+				voltage_mask_array=()
+			fi
 		else
-			# it seems that we have no (or empty) /config/config.conf
-			errcho 'Empty output from /www/pages/cgi-bin/get_adv_config.cgi. Please check /config/config.conf'
-			voltage_mask=()
+			errcho 'Voltage mask has no non-zero entries'
+			voltage_mask_array=()
 		fi
+	else
+		# it seems that we have no (or empty) /config/config.conf
+		errcho 'Empty output from /www/pages/cgi-bin/get_adv_config.cgi. Please check /config/config.conf'
 	fi
 
 	IFS=','
-	echo "[${voltage_mask[*]}]"
+	echo "[${voltage_mask_array[*]}]"
 }
 
 #get power chain id
