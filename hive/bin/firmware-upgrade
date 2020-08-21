@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.13'
+readonly script_version='0.1.14'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -64,13 +64,14 @@ at_exit () {
 	unhide_certs
 	sync
 	if [ -z "$ok" ]; then
-		echo -e "${RED}Firmware upgrade unexpectedly interrupted${NOCOLOR}"
+		echo -e "! ${BRED}Firmware upgrade unexpectedly interrupted${NOCOLOR}"
 		if [ -s /tmp/upgrade_result ]; then
 			echo '> runme.sh log:'
 			cat /tmp/upgrade_result
+			rm -rf /tmp/upgrade_result
 		fi
 	fi
-	echo '> Exiting...'
+	echo '> Exiting.'
 }
 
 do_upgrade_for () {
@@ -82,12 +83,12 @@ do_upgrade_for () {
 	directory_to_unpack_fw="${directory_to_unpack_fw_ROOT}-${$}"
 
 	# code
-	echo -e "> Upgrading firmware for $ASIC_MODEL..."
+	echo "> Upgrading firmware for $ASIC_MODEL..."
 
 	# check for .tar.gz extension
 	firmware_filename="$( echo "$URL" | awk -F \/ '{print $NF}' )"
 	if ! { echo "$firmware_filename" | grep -q '.tar.gz'; }; then
-		echo -e "${BYELLOW}Firmware's filename does not contain '.tar.gz', trying anyway...${NOCOLOR}"
+		echo -e "! ${BYELLOW}Firmware's filename does not contain '.tar.gz', trying anyway...${NOCOLOR}"
 	fi
 
 	# get FARM_HASH from a firmware's filename
@@ -117,9 +118,19 @@ do_upgrade_for () {
 	"upgrade_$upgrade_type"
 }
 
-upgrade_L3 () {
+download_and_unpack () {
 	echo "> Downloading and unpacking $firmware_filename..."
-	curl --silent --insecure "$URL" | tar xvz
+	if curl --silent --insecure "$URL" | tar xvz; then
+		echo '> Downloaded and unpacked OK, going further...'
+	else
+		echo -e "! ${BRED}Downloading and unpacking FAIL${NOCOLOR}"
+		false # to exit immediately
+	fi
+}
+
+upgrade_L3 () {
+	download_and_unpack
+
 	if [ -f runme.sh ]; then
 		echo '> Executing runme.sh...'
 		sh runme.sh
@@ -149,7 +160,7 @@ upgrade_L3 () {
 
 	ok=1
 	echo
-	echo '> Flashing done'
+	echo -e "> ${BGREEN}Flashing complete. Rebooting...${NOCOLOR}"
 
 	sleep 1
 	/sbin/reboot -f
@@ -165,11 +176,10 @@ upgrade_S9 () {
 		fi
 	done
 
-	#exec 2>"$error_log"
-	echo "> Downloading and unpacking $firmware_filename..."
-	curl --silent --insecure "$URL" | tar xvz
+	download_and_unpack
+
 	if [ ! -f ubi_info ]; then
-		echo -e "${RED}Incorrect firmware (no 'ubi_info' found)${NOCOLOR}"
+		echo -e "! ${BRED}Incorrect firmware (no 'ubi_info' found)${NOCOLOR}"
 		#rm -rf /tmp/* # don't have to do this bc we have at_exit destructor that'll take care of everything
 		exit 1
 	else
@@ -213,9 +223,9 @@ upgrade_S9 () {
 			echo '> Executing runme.sh...'
 			sh runme.sh
 			echo '> runme.sh finished'
-			echo -e "${GREEN}Firmware upgrade complete. Rebooting...${NOCOLOR}"
+			echo -e "> ${BGREEN}Firmware upgrade complete. Rebooting...${NOCOLOR}"
 		else
-			echo -e "${RED}Incorrect firmware (no 'runme.sh' found)${NOCOLOR}"
+			echo -e "! ${BRED}Incorrect firmware (no 'runme.sh' found)${NOCOLOR}"
 			exit 1
 		fi
 	fi
@@ -242,17 +252,16 @@ upgrade_ro () {
 		echo "$HIVE_HOST_URL" > /config/HIVE_HOST_URL
 	fi
 
+	download_and_unpack
 	sync
 
-	echo "> Downloading and unpacking $firmware_filename..."
-	curl --silent --insecure "$URL" | tar xvz
 	hide_certs
 	echo '> Executing runme.sh...'
 	sh runme.sh
 	echo '> runme.sh finished'
 
 	if [ ! -s "$error_log" ]; then
-		echo "> Firmware upgrade done. Reboot in 10 seconds..."
+		echo -e "> ${BGREEN}Firmware upgrade complete. Rebooting in 10 seconds...${NOCOLOR}"
 		# TODO should we fork the reboot to bg? so the agent can send a message to server?
 		sleep 10
 		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
