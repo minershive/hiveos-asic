@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.12'
+readonly script_version='0.1.13'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -119,7 +119,7 @@ do_upgrade_for () {
 
 upgrade_L3 () {
 	echo "> Downloading and unpacking $firmware_filename..."
-	curl --silent --fail --insecure "$URL" | tar xvz
+	curl --silent --insecure "$URL" | tar xvz
 	if [ -f runme.sh ]; then
 		echo '> Executing runme.sh...'
 		sh runme.sh
@@ -167,7 +167,7 @@ upgrade_S9 () {
 
 	#exec 2>"$error_log"
 	echo "> Downloading and unpacking $firmware_filename..."
-	curl --silent --fail --insecure "$URL" | tar xvz
+	curl --silent --insecure "$URL" | tar xvz
 	if [ ! -f ubi_info ]; then
 		echo -e "${RED}Incorrect firmware (no 'ubi_info' found)${NOCOLOR}"
 		#rm -rf /tmp/* # don't have to do this bc we have at_exit destructor that'll take care of everything
@@ -245,7 +245,7 @@ upgrade_ro () {
 	sync
 
 	echo "> Downloading and unpacking $firmware_filename..."
-	curl --silent --fail --insecure "$URL" | tar xvz
+	curl --silent --insecure "$URL" | tar xvz
 	hide_certs
 	echo '> Executing runme.sh...'
 	sh runme.sh
