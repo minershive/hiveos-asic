@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.13'
+declare -r ant_functions_lib_version='0.1.14'
 
 
 # !!! bash strict mode, no unbound variables
@@ -233,7 +233,7 @@ function hiveon_voltage {
 	local this_chain_voltage IFS voltages_from_adv_config
 
 	# code
-	if [[ -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
+	if [[ -n "$HIVEON_VERSION" && -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
 		# '[0,0,0,0,0,63,63,63,0,0,0,0,0,0,0,0]' -> '0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0' -> ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 )
 		voltage_mask_array=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
 		# ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 ) -> ( 1,1,1 )
@@ -289,6 +289,7 @@ function hiveon_voltage {
 					fi
 				done
 			else
+				# it seems that we have no (or empty) /config/config.conf
 				errcho 'No voltages found in the output of /www/pages/cgi-bin/get_adv_config.cgi. Please check /config/config.conf'
 				voltage_mask_array=()
 			fi
@@ -296,9 +297,8 @@ function hiveon_voltage {
 			errcho 'Voltage mask has no non-zero entries'
 			voltage_mask_array=()
 		fi
-	else
-		# it seems that we have no (or empty) /config/config.conf
-		errcho 'Empty output from /www/pages/cgi-bin/get_adv_config.cgi. Please check /config/config.conf'
+	elif [[ -n "$HIVEON_VERSION" ]]; then
+		errcho "/www/pages/cgi-bin/get_adv_config.cgi not found or empty. Seems like your Hiveon $HIVEON_VERSION is broken."
 	fi
 
 	IFS=','
