@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.11'
+readonly script_version='0.1.12'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -74,13 +74,14 @@ at_exit () {
 }
 
 do_upgrade_for () {
-
 	# args
-
 	local upgrade_type="$1"
 
-	# code
+	# consts
+	directory_to_unpack_fw_ROOT="/tmp/${script_basename}-download"
+	directory_to_unpack_fw="${directory_to_unpack_fw_ROOT}-${$}"
 
+	# code
 	echo -e "> Upgrading firmware for $ASIC_MODEL..."
 
 	# check for .tar.gz extension
@@ -95,14 +96,16 @@ do_upgrade_for () {
 	# get HIVE_HOST_URL from a firmware's filename
 	HIVE_HOST_URL="$( echo "$URL" | grep 'http://download' | grep 'os' | grep '/asic/' | awk -F \/asic '{print $1}' | sed s/'http:\/\/download'/'http:\/\/api'/ )"
 
+	# remove temp downloads from previous runs
+	rm -rf "${directory_to_unpack_fw_ROOT:-SAFE}"*
+
 	# remove huge temp files/directories (1M and up)
 	for this_huge_file in $( du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' ); do
 		echo "> Clearing the space, removing $this_huge_file (it's greater than 1M)..."
-		rm -rf "$this_huge_file" || true
+		rm -rf "${this_huge_file:-SAFE}" || true
 	done
 
 	# create a temp dir
-	directory_to_unpack_fw="/tmp/$$"
 	mkdir "$directory_to_unpack_fw"
 	cd "$directory_to_unpack_fw"
 	trap at_exit EXIT
@@ -158,7 +161,7 @@ upgrade_S9 () {
 	for this_directory in /tmp/*; do
 		# remove all dirs in /tmp that are not links
 		if [ -d "$this_directory" ] && [ ! -L "$this_directory" ] && [ "$this_directory" != "$directory_to_unpack_fw" ]; then
-			rm -rf "$this_directory" || true
+			rm -rf "${this_directory:-SAFE}" || true
 		fi
 	done
 
