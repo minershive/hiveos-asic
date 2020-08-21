@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.4.0'
+readonly script_version='0.4.1'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -251,7 +251,11 @@ function process_pools {
 				else
 					log_line error 'Active pool is dead:'
 					jq --color-output '.[0] | with_entries( select( .key | test( "Stratum Active", "URL", "User", "Status" ) ) )' <<< "$POOLS"
-					system_status='deadpool'
+					case "$system_status" in
+						'mining' | 'tuning' | 'NA' )
+							system_status='deadpool'
+						;;
+					esac
 					return 1
 				fi
 			else
