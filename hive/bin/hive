@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.0.1'
+readonly script_version='0.0.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -45,13 +45,18 @@ function kill_all {
 	fi
 }
 
+function get_absolute_difference {
+    echo $(( $1 >= $2 ? $1 - $2 : $2 - $1 ))
+}
+
 function get_datetime_from_server {
 	# consts
 	local -r -i max_attempts=10
 
 	# vars
 	local server_answer
-	local -i date_from_server_in_seconds curl_exitcode attempts_counter
+	local -i current_system_date_in_s date_from_server_in_s difference_in_dates
+	local -i curl_exitcode attempts_counter
 
 	# code
 	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # !!! will be needed to start WD later
@@ -67,9 +72,15 @@ function get_datetime_from_server {
 			echo_error "Network is lost, cannot get datetime from $HIVE_HOST_URL (attempt #$attempts_counter)"
 			sleep $(( attempts_counter ))
 		else
-			date_from_server_in_seconds="$( grep -Fm1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
-			echo_info "Current system date is $( date )"
-			echo_ok "System date set to $( date -s "@$date_from_server_in_seconds" )"
+			printf -v current_system_date_in_s '%(%s)T' -1
+			date_from_server_in_s="$( grep -Fm1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
+			difference_in_dates="$( get_absolute_difference "$current_system_date_in_s" "$date_from_server_in_s" )"
+			if (( difference_in_dates <= 3 )); then
+				echo_ok      "Current system date $( date ) (up-to-date)"
+			else
+				echo_warning "Current system date $( date ) (OBSOLETE)"
+				echo_ok      "System date set to  $( date -s "@$date_from_server_in_s" )"
+			fi
 			break
 		fi
 	done
