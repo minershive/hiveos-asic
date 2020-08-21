@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.16'
+readonly script_version='0.16.17'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -315,7 +315,7 @@ download_from_URL_to_file () {
 
 	echo_action "Downloading package to ${pretty_name}"
 	if is_curl_available; then
-		downloader_output="$( curl --insecure --location --fail --silent --show-error --output "$output_file" "$URL" 2>&1 )"
+		downloader_output="$( curl --insecure --location --fail --silent --show-error --connect-timeout 15 --retry 3 --output "$output_file" "$URL" 2>&1 )"
 	else
 		downloader_output="$( wget --quiet --output-document="$output_file" "$URL" 2>&1 )"
 	fi
@@ -1419,10 +1419,10 @@ get_remote_version_of () {
 	esac
 
 	if is_curl_available; then
-		if [ "$bulk_download_mode_FLAG" -eq 0 ]; then
-			downloader_output="$( curl --insecure --location --fail --silent --show-error --max-time 10 "$download_URL" 2>&1 )" # 10 seconds tops
+		if [ "$bulk_download_mode_FLAG" -eq 1 ]; then
+			downloader_output="$( curl --insecure --location --fail --silent --show-error --connect-timeout 15 --retry 5 "$download_URL" 2>&1 )"
 		else
-			downloader_output="$( curl --insecure --location --fail --silent --show-error "$download_URL" 2>&1 )"
+			downloader_output="$( curl --insecure --location --fail --silent --show-error --connect-timeout 7 --retry 5 --retry-delay 0 --max-time 35 "$download_URL" 2>&1 )" # 10 seconds tops
 		fi
 	else
 		downloader_output="$( wget --quiet --output-document=- "$download_URL" 2>&1 )"
