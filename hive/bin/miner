@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.4'
+readonly script_version='1.1.5'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -42,7 +42,7 @@ function print_config {
 # start/stop/restart functions
 
 function miner_start {
-	echo -e "Starting ${CYAN}$MINER${NOCOLOR} - ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
+	echo -e "${script_basename}> Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}..."
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		generate_config
@@ -84,7 +84,7 @@ function miner_start {
 }
 
 function miner_stop {
-	echo -e "Stopping ${CYAN}$MINER${NOCOLOR} - ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
+	echo -e "${script_basename}> Stopping ${CYAN}$THIS_MINER_NAME${NOCOLOR}..."
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		echo 'ok' > /tmp/norespawn
@@ -107,7 +107,7 @@ function miner_stop {
 }
 
 function miner_restart {
-	echo -e "${YELLOW}Restarting miner${NOCOLOR}" #can be different on miner change
+	echo -e "${script_basename}> Restarting ${CYAN}$THIS_MINER_NAME${NOCOLOR}..."
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		generate_config
@@ -146,9 +146,9 @@ function print_default_log {
 			/hive/bin/todd_api mlog
 		else
 			if [[ ! -f "$LOG_PATH" ]]; then
-				echo "Log $LOG_PATH does not exist yet"
+				echo "${script_basename}: Log $LOG_PATH does not exist yet"
 			elif [[ "$( get_file_size_in_bytes "$LOG_PATH" )" -le 1 ]]; then #can be 1, empty line
-				echo "Log $LOG_PATH is empty"
+				echo "${script_basename}: Log $LOG_PATH is empty"
 			else
 				tail_any_log "$LOG_PATH"
 			fi
@@ -417,6 +417,7 @@ case "$1" in
 	;;
 
 	'start')
+		# process Series 17 Safe Mode override
 		if [[ ! -s /config/stop-mining ]]; then
 			miner_start
 		else
