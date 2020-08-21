@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.14'
+readonly script_version='0.1.15'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -120,7 +120,7 @@ do_upgrade_for () {
 
 download_and_unpack () {
 	echo "> Downloading and unpacking $firmware_filename..."
-	if curl --silent --insecure "$URL" | tar xvz; then
+	if curl --silent --insecure --connect-timeout 15 --retry 3 "$URL" | tar xvz; then
 		echo '> Downloaded and unpacked OK, going further...'
 	else
 		echo -e "! ${BRED}Downloading and unpacking FAIL${NOCOLOR}"
