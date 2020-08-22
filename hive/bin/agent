@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.4.1'
+readonly script_version='0.4.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -249,8 +249,18 @@ function process_pools {
 				if [[ "$active_pool_id" =~ $active_pool_id_RE ]]; then
 					: ok good to go
 				else
-					log_line error 'Active pool is dead:'
-					jq --color-output '.[0] | with_entries( select( .key | test( "Stratum Active", "URL", "User", "Status" ) ) )' <<< "$POOLS"
+					log_line error 'All user pools are not alive:'
+					jq --color-output --compact-output \
+						'.[] |
+							select( .Priority <= 3 ) |
+								with_entries(
+									select(
+										.key |
+											test( "Stratum Active", "URL", "User", "Status", "Priority" )
+									)
+								)' \
+						<<< "$POOLS"
+					echo
 					case "$system_status" in
 						'mining' | 'tuning' | 'NA' )
 							system_status='deadpool'
