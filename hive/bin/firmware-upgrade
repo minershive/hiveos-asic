@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.15'
+readonly script_version='0.1.16'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -58,7 +58,8 @@ unhide_certs () {
 }
 
 at_exit () {
-	rm -rf "${directory_to_unpack_fw:-/tmp/*}" || true
+	echo "> Removing temporary directory $directory_to_unpack_fw..."
+	rm -rf "${directory_to_unpack_fw:-SAFE}" || true
 	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	unhide_certs
@@ -107,6 +108,7 @@ do_upgrade_for () {
 	done
 
 	# create a temp dir
+	echo "> Creating temporary directory $directory_to_unpack_fw..."
 	mkdir "$directory_to_unpack_fw"
 	cd "$directory_to_unpack_fw"
 	trap at_exit EXIT
@@ -171,8 +173,13 @@ upgrade_S9 () {
 #	rm -rf /hive ## no longer needed after cleaning /tmp
 	for this_directory in /tmp/*; do
 		# remove all dirs in /tmp that are not links
-		if [ -d "$this_directory" ] && [ ! -L "$this_directory" ] && [ "$this_directory" != "$directory_to_unpack_fw" ]; then
-			rm -rf "${this_directory:-SAFE}" || true
+		if [ -d "$this_directory" ] && [ ! -L "$this_directory" ]; then
+			case "$this_directory" in
+				"$directory_to_unpack_fw"	)		: skip										;;
+				'/tmp/screens'				)		: skip										;;
+				*							)		echo "[DEBUG] Removing $this_directory..."
+													rm -rf "${this_directory:-SAFE}" || true	;;
+			esac
 		fi
 	done
 
