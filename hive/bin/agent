@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.4.3'
+readonly script_version='0.4.4'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -102,7 +102,9 @@ function is_screen_session_running {
 	local -r screen_session_name="${1-}"
 
 	# code
-	[[ -z "$screen_session_name" ]] && return 99 ### TODO rework
+	# shellcheck disable=SC2154
+	# bc exitcode_ERROR_SOMETHING_WEIRD declared in library
+	[[ -z "$screen_session_name" ]] && return $(( exitcode_ERROR_SOMETHING_WEIRD )) ### TODO rework
 	screen -S "$screen_session_name" -X . > /dev/null
 }
 
@@ -115,10 +117,9 @@ function screen_session_terminate {
 	local -r screen_session_name="${1-}"
 
 	# code
-	[[ -z "$screen_session_name" ]] && return 99 ### TODO rework
+	[[ -z "$screen_session_name" ]] && return $(( exitcode_ERROR_SOMETHING_WEIRD )) ### TODO rework
 	screen -S "$screen_session_name" -X quit > /dev/null
 }
-
 
 function milliseconds_to_seconds {
 	#
@@ -177,14 +178,12 @@ function reduce_hashrate_to_khs {
 	#
 
 	# args
-
-	local -r input_hashrate_value="${1-}"
-	local -r input_hashrate_unit="${2-}"
+	local -r input_hashrate_value="${1-0}"
+	local -r input_hashrate_unit="${2-khs}" # khs is the Hive default
 	local -r -n output_hashrate_in_khs_by_ref="${3-}"
 
 	# consts
-
-	local -r -A relationship_to_khs=(
+	local -r -A relationship_to_khs_DICT=(
 		['phs']='1000000000000'
 		['ths']='1000000000'
 		['ghs']='1000000'
@@ -193,23 +192,42 @@ function reduce_hashrate_to_khs {
 		['hs']='0.001'
 	)
 
+	# vars
+	local input_hashrate_unit_SAFE relationship_to_khs
+
 	# code
 
-	if [[ "$input_hashrate_unit" == 'khs' ]]; then # don't have to calculate anything
+	# first sanitize input_hashrate_unit
+	: "${input_hashrate_unit,,}" # tolower()
+	: "${input_hashrate_unit//\/}" # strip an eventual '/'
+
+	input_hashrate_unit_SAFE="$_"
+	if [[ "$input_hashrate_unit_SAFE" == 'khs' ]]; then # don't have to calculate anything
 		output_hashrate_in_khs_by_ref="$input_hashrate_value"
-		return
+		# shellcheck disable=SC2154
+		# bc exitcode_OK declared in library
+		return $(( exitcode_OK ))
 	fi
 
-	if [[ -n "${relationship_to_khs[$input_hashrate_unit]-}" ]]; then
+	relationship_to_khs="${relationship_to_khs_DICT[$input_hashrate_unit_SAFE]-}"
+	if [[ -z "$relationship_to_khs" ]]; then
+			errcho "Hashrate unit not in dictionary: '$input_hashrate_unit'"
+			# shellcheck disable=SC2154
+			# bc exitcode_ERROR_NOT_FOUND declared in library
+			return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+
+	if [[ "${input_hashrate_value}${relationship_to_khs}" == *[0-9].[0-9]* ]]; then
+		# it's FP and we need awk then
 		# shellcheck disable=SC2034
 		output_hashrate_in_khs_by_ref="$(
 			awk -v input_hashrate_value="$input_hashrate_value" \
-				-v relationship_to_khs="${relationship_to_khs[$input_hashrate_unit]}" \
+				-v relationship_to_khs="$relationship_to_khs" \
 				'BEGIN{ print input_hashrate_value * relationship_to_khs }'
 		)"
 	else
-		errcho "Invalid unit '$input_hashrate_unit'"
-		return 1
+		# all integer
+		(( output_hashrate_in_khs_by_ref = input_hashrate_value * relationship_to_khs ))
 	fi
 }
 
@@ -293,11 +311,11 @@ function process_pools {
 							system_status='deadpool'
 						;;
 					esac
-					return 1
+					return $(( exitcode_ERROR_NOT_FOUND ))
 				fi
 			else
 				log_line warning "No active pools yet"
-				return 1
+				return $(( exitcode_ERROR_NOT_FOUND ))
 			fi
 		else
 			log_line warning "No pools yet"
@@ -386,7 +404,7 @@ function get_miner_stats {
 				chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_voltage\\d+")) )	| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" )
 				hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )			| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
 #				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )		| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
-				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) ) 		| to_entries | from_entries'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )		| to_entries | from_entries'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
 				asicboost="$(		jq					'.[1] | with_entries( select(.key | test("chain_power$")) )			| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "asicboost#$?" )
 				ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
 														'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'				<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
@@ -904,10 +922,12 @@ function loop {
 	fi
 
 	HIVE_URL="$HIVE_HOST_URL"
-	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index is for an original HIVE_HOST_URL
-	# !!! duct tape
+	HIVE_URL_collection[0]="$HIVE_URL" # 0th index is for an original HIVE_HOST_URL
+	HIVE_URL_collection[1]="$HIVE_URL" # 1st index is for an original HIVE_HOST_URL, second connection attempt
+
+	# !!! and now the duct tape
 	# protection measures -- we don't have https on the vast majority of ASICs
-	if [[ "$HIVE_URL" =~ ^https:// ]]; then
+	if [[ "$HIVE_URL" == 'https://'* ]]; then
 		log_line warning "API Server $HIVE_URL is not supported, most likely"
 		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for an http form of https'ed HIVE_HOST_URL
 		if (( https_disabled_message_sent == 0 )); then
@@ -919,13 +939,20 @@ function loop {
 		fi
 	fi
 
+	local -i curl_connect_timeout=1 curl_max_time=2 # very short timeouts for the first attempt, we don't want the agent to be a slowpoke
+	local -i attempts_counter=1
 	for this_URL in "${HIVE_URL_collection[@]}"; do
-		log_line info "Sending stats (${#request} bytes) to ${this_URL}..."
+		if (( attempts_counter == 1 )); then
+			log_line info "Sending stats (${#request} bytes) to ${this_URL}..."
+		else
+			log_line warning "Re-sending stats (${#request} bytes) to ${this_URL} (attempt #$attempts_counter)..."
+		fi
 		time_start_sending_stats="$( get_system_uptime_in_milliseconds )"
 		response="$(
 			curl \
 				--verbose --trace-time --insecure --location --data @- \
-				--connect-timeout 15 --max-time 25 --silent --fail \
+				--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
+				--silent --fail \
 				--request POST "${this_URL}/worker/api?id_rig=$RIG_ID&method=stats" \
 				--header 'Content-Type: application/json' \
 				\
@@ -937,11 +964,16 @@ function loop {
 
 		if (( curl_exitcode )); then
 			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
+			# shellcheck disable=SC2005
 			echo "$( < "$latest_curl_log" )"
-			log_line warning "Trying the next URL..."
+			# bc it's a pure bash cat emulation
+			echo
 		else
 			break
 		fi
+
+		(( curl_connect_timeout = 15, curl_max_time = 25 )) # much longer timeouts for all next attempts
+		(( attempts_counter++ ))
 	done
 
 	if [[ $curl_exitcode -ne 0 || -z "$response" ]]; then
