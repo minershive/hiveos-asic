@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.18'
+readonly script_version='0.6.19'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -413,7 +413,7 @@ function save_active_profile_to_cache {
 			else
 				if (( script_DEBUG )); then
 					echo -n 'Skipped, '
-					diff "$source_file" "$destination_file" && echo 'files are equal' || echo 'BUT files are different!'
+					diff "$source_file" "$destination_file" > /dev/null && echo 'files are equal' || echo 'BUT files are different!'
 				fi
 			fi
 		else
