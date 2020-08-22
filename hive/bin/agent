@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.4.4'
+readonly script_version='0.4.5'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1010,7 +1010,6 @@ function loop {
 	else
 		local response_stripped="${response//\\n/\\\\n}" # neuter the \n's
 		log_line info "Server answer: $( jq --compact-output --color-output '.result' <<< "$response_stripped" )"
-		echo
 		skip_the_sleep=1
 	fi
 
@@ -1163,11 +1162,13 @@ function do_command {
 			if [[ "${exec:0:2}" == ':;' ]]; then
 				exectimeout='nohup bash -c' # no time limit at all
 			else
-				(( time_limit = 60 * 60 * 3 ))	# 3 hrs
+				(( time_limit = 60 * 60 * 3 )) # 3 hrs tops
 				# shellcheck disable=SC2076
 				if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
+					# use Debian /usr/bin/timeout
 					exectimeout="nohup timeout $time_limit bash -c"
 				else
+					# use a BusyBox one
 					exectimeout="nohup timeout -t $time_limit bash -c"
 				fi
 			fi
@@ -1183,17 +1184,19 @@ function do_command {
 			#	fi
 			#' > "$command_log" 2>&1 &
 
-			$exectimeout '
-				agent_exec_log="/tmp/agent-exec-'"$cmd_id"'.log"
-				( '"$exec"' ) > "$agent_exec_log" 2>&1
+			local agent_exec_log="/tmp/agent-exec-$cmd_id.log"
+			#local exec_backslashed="$( backslash "$exec" )" # don't need it anymore
+
+			$exectimeout '# {agent-exec}
+				( '"$exec"' ) > "$1" 2>&1
 				exec_exitcode=$?
 				if (( exec_exitcode == 0 )); then
-					message info "'"$( backslash "$exec" )"'" --payload --id='"$cmd_id"' --silent < "$agent_exec_log"
+					message info "$0" --payload --id="$2" --silent < "$1"
 				else
-					message error "'"$( backslash "$exec" )"' (failed, exitcode=$exec_exitcode)" --payload --id='"$cmd_id"' --silent < "$agent_exec_log"
+					message error "$0 (failed, exitcode=$exec_exitcode)" --payload --id="$2" --silent < "$1"
 				fi
-				rm "$agent_exec_log" > /dev/null 2>&1
-			' > "$command_log" 2>&1 & disown
+				rm "$1" > /dev/null 2>&1
+			' "$exec" "$agent_exec_log" "$cmd_id" > "$command_log" 2>&1 & disown
 		;;
 
 		'asic_oc')
