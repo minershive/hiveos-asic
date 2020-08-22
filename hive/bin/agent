@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.4.2'
+readonly script_version='0.4.3'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -92,6 +92,33 @@ function sanitize_vars_for_argjson {
 		fi
 	done
 }
+
+function is_screen_session_running {
+	#
+	# Usage: is_screen_session_running 'screen_session_name'
+	#
+
+	# args
+	local -r screen_session_name="${1-}"
+
+	# code
+	[[ -z "$screen_session_name" ]] && return 99 ### TODO rework
+	screen -S "$screen_session_name" -X . > /dev/null
+}
+
+function screen_session_terminate {
+	#
+	# Usage: screen_session_terminate 'screen_session_name'
+	#
+
+	# args
+	local -r screen_session_name="${1-}"
+
+	# code
+	[[ -z "$screen_session_name" ]] && return 99 ### TODO rework
+	screen -S "$screen_session_name" -X quit > /dev/null
+}
+
 
 function milliseconds_to_seconds {
 	#
@@ -1138,6 +1165,11 @@ function do_command {
 		;;
 
 		'asic_oc')
+			if is_screen_session_running "$command"; then
+				screen_session_terminate "$command"
+				log_line warning "Command '$command' already running. Terminated."
+				snore 1
+			fi
 			export asic_oc="$( jq --raw-output '.asic_oc' <<< "$body" )"
 			[[ -f /config/use-new-asic-oc ]] && mv /config/use-new-asic-oc /hive-config/use-new-asic-oc # adjusting legacy location to an actual one
 			# !!!                      a secret feature vvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -1146,7 +1178,7 @@ function do_command {
 			else
 				asic_oc_cmd='asic_oc'
 			fi
-			screen -dm -S autotune bash -c '
+			screen -dm -S "$command" bash -c '
 				echo "Auto-tune parameters:"
 				echo
 				jq "." <<< "$asic_oc"
@@ -1161,8 +1193,13 @@ function do_command {
 		;;
 
 		'firmware-upgrade')
+			if is_screen_session_running "$command"; then
+				log_line warning "Command '$command' already running. Execution skipped."
+				message warning "Firmware upgrade skipped. Click for details" --payload --id="$cmd_id" --silent <<< "Previous firmware upgrade process is still running. Please wait for it to finish and then send the command again."
+				return
+			fi
 			export firmware_url="$( jq --raw-output '.firmware_url' <<< "$body" )"
-			screen -dm -S upgrade bash -c '
+			screen -dm -S "$command" bash -c '
 				firmware-upgrade "$firmware_url" 2>&1 | tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Firmware upgrade successful, rebooting..." --payload --id='"$cmd_id"' --silent < '"$command_log"'
