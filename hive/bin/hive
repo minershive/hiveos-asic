@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.0.2'
+readonly script_version='0.0.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -223,8 +223,9 @@ agent-screen dontattach
 
 echo_action 'Starting controller'
 kill_all controller
-nohup /hive/sbin/bash -c '/hive/bin/controller >> /config/hive-controller.log 2>&1' > /dev/null 2>&1 & disown # disown is esp. for Innosilicon smart-ass
-
+#nohup /hive/sbin/bash -c '/hive/bin/controller >> /config/hive-controller.log 2>&1' > /dev/null 2>&1 & disown
+# let's make it simplier:
+nohup /hive/bin/controller >> /config/hive-controller.log 2>&1 & disown # disown is esp. for Innosilicon smart-ass
 
 #bmminer is autostarted after in /etc/rcS.d
 #echo_action 'Starting miner'
