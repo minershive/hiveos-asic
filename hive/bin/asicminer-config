@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.10'
+readonly script_version='0.1.11'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -843,7 +843,7 @@ echo_info "$script_mission $script_version"
 source "$RIG_CONF"
 source "$WALLET_CONF"
 
-[[ -z "${ASICMINER_TEMPLATE-}" ]] && die 'ASICMINER_TEMPLATE is empty' 1
+[[ -z "${ASICMINER_TEMPLATE-}" ]] && die 'ASICMINER_TEMPLATE is empty (no Flight Sheet?)' 1
 [[ -z "${ASICMINER_URL-}" ]] && die 'ASICMINER_URL is empty' 1
 
 echo_action 'Generating miner config from the Flight Sheet'
