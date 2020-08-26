@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.20'
+readonly script_version='0.6.21'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -1002,7 +1002,11 @@ process_arguments "$@" # sets oc_action
 print_script_version
 save_active_profile_to_cache
 
-active_profile_description="$( get_active_profile_description )"
+if active_profile_id="$( get_active_profile_id )"; then
+	active_profile_description="$( get_description_for_profile "$active_profile_id" || echo "Profile #$active_profile_id" )"
+else
+	active_profile_description='factory'
+fi
 
 
 #
