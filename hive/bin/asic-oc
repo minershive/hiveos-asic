@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.19'
+readonly script_version='0.6.20'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -50,6 +50,7 @@ function print_script_usage {
 	echo
 	echo "   ${WHITE-}-f, --force${GRAY-}                  forced apply -- ignore cache for this profile${NOCOLOR-}"
 	echo "   ${WHITE-}-j, --json${GRAY-}                   generate JSON with active profile and list of cached profiles${NOCOLOR-}"
+	echo "   ${WHITE-}-d, --active-profile-desc${GRAY-}    prints description of the active profile${NOCOLOR-}"
 	echo "   ${WHITE-}-i, --active-profile-id${GRAY-}      prints ID of the active profile${NOCOLOR-}"
 	echo "   ${WHITE-}-l, --cached-profiles-list${GRAY-}   lists IDs of all cached profiles${NOCOLOR-}"
 	echo
@@ -93,11 +94,15 @@ function process_arguments {
 				;;
 
 				'-j'|'--json')
-					# "profile": "10", "tuned_profile": [9, 10, 11]
+					# {"profile": "10", "tuned_profile": [9, 10, 11]}
 					active_profile="$( get_active_profile_id )"
 					cached_profiles_array=( $( get_cached_profiles_ids ) )
-					echo "\"profile\": \"${active_profile:--1}\", \"tuned_profile\": [$( print_array_comma_separated 'cached_profiles_array' )]"
-					#                                     -1 for factory default profile (no profile at all)
+					echo "{\"profile\": \"${active_profile:--1}\", \"tuned_profile\": [$( print_array_comma_separated 'cached_profiles_array' )]}"
+					#                                       -1 for factory default profile (no profile at all)
+				;;
+
+				'-d'|'--active-profile-desc')
+					get_active_profile_description
 				;;
 
 				'-i'|'--active-profile-id')
@@ -184,6 +189,19 @@ function get_active_profile_id {
 	else
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
+}
+
+function get_active_profile_description {
+	# vars
+	local active_profile_id active_profile_description
+
+	# code
+	if active_profile_id="$( get_active_profile_id )"; then
+		active_profile_description="$( get_description_for_profile "$active_profile_id" || echo "Profile #$active_profile_id" )"
+	else
+		active_profile_description='factory'
+	fi
+	echo "$active_profile_description"
 }
 
 
@@ -984,11 +1002,7 @@ process_arguments "$@" # sets oc_action
 print_script_version
 save_active_profile_to_cache
 
-if active_profile_id="$( get_active_profile_id )"; then
-	active_profile_description="$( get_description_for_profile "$active_profile_id" || echo "Profile #$active_profile_id" )"
-else
-	active_profile_description='factory'
-fi
+active_profile_description="$( get_active_profile_description )"
 
 
 #
@@ -1137,7 +1151,7 @@ case "$oc_action" in
 		else
 			# does cached profile exist (and isn't empty)?
 			# ...no, cached profile does not exist (or --force argument is in use). let's generate a brand new profile.
- 			if (( forced_apply_incoming_profile_FLAG )); then
+			if (( forced_apply_incoming_profile_FLAG )); then
 				message info "$message_text. Forced apply, ignoring cached data" > /dev/null
 			else
 				message info "$message_text" > /dev/null
