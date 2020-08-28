@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.17'
+readonly script_version='0.1.18'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -269,40 +269,6 @@ function get_uid {
 	echo "$uid"
 }
 
-function get_asic_chain_count {
-	# vars
-	local asic_chain_count
-
-	# code
-
-	# shellcheck disable=SC2153
-	# ASIC_CHAIN_COUNT var from asic-model
-	if [[ -n "${ASIC_CHAIN_COUNT-}" ]]; then
-		asic_chain_count="$ASIC_CHAIN_COUNT"
-	else
-		#asic_chain_count=`echo /dev/fd/*/ | sed s/[^0-9]//g` #legacy method
-		# shellcheck disable=SC2010
-		# well that's it
-		asic_chain_count="$( ls -lLtr /dev/fd/ | grep -Fc 'rw' )"
-	fi
-
-	echo "$asic_chain_count"
-}
-
-function get_fans_count {
-	# vars
-	local fans_count
-
-	# code
-	if [[ -n "${FANS_COUNT_DEFAULT-}" ]]; then
-		fans_count="${FANS_COUNT_DEFAULT-}"
-	else
-		fans_count=2
-	fi
-
-	echo "$fans_count"
-}
-
 function get_hive_client_version {
 	# consts
 	local -r file='/hive/etc/VERSION'
@@ -321,7 +287,7 @@ function get_hive_client_version {
 	echo "$version"
 }
 
-function get_hive_client_build {
+function get_hive_client_build_version {
 	# consts
 	local -r file='/hive/etc/build'
 
@@ -345,18 +311,19 @@ function get_kernel_version {
 
 	# vars
 	local kernel_version
-	local hive_client_version hive_client_build
+	local hive_client_version hive_client_build_version
 
 	# code
 	kernel_version="$( uname --kernel-release )"
 
 	# add Hive Client's version & build to kernel info
 	hive_client_version="$( get_hive_client_version )"
-	hive_client_build="$( get_hive_client_build )"
+	hive_client_build_version="$( get_hive_client_build_version )"
 
-	if [[ -n "$hive_client_version" && -n "$hive_client_build" ]]; then
-		kernel_version+=" ($hive_client_version-$hive_client_build)"
-	elif [[ -n "$hive_client_version" && -z "$hive_client_build" ]]; then
+	# add a client release/build version
+	if [[ -n "$hive_client_version" && -n "$hive_client_build_version" ]]; then
+		kernel_version+=" ($hive_client_version-$hive_client_build_version)"
+	elif [[ -n "$hive_client_version" && -z "$hive_client_build_version" ]]; then
 		kernel_version+=" ($hive_client_version)"
 	else
 		kernel_version+=' (???)'
@@ -378,58 +345,58 @@ function serve_hiveon_model_cache {
 	# Hiveon only: model cache
 
 	# consts
-	local -r antminer_stock_version_file='/usr/bin/compile_time'
-	local -r hiveon_version_file='/usr/bin/compile_ver'
-	local -r saved_model_file='/hive-config/model'
+	local -r antminer_compile_FILE='/usr/bin/compile_time'
+	local -r hiveon_compile_FILE='/usr/bin/compile_ver'
+	local -r hiveon_model_saved_FILE='/hive-config/model'
 	local -r compile_ver_blacklist_RE='(TEST|Antminer X17|[Uu]nknown)'
 
 	# vars
-	local MODELH_detected='' MODELH_saved=''
+	local hiveon_model_detected='' hiveon_model_saved=''
 
 	# code
-	# try to get ASIC model from miner's log
-	if [[ -f "$hiveon_version_file" && -s /var/log/log ]]; then
-		MODELH_detected="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
+	# try to get ASIC model from miner's log (Series 17)
+	if [[ -f "$hiveon_compile_FILE" && -s /var/log/log ]]; then
+		hiveon_model_detected="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )"
 	fi
 
 	# remove saved model file if it contains 'TEST'
 	# shellcheck disable=SC2076
-	if [[ -s "$hiveon_version_file" && "$( < "$hiveon_version_file" )" =~ 'TEST' ]]; then
-		[[ -f "$saved_model_file" ]] && rm "$saved_model_file"
-		MODELH_detected=''
+	if [[ -s "$hiveon_compile_FILE" && "$( < "$hiveon_compile_FILE" )" =~ 'TEST' ]]; then
+		[[ -f "$hiveon_model_saved_FILE" ]] && rm "$hiveon_model_saved_FILE"
+		hiveon_model_detected=''
 	fi
 
 	# remove saved model file if it contains blacklisted words
-	if [[ -s "$saved_model_file" && "$( < "$saved_model_file" )" =~ $compile_ver_blacklist_RE ]]; then
-		rm "$saved_model_file"
+	if [[ -s "$hiveon_model_saved_FILE" && "$( < "$hiveon_model_saved_FILE" )" =~ $compile_ver_blacklist_RE ]]; then
+		rm "$hiveon_model_saved_FILE"
 	fi
 
-	if [[ -n "$MODELH_detected" ]]; then
-		if [[ "$MODELH_detected" =~ $compile_ver_blacklist_RE ]]; then
+	if [[ -n "$hiveon_model_detected" ]]; then
+		if [[ "$hiveon_model_detected" =~ $compile_ver_blacklist_RE ]]; then
 			# only warn user
-			message warning "ASIC model detected: $MODELH_detected"
-			MODELH_detected=''
+			message warning "ASIC model detected: $hiveon_model_detected"
+			hiveon_model_detected=''
 		else
-			if [[ -s "$saved_model_file" ]]; then
+			if [[ -s "$hiveon_model_saved_FILE" ]]; then
 				# if model is saved -- get a saved model
-				MODELH_saved="$( < "$saved_model_file" )"
+				hiveon_model_saved="$( < "$hiveon_model_saved_FILE" )"
 			else
-				MODELH_saved=''
+				hiveon_model_saved=''
 			fi
-			if [[ "$MODELH_saved" != "$MODELH_detected" ]]; then
+			if [[ "$hiveon_model_saved" != "$hiveon_model_detected" ]]; then
 				# if detected model is different -- save detected model to file
-				message info "ASIC model re-detected: $MODELH_detected"
-				echo "$MODELH_detected" > "$saved_model_file"
+				message info "ASIC model re-detected: $hiveon_model_detected"
+				echo "$hiveon_model_detected" > "$hiveon_model_saved_FILE"
 			fi
 		fi
 	fi
 
-	[[ -s "$saved_model_file" ]] && MODELH_detected="$( < "$saved_model_file" )"
+	[[ -s "$hiveon_model_saved_FILE" ]] && hiveon_model_detected="$( < "$hiveon_model_saved_FILE" )"
 
-	if [[ -n "$MODELH_detected" && -s "$hiveon_version_file" ]]; then
+	if [[ -n "$hiveon_model_detected" && -s "$hiveon_compile_FILE" ]]; then
 		# add 'Hiveon' to compile_* files
-		sed "2s/.*/${MODELH_detected} Hiveon/" -i "$hiveon_version_file"
-		sed "2s/.*/${MODELH_detected} Hiveon/" -i "$antminer_stock_version_file"
+		sed "2s/.*/${hiveon_model_detected} Hiveon/" -i "$hiveon_compile_FILE"
+		sed "2s/.*/${hiveon_model_detected} Hiveon/" -i "$antminer_compile_FILE"
 	fi
 }
 
@@ -466,7 +433,7 @@ function send_hello_packet {
 		curl_exitcode=$?
 
 		if (( ! curl_exitcode )); then
-		(( script_DEBUG )) && echo_debug 'Server connected [OK]'
+			(( script_DEBUG )) && echo_debug 'Server connected [OK]'
 			if [[ -n "$server_response_sanity_check" ]]; then
 				(( script_DEBUG )) && echo_debug 'Server response is not empty [OK]'
 				if jq --exit-status '.error and .error.code' <<< "$server_response_sanity_check" > /dev/null 2>&1; then
@@ -585,12 +552,10 @@ aes="$( grep -c '^Features.*aes' /proc/cpuinfo )"
 kernel="$( get_kernel_version )"
 hive_client_version="$( get_hive_client_version )"
 
-serve_hiveon_model_cache
+[[ -n "$HIVEON_VERSION" ]] && serve_hiveon_model_cache
 
 asic_json="$( get_asic_json )"
 uid="$( get_uid )"
-asic_chain_count="$( get_asic_chain_count )"
-fans_count="$( get_fans_count )"
 boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 
 
@@ -609,10 +574,10 @@ server_request_json="$(
 		--arg model "$cpu_model" --arg cores "$cpu_cores" --arg aes "$aes" \
 		--arg manufacturer "$mb_manufacturer" --arg product "$mb_product" \
 		--argjson asic "$asic_json" \
-		--arg asic_chain_count "$asic_chain_count" \
+		--arg asic_chain_count "$ASIC_CHAIN_COUNT" \
 		--arg kernel "$kernel" \
 		--arg version "$hive_client_version" \
-		--arg fans_count "$fans_count" \
+		--arg fans_count "$ASIC_FAN_COUNT" \
 		'{
 			"method": "hello", "jsonrpc": "2.0", "id": 0,
 			"params": {
@@ -682,6 +647,7 @@ received_config="$( jq --raw-output '.result.config' <<< "$server_response_json"
 if is_JSON_string_empty_or_null "$received_config"; then
 	die 'No "config" field in server response' 1
 fi
+# shellcheck disable=SC2015
 echo "$received_config" > "$RIG_CONF" && echo_ok 'Received config saved' || echo_error 'Received config NOT saved'
 # re-read rig.conf
 source "$RIG_CONF"
@@ -701,6 +667,7 @@ fi
 # Wallet config ================================================================
 received_wallet="$( jq --raw-output '.result.wallet' <<< "$server_response_json" )"
 if is_JSON_string_not_empty_or_null "$received_wallet"; then
+	# shellcheck disable=SC2015
 	echo "$received_wallet" > "$WALLET_CONF" && echo_ok 'Received wallet saved' || echo_error 'Received wallet NOT saved'
 fi
 

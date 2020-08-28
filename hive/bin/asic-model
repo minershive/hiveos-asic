@@ -10,9 +10,9 @@
 #
 
 
-readonly asic_model_script_mission='Client for ASICs: Print ASIC model and set necessary constants'
-readonly asic_model_script_version='1.1.6'
-readonly asic_model_script_basename="$( basename "$0" )"
+library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
+library_version='1.1.7'
+library_basename="$( basename "$0" )"
 
 
 # !!! bash strict mode, no unbound variables
@@ -101,6 +101,7 @@ set_HIVEON_VERSION_variable () {
 	HIVEON_VER='' # global var. deprecated in favor of the more clear HIVEON_VERSION
 	HIVEON_VERSION='' # global var. default: '', no Hiveon
 	HIVEON_VERSION_major=-1 # global var. default: -1, no Hiveon
+	HIVEON_VERSION_minor=-1 # global var. default: -1, no Hiveon
 
 	# code
 	if [ -s /usr/bin/compile_ver ]; then
@@ -108,9 +109,15 @@ set_HIVEON_VERSION_variable () {
 		# shellcheck disable=SC2034
 		HIVEON_VER="$HIVEON_VERSION" # legacy
 		# shellcheck disable=SC2034
-		# take a part before the first dot                                  vvvvvvvvvvvvvvvvvv
-		# and then remove leading zeroes, if any             vvvvvvvvvvv
-		[ -n "$HIVEON_VERSION" ] && HIVEON_VERSION_major="$( printf '%d' "${HIVEON_VERSION%%.*}" 2> /dev/null )"
+		case "$HIVEON_VERSION" in
+			*.*)
+				# take a part before the first dot                      vvvv
+				HIVEON_VERSION_major="$( printf '%g\n' "${HIVEON_VERSION%%.*}" 2> /dev/null )"
+				# take a part after the last dot                        vvvv
+				HIVEON_VERSION_minor="$( printf '%g\n' "${HIVEON_VERSION##*.}" 2> /dev/null )"
+				#                                ^^ and then remove leading zeroes, if any
+			;;
+		esac
 	fi
 }
 
@@ -121,16 +128,26 @@ function set_ASIC_constants {
 	# vars
 	local firmware_version
 
+	# defaults
+	MOUNT=''
+	ASIC_ALGO='unknown'
+	THIS_MINER_NAME='na'
+	LOG_PATH=''
+	CONFIG_PATH=''
+	HASH=''
+	MAX_FAN_RPM=6000
+	GPIO_LED_RED=''
+	ASIC_FAN_COUNT=2
+	ASIC_CHAIN_COUNT=3
+
 	# code
 	case "$ASIC_MODEL" in
 		'Antminer ' )
-			MOUNT=''
 			ASIC_ALGO='Tensority'
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='hs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		'Antminer A3' )
@@ -140,8 +157,7 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='45'
+			GPIO_LED_RED=45
 			GPIO_PATH='value'
 		;;
 
@@ -152,8 +168,7 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='45'
+			GPIO_LED_RED=45
 			GPIO_PATH='value'
 		;;
 
@@ -164,19 +179,16 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='941'
+			GPIO_LED_RED=941
 			GPIO_PATH='value'
 		;;
 
 		'Antminer E3' )
-			MOUNT=''
 			ASIC_ALGO='Ethash'
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/mnt/tmp/bmminer.log'
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		'Antminer L3+'* | 'Antminer L3++' )
@@ -186,103 +198,98 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='45'
+			GPIO_LED_RED=45
 			GPIO_PATH='value'
+			ASIC_CHAIN_COUNT=4
 		;;
 
 		'Antminer S7' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='70'
-			#GPIO_LED_RED='23'
+			GPIO_LED_RED=70
+			#GPIO_LED_RED=23
 			GPIO_PATH='direction'
 		;;
 
 		'Antminer S9' | 'Antminer S9i' | 'Antminer S9 Hydro' | 'Antminer S9j' |\
-		'Antminer S9 (vnish'* | 'Antminer S9'* | 'Antminer S10'* | 'Minecenter S9' )
-			MOUNT=''
+		'Antminer S9 (vnish'* | 'Antminer S9'* | 'Minecenter S9' )
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='37'
-			#GPIO_LED_RED='38'
+			GPIO_LED_RED=37
+			#GPIO_LED_RED=38
 			GPIO_PATH='direction'
-			FANS_COUNT_DEFAULT='2'
 		;;
 
 		'Antminer S9k'* | 'Antminer S9 SE'* )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/log/log'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='941'
+			GPIO_LED_RED=941
 			GPIO_PATH='direction'
-			FANS_COUNT_DEFAULT='2'
+		;;
+
+		'Antminer S10'* )
+			ASIC_ALGO='sha256'
+			THIS_MINER_NAME='bmminer'
+			LOG_PATH='/var/volatile/tmp/temp'
+			CONFIG_PATH='/config/bmminer.conf'
+			HASH='ghs'
+			GPIO_LED_RED=37
+			#GPIO_LED_RED=38
+			GPIO_PATH='direction'
+			ASIC_CHAIN_COUNT=6
 		;;
 
 		'Antminer S11' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/freq'
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='70'
-			#GPIO_LED_RED='71'
+			GPIO_LED_RED=70
+			#GPIO_LED_RED=71
 			GPIO_PATH='direction'
 		;;
 
 		'Antminer S15' | 'Antminer T15' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/log/log'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='941'
+			GPIO_LED_RED=941
 			GPIO_PATH='direction'
-			FANS_COUNT_DEFAULT='2'
 		;;
 
 		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17'* )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/log/log'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='941'
+			GPIO_LED_RED=941
 			GPIO_PATH='direction'
-			FANS_COUNT_DEFAULT='4'
+			ASIC_FAN_COUNT=4
 		;;
 
 		'Antminer T9+'* | 'Antminer T9'* )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
 			HASH='ghs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='70'
-			[[ "$HIVEON_VERSION" == '1.03' ]] && GPIO_LED_RED='37' # test
+			GPIO_LED_RED=70
+			[[ "$HIVEON_VERSION" == '1.03' ]] && GPIO_LED_RED=37
 			GPIO_PATH='direction'
-			FANS_COUNT_DEFAULT='2'
+			ASIC_CHAIN_COUNT=9
 		;;
 
 		'Antminer X3' )
@@ -292,8 +299,7 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='khs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='45'
+			GPIO_LED_RED=45
 			GPIO_PATH='value'
 		;;
 
@@ -304,8 +310,8 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='khs'
-			MAX_FAN_RPM='8000'
-			GPIO_LED_RED='941'
+			MAX_FAN_RPM=8000
+			GPIO_LED_RED=941
 			GPIO_PATH='value'
 		;;
 
@@ -316,8 +322,7 @@ function set_ASIC_constants {
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='khs'
-			MAX_FAN_RPM='6000'
-			GPIO_LED_RED='941'
+			GPIO_LED_RED=941
 			GPIO_PATH='value'
 			# tweak for the latest firmware
 			if firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$firmware_version" == 'Thu Oct 24 11:09:07 CST 2019' ]]; then
@@ -326,150 +331,112 @@ function set_ASIC_constants {
 		;;
 
 		'ebit' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='dwang_btc_miner'
-			LOG_PATH=''
-			CONFIG_PATH=''
 			HASH='ghs'
 			# shellcheck disable=SC2034
 			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # seems unused. will we need it later?
-			MAX_FAN_RPM='6000'
 		;;
 
 		'b29+.g19' )
-			MOUNT=''
 			ASIC_ALGO='Equihash'
 			THIS_MINER_NAME='cgminer'
-			LOG_PATH=''
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='hs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		'd9.g19' )
-			MOUNT=''
 			ASIC_ALGO='Blake256R14'
 			THIS_MINER_NAME='cgminer'
-			LOG_PATH=''
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		's11.g19' )
-			MOUNT=''
 			ASIC_ALGO='Blake2B'
 			THIS_MINER_NAME='cgminer'
-			LOG_PATH=''
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		't3.soc' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/tmp/log/cgminer.log'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='khs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		't1.g19' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/tmp/log/volAnalys0.log'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
 		;;
 
 
 		't2th+.soc' | 't2thf+.soc' | 't2thl+.soc' | 't2th.soc' | 't2tz.soc' |\
 		't2thm.soc' | 't2thf.soc' | 't2t+.soc' | 't2ts.soc' | 't2ti.soc' | 't2t.soc' |\
 		't3h+.soc' | 't3+.soc' )
-			MOUNT=''
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='journalctl'
 			CONFIG_PATH='/config/cgminer.conf'
 			HASH='mhs'
-			MAX_FAN_RPM='6000'
 			STAT_TOKEN='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ'
 			# shellcheck disable=SC2034,SC2046
 			# TODO get rid of the unquoted variables to prevent accidental word splitting
 			TEMP_TOKEN=$( echo -n $STAT_TOKEN.$( echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $( cat /tmp/jwtK ) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$// ) )
-			FANS_COUNT_DEFAULT='3'
+			ASIC_FAN_COUNT=3
 		;;
 
 		'T4.G19' )
-			MOUNT=''
 			ASIC_ALGO='CryptoNight'
 			THIS_MINER_NAME='innominer'
 			LOG_PATH='/tmp/log/innominer.log'
 			CONFIG_PATH='/home/www/conf/miner.conf'
 			HASH='khs'
-			MAX_FAN_RPM='6000'
 		;;
 
 		'Zig Z1'* )
-			MOUNT=''
 			ASIC_ALGO='lyra2v2'
 			THIS_MINER_NAME='cgminer'
-			LOG_PATH=''
 			CONFIG_PATH='/var/www/html/resources/cgminer.config'
 			HASH='mhs'
-			MAX_FAN_RPM='4000'
+			MAX_FAN_RPM=4000
 			ASIC_CHAIN_COUNT=4
 		;;
 
 		'Toddminer C1'* )
-			MOUNT=''
 			ASIC_ALGO='eaglesong'
 			THIS_MINER_NAME='cpuminer'
-			GPIO_LED_RED='168'
+			GPIO_LED_RED=168
 			GPIO_PATH='value'
-			LOG_PATH=''
 			CONFIG_PATH='/flask/sysconf/config/config.json'
 			HASH='ghs'
-			MAX_FAN_RPM='7000'
+			MAX_FAN_RPM=7000
 			# shellcheck disable=SC2076,SC2034
-			[[ "$ASIC_MODEL" =~ 'PRO' ]] && FANS_COUNT_DEFAULT='4'
+			[[ "$ASIC_MODEL" =~ 'PRO' ]] && ASIC_FAN_COUNT=4
 			# shellcheck disable=SC2034
-			ASIC_CHAIN_COUNT=3
 		;;
 
 		'Blackminer F1'* )
-			if mount | grep -q '/sdcard'; then
-				MOUNT='/sdcard'
-			else
-				MOUNT='/fpgabit'
-			fi
-			ASIC_ALGO='eaglesong'
-			THIS_MINER_NAME='cgminer'
-			LOG_PATH='/var/volatile/log/messages'
-			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
-			MAX_FAN_RPM='1500'
-			GPIO_LED_RED='23'
-			# shellcheck disable=SC2034
-			GPIO_PATH='direction'
-		;;
-
-		* )
 			# shellcheck disable=SC2034
 			{
-				MOUNT=''
-				ASIC_ALGO='unknown'
-				THIS_MINER_NAME='na'
-				LOG_PATH=''
-				CONFIG_PATH=''
-				HASH=''
-				MAX_FAN_RPM='6000'
-				GPIO_LED_RED=''
+				if mount | grep -q '/sdcard'; then
+					MOUNT='/sdcard'
+				else
+					MOUNT='/fpgabit'
+				fi
+				ASIC_ALGO='eaglesong'
+				THIS_MINER_NAME='cgminer'
+				LOG_PATH='/var/volatile/log/messages'
+				CONFIG_PATH='/config/cgminer.conf'
+				HASH='ghs'
+				MAX_FAN_RPM=1500
+				GPIO_LED_RED=23
+				GPIO_PATH='direction'
 			}
 		;;
 	esac
@@ -486,20 +453,21 @@ set_ASIC_constants "$ASIC_MODEL"
 if ! ( return 0 2>/dev/null ); then
 	# not sourced
 
-	readonly script_mission="$asic_model_script_mission"
-	readonly script_version="$asic_model_script_version"
-	readonly script_basename="$asic_model_script_basename"
+	script_mission="$library_mission"
+	script_version="$library_version"
+	# shellcheck disable=SC2034
+	script_basename="$library_basename"
 
 	source colors
 
-	#print_script_version() {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
-	echo
+	#function print_script_version {
+		echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+		echo
 	#}
 
-	#print_script_usage() {
-	#echo -e "Usage: ${CYAN-}${script_basename}${NOCOLOR-}"
-	#echo
+	#function print_script_usage {
+	#	echo -e "Usage: ${CYAN-}${script_basename}${NOCOLOR-}"
+	#	echo
 	#}
 
 	echo "ASIC manufacturer: ${WHITE-}${ASIC_MANUFACTURER}${NOCOLOR-}"
@@ -507,7 +475,7 @@ if ! ( return 0 2>/dev/null ); then
 	echo
 	echo 'ASIC configuration:'
 	echo
-	for variable_name in MOUNT ASIC_ALGO ASIC_CHAIN_COUNT THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM FANS_COUNT_DEFAULT GPIO_PATH GPIO_LED_RED; do
+	for variable_name in MOUNT ASIC_ALGO ASIC_CHAIN_COUNT THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM ASIC_FAN_COUNT GPIO_PATH GPIO_LED_RED; do
 		variable_value="${!variable_name-}"
 		[[ -z "$variable_value" ]] && echo -e -n "${GRAY-}"
 		echo -e "     $variable_name=${GREEN-}${variable_value}${NOCOLOR-}"
