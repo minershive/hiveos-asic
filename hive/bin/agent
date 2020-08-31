@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.0'
+readonly script_version='0.5.1'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -859,7 +859,10 @@ function loop {
 	fi
 
 	[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
-	[[ -z "$MINER" ]] && MINER='asicminer'
+
+	# let's send stats even if no FS applied
+	[[ -z "$MINER" || "$MINER" == 'claymore' ]] && MINER='asicminer'
+	[[ -z "$META" ]] && META='{"asicminer":{"coin":"N/A"}}'
 
 	log_line info "${custom_interval_message}Collecting stats from ${WHITE}${MINER}${NOCOLOR} API..."
 
