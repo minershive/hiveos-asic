@@ -194,13 +194,13 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_
 
 	# enable dmesg timestaps
 	echo_x action 'Enabling kernel log timestamps'
-	echo 'Y' > /sys/module/printk/parameters/time &&
+	echo 'Y' > /sys/module/printk/parameters/time
 fi
 
 
 # test enable MTU autodetect
 echo_x action 'Enabling Path MTU Discovery'
-echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing &&
+echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing
 
 
 # (test) disable avahi-daemon
