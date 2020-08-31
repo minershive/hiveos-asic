@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.0.3'
+readonly script_version='0.1.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -19,11 +19,30 @@ readonly script_basename="$( basename "$0" )"
 
 # functions
 
-function echo_ok		{ echo -e "${GRAY-}${script_basename}: ${BGREEN-}${*}${NOCOLOR-}"; }
-function echo_action	{ echo -e "${GRAY-}${script_basename}> ${WHITE-}${*}...${NOCOLOR-}"; }
-function echo_info		{ echo -e "${GRAY-}${script_basename}: ${NOCOLOR-}${*}${NOCOLOR-}"; }
-function echo_warning	{ echo -e "${GRAY-}${script_basename}: ${BYELLOW-}${*}${NOCOLOR-}"; }
-function echo_error		{ echo -e "${GRAY-}${script_basename}: ${BRED-}${*}${NOCOLOR-}"; } 1>&2
+function echo_x {
+	# args
+	local -r event_type="${1-}"
+	local -r event_message="${2-}"
+	local -r event_statement="${3-}"
+
+	# vars
+	local event_prefix statement_color event_suffix name_color="${LGRAY-}"
+
+	# code
+	case "$event_type" in
+		'ok'		)	event_prefix=':'		;	statement_color="${BGREEN-}"	;	event_suffix=''								;;
+		'action'	)	event_prefix='>'		;	statement_color="${WHITE-}"		;	event_suffix='...'							;;
+		'info'		)	event_prefix=':'		;	statement_color=''				;	event_suffix=''								;;
+		'warning'	)	event_prefix=':'		;	statement_color="${BYELLOW-}"	;	event_suffix=''								;;
+		'debug'		)	event_prefix=' [DEBUG]:';	statement_color="${BPURPLE-}"	;	event_suffix=''	;	name_color="${DGRAY-}"	;;
+		'error'		)	event_prefix=':'		;	statement_color="${BRED-}"		;	event_suffix=''								;;
+	esac
+	if [[ -z "$event_statement" ]]; then
+		echo -e "${name_color}${script_basename}${event_prefix} ${statement_color}${event_message}${event_suffix}${NOCOLOR-}"
+	else
+		echo -e "${name_color}${script_basename}${event_prefix} ${NOCOLOR-}${event_message}${event_suffix} ${statement_color}${event_statement}${NOCOLOR-}"
+	fi
+}
 
 function kill_all {
 	# args
@@ -64,28 +83,28 @@ function get_datetime_from_server {
 
 	# trying to get a datetime (every next pause will be longer and longer)
 	for (( attempts_counter = 1; attempts_counter <= max_attempts; attempts_counter++ )); do
-		server_answer="$( curl --silent --head "${HIVE_HOST_URL/https/http}" 2>&1 )" # http only
+		server_answer="$( curl --silent --connect-timeout "$attempts_counter" --retry 2 --retry-delay 0 --head "${HIVE_HOST_URL/https/http}" 2>&1 )" # http only
 		curl_exitcode=$?
 		if (( curl_exitcode )); then
-			echo_error "$( human-curl-error "$curl_exitcode" )"
-			[[ -n "$server_answer" ]] && echo_error "$server_answer"
-			echo_error "Network is lost, cannot get datetime from $HIVE_HOST_URL (attempt #$attempts_counter)"
-			sleep $(( attempts_counter ))
+			echo_x error "$( human-curl-error "$curl_exitcode" )"
+			[[ -n "$server_answer" ]] && echo_x error "$server_answer"
+			echo_x error "Connection attempt #$attempts_counter to $HIVE_HOST_URL failed, will try again in ${attempts_counter}s..."
+			sleep "$attempts_counter"
 		else
 			printf -v current_system_date_in_s '%(%s)T' -1
 			date_from_server_in_s="$( grep -Fm1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
 			difference_in_dates="$( get_absolute_difference "$current_system_date_in_s" "$date_from_server_in_s" )"
 			if (( difference_in_dates <= 3 )); then
-				echo_ok      "Current system date $( date ) (up-to-date)"
+				echo_x ok		"Current system date $( date )"	'(up-to-date)'
 			else
-				echo_warning "Current system date $( date ) (OBSOLETE)"
-				echo_ok      "System date set to  $( date -s "@$date_from_server_in_s" )"
+				echo_x warning	"Current system date $( date )"	'(OBSOLETE)'
+				echo_x ok		'System date set to '			"$( date -s "@$date_from_server_in_s" )"
 			fi
 			break
 		fi
 	done
 
-	(( curl_exitcode )) && echo_error "Unable to connect to $HIVE_HOST_URL. No attempts left."
+	(( curl_exitcode )) && echo_x error "Unable to connect to $HIVE_HOST_URL. No attempts left."
 }
 
 
@@ -95,12 +114,14 @@ function get_datetime_from_server {
 # \  /\  /  __/ / _  \  __/ (_| | |_| | | | |  __/  / /\/\ \ (_) | | |  __/ / /\/\ \ | | | |  __/ | | (_| | \__ \
 #  \/  \/ \___| \/ \_/\___|\__, |\__,_|_|_|  \___|  \/    \/\___/|_|  \___| \/    \/_|_| |_|\___|_|  \__,_|_|___/
 #                             |_|
+
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
-[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
+[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 source asic-model
 source colors
 
+# model dependend PATHs and libraries
 [[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add only if not exist
 [[ $ASIC_MODEL =~ "Antminer D3 Blissz" ]] && ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 
@@ -129,11 +150,11 @@ ${NOCOLOR-}
 
 if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL =~ "Antminer S9 SE" || $ASIC_MODEL =~ "Antminer S9k" ]]; then
 	: nothing
-	#echo_action 'Applying crontab'
+	#echo_x action 'Applying crontab'
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
-	echo_action 'Applying crontab'
+	echo_x action 'Applying crontab'
 	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
 	crontab /hive/etc/crontab.root
 	[[ $( ps aux | grep -c '[c]rond' ) -eq 0 ]] && /usr/sbin/crond
@@ -145,7 +166,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 	sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
 
 	if [[ -z "$HIVEON_VERSION" ]]; then
-		echo_action 'Patching upgrade'
+		echo_x action 'Patching upgrade'
 		cd /www/pages/cgi-bin/
 		patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch
 	fi
@@ -161,7 +182,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 		mount -t tmpfs -o size=100m tmpfs /mnt/ramdisk
 	fi
 elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer X17" ]]; then
-	#echo_action 'Applying crontab'
+	#echo_x action 'Applying crontab'
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 
@@ -172,19 +193,19 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_
 	sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
 
 	# enable dmesg timestaps
-	echo_action 'Enabling kernel log timestamps'
-	echo 'Y' > /sys/module/printk/parameters/time
+	echo_x action 'Enabling kernel log timestamps'
+	echo 'Y' > /sys/module/printk/parameters/time &&
 fi
 
 
 # test enable MTU autodetect
-echo_action 'Enabling Path MTU Discovery'
-echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing
+echo_x action 'Enabling Path MTU Discovery'
+echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing &&
 
 
 # (test) disable avahi-daemon
 if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
-	echo_action 'Stopping Avahi daemon'
+	echo_x action 'Stopping Avahi daemon'
 	[[ -f /etc/init.d/avahi ]] && /etc/init.d/avahi stop
 	[[ -f /usr/sbin/avahi-daemon ]] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon-disabled
 	# /etc/init.d/avahi stop -- does not work on some models
@@ -192,22 +213,22 @@ if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
 fi
 
 
-echo_action 'Caching a host resolve'
+echo_x action 'Caching a host resolve'
 cache-hive-ip
 
 
-echo_action 'Fetching an actual time from the server'
+echo_x action 'Fetching an actual time from the server'
 get_datetime_from_server
 
 
-echo_action 'Saying hello to the server'
+echo_x action 'Saying hello to the server'
 hello boot
 hello_exitcode=$?
 if (( hello_exitcode )); then
-	echo_error "hello failed with exitcode $hello_exitcode"
+	echo_x error "hello failed with exitcode $hello_exitcode"
 	if (( hello_exitcode > 1 )); then
 		# '> 1' do mean numerous curl errors
-		echo_action 'Detaching hello to a background screen session (until the successful connect)'
+		echo_x action 'Detaching hello to a background screen session (until the successful connect)'
 		screen -dmS 'trying_to_say_hello' /hive/sbin/bash -c \
 			'c=0; until hello boot; do printf "\n> hello failed with exitcode %u (attempt #%u), waiting 10s...\n" $? $(( ++c )); sleep 10; done |& tee /tmp/hello-boot.log'
 	fi
@@ -217,22 +238,22 @@ fi
 [[ -s $RIG_CONF ]] &&
 	source "$RIG_CONF" #will be needed to start WD later
 
-echo_action 'Starting agent screen session'
+echo_x action 'Starting agent screen session'
 agent-screen dontattach
 
 
-echo_action 'Starting controller'
+echo_x action 'Starting controller'
 kill_all controller
 #nohup /hive/sbin/bash -c '/hive/bin/controller >> /config/hive-controller.log 2>&1' > /dev/null 2>&1 & disown
 # let's make it simplier:
 nohup /hive/bin/controller >> /config/hive-controller.log 2>&1 & disown # disown is esp. for Innosilicon smart-ass
 
 #bmminer is autostarted after in /etc/rcS.d
-#echo_action 'Starting miner'
+#echo_x action 'Starting miner'
 #miner start
 
 
-echo_action 'Generating miner config'
+echo_x action 'Generating miner config'
 /hive/bin/miner config-gen
 
 
@@ -242,7 +263,7 @@ bash /hive/etc/motd
 
 
 # mission complete
-echo_ok 'Hive start finished'
+echo_x ok 'Hive start finished' 'OK'
 
 
 exit 0
