@@ -396,11 +396,12 @@ Send a message to Hive OS dashboard\
 ```message success|danger|warning|info "message"``` - send a message to the dashboard\
 ```message file /path/filename``` - send a file to the dashboard\
 ```message file.io|transfer.sh /path/filename``` - send a file to the file sharing service\
-```message tag 'your_tag'``` - tag a worker with your_tag\
+```message tag "tag_text"``` - tag a worker with any text. Inside the tag text you can use templates: ```%build%```, ```%fw%```, ```%profile%``` and ```%url%```.\
 
 ### ```miner```
 ```
-miner start|stop|restart|log
+miner start|stop|restart
+miner log [all|kernel|watchdog]
 ```
 
 ### ```selfupgrade```
