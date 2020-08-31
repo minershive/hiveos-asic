@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.4.0'
+readonly script_version='0.4.1'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -42,7 +42,7 @@ function print_script_usage {
 	echo -e "    ${CYAN}$script_basename file.io|transfer.sh /path/filename [OPTIONS]${NOCOLOR}       send a file to the file sharing service"
 	echo
 	echo -e "    ${CYAN}$script_basename tag \"your_tag\" [OPTIONS]${NOCOLOR}                           tag a worker, templates supported:"
-	echo -e "                                                               %build%, %fw% and %profile%"
+	echo -e "                                                               %build%, %fw%, %profile% and %url%"
 	echo
 	echo -e '  Options:'
 	echo
@@ -161,6 +161,12 @@ case "$message_type" in
 				'%profile%')
 					this_template_substitution="$( asic-oc status --active-profile-desc )" ||
 						this_template_substitution='unknown profile'
+				;;
+				'%url%')
+					#IFS='/' read -r _ _ this_template_substitution <<< "$HIVE_HOST_URL" # extract a domain name
+					#
+					# i think it should be an FQN
+					this_template_substitution="$HIVE_HOST_URL"
 				;;
 			esac
 			if [[ -n "$this_template_substitution" ]]; then
