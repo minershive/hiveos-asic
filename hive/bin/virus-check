@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.6.0'
+readonly script_version='0.6.1'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -326,7 +326,12 @@ function check_system_files {
 	local -r label_text='system file md5'
 	local -r -A files_to_check=(
 		['/usr/bin/ntpd']='bb965c01fbba97604b94813fcdaa0829 94699039a78b6ee320b2e1a5c436527a e5b8378fc39c16f4adbf0503fa988d6f'
-		['/lib/modules/bitmain_axi.ko']='e78d5effe8c1e4afd1cf514ba23844d1 f552505dcf1e7c61be414a40d6352684 27a0a0bfeee0d919ef03ba534caab51c'
+		#                                                   # Z11e stock
+		['/lib/modules/bitmain_axi.ko']='e78d5effe8c1e4afd1cf514ba23844d1 f552505dcf1e7c61be414a40d6352684 27a0a0bfeee0d919ef03ba534caab51c f2517c6f9554babeb1cfca7ac55aed2d'
+		#                                S9 Hiveon 1.02/1.03, T9 Hiveon 1.03
+		#                                                                 S17/S17 Pro/S17E Hiveon
+		#                                                                                                  T9 1.02@190810
+		#                                                                                                                                   Z11e stock @ 20191023
 	)
 
 	# vars
@@ -337,10 +342,12 @@ function check_system_files {
 		if [[ -f "$this_file_name" ]]; then
 			this_file_size="$( get_file_size_in_bytes "$this_file_name" )"
 			this_file_md5="$( get_md5sum_of_file "$this_file_name" )"
-			if [[ "${files_to_check[$this_file_name]}" =~ "$this_file_md5" ]]; then
+			if [[ -z "$this_file_md5" || "${#this_file_md5}" != 32 ]]; then
+				pretty_table_row "$label_text" "${BRED-}" "$this_file_name ($this_file_size bytes) has INVALID md5: '$this_file_md5'"
+			elif [[ "${files_to_check[$this_file_name]}" == *"$this_file_md5"* ]]; then
 				pretty_table_row "$label_text" "${GREEN-}" "$this_file_name OK"
 			else
-				pretty_table_row "$label_text" "${BRED-}" "$this_file_name FAIL: $this_file_md5, $this_file_size bytes"
+				pretty_table_row "$label_text" "${BRED-}" "$this_file_name ($this_file_size bytes) has UNKNOWN md5: '$this_file_md5'"
 				set_bits_by_mask audit_status status_WARNING
 			fi
 		fi
