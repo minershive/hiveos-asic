@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.11'
+readonly script_version='0.1.12'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -523,6 +523,28 @@ function generate_miner_configuration {
 			}'
 		;;
 
+		'Antminer Z11e' )
+			#
+			# pure defaults for "Wed Oct 23 11:07:07 CST 2019" fw:
+			#
+			# "api-listen": "true",
+			# "api-network": "true",
+			# "api-allow": "W:0/0",
+			# "bitmain-freq": "18:218.75:1106",
+			# "bitmain-voltage": "0725"
+			#
+			# and then after Save & Apply:
+			#
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*",
+				"bitmain-use-vil": true,
+				"bitmain-freq": "18:218.75:1106"
+			}'
+		;;
+
 		'Antminer Z11 Nitrous' )
 			config_global='{
 				"api-listen": true,
@@ -750,6 +772,16 @@ function generate_miner_configuration {
 				"api-allow": "A:0/0,W:*"
 			}'
 		;;
+
+		*)
+			config_global='{
+				"api-listen": true,
+				"api-network": true,
+				"api-groups": "A:stats:pools:devs:summary:version",
+				"api-allow": "A:0/0,W:*"
+			}'
+			echo_warning "Unknown model '$ASIC_MODEL', using generic config" 1>&2
+		;;
 	esac
 
 	config_global="${config_global//$'\t'/}" # remove tabs
@@ -835,7 +867,7 @@ declare generated_miner_configuration key_filter
 
 parse_arguments "$@"
 
-echo_info "$script_mission $script_version"
+echo_info "${YELLOW-}$script_mission, version $script_version"
 
 [[ ! -f "$RIG_CONF" ]] && die "Rig config $RIG_CONF not found" 1
 [[ ! -f "$WALLET_CONF" ]] && die "Wallet $WALLET_CONF not found" 1
@@ -847,9 +879,9 @@ source "$WALLET_CONF"
 [[ -z "${ASICMINER_URL-}" ]] && die 'ASICMINER_URL is empty' 1
 
 echo_action 'Generating miner config from the Flight Sheet'
-generated_miner_configuration="$( generate_miner_configuration )"
-
-if [[ -z "$generated_miner_configuration" ]]; then
+if generated_miner_configuration="$( generate_miner_configuration )" && [[ -n "$generated_miner_configuration" ]]; then
+	: ok good to go
+else
 	die 'Cannot generate config, exiting' 1
 fi
 
