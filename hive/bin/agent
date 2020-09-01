@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.2'
+readonly script_version='0.5.3'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1165,7 +1165,7 @@ function do_command {
 			exec="$( jq --raw-output '.exec' <<< "$body" )"
 
 			# let's inform the user that the command is received
-			message default "$exec (running, id: $cmd_id)" --id="$cmd_id" --verbose
+			#message default "$exec (running, id: $cmd_id)" --id="$cmd_id" --verbose
 
 			case "$exec" in
 				'hssh start')
@@ -1221,9 +1221,9 @@ function do_command {
 				( '"$exec"' ) > "$1" 2>&1
 				exec_exitcode=$?
 				if (( exec_exitcode == 0 )); then
-					message info "$0 (result, id: $2)" --payload --id="$2" < "$1"
+					message info "$0" --payload --id="$2" --silent < "$1"
 				else
-					message error "$0 [$2] (failed, exitcode=$exec_exitcode)" --payload --id="$2" < "$1"
+					message error "$0 (failed, exitcode=$exec_exitcode)" --payload --id="$2" --silent < "$1"
 				fi
 				rm "$1" > /dev/null 2>&1
 			' "$exec" "$agent_exec_log" "$cmd_id" > "$command_log" 2>&1 & disown
