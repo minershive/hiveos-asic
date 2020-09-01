@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.18'
+readonly script_version='0.16.19'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -614,7 +614,7 @@ execute_install_routine () {
 		'Antminer DR3'			|\
 		'Antminer L3++'			|\
 		'Antminer S7'			|\
-		'Antminer X3')			echo "$ASIC_MODEL";				do_install_for 'antminer_cgminer'		;;
+		'Antminer X3')			echo "$ASIC_MODEL"			;	do_install_for 'antminer_cgminer'		;;
 
 		'Antminer E3'			|\
 		'Antminer S9 Hydro'		|\
@@ -623,66 +623,66 @@ execute_install_routine () {
 		'Antminer S9j'			|\
 		'Antminer S11'			|\
 		'Antminer T9'			|\
-		'Minecenter S9')		echo "$ASIC_MODEL";				do_install_for 'antminer_bmminer'		;;
+		'Minecenter S9')		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
 
 		'Antminer S9 SE'*		|\
 		'Antminer S9k'*			|\
 		'Antminer S15'			|\
-		'Antminer T15')			echo "$ASIC_MODEL";				do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer T15')			echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
 
-		'Antminer Z9-Mini')		echo "$ASIC_MODEL";				do_install_for 'antminer_Z9_cgminer'	;;
+		'Antminer Z9-Mini')		echo "$ASIC_MODEL"			;	do_install_for 'antminer_Z9_cgminer'	;;
 
-		'Antminer ')			echo 'Antminer B3';				do_install_for 'antminer_bmminer'		;;
+		'Antminer ')			echo 'Antminer B3'			;	do_install_for 'antminer_bmminer'		;;
 
 		# Antminer, partial match
 
-		'Antminer D3 Blissz'*)	echo 'Antminer D3 Blissz';		do_install_for 'antminer_cgminer'		;;
-		'Antminer L3+'*)		echo 'Antminer L3+';			do_install_for 'antminer_cgminer'		;;
-		'Antminer S9 (vnish'*)	echo 'Antminer S9 vnish';		do_install_for 'antminer_bmminer'		;;
-		'Antminer S9'*)			echo 'Antminer S9';				do_install_for 'antminer_bmminer'		;;
-		'Antminer S10'*)		echo 'Antminer S10';			do_install_for 'antminer_bmminer'		;;
-		'Antminer S17'*)		echo 'Antminer S17';			do_install_for 'antminer_bmminer_ro'	;;
-		'Antminer T9+'*)		echo 'Antminer T9+';			do_install_for 'antminer_bmminer'		;;
-		'Antminer T9'*)			echo 'Antminer T9';				do_install_for 'antminer_bmminer'		;;
-		'Antminer T17'*)		echo 'Antminer T17';			do_install_for 'antminer_bmminer_ro'	;;
-		'Antminer X17'*)		echo 'Antminer X17';			do_install_for 'antminer_bmminer_ro'	;;
-		'Antminer Z9'*)			echo 'Antminer Z9';				do_install_for 'antminer_Z9_cgminer'	;;
-		'Antminer Z11'*)		echo 'Antminer Z11';			do_install_for 'antminer_Z9_cgminer'	;;
+		'Antminer D3 Blissz'*)	echo "$ASIC_MODEL"			;	do_install_for 'antminer_cgminer'		;;
+		'Antminer L3+'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_cgminer'		;;
+		'Antminer S9 (vnish'*)	echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
+		'Antminer S9'*)			echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
+		'Antminer S10'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
+		'Antminer S17'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer T9+'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
+		'Antminer T9'*)			echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
+		'Antminer T17'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer X17'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer Z9'*)			echo "$ASIC_MODEL"			;	do_install_for 'antminer_Z9_cgminer'	;;
+		'Antminer Z11'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_Z9_cgminer'	;;
 
 		# Innosilicon, dragonMint
 
-		'b29+.g19')				echo 'Innosilicon A9';			do_install_for 'innosilicon'			;;
-		'd9.g19')				echo 'Innosilicon D9';			do_install_for 'innosilicon'			;;
-		's11.g19')				echo 'Innosilicon S11';			do_install_for 'innosilicon'			;;
-		't2th.soc')				echo 'Innosilicon T2Th';		do_install_for 'innosilicon'			;;
-		't2thf.soc')			echo 'Innosilicon T2Thf';		do_install_for 'innosilicon'			;;
-		't2thm.soc')			echo 'Innosilicon T2Thm';		do_install_for 'innosilicon'			;;
-		't2t.soc')				echo 'Innosilicon T2T-24T';		do_install_for 'innosilicon'			;;
+		'b29+.g19')				echo 'Innosilicon A9'		;	do_install_for 'innosilicon'			;;
+		'd9.g19')				echo 'Innosilicon D9'		;	do_install_for 'innosilicon'			;;
+		's11.g19')				echo 'Innosilicon S11'		;	do_install_for 'innosilicon'			;;
+		't2th.soc')				echo 'Innosilicon T2Th'		;	do_install_for 'innosilicon'			;;
+		't2thf.soc')			echo 'Innosilicon T2Thf'	;	do_install_for 'innosilicon'			;;
+		't2thm.soc')			echo 'Innosilicon T2Thm'	;	do_install_for 'innosilicon'			;;
+		't2t.soc')				echo 'Innosilicon T2T-24T'	;	do_install_for 'innosilicon'			;;
 		't2t+.soc')				echo 'Innosilicon T2T+(32T)';	do_install_for 'innosilicon'			;;
-		't2th+.soc')			echo 'Innosilicon T2TH+';		do_install_for 'innosilicon'			;;
-		't2thf+.soc')			echo 'Innosilicon T2THf+';		do_install_for 'innosilicon'			;;
-		't2thl+.soc')			echo 'Innosilicon T2THl+';		do_install_for 'innosilicon'			;;
-		't2ti.soc')				echo 'Innosilicon T2Ti-25T';	do_install_for 'innosilicon'			;;
-		't2ts.soc')				echo 'Innosilicon T2Ts-26T';	do_install_for 'innosilicon'			;;
-		't2tz.soc')				echo 'Innosilicon T2Tz-30T';	do_install_for 'innosilicon'			;;
-		't3.soc')				echo 'Innosilicon T3';			do_install_for 'innosilicon'			;;
-		't3+.soc')				echo 'Innosilicon T3+';			do_install_for 'innosilicon'			;;
-		't3h+.soc')				echo 'Innosilicon T3H+';		do_install_for 'innosilicon'			;;
-		'T4.G19')				echo 'Innosilicon A8';			do_install_for 'innosilicon_innominer'	;;
-		't1.g19')				echo 'DragonMint T1';			do_install_for 'dragonMint'	;;
+		't2th+.soc')			echo 'Innosilicon T2TH+'	;	do_install_for 'innosilicon'			;;
+		't2thf+.soc')			echo 'Innosilicon T2THf+'	;	do_install_for 'innosilicon'			;;
+		't2thl+.soc')			echo 'Innosilicon T2THl+'	;	do_install_for 'innosilicon'			;;
+		't2ti.soc')				echo 'Innosilicon T2Ti-25T'	;	do_install_for 'innosilicon'			;;
+		't2ts.soc')				echo 'Innosilicon T2Ts-26T'	;	do_install_for 'innosilicon'			;;
+		't2tz.soc')				echo 'Innosilicon T2Tz-30T'	;	do_install_for 'innosilicon'			;;
+		't3.soc')				echo 'Innosilicon T3'		;	do_install_for 'innosilicon'			;;
+		't3+.soc')				echo 'Innosilicon T3+'		;	do_install_for 'innosilicon'			;;
+		't3h+.soc')				echo 'Innosilicon T3H+'		;	do_install_for 'innosilicon'			;;
+		'T4.G19')				echo 'Innosilicon A8'		;	do_install_for 'innosilicon_innominer'	;;
+		't1.g19')				echo 'DragonMint T1'		;	do_install_for 'dragonMint'				;;
 
 		# Zig
 
 		'Zig Z1+'				|\
-		'Zig Z1')				echo "$ASIC_MODEL";				do_install_for 'zig'					;;
+		'Zig Z1')				echo "$ASIC_MODEL"			;	do_install_for 'zig'					;;
 
 		# Todek Toddminer C1 and C1 PRO eaglesong ASICs
 
-		'Toddminer C1'*)		echo "$ASIC_MODEL";				do_install_for 'todd'					;;
+		'Toddminer C1'*)		echo "$ASIC_MODEL"			;	do_install_for 'todd'					;;
 
 		# HashAltCoin FPGA Blackminer F1 series (multialgo)
 
-		'Blackminer F1'*)		echo "$ASIC_MODEL";				do_install_for 'antminer_cgminer'		;;
+		'Blackminer F1'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_cgminer'		;;
 
 		# unknown
 
@@ -1422,7 +1422,7 @@ get_remote_version_of () {
 		if [ "$bulk_download_mode_FLAG" -eq 1 ]; then
 			downloader_output="$( curl --insecure --location --fail --silent --show-error --connect-timeout 15 --retry 10 "$download_URL" 2>&1 )"
 		else
-			downloader_output="$( curl --insecure --location --fail --silent --show-error --connect-timeout 7 --retry 5 --retry-delay 0 --max-time 35 "$download_URL" 2>&1 )" # 10 seconds tops
+			downloader_output="$( curl --insecure --location --fail --silent --show-error --connect-timeout 7 --retry 5 --max-time 35 "$download_URL" 2>&1 )" # 10 seconds tops
 		fi
 	else
 		downloader_output="$( wget --quiet --output-document=- "$download_URL" 2>&1 )"
