@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.1'
+readonly script_version='0.5.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -355,7 +355,7 @@ function get_miner_stats {
 	stats=''			# global
 
 	algo="$ASIC_ALGO"
-	hs_units="$HASH"
+	hs_units="$HASH_UNITS"
 	# shellcheck disable=SC2153
 	# ...bc MAX_FAN_RPM var is from asic-model
 	max_fan_rpm="$MAX_FAN_RPM"
@@ -381,9 +381,15 @@ function get_miner_stats {
 				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API (like S9): '}{' -> '},{'
 
 				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
 				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH" khs_av
+
+				if [[ -z "$HASH_TOTAL_UNITS" ]]; then
+					reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
+					reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH_UNITS" khs_av
+				else
+					reduce_hashrate_to_khs "$hashrate_raw" "$HASH_TOTAL_UNITS" khs
+					reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH_TOTAL_UNITS" khs_av
+				fi
 
 				system_status="$( ant-functions hiveon_status "$STATS" )"
 
@@ -466,9 +472,15 @@ function get_miner_stats {
 				#fi
 
 				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
 				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH" khs_av
+
+				if [[ -z "$HASH_TOTAL_UNITS" ]]; then
+					reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
+					reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH_UNITS" khs_av
+				else
+					reduce_hashrate_to_khs "$hashrate_raw" "$HASH_TOTAL_UNITS" khs
+					reduce_hashrate_to_khs "$hashrate_raw_avg" "$HASH_TOTAL_UNITS" khs_av
+				fi
 
 				system_status="$( ant-functions hiveon_status "$STATS" )"
 
@@ -532,7 +544,7 @@ function get_miner_stats {
 				STATS="$( jq --compact-output '.STATS' <<< "$stats_raw" )"
 
 				hashrate_raw="$( jq --raw-output '.[0]."MHS 30S"' <<< "$STATS" )"
-				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
 
 				uptime="$(		jq --raw-output		'.[0].Elapsed'																																												<<< "$STATS" )"
 				hs="$(			jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | ."MHS 30S"]'															<<< "$STATS" )" || error_vars+=( "hs#$?" )
@@ -584,7 +596,7 @@ function get_miner_stats {
 				#fi
 
 				hashrate_raw="$( jq --raw-output '.[-1] | .[] | add' < /tmp/stats.json )"
-				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
 
 				uptime="$(		jq --raw-output		'.[0].Elapsed'																											<<< "$STATS"		)"
 				hs="$(			jq --raw-output		'[.[-1] | .[] | .[]]'																									< /tmp/stats.json	)" || error_vars+=( "hs#$?" )
@@ -624,7 +636,7 @@ function get_miner_stats {
 				#fi
 
 				hashrate_raw="$( jq --raw-output '[.[]["MHS av"]] | add' <<< "$STATS" )"
-				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
 
 				uptime="$(		jq --raw-output		'.[0]["Device Elapsed"]'																	<<< "$STATS" )"
 				hs="$(			jq --compact-output	'[.[] | with_entries( select(.key | test("MHS 5s")) )			| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "hs#$?" )
@@ -652,7 +664,7 @@ function get_miner_stats {
 		'Toddminer C1'*)
 			stats="$( todd_api stats )"
 			hashrate_raw="$( jq '.hs | add' <<< "$stats" )"
-			reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+			reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
 			# shellcheck disable=SC2071
 			# bc of float comparison
 			[[ "$khs" > '0' ]] && system_status='mining'
@@ -682,7 +694,7 @@ function get_miner_stats {
 
 				algo="$ASIC_ALGO"
 				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				reduce_hashrate_to_khs "$hashrate_raw" "$HASH" khs
+				reduce_hashrate_to_khs "$hashrate_raw" "$HASH_UNITS" khs
 
 				process_pools || return
 
@@ -1152,11 +1164,13 @@ function do_command {
 		'exec')
 			exec="$( jq --raw-output '.exec' <<< "$body" )"
 
+			# let's inform the user that the command is received
+			message default "$exec (running, id: $cmd_id)" --id="$cmd_id" --verbose
+
 			case "$exec" in
 				'hssh start')
 					unset TMUX # !!! duct tape
 				;;
-
 				'sreboot shutdown')
 					shutdown_fuse_file="/tmp/${script_basename}-shutdown-fuse.lock"
 					if [[ ! -f "$shutdown_fuse_file" ]]; then
@@ -1207,9 +1221,9 @@ function do_command {
 				( '"$exec"' ) > "$1" 2>&1
 				exec_exitcode=$?
 				if (( exec_exitcode == 0 )); then
-					message info "$0" --payload --id="$2" --silent < "$1"
+					message info "$0 (result, id: $2)" --payload --id="$2" < "$1"
 				else
-					message error "$0 (failed, exitcode=$exec_exitcode)" --payload --id="$2" --silent < "$1"
+					message error "$0 [$2] (failed, exitcode=$exec_exitcode)" --payload --id="$2" < "$1"
 				fi
 				rm "$1" > /dev/null 2>&1
 			' "$exec" "$agent_exec_log" "$cmd_id" > "$command_log" 2>&1 & disown

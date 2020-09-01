@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.1.8'
+library_version='1.1.9'
 library_basename="$( basename "$0" )"
 
 
@@ -134,7 +134,8 @@ function set_ASIC_constants {
 	THIS_MINER_NAME='na'
 	LOG_PATH=''
 	CONFIG_PATH=''
-	HASH=''
+	HASH_UNITS=''
+	HASH_TOTAL_UNITS='' # in case there's a difference between total hashrate units and chain hashrate units (like new Z11 fw)
 	MAX_FAN_RPM=6000
 	GPIO_LED_RED=''
 	ASIC_FAN_COUNT=2
@@ -147,7 +148,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
-			HASH='hs'
+			HASH_UNITS='hs'
 		;;
 
 		'Antminer A3' )
@@ -156,7 +157,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=45
 			GPIO_PATH='value'
 		;;
@@ -167,7 +168,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 			GPIO_LED_RED=45
 			GPIO_PATH='value'
 		;;
@@ -178,7 +179,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=941
 			GPIO_PATH='value'
 		;;
@@ -188,7 +189,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/mnt/tmp/bmminer.log'
 			CONFIG_PATH='/config/bmminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 		;;
 
 		'Antminer L3+'* | 'Antminer L3++' )
@@ -197,7 +198,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 			GPIO_LED_RED=45
 			GPIO_PATH='value'
 			ASIC_CHAIN_COUNT=4
@@ -208,7 +209,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=70
 			#GPIO_LED_RED=23
 			GPIO_PATH='direction'
@@ -220,7 +221,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=37
 			#GPIO_LED_RED=38
 			GPIO_PATH='direction'
@@ -231,7 +232,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/log/log'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=941
 			GPIO_PATH='direction'
 		;;
@@ -241,7 +242,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=37
 			#GPIO_LED_RED=38
 			GPIO_PATH='direction'
@@ -253,7 +254,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/freq'
 			CONFIG_PATH='/config/bmminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=70
 			#GPIO_LED_RED=71
 			GPIO_PATH='direction'
@@ -264,7 +265,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/log/log'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=941
 			GPIO_PATH='direction'
 		;;
@@ -274,7 +275,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/log/log'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=941
 			GPIO_PATH='direction'
 			ASIC_FAN_COUNT=4
@@ -285,7 +286,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='bmminer'
 			LOG_PATH='/var/volatile/tmp/temp'
 			CONFIG_PATH='/config/bmminer.conf'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			GPIO_LED_RED=70
 			[[ "$HIVEON_VERSION" == '1.03' ]] && GPIO_LED_RED=37
 			GPIO_PATH='direction'
@@ -298,7 +299,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='khs'
+			HASH_UNITS='khs'
 			GPIO_LED_RED=45
 			GPIO_PATH='value'
 		;;
@@ -309,7 +310,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='khs'
+			HASH_UNITS='khs'
 			MAX_FAN_RPM=8000
 			GPIO_LED_RED=941
 			GPIO_PATH='value'
@@ -321,19 +322,19 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/var/volatile/log/messages'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='khs'
+			HASH_UNITS='khs'
 			GPIO_LED_RED=941
 			GPIO_PATH='value'
 			# HASH tweak for the latest firmware
 			if firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$firmware_version" == *'Oct'*'2019' ]]; then
-				HASH='hs'
+				HASH_TOTAL_UNITS='hs'
 			fi
 		;;
 
 		'ebit' )
 			ASIC_ALGO='sha256'
 			THIS_MINER_NAME='dwang_btc_miner'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			# shellcheck disable=SC2034
 			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # seems unused. will we need it later?
 		;;
@@ -342,21 +343,21 @@ function set_ASIC_constants {
 			ASIC_ALGO='Equihash'
 			THIS_MINER_NAME='cgminer'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='hs'
+			HASH_UNITS='hs'
 		;;
 
 		'd9.g19' )
 			ASIC_ALGO='Blake256R14'
 			THIS_MINER_NAME='cgminer'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 		;;
 
 		's11.g19' )
 			ASIC_ALGO='Blake2B'
 			THIS_MINER_NAME='cgminer'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 		;;
 
 		't3.soc' )
@@ -364,7 +365,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/tmp/log/cgminer.log'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='khs'
+			HASH_UNITS='khs'
 		;;
 
 		't1.g19' )
@@ -372,7 +373,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='/tmp/log/volAnalys0.log'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 		;;
 
 
@@ -383,7 +384,7 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='cgminer'
 			LOG_PATH='journalctl'
 			CONFIG_PATH='/config/cgminer.conf'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 			STAT_TOKEN='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ'
 			# shellcheck disable=SC2034,SC2046
 			# TODO get rid of the unquoted variables to prevent accidental word splitting
@@ -396,14 +397,14 @@ function set_ASIC_constants {
 			THIS_MINER_NAME='innominer'
 			LOG_PATH='/tmp/log/innominer.log'
 			CONFIG_PATH='/home/www/conf/miner.conf'
-			HASH='khs'
+			HASH_UNITS='khs'
 		;;
 
 		'Zig Z1'* )
 			ASIC_ALGO='lyra2v2'
 			THIS_MINER_NAME='cgminer'
 			CONFIG_PATH='/var/www/html/resources/cgminer.config'
-			HASH='mhs'
+			HASH_UNITS='mhs'
 			MAX_FAN_RPM=4000
 			ASIC_CHAIN_COUNT=4
 		;;
@@ -414,7 +415,7 @@ function set_ASIC_constants {
 			GPIO_LED_RED=168
 			GPIO_PATH='value'
 			CONFIG_PATH='/flask/sysconf/config/config.json'
-			HASH='ghs'
+			HASH_UNITS='ghs'
 			MAX_FAN_RPM=7000
 			# shellcheck disable=SC2076,SC2034
 			[[ "$ASIC_MODEL" =~ 'PRO' ]] && ASIC_FAN_COUNT=4
@@ -433,7 +434,7 @@ function set_ASIC_constants {
 				THIS_MINER_NAME='cgminer'
 				LOG_PATH='/var/volatile/log/messages'
 				CONFIG_PATH='/config/cgminer.conf'
-				HASH='ghs'
+				HASH_UNITS='ghs'
 				MAX_FAN_RPM=1500
 				GPIO_LED_RED=23
 				GPIO_PATH='direction'
@@ -475,7 +476,7 @@ if ! ( return 0 2>/dev/null ); then
 	echo
 	echo 'ASIC configuration:'
 	echo
-	for variable_name in MOUNT ASIC_ALGO ASIC_CHAIN_COUNT THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM ASIC_FAN_COUNT GPIO_PATH GPIO_LED_RED; do
+	for variable_name in MOUNT ASIC_ALGO ASIC_CHAIN_COUNT THIS_MINER_NAME LOG_PATH CONFIG_PATH HASH_UNITS HASH_TOTAL_UNITS LOCALIP STAT_TOKEN TEMP_TOKEN MAX_FAN_RPM ASIC_FAN_COUNT GPIO_PATH GPIO_LED_RED; do
 		variable_value="${!variable_name-}"
 		[[ -z "$variable_value" ]] && echo -e -n "${GRAY-}"
 		echo -e "     $variable_name=${GREEN-}${variable_value}${NOCOLOR-}"
