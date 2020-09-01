@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.1.7'
+library_version='1.1.8'
 library_basename="$( basename "$0" )"
 
 
@@ -324,8 +324,8 @@ function set_ASIC_constants {
 			HASH='khs'
 			GPIO_LED_RED=941
 			GPIO_PATH='value'
-			# tweak for the latest firmware
-			if firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$firmware_version" == 'Thu Oct 24 11:09:07 CST 2019' ]]; then
+			# HASH tweak for the latest firmware
+			if firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$firmware_version" == *'Oct'*'2019' ]]; then
 				HASH='hs'
 			fi
 		;;
