@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.5'
+readonly script_version='1.1.6'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -17,9 +17,10 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 # functions
 
 function script_usage {
-	echo -e "Usage: ${CYAN}$script_basename [start|stop|restart|config|config-gen]${NOCOLOR}"
-	echo -e "       ${CYAN}$script_basename log [kernel|status|tuning|watchdog|all]${NOCOLOR} - display a corresponding log"
-	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                                  - deprecated, please do not use"
+	echo -e "Usage: ${CYAN}$script_basename [start|stop|restart|config-gen]${NOCOLOR}"
+	echo -e "       ${CYAN}$script_basename config [raw]${NOCOLOR}                               display a miner config"
+	echo -e "       ${CYAN}$script_basename log [kernel|status|tuning|watchdog|all]${NOCOLOR}    display a corresponding log"
+	echo -e "       ${CYAN}$script_basename tuning${NOCOLOR}                                     deprecated, please do not use"
 	echo
 	echo -e "If you run ${CYAN}$script_basename${NOCOLOR} without parameters the miner screen will be tried to resume"
 }
@@ -34,6 +35,15 @@ function print_config {
 	# shows miner config
 	if [[ -n "$CONFIG_PATH" ]]; then
 		tail_any_log "$CONFIG_PATH"
+	else
+		echo "Unknown model $ASIC_MODEL"
+	fi
+}
+
+function print_config_raw {
+	# shows miner config without a decoration
+	if [[ -n "$CONFIG_PATH" ]]; then
+		cat "$CONFIG_PATH"
 	else
 		echo "Unknown model $ASIC_MODEL"
 	fi
@@ -390,10 +400,20 @@ if [[ "$MINER" != 'asicminer' ]]; then
 fi
 
 case "$1" in
-	'config')			print_config		;;
-	'config-gen')		generate_config		;;
+	'config')
+		case "$2" in
+			'raw')			print_config_raw					;;
+			*)				print_config						;;
+		esac
+	;;
 
-	'kernel-log')		print_kernel_log	;;	# deprecated
+	'config-gen')
+		generate_config
+	;;
+
+	'kernel-log')		# deprecated
+		print_kernel_log
+	;;	
 
 	'log')
 		case "$2" in
