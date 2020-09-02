@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.51'
+readonly script_version='2.1.52'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1111,6 +1111,7 @@ function sync_time_via_hive_server { # not used atm
 # checkup:is_hiveon_config_in_sync
 # checkup:is_build_updated
 # checkup:is_virus_found
+# checkup:is_there_JFFS2_error
 # checkup:is_NAND_in_RO_mode
 # checkup:is_overclock_profile_exist
 # checkup:are_logs_updated
@@ -1515,7 +1516,42 @@ function checkup:is_NAND_in_RO_mode {																(( script_DEBUG )) && debug
 			fi
 		done
 	else
-		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED )) # i'm not sure that's right
+	fi
+
+	return $(( is_something_happened ))
+}
+
+function checkup:is_there_JFFS2_error {															(( script_DEBUG )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'			# error|warning|info
+	local -r event_type_for_message='warning'		# error|warning|info|success
+	local -r message_header='Filesystem CRC error. Click for technical details'
+
+	# consts
+
+	local -r jffs2_errors_RE='jffs2.+(wrong|crc|fail)'
+
+	# vars
+
+	local jffs2_errors_list message_body
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# code
+
+	if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
+		# one time action
+		if jffs2_errors_list="$( dmesg | grep -Ei "$jffs2_errors_RE" )" && [[ -n "$jffs2_errors_list" ]]; then
+			printf -v message_body "NAND CRC error. ASIC's control board may need a service in the very near future.\nLog:\n%s" "$jffs2_errors_list"
+			print_controller_log_entry "$event_type_for_log" "$message_header"
+			message "$event_type_for_message" "$message_header" --silent --payload <<< "$message_body"
+			set_checkup_counter "$FUNCNAME" 'message_sent' 1
+			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+		fi
+	else
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED )) # i'm not sure that's right
 	fi
 
 	return $(( is_something_happened ))
@@ -1919,6 +1955,7 @@ declare -a crontab=(
 	'* * * * *		checkup:is_overclock_profile_exist'
 	'* * * * *		checkup:is_hiveon_config_in_sync'
 	'*/5 * * * *	execute:agent_screen_dontattach'
+	'*/5 * * * *	checkup:is_there_JFFS2_error'
 	'@hourly		checkup:is_NAND_in_RO_mode'
 	'@hourly		execute:cache_hive_ip'
 	'@midnight		print_checkup_summary_report'
