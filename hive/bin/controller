@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.53'
+readonly script_version='2.1.54'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1528,7 +1528,7 @@ function checkup:is_there_JFFS2_error {															(( script_DEBUG )) && debu
 
 	local -r event_type_for_log='warning'			# error|warning|info
 	local -r event_type_for_message='warning'		# error|warning|info|success
-	local -r message_header='Filesystem CRC error detected. Click for technical details'
+	local -r message_header='NAND flash error detected. Click for technical details'
 
 	# consts
 
@@ -1544,7 +1544,7 @@ function checkup:is_there_JFFS2_error {															(( script_DEBUG )) && debu
 	if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
 		# one time action
 		if jffs2_errors_list="$( dmesg | grep -Ei "$jffs2_errors_RE" )" && [[ -n "$jffs2_errors_list" ]]; then
-			printf -v message_body "NAND CRC error detected. ASIC's control board may need a service in the very near future.\n\nErrors:\n\n%s" "$jffs2_errors_list"
+			printf -v message_body "It could be in connection with an unclean reboot OR, rarely, with a NAND wear and tear. The first is completely harmless, but the second does suggest that the ASIC's control board may need a service or replacement in the very near future.\n\nErrors:\n\n%s" "$jffs2_errors_list"
 			print_controller_log_entry "$event_type_for_log" "$message_header"
 			message "$event_type_for_message" "$message_header" --silent --payload <<< "$message_body"
 			set_checkup_counter "$FUNCNAME" 'message_sent' 1
