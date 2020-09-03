@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.18'
+readonly script_version='0.1.19'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -280,7 +280,7 @@ function get_hive_client_version {
 	if [[ -s "$file" ]]; then
 		version="$( < "$file" )"
 	else
-		echo_error "$file not found or empty"
+		echo_debug "$file not found or empty"
 		return 1
 	fi
 
@@ -298,7 +298,7 @@ function get_hive_client_build_version {
 	if [[ -s "$file" ]]; then
 		version="$( < "$file" )"
 	else
-		echo_error "$file not found or empty"
+		echo_debug "$file not found or empty"
 		return 1
 	fi
 
