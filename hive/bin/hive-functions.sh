@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.37.2'
+declare -r hive_functions_lib_version='0.40.0'
 #                                        ^^ current number of public functions
 
 
@@ -790,7 +790,7 @@ function snore {
 
 	# vars
 
-	local IFS # reset IFS in case it’s set to something weird
+	local IFS # reset IFS in case it's set to something weird
 
 	# code
 
@@ -850,6 +850,163 @@ function rematch {
 
 	[[ $string =~ $regex ]]
 	printf '%s\n' "${BASH_REMATCH[@]:1}"
+}
+
+function get_all_matches {
+	#
+	# Usage: get_all_matches 'string' 'RE'
+	#
+	# extract all REgex matches from the string (global matching)
+	#
+
+	# args
+
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local string_to_match="$1"
+	local -r RE="$2"
+
+	# consts
+
+	local -r -i string_to_match_original_length="${#string_to_match}"
+
+	# code
+
+	while [[ "$string_to_match" =~ $RE ]]; do
+		echo "${BASH_REMATCH[0]}"
+		string_to_match="${string_to_match#*${BASH_REMATCH[0]}}" # remove one pattern a time
+		if (( string_to_match_original_length == ${#string_to_match} )); then
+			errcho "something weird with bash pattern matching (matched '$string_to_match' against '$RE')"
+			break
+		fi
+	done
+}
+
+function get_all_matches_unique {
+	#
+	# Usage: get_all_matches_unique 'string' 'RE'
+	#
+	# extract all REgex matches from the string (global matching)
+	# output contains no duplicates
+	#
+
+	# args
+
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local string_to_match="$1"
+	local -r RE="$2"
+
+	# consts
+
+	local -r -i string_to_match_original_length="${#string_to_match}"
+
+	# code
+
+	while [[ "$string_to_match" =~ $RE ]]; do
+		echo "${BASH_REMATCH[0]}"
+		string_to_match="${string_to_match//${BASH_REMATCH[0]}}" # remove a pattern globally
+		if (( string_to_match_original_length == ${#string_to_match} )); then
+			errcho "something weird with bash pattern matching (matched '$string_to_match' against '$RE')"
+			break
+		fi
+	done
+}
+
+function expand_hive_templates_in_variable_by_ref {
+	#
+	# Usage: expand_hive_templates_in_variable_by_ref 'string_to_expand_by_ref'
+	#
+	# expand all Hive templates: %fw%, %build%, %profile%, %url%, %mac%
+	#
+
+	# args
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n string_to_expand_by_ref="$1"
+
+	# consts
+	local -r tag_template_RE='%[[:alpha:]][[:alnum:]_]+%'
+	local -r safe_char='x'
+
+	# super local consts haha
+	local -r __RIG_CONF_default='/hive-config/rig.conf'
+	local -r __RIG_CONF="${RIG_CONF:-$__RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+
+	# vars
+	local this_template this_template_substitution
+
+	# code
+	for this_template in $( get_all_matches_unique "$string_to_expand_by_ref" "$tag_template_RE" ); do
+		this_template_substitution=''
+		case "${this_template,,}" in
+			'%build%')
+				if [[ -s /hive/etc/build ]]; then
+					this_template_substitution="$( < /hive/etc/build )"
+				else
+					this_template_substitution='unknown build'
+				fi
+			;;
+
+			'%fw%')
+				#
+				#/usr/bin/compile_ver:
+				#Tue Aug 18 09:03:07 UTC 2020
+				#Antminer T9 Hiveon
+				#1.03@200818
+				#
+				#/usr/bin/compile_time:
+				#Tue Aug 18 09:03:07 UTC 2020
+				#Antminer T9 Hiveon
+				#
+				if [[ -s /usr/bin/compile_ver ]]; then
+					this_template_substitution="$( sed -n '3p' /usr/bin/compile_ver )"
+				elif [[ -s /usr/bin/compile_time ]]; then
+					this_template_substitution="$( sed -n '1p' /usr/bin/compile_time )"
+				else
+					this_template_substitution='unknown fw'
+				fi
+			;;
+
+			'%hostname%')
+				this_template_substitution="$( hostname )"
+			;;
+
+			'%ip%')
+				this_template_substitution="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
+			;;
+
+			'%ip_safe%')
+				: "$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
+				this_template_substitution="${_//./$safe_char}"
+			;;
+
+			'%mac%')
+				this_template_substitution="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
+			;;
+
+			'%mac_safe%')
+				: "$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
+				this_template_substitution="${_//:/$safe_char}"
+			;;
+
+			'%profile%')
+				this_template_substitution="$( asic-oc status --active-profile-desc )" ||
+					this_template_substitution='unknown profile'
+			;;
+
+			'%url%')
+				#IFS='/' read -r _ _ this_template_substitution <<< "$HIVE_HOST_URL" # extract a domain name
+				# nope
+				# i think it should be FQDN
+				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'HIVE_HOST_URL' )"
+			;;
+
+			'%worker_name_raw%')
+				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'WORKER_NAME' )"
+			;;
+		esac
+		if [[ -n "$this_template_substitution" ]]; then
+			string_to_expand_by_ref="${string_to_expand_by_ref//$this_template/$this_template_substitution}"
+		fi
+	done
 }
 
 
