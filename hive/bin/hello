@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.19'
+readonly script_version='0.1.20'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -508,7 +508,7 @@ declare server_request_json server_response_json
 # exports
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
-[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
+[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 
 # sources

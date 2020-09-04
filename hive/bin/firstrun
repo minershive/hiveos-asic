@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Your First Run'
-readonly script_version='0.1.2'
+readonly script_version='0.1.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -153,8 +153,7 @@ declare BRANDING_LOGO
 # global exports
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
-[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
-#export LD_LIBRARY_PATH=/hive/lib
+[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 
 # main

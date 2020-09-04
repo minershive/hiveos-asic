@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.13'
+readonly script_version='1.0.14'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -247,9 +247,8 @@ declare -i script_exitcode	# 0 = has been running, 1 = has not been running, sta
 
 # global exports
 
-[[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin"
-[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
-#export LD_LIBRARY_PATH=/hive/lib
+[[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
+[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 
 # traps
