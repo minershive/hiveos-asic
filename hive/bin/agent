@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.4'
+readonly script_version='0.5.5'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1114,7 +1114,7 @@ function do_command {
 
 	# cmd_id processing (optional command identifier)
 	cmd_id="$( jq --raw-output '.id' <<< "$body" )"
-	[[ "$cmd_id" == 'null' ]] && cmd_id=''
+	is_JSON_string_empty_or_null "$cmd_id" && cmd_id=''
 	# save last cmd_id
 	(( script_DEBUG )) && log_line debug "[DEBUG] incoming cmd_id is '$cmd_id'"
 	if (( cmd_id > 0 )); then
@@ -1139,7 +1139,7 @@ function do_command {
 
 		'upgrade')
 			version="$( jq --raw-output '.version' <<< "$body" )"
-			[[ "$version" == 'null' ]] && version=
+			is_JSON_string_empty_or_null "$version" && version=
 			screen -dm -S selfupgrade bash -c '
 				selfupgrade '"$version"' 2>&1 | tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
