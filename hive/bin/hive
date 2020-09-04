@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.0'
+readonly script_version='0.1.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -65,7 +65,7 @@ function kill_all {
 }
 
 function get_absolute_difference {
-    echo $(( $1 >= $2 ? $1 - $2 : $2 - $1 ))
+	echo $(( $1 >= $2 ? $1 - $2 : $2 - $1 ))
 }
 
 function get_datetime_from_server {
@@ -115,16 +115,32 @@ function get_datetime_from_server {
 #  \/  \/ \___| \/ \_/\___|\__, |\__,_|_|_|  \___|  \/    \/\___/|_|  \___| \/    \/_|_| |_|\___|_|  \__,_|_|___/
 #                             |_|
 
+
+# consts
+
+declare -r RIG_CONF_default='/hive-config/rig.conf'
+declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+
+
+# exports
+
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
 [[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
-source asic-model
+
+# sources
+
 source colors
+source asic-model
+
 
 # model dependend PATHs and libraries
-[[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add only if not exist
-[[ $ASIC_MODEL =~ "Antminer D3 Blissz" ]] && ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 
+[[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add only if not exist
+[[ "$ASIC_MODEL" == 'Antminer D3 Blissz'* ]] && ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
+
+
+# main()
 
 # make directory in RAM
 mkdir -p /run/hive
@@ -132,9 +148,6 @@ mkdir -p /run/hive
 
 # wipe screens. for some reason there can be dead sockets after restart on tmpfs (!!!)
 screen -wipe > /dev/null
-
-
-RIG_CONF='/hive-config/rig.conf'
 
 
 # logo
