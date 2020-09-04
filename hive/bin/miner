@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.6'
+readonly script_version='1.1.7'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -413,7 +413,7 @@ case "$1" in
 
 	'kernel-log')		# deprecated
 		print_kernel_log
-	;;	
+	;;
 
 	'log')
 		case "$2" in

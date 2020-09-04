@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
-readonly script_version='1.14.9'
+readonly script_version='1.14.10'
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
@@ -126,7 +126,6 @@ create_calendar() {
 }
 
 check_log() {
-	
 	if [[ ! -d "$logs_dir" ]]; then
 		echo "$logs_dir not found. Is it Antminer Series 15/17?"
 		echo
@@ -143,7 +142,7 @@ check_for_1970() {
 				echo
 		fi
 	fi
-	
+
 	return 0
 }
 
@@ -466,7 +465,7 @@ declare  -A event_name_translator=(
 	['\*\*\*\*(power off hashboard)\*\*\*\*']='%1%'
 	['Error, fan lost, only find ([0-9]+) \((..[0-9]+)\)']='Only %1% fan found (%2%)' #'#syntax highlighting fix
 	['over max temp, pcb temp ([0-9]+) \(max ([0-9]+)\), chip temp ([0-9]+)\(max ([0-9]+)\)']='overheat: pcb %1%/%2%C, chip %3%/%4%C' #'#syntax highlighting fix
-) 
+)
 
 
 # global arrays

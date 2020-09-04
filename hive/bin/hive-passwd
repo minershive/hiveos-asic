@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
-readonly script_version='0.2.3'
+readonly script_version='0.2.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -39,7 +39,7 @@ function print_script_usage {
 
 function md5 {
 	#
-	# Usage: md5 'string' 
+	# Usage: md5 'string'
 	#
 
 	# args
@@ -263,7 +263,7 @@ function parse_arguments {
 
 	# code
 
-	if 	[[ -z "$new_ssh_password" ]]; then
+	if [[ -z "$new_ssh_password" ]]; then
 		print_script_usage
 		exit 0
 	fi

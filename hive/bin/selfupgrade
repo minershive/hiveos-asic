@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.19'
+readonly script_version='0.16.20'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1208,7 +1208,7 @@ set_HIVEON_VERSION_variable () {
 	HIVEON_VERSION_major=-1 # default: no Hiveon
 
 	# code
-	if [ -s /usr/bin/compile_ver ]; then 
+	if [ -s /usr/bin/compile_ver ]; then
 		HIVEON_VERSION="$( awk -F'@' 'NR==3 {print $1; exit}' < /usr/bin/compile_ver )"
 		# shellcheck disable=SC2034
 		HIVEON_VER="$HIVEON_VERSION" # legacy

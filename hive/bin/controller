@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.55'
+readonly script_version='2.1.56'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1356,9 +1356,9 @@ function checkup:is_build_updated {																	(( script_DEBUG )) && debugc
 
 			# shellcheck disable=SC2154
 			case "$( is_first_version_equal_to_second "$actual_Client_version" "$saved_Client_version"; echo $? )" in
-				$(( exitcode_GREATER_THAN ))	)	what_happened='updated' 	;;
+				$(( exitcode_GREATER_THAN ))	)	what_happened='updated'		;;
 				$(( exitcode_LESS_THAN ))		)	what_happened='degraded'	;;
-				*								)	what_happened='changed' 	;; # wtf? maybe is_first_version_equal_to_second() error
+				*								)	what_happened='changed'		;; # wtf? maybe is_first_version_equal_to_second() error
 			esac
 
 			message_header="Client $what_happened from $saved_Client_version to $actual_Client_version"

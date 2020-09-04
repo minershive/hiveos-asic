@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.16'
+readonly script_version='0.1.17'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -48,7 +48,7 @@ unhide_certs () {
 		echo '> Enabling cert protection...'
 		for this_file in /etc/ant_version /etc/bitmain-pub.pem /etc/msk-pub.pem \
 						 /www/pages/cgi-bin/upgrade.cgi /www/pages/cgi-bin/upgrade2.cgi \
-						 /www/pages/cgi-bin/upgrade_clear.cgi; do					
+						 /www/pages/cgi-bin/upgrade_clear.cgi; do
 			if [ -f "${this_file}-disabled" ]; then
 				mv -f "${this_file}-disabled" "$this_file" || true
 			fi
