@@ -388,7 +388,7 @@ function set_ASIC_constants {
 			STAT_TOKEN='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ'
 			# shellcheck disable=SC2034,SC2046
 			# TODO get rid of the unquoted variables to prevent accidental word splitting
-			TEMP_TOKEN=$( echo -n $STAT_TOKEN.$( echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $( cat /tmp/jwtK ) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$// ) )
+			TEMP_TOKEN=$( echo -n $STAT_TOKEN.$( echo -n $STAT_TOKEN | openssl dgst -sha256 -hmac $( cat /tmp/jwtK ) -binary | openssl base64 -e -A | sed s/\+/-/ | sed -E s/=+$// ) ) # !!! 'sed -E'? maybe 'sed -r'?
 			ASIC_FAN_COUNT=3
 		;;
 

@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.3.0'
+readonly script_version='0.3.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -251,7 +251,7 @@ new_hosts="# DO NOT EDIT. All changes will be overwritten by $script_basename
 $ip_address $HIVE_HOST_URL_stripped
 "
 
-# mind the flash memory wear ant tear
+# mind the flash memory wear and tear
 if [[ "$old_hosts" != "$new_hosts" ]]; then
 	echo_action "Updating $hostfile with a new address"
 	[[ -e "$hostfile" ]] && rm -rf "$hostfile" # covering a weird edge case where hostfile is a directory
