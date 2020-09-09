@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.7'
+readonly script_version='1.1.8'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -89,8 +89,12 @@ function miner_start {
 			fi
 			snore 1
 		done
+		if pgrep_quiet /sbin/monitorcg; then
+			echo -e "${script_basename}> Resuming ${CYAN}monitorcg${NOCOLOR} watchdog..."
+			killall -CONT monitorcg
+		fi
 	fi
-	echo
+#	echo
 }
 
 function miner_stop {
@@ -111,6 +115,10 @@ function miner_stop {
 		elif [[ $ASIC_MODEL =~ 'Toddminer C1' ]]; then
 			/hive/bin/todd_api mstop
 		else
+			if pgrep_quiet /sbin/monitorcg; then
+				echo -e "${script_basename}> Suspending ${CYAN}monitorcg${NOCOLOR} watchdog..."
+				killall -STOP monitorcg
+			fi
 			"/etc/init.d/$THIS_MINER_NAME.sh" stop
 		fi
 	fi
