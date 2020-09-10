@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.1.8'
+readonly script_version='1.2.0'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -373,6 +373,11 @@ declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 
 
+# vars
+
+declare -i is_no_Flight_Sheet=0
+
+
 # sources
 
 source colors
@@ -400,11 +405,11 @@ if [[ -z "$MINER" ]]; then
 	echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
 fi
 
-# default rig.conf (before applying an any Flight Sheet) contains claymore as a defalt miner
+# default rig.conf (before applying an any Flight Sheet) contains claymore as a default miner
 if [[ "$MINER" != 'asicminer' ]]; then
 	echo -e "${YELLOW}To start mining, you only have to apply a Flight Sheet${NOCOLOR}"
 	message warn 'To start mining, you only have to apply a Flight Sheet'
-	exit 1
+	is_no_Flight_Sheet=1
 fi
 
 case "$1" in
@@ -416,6 +421,7 @@ case "$1" in
 	;;
 
 	'config-gen')
+		(( is_no_Flight_Sheet )) && exit 1
 		generate_config
 	;;
 
@@ -441,10 +447,12 @@ case "$1" in
 	;;
 
 	'restart')
+		(( is_no_Flight_Sheet )) && exit 1
 		miner_restart
 	;;
 
 	'start')
+		(( is_no_Flight_Sheet )) && exit 1
 		# process Series 17 Safe Mode override
 		if [[ ! -s /config/stop-mining ]]; then
 			miner_start
@@ -461,6 +469,7 @@ case "$1" in
 	;;
 
 	'stop')
+		(( is_no_Flight_Sheet )) && exit 1
 		miner_stop
 	;;
 
