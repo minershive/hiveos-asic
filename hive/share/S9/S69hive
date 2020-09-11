@@ -9,11 +9,14 @@ fi
 
 if [ ! -e /hive ]; then
 	cd /tmp
-	URL="hiveos.farm"
+	URL="http://download.hiveos.farm/asic/client/latest.tar.gz"
 	if [ -e /config/HIVE_HOST_URL ]; then
-		URL=$(cat /config/HIVE_HOST_URL | sed s%'http://api.'%%)
+		URL="http://download."$(cat /config/HIVE_HOST_URL | sed s%'http://api.'%%)"/asic/client/latest.tar.gz"
 	fi
-	curl -L --insecure http://download.$URL/asic/repo/s9/latest -o latest.tar.gz
+	if [ -e /etc/hive-downloads-url ]; then
+		URL=$(cat /etc/hive-downloads-url)"/asic/client/latest.tar.gz"
+	fi
+	curl -L --insecure $URL -o latest.tar.gz
 	echo "> Extracting latest.tar.gz"
 #	if [ ! -d /config/hive/hive-config ]; then
 #		mkdir -p /config/hive/hive-config
