@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.16.20'
+readonly script_version='0.17.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1254,12 +1254,14 @@ set_download_server_URL () {
 
 	# conts
 
-	local    whitelabel_HIVE_HOST_URL_file_in_FW='/etc/hive-url'
-	local whitelabel_HIVE_HOST_URL_file_in_NVRAM='/config/hive-url'
-	#local                    HIVE_HOST_URL_file='/config/HIVE_HOST_URL' # already declared as a gobal readonly, !!! should refactor later
+	# sorted by prio, from high to low
+	local whitelabel_HIVE_DOWNLOADS_URL_file_in_FW='/etc/hive-downloads-url' # prio 1
+	#local                      HIVE_HOST_URL_file='/config/HIVE_HOST_URL' # prio 2 # already declared as a gobal readonly, !!! should refactor later
+	local   whitelabel_HIVE_HOST_URL_file_in_NVRAM='/config/hive-url' # prio 3
+	local      whitelabel_HIVE_HOST_URL_file_in_FW='/etc/hive-url' # prio 4
 
-	# define collection (whitespace delimited) and priority (prio grows from the first to the last)
-	local download_server_URL_files_collection="${whitelabel_HIVE_HOST_URL_file_in_FW} ${whitelabel_HIVE_HOST_URL_file_in_NVRAM} ${HIVE_HOST_URL_file}"
+	# define collection (whitespace delimited) and priority (prio increases from left to right)
+	local download_server_URL_files_collection="${whitelabel_HIVE_HOST_URL_file_in_FW} ${whitelabel_HIVE_HOST_URL_file_in_NVRAM} ${HIVE_HOST_URL_file} ${whitelabel_HIVE_DOWNLOADS_URL_file_in_FW}"
 
 	# vars
 
