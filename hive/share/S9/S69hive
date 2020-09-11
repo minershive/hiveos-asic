@@ -1,5 +1,15 @@
 #!/bin/sh
 
+
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+# Linted by shellcheck 0.3.7
+#
+
+
 sleep 10
 rm -rf /tmp/*.log
 
@@ -9,23 +19,39 @@ fi
 
 if [ ! -e /hive ]; then
 	cd /tmp
-	URL="http://download.hiveos.farm/asic/client/latest.tar.gz"
-	if [ -e /config/HIVE_HOST_URL ]; then
-		URL="http://download."$(cat /config/HIVE_HOST_URL | sed s%'http://api.'%%)"/asic/client/latest.tar.gz"
+
+	if [ -s /etc/hive-downloads-url ]; then
+		hive_domain_special="$( cat /etc/hive-downloads-url )"
+	elif [ -s /config/HIVE_HOST_URL ]; then
+		hive_domain_special="$( sed 's|//api\.|//download.|' < /config/HIVE_HOST_URL )"
 	fi
-	if [ -e /etc/hive-downloads-url ]; then
-		URL=$(cat /etc/hive-downloads-url)"/asic/client/latest.tar.gz"
-	fi
-	curl -L --insecure $URL -o latest.tar.gz
-	echo "> Extracting latest.tar.gz"
+
+	hive_domain_default='http://download.hiveos.farm'
+	hive_domain_backup='http://download2.hiveos.farm'
+
+	for this_domain in $hive_domain_special $hive_domain_default $hive_domain_backup; do
+		echo "> Downloading latest.tar.gz from $this_domain..."
+		URL="${this_domain}/asic/client/latest.tar.gz"
+		if curl --retry 3 --location --insecure "$URL" --output latest.tar.gz; then
+			is_downloaded=1
+			break
+		else
+			is_downloaded=0
+			echo 'Error downloading latest.tar.gz'
+		fi
+	done
+
+	[ "$is_downloaded" -eq 0 ] && exit 1
+
 #	if [ ! -d /config/hive/hive-config ]; then
 #		mkdir -p /config/hive/hive-config
 #	fi
-	tar -xzv -f latest.tar.gz
+	echo '> Extracting latest.tar.gz...'
+	tar -xzv -f latest.tar.gz || { echo 'Error extracting'; exit 1; }
 	[ -L /hive ] && rm /hive
 	rm -rf hiveos-asic-*/hive/sbin/teleconsole
-	cp -rf hiveos-asic-*/hive /
-	[ $? -ne 0 ] && echo "Error extracting latest.tar.gz" && exit 1
+	echo '> Copying hive to /...'
+	cp -rf hiveos-asic-*/hive / || { echo 'Error copying'; exit 1; }
 
 	rm latest.tar.gz
 	rm -rf hiveos-asic*
@@ -47,9 +73,9 @@ if [ ! -e /hive ]; then
 	#sleep 2
 
 	#$FARM_HASH can be defined externally
-	if [ -e /config/FARM_HASH ]; then
-		FARM_HASH=$(cat /config/FARM_HASH)
-		bash -c "/hive/bin/firstrun $FARM_HASH"
+	if [ -s /config/FARM_HASH ]; then
+		FARM_HASH="$( cat /config/FARM_HASH )"
+		/hive/bin/firstrun "$FARM_HASH"
 		rm /config/FARM_HASH
 	fi
 else
