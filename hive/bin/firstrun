@@ -9,15 +9,20 @@
 
 
 readonly script_mission='Client for ASICs: Your First Run'
-readonly script_version='0.1.5'
+readonly script_version='0.1.6'
 readonly script_basename="$( basename "$0" )"
 
 
 # functions
 
-print_script_version() {
+function print_script_version {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
+}
+
+function urldecode {
+	local -r url_to_decode="${1//+/ }"
+	printf '%b\n' "${url_to_decode//%/\\x}"
 }
 
 function set_BRANDING_LOGO {
@@ -39,14 +44,16 @@ function set_BRANDING_LOGO {
 
 function read_HIVE_HOST_URL_from_RIG_CONF {
 	#
-	# read_HIVE_HOST_URL_from_RIG_CONF
+	# Usage: read_HIVE_HOST_URL_from_RIG_CONF
 	#
-	# output: $HIVE_HOST_URL from RIG_CONF, got it?
+	# output: $HIVE_HOST_URL from RIG_CONF, indeed
 	# exit code: if success
 	#
-	#
+
+	# vars
 	local HIVE_HOST_URL_from_RIG_CONF
 
+	# code
 	if [[ -s "$RIG_CONF" ]]; then
 		HIVE_HOST_URL_from_RIG_CONF="$( source "$RIG_CONF"; echo "$HIVE_HOST_URL" )"
 		echo "$HIVE_HOST_URL_from_RIG_CONF"
@@ -56,31 +63,39 @@ function read_HIVE_HOST_URL_from_RIG_CONF {
 }
 
 function sanitize_HIVE_HOST_URL {
-	(( $# < 1 || $# > 2 )) && echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2
+	(( $# == 1 || $# == 2 )) || { echo "Error in ${FUNCNAME}(): Invalid number of arguments" 1>&2; return 1; }
 	#
-	# sanitize_HIVE_HOST_URL 'url_to_sanitize' ['fallback_url'] -> 'sanitized_url'
+	# Usage: sanitize_HIVE_HOST_URL 'url_to_sanitize' ['fallback_url'] -> 'sanitized_url'
 	#
-	# exit code: is_fallback_happen
+	# exit code: is_fallback_happened_FLAG
 	#
+
+	# args
 	local -r url_to_sanitize="$1"
 	local -r fallback_url="${2:-${HIVE_HOST_URL_default}}"
-	local -r valid_url_RE='^(http|https)://[[:alnum:]\.\-]+(:[[:digit:]]{1,5})?' # first line w/o control chars (only alnum|punct), starting with http(s)://
-	local sanitized_url=''
-	local -i is_fallback_happen=0
 
-	if [[ $url_to_sanitize =~ $valid_url_RE ]]; then
+	# consts
+	local -r valid_url_RE='^(http|https)://[[:alnum:]\.\-]+(:[[:digit:]]{1,5})?' # first line w/o control chars (only alnum|punct), starting with http(s)://
+
+	# vars
+	local urldecoded_url sanitized_url
+	local -i is_fallback_happened_FLAG=0
+
+	# code
+	urldecoded_url="$( urldecode "$url_to_sanitize" )" # 1. decode
+	if [[ "$urldecoded_url" =~ $valid_url_RE ]]; then  # 2. validate
 		# URL seems ok, use it
 		sanitized_url="$BASH_REMATCH"
-		is_fallback_happen=0
+		is_fallback_happened_FLAG=0
 	else
 		# something wrong, falling back to default
 		sanitized_url="$fallback_url"
-		is_fallback_happen=1
+		is_fallback_happened_FLAG=1
 	fi
 
 	echo "$sanitized_url"
 
-	return $(( is_fallback_happen ))
+	return $(( is_fallback_happened_FLAG ))
 }
 
 function validate_and_set_HIVE_HOST_URL {
@@ -99,7 +114,7 @@ function validate_and_set_HIVE_HOST_URL {
 
 	# code
 	if validated_url="$( sanitize_HIVE_HOST_URL "$url_to_validate_and_set" )"; then
-		echo "URL seems ok. Hive Server URL have been set to $validated_url"
+		echo "Server URL validated and have been set to $validated_url"
 	else
 		echo "Something wrong with '$url_to_validate_and_set'. Falling back to default: $validated_url"
 	fi
@@ -192,7 +207,7 @@ HIVE_HOST_URL_default='http://api.hiveos.farm'
 #
 if [ -s "$WHITELABEL_HOST_URL_file_in_FW" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_FW" )"
-	echo "Server URL found in $WHITELABEL_HOST_URL_file_in_FW (firmware): $HIVE_HOST_URL_default"
+	echo "Default Server URL found in $WHITELABEL_HOST_URL_file_in_FW (firmware): $HIVE_HOST_URL_default"
 fi
 
 #
@@ -201,7 +216,7 @@ fi
 #
 if [ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_NVRAM" )"
-	echo "Server URL found in $WHITELABEL_HOST_URL_file_in_NVRAM (NVRAM): $HIVE_HOST_URL_default"
+	echo "Default Server URL found in $WHITELABEL_HOST_URL_file_in_NVRAM (NVRAM): $HIVE_HOST_URL_default"
 fi
 
 echo "Default HIVE_HOST_URL set to $HIVE_HOST_URL_default"
@@ -214,11 +229,11 @@ if [[ -n "$HIVE_HOST_URL" ]]; then
 	validate_and_set_HIVE_HOST_URL "$HIVE_HOST_URL"
 else
 	# then try to read from config
-	if ! HIVE_HOST_URL="$( read_HIVE_HOST_URL_from_RIG_CONF )"; then
-		HIVE_HOST_URL="$HIVE_HOST_URL_default"
-		echo "HIVE_HOST_URL variable is not set. Using default Hive Server URL: $HIVE_HOST_URL"
+	if HIVE_HOST_URL="$( read_HIVE_HOST_URL_from_RIG_CONF )"; then
+		echo "HIVE_HOST_URL found in $RIG_CONF. Using Server URL: $HIVE_HOST_URL"
 	else
-		echo "HIVE_HOST_URL found in $RIG_CONF. Using Hive Server URL: $HIVE_HOST_URL"
+		HIVE_HOST_URL="$HIVE_HOST_URL_default"
+		echo "HIVE_HOST_URL variable is not set. Using default Server URL: $HIVE_HOST_URL"
 	fi
 fi
 
