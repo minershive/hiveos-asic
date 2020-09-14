@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Your First Run'
-readonly script_version='0.1.4'
+readonly script_version='0.1.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -90,9 +90,14 @@ function validate_and_set_HIVE_HOST_URL {
 	#
 	# sets: $HIVE_HOST_URL
 	#
+
+	# args
 	local -r url_to_validate_and_set="$1"
+
+	# vars
 	local validated_url=''
 
+	# code
 	if validated_url="$( sanitize_HIVE_HOST_URL "$url_to_validate_and_set" )"; then
 		echo "URL seems ok. Hive Server URL have been set to $validated_url"
 	else
@@ -179,6 +184,7 @@ elif [[ -n "$1" ]]; then
 fi
 
 
+HIVE_HOST_URL_default='http://api.hiveos.farm'
 
 #
 # 1. try to get a whitelabel default from a config file embedded in firmware
@@ -186,9 +192,7 @@ fi
 #
 if [ -s "$WHITELABEL_HOST_URL_file_in_FW" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_FW" )"
-	echo "Default HIVE_HOST_URL found in firmware: $WHITELABEL_HOST_URL_file_in_FW"
-else
-	HIVE_HOST_URL_default='http://api.hiveos.farm'
+	echo "Server URL found in $WHITELABEL_HOST_URL_file_in_FW (firmware): $HIVE_HOST_URL_default"
 fi
 
 #
@@ -197,9 +201,7 @@ fi
 #
 if [ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_NVRAM" )"
-	echo "Default HIVE_HOST_URL found in NVRAM: $WHITELABEL_HOST_URL_file_in_NVRAM"
-else
-	HIVE_HOST_URL_default='http://api.hiveos.farm'
+	echo "Server URL found in $WHITELABEL_HOST_URL_file_in_NVRAM (NVRAM): $HIVE_HOST_URL_default"
 fi
 
 echo "Default HIVE_HOST_URL set to $HIVE_HOST_URL_default"
@@ -221,7 +223,7 @@ else
 fi
 
 #
-# 4. try to read it from file. top prio.
+# 4. try to read it from file /config/HIVE_HOST_URL. top prio.
 #
 if [[ -s "$HIVE_HOST_URL_file" ]]; then
 	echo -n "File '$HIVE_HOST_URL_file' found. It has priority over the others. Checking... "
