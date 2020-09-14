@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.9'
+readonly script_version='0.1.10'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -148,6 +148,7 @@ declare -i kill_miner_FLAG=0 wait_for_tuning_FLAG=0
 if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
 	current_profile_file='/config/autoTune.conf'
 	current_config_file='/config/config.conf'
+	autotune_log_file='/tmp/auto-tune'
 
 	case "$1" in
 		'status'|'retune'|'re-tune')
@@ -175,14 +176,24 @@ if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODE
 		fi
 	done
 
+	if [[ -f "$current_config_file" && ! -s "$current_config_file" ]]; then # fix autotune bug
+		echo "WARNING: $current_config_file is empty, deleting..."
+		rm -f "$current_config_file"
+	fi
+
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
 	snore 1
 	rm -f /config/yellow-step
 	killall tune-yellow > /dev/null 2>&1
-	nohup su - "$su_user" -c "/usr/bin/auto-tune" > /dev/null 2>&1
+	nohup su - "$su_user" -c '/usr/bin/auto-tune' > /dev/null 2>&1
 	if grep -q 'enable_auto_chip=1' "$current_profile_file"; then
 		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 & disown
+	fi
+
+	if [[ -s "$autotune_log_file" ]]; then
+		cat "$autotune_log_file"
+		echo
 	fi
 	echo 'Autotune config applied!'
 
@@ -323,6 +334,8 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 else
 	current_profile_file='/config/autoTune.conf'
 	current_config_file='/config/config.conf'
+	autotune_log_file='/tmp/auto-tune'
+
 	if [[ $1 == "default" ]]; then
 		rm -rf "$current_profile_file" > /dev/null 2>&1
 		rm -rf "$current_config_file" > /dev/null 2>&1
@@ -395,7 +408,7 @@ else
 		esac
 	fi
 
-	sed "/^\s*$/d" -i /config/config.conf > /dev/null 2>&1
+	sed "/^\s*$/d" -i "$current_config_file" > /dev/null 2>&1
 	for this_user_id in 'www' 'wwwrun' 'root'; do
 		if id -u "$this_user_id" > /dev/null 2>&1; then
 			su_user="$this_user_id"
@@ -405,16 +418,23 @@ else
 		fi
 	done
 
-	if [ ! -s /config/config.conf ]; then #fix autotune bag for L3
-		rm -f /config/config.conf
+	if [[ -f "$current_config_file" && ! -s "$current_config_file" ]]; then # fix autotune bug for L3
+		echo "WARNING: $current_config_file is empty, deleting..."
+		rm -f "$current_config_file"
 	fi
+
 	rm -f /config/manual_freqs.txt
 	killall auto-tune > /dev/null 2>&1
 	killall auto-chip-tune > /dev/null 2>&1
 	snore 1
-	nohup su - "$su_user" -c "/usr/bin/auto-tune" > /dev/null 2>&1
+	nohup su - "$su_user" -c '/usr/bin/auto-tune' > /dev/null 2>&1
 	if grep -q 'enable_auto_chip=1' "$current_profile_file"; then
 		nohup su - "$su_user" -c '/usr/bin/auto-chip-tune' > /dev/null 2>&1 & disown
+	fi
+
+	if [[ -s "$autotune_log_file" ]]; then
+		cat "$autotune_log_file"
+		echo
 	fi
 	echo 'Autotune config applied'
 fi
