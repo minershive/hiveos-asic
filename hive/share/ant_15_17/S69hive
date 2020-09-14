@@ -217,7 +217,14 @@ set_default_download_server_URL () {
 
 	# conts
 
-	local whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url' # space-delimited collection
+#	local whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url' # space-delimited collection
+
+	local whitelabel_HIVE_DOWNLOADS_URL_file_in_FW='/etc/hive-downloads-url' # prio 1
+	#local                      HIVE_HOST_URL_file='/config/HIVE_HOST_URL' # prio 2 # already declared as a gobal readonly, !!! should refactor later
+	local   whitelabel_HIVE_HOST_URL_file_in_NVRAM='/config/hive-url' # prio 3
+	local      whitelabel_HIVE_HOST_URL_file_in_FW='/etc/hive-url' # prio 4
+
+	local whitelabel_download_server_URL_files_collection="${whitelabel_HIVE_HOST_URL_file_in_FW} ${whitelabel_HIVE_HOST_URL_file_in_NVRAM} ${HIVE_HOST_URL_file} ${whitelabel_HIVE_DOWNLOADS_URL_file_in_FW}"
 
 	# vars
 
@@ -226,22 +233,23 @@ set_default_download_server_URL () {
 	# code
 
 	[ "$dev_build_FLAG" -eq 1 ] && return
-	
+
 	# 1. try whitelabel file
 	for whitelabel_download_server_URL_file in $whitelabel_download_server_URL_files_collection; do
 		if [ -s "$whitelabel_download_server_URL_file" ]; then
-			download_server_URL="$( cat "$whitelabel_download_server_URL_file" )"
+			download_server_URL="$( tr -d ';|"' < "$whitelabel_download_server_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
+#			download_server_URL="$( cat "$whitelabel_download_server_URL_file" )"
 			echo_info "Whitelabel server URL found in $whitelabel_download_server_URL_file: $download_server_URL"
 		fi
 	done
 
-	# 2. try HIVE_HOST_URL file
-	if [ -s "$HIVE_HOST_URL_file" ]; then
-		# replace 'api.' with 'download.'
-		# !!! potential problem: API server with a pure IP address + firewalled *.hiveos.farm
-		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
-		echo_info "Server URL found in $HIVE_HOST_URL_file: $download_server_URL"
-	fi
+#	# 2. try HIVE_HOST_URL file
+#	if [ -s "$HIVE_HOST_URL_file" ]; then
+#		# replace 'api.' with 'download.'
+#		# !!! potential problem: API server with a pure IP address + firewalled *.hiveos.farm
+#		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
+#		echo_info "Server URL found in $HIVE_HOST_URL_file: $download_server_URL"
+#	fi
 
 	# url refining
 	case "$download_server_URL" in
