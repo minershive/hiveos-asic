@@ -9,12 +9,37 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.2.0'
+readonly script_version='1.3.0'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
 # functions
+
+function echo_x {
+	# args
+	local -r event_type="${1-}"
+	local -r event_message="${2-}"
+	local -r event_statement="${3-}"
+
+	# vars
+	local event_prefix statement_color event_suffix name_color="${LGRAY-}"
+
+	# code
+	case "$event_type" in
+		'ok'		)	event_prefix=':'		;	statement_color="${BGREEN-}"	;	event_suffix=''								;;
+		'action'	)	event_prefix='>'		;	statement_color="${WHITE-}"		;	event_suffix='...'							;;
+		'info'		)	event_prefix=':'		;	statement_color=''				;	event_suffix=''								;;
+		'warning'	)	event_prefix=':'		;	statement_color="${BYELLOW-}"	;	event_suffix=''								;;
+		'debug'		)	event_prefix=' [DEBUG]:';	statement_color="${BPURPLE-}"	;	event_suffix=''	;	name_color="${DGRAY-}"	;;
+		'error'		)	event_prefix=':'		;	statement_color="${BRED-}"		;	event_suffix=''								;;
+	esac
+	if [[ -z "$event_statement" ]]; then
+		echo -e "${name_color}${script_basename}${event_prefix} ${statement_color}${event_message}${event_suffix}${NOCOLOR-}"
+	else
+		echo -e "${name_color}${script_basename}${event_prefix} ${NOCOLOR-}${event_message}${event_suffix} ${statement_color}${event_statement}${NOCOLOR-}"
+	fi
+}
 
 function script_usage {
 	echo -e "Usage: ${CYAN}$script_basename [start|stop|restart|config-gen]${NOCOLOR}"
@@ -36,7 +61,7 @@ function print_config {
 	if [[ -n "$CONFIG_PATH" ]]; then
 		tail_any_log "$CONFIG_PATH"
 	else
-		echo "Unknown model $ASIC_MODEL"
+		echo_x error "No config path defined for model '$ASIC_MODEL'"
 	fi
 }
 
@@ -45,18 +70,39 @@ function print_config_raw {
 	if [[ -n "$CONFIG_PATH" ]]; then
 		cat "$CONFIG_PATH"
 	else
-		echo "Unknown model $ASIC_MODEL"
+		echo_x error "No config path defined for model '$ASIC_MODEL'"
 	fi
 }
 
 # start/stop/restart functions
 
 function miner_start {
-	echo -e "${script_basename}> Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}..."
+	# args
+	local arg="$1"
+
+	# vars
+	local -i is_started_by_user=0
+
+	# code
+	[[ "$arg" == 'by_user' ]] && is_started_by_user=1
+
+	# process the Series 17 Safe Mode override
+	if (( is_started_by_user )) && [[ -s /config/stop-mining ]]; then
+		chain_to_repair="$( < /config/stop-mining )"
+		valid_chain_number_RE='^[0-9]+$'
+		[[ "$chain_to_repair" =~ $valid_chain_number_RE ]] && chain_to_repair="#$(( chain_to_repair - 1 )) " # chain numbers in the file are 1-based
+
+		rm -f /config/stop-mining && {
+			echo_x ok  "Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP"
+			message ok "Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP" --silent
+		}
+	fi
+
+	echo_x action "Starting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		generate_config
-		rm -f /tmp/norespawn
+		[[ -f /tmp/norespawn ]] && rm -f /tmp/norespawn
 	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
 		# S17/T17 Hiveon
 		generate_config
@@ -89,8 +135,8 @@ function miner_start {
 			fi
 			snore 1
 		done
-		if pgrep_quiet /sbin/monitorcg; then
-			echo -e "${script_basename}> Resuming ${CYAN}monitorcg${NOCOLOR} watchdog..."
+		if pgrep_quiet /sbin/monitorcg && ! grep -q 'norespawn' /sbin/monitorcg; then
+			echo_x action "Resuming ${CYAN}monitorcg${NOCOLOR} watchdog"
 			killall -CONT monitorcg
 		fi
 	fi
@@ -98,7 +144,16 @@ function miner_start {
 }
 
 function miner_stop {
-	echo -e "${script_basename}> Stopping ${CYAN}$THIS_MINER_NAME${NOCOLOR}..."
+	# args
+	local arg="$1"
+
+	# vars
+	local -i is_stopped_by_user=0
+
+	# code
+	[[ "$arg" == 'by_user' ]] && is_stopped_by_user=1
+
+	echo_x action "Stopping ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		echo 'ok' > /tmp/norespawn
@@ -115,21 +170,26 @@ function miner_stop {
 		elif [[ $ASIC_MODEL =~ 'Toddminer C1' ]]; then
 			/hive/bin/todd_api mstop
 		else
-			if pgrep_quiet /sbin/monitorcg; then
-				echo -e "${script_basename}> Suspending ${CYAN}monitorcg${NOCOLOR} watchdog..."
+			if (( is_stopped_by_user )) && pgrep_quiet /sbin/monitorcg && ! grep -q 'norespawn' /sbin/monitorcg; then
+				#                                                                    ^^^^^^^^^ norespawn mod, Hiveon only
+				# suspend monitorcg watchdog on the stock Antminers (and L3 Hiveon too)
+				echo_x action "Suspending ${CYAN}monitorcg${NOCOLOR} watchdog"
 				killall -STOP monitorcg
 			fi
 			"/etc/init.d/$THIS_MINER_NAME.sh" stop
 		fi
 	fi
+	if (( is_stopped_by_user )); then
+		message warning "To start mining again you have to send a command 'miner start' or reboot the ASIC" --silent
+	fi
 }
 
 function miner_restart {
-	echo -e "${script_basename}> Restarting ${CYAN}$THIS_MINER_NAME${NOCOLOR}..."
+	echo_x action "Restarting ${CYAN}$THIS_MINER_NAME${NOCOLOR}"
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		generate_config
-		rm -f /tmp/norespawn
+		[[ -f /tmp/norespawn ]] && rm -f /tmp/norespawn
 		echo 'ok' > /config/restart
 	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
 		# S17/T17 Hiveon
@@ -164,9 +224,9 @@ function print_default_log {
 			/hive/bin/todd_api mlog
 		else
 			if [[ ! -f "$LOG_PATH" ]]; then
-				echo "${script_basename}: Log $LOG_PATH does not exist yet"
+				echo_x warning "Log $LOG_PATH does not exist yet"
 			elif [[ "$( get_file_size_in_bytes "$LOG_PATH" )" -le 1 ]]; then #can be 1, empty line
-				echo "${script_basename}: Log $LOG_PATH is empty"
+				echo_x warning "Log $LOG_PATH is empty"
 			else
 				tail_any_log "$LOG_PATH"
 			fi
@@ -246,10 +306,10 @@ function tail_any_log {
 			fi
 
 			if (( file_size <= 1 )); then
-				echo "$input_file is empty"
+				echo_x warning "$input_file is empty"
 			fi
 		else
-			echo "$input_file not found or not readable"
+			echo_x warning "$input_file not found or not readable"
 			return $(( exitcode_ERROR_NOT_FOUND ))
 		fi
 	fi
@@ -386,29 +446,29 @@ source asic-model
 
 # main
 
-if [[ ! -f "$RIG_CONF" ]]; then
-	echo -e "${YELLOW}Config file $RIG_CONF not found${NOCOLOR}"
+if [[ ! -s "$RIG_CONF" ]]; then
+	echo_x warning "Config file $RIG_CONF empty or not found"
 	# don't have to exit -- we simply don't have a config atm
 	#exit 1
 else
 	source "$RIG_CONF"
 fi
 
-if [[ ! -f "$WALLET_CONF" ]]; then
-	echo -e "${YELLOW}Wallet file $WALLET_CONF not found${NOCOLOR}"
+if [[ ! -s "$WALLET_CONF" ]]; then
+	echo_x warning "Wallet file $WALLET_CONF empty not found"
 else
 	source "$WALLET_CONF"
 fi
 
 if [[ -z "$MINER" ]]; then
 	MINER='asicminer'
-	echo -e "${YELLOW}No miner set in config, will use default ${CYAN}\"asicminer\"${NOCOLOR}"
+	echo_x warning "No miner set in config, will use default ${CYAN}asicminer${NOCOLOR}"
 fi
 
 # default rig.conf (before applying an any Flight Sheet) contains claymore as a default miner
 if [[ "$MINER" != 'asicminer' ]]; then
-	echo -e "${YELLOW}To start mining, you only have to apply a Flight Sheet${NOCOLOR}"
-	message warn 'To start mining, you only have to apply a Flight Sheet'
+	echo_x warning 'To start mining, you only have to apply a Flight Sheet'
+	message warn   'To start mining, you only have to apply a Flight Sheet'
 	is_no_Flight_Sheet=1
 fi
 
@@ -453,24 +513,12 @@ case "$1" in
 
 	'start')
 		(( is_no_Flight_Sheet )) && exit 1
-		# process Series 17 Safe Mode override
-		if [[ ! -s /config/stop-mining ]]; then
-			miner_start
-		else
-			chain_to_repair="$( < /config/stop-mining )"
-			valid_chain_number_RE='^[0-9]+$'
-			[[ "$chain_to_repair" =~ $valid_chain_number_RE ]] && chain_to_repair="#$(( chain_to_repair - 1 )) " # chain numbers in the file are 1-based
-
-			rm -f /config/stop-mining
-			miner_restart
-			echo -e "${YELLOW}Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP${NOCOLOR}"
-			message ok "Safe mode override: mining resumed. Please repair chain ${chain_to_repair}ASAP" --silent
-		fi
+		miner_start 'by_user'
 	;;
 
 	'stop')
 		(( is_no_Flight_Sheet )) && exit 1
-		miner_stop
+		miner_stop 'by_user'
 	;;
 
 	'tuning')
@@ -481,8 +529,8 @@ case "$1" in
 	'')
 		print_script_version
 		screen -x -S bmminer > /dev/null ||
-			screen -x -S cgminer /dev/null ||
-				echo 'No miner screen running'
+			screen -x -S cgminer > /dev/null ||
+				echo_x info 'No miner screen running'
 	;;
 
 	'-h'|'--help'|*)
