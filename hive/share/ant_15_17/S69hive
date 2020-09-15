@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.27'
+readonly script_version='1.0.28'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -31,11 +31,11 @@ print_script_usage () {
 }
 
 echo_action () {
-	echo "${script_basename}> ${*}..." | tee -a "$own_log"
+	echo "${script_basename}> ${*}..."
 }
 
 echo_info () {
-	echo "${script_basename}: ${*}" | tee -a "$own_log"
+	echo "${script_basename}: ${*}"
 }
 
 die () {
