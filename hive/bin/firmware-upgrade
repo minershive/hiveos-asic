@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.17'
+readonly script_version='0.1.18'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -71,8 +71,13 @@ at_exit () {
 			cat /tmp/upgrade_result
 			rm -rf /tmp/upgrade_result
 		fi
+		if [ -s "$error_log" ]; then
+			echo '> Error log:'
+			cat "$error_log"
+			rm -rf "${error_log:-SAFE}"
+		fi
 	fi
-	echo '> Exiting.'
+	echo '> Exiting'
 }
 
 do_upgrade_for () {
@@ -121,11 +126,25 @@ do_upgrade_for () {
 }
 
 download_and_unpack () {
+	# vars
+	local attempt_counter=0
+	local max_attempts=10
+	local is_unpacked_ok_FLAG=1
+
+	# code
 	echo "> Downloading and unpacking $firmware_filename..."
-	if curl --silent --insecure --connect-timeout 15 --retry 3 "$URL" | tar xvz; then
+	until curl --silent --insecure --location --show-error --connect-timeout 15 "$URL" | tar xvz; do
+		: $(( attempt_counter += 1 ))
+		is_unpacked_ok_FLAG=0
+		echo -e "! ${BRED}Downloading and unpacking FAIL (attempt $attempt_counter/$max_attempts)${NOCOLOR}"
+		[ "$attempt_counter" -ge "$max_attempts" ] && break
+		sleep 1
+	done
+
+	if [ "$is_unpacked_ok_FLAG" -eq 1 ]; then
 		echo '> Downloaded and unpacked OK, going further...'
 	else
-		echo -e "! ${BRED}Downloading and unpacking FAIL${NOCOLOR}"
+		echo -e "! ${BRED}No attempts left${NOCOLOR}"
 		false # to exit immediately
 	fi
 }
