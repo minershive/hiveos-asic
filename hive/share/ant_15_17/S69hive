@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.26'
+readonly script_version='1.0.27'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -31,11 +31,11 @@ print_script_usage () {
 }
 
 echo_action () {
-	echo "${script_basename}> ${*}..."
+	echo "${script_basename}> ${*}..." | tee -a "$own_log"
 }
 
 echo_info () {
-	echo "${script_basename}: ${*}"
+	echo "${script_basename}: ${*}" | tee -a "$own_log"
 }
 
 die () {
@@ -387,6 +387,9 @@ NVRAM_path="$NVRAM_path_default"
 download_server_URL="$default_download_server_URL"
 remote_package_filename="$stable_package_filename"
 
+
+# global flags
+
 dev_build_FLAG=0
 force_download_FLAG=0
 force_deploy_FLAG=0
@@ -404,7 +407,7 @@ export LD_LIBRARY_PATH=/hive/lib
 
 # code
 
-[ -t 1 ] || exec >> "/tmp/${script_basename}.log" 2>&1
+[ -t 1 ] || exec >> "$own_log" 2>&1
 trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
 
 set_NVRAM_path
