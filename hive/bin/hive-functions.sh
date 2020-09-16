@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.40.0'
+declare -r hive_functions_lib_version='0.40.1'
 #                                        ^^ current number of public functions
 
 
@@ -106,7 +106,7 @@ function log_line {
 # [[ $( script_to_audit ) != 'I AM FINE' ]] && echo "Something wrong with $script_to_check"
 #
 
-function print_i_am_doing_fine_then_exit () {
+function print_i_am_doing_fine_then_exit {
 	#
 	# Usage: print_i_am_fine_and_exit
 	#
