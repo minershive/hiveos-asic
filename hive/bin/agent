@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.7'
+readonly script_version='0.5.8'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -69,7 +69,7 @@ function debug_print_variable {
 	fi
 } 1>&2
 
-function sanitize_vars_for_argjson {
+function sanitize_vars_for_argjson { # do not used atm
 	#
 	# Usage: sanitize_vars_for_argjson 'variable_name'...
 	#
@@ -86,9 +86,10 @@ function sanitize_vars_for_argjson {
 		if [[ -z "$this_var" ]]; then
 			#errcho "\$$this_var_ref is empty"
 			this_var="$JSON_safe_stub"
-		elif ! jq --compact-output '.' <<< "$this_var" > /dev/null 2>&1; then
-			errcho "\$$this_var_ref is not a valid JSON: '$this_var'"
-			this_var="$JSON_safe_stub"
+# temporary disabled -- way too much system load!
+#		elif ! jq --compact-output '.' <<< "$this_var" > /dev/null 2>&1; then
+#			errcho "\$$this_var_ref is not a valid JSON: '$this_var'"
+#			this_var="$JSON_safe_stub"
 		fi
 	done
 }
@@ -436,20 +437,19 @@ function get_miner_stats {
 				[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
 				[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
 
-				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan_percent' 'fan_rpm' 'freq' 'chain_voltage' 'chain_acn' 'power' 'hw_errors' 'chain_acs' 'uptime' 'ar' 'asicboost'
-				stats="$( jq --null-input --compact-output \
-					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
-					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
-					--argjson	'board_temp'	"$board_temp"			--argjson	'fan'		"$fan_percent" \
-					--argjson	'fan_rpm'		"$fan_rpm"				--argjson	'freq'		"$freq" \
-					--argjson	'chain_voltage'	"$chain_voltage"		--argjson	'acn'		"$chain_acn" \
-					--argjson	'power'			"$power"				--argjson	'hw_errors'	"$hw_errors" \
-					--argjson	'status'		"$chain_acs"			--argjson	'uptime'	"$uptime" \
-					--argjson	'ar'			"$ar"					--argjson	'asicboost'	"$asicboost" \
-					\
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn,
-					$power, $hw_errors, $status, $uptime, $ar, $asicboost}' \
-					\
+#				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan_percent' 'fan_rpm' 'freq' 'chain_voltage' 'chain_acn' 'power' 'hw_errors' 'chain_acs' 'uptime' 'ar' 'asicboost'
+				stats="$( jq --null-input --compact-output																		\
+					--arg		'algo'			"$algo"							--argjson	'hs'		"${hs:-null}"			\
+					--arg		'hs_units'		"$hs_units"						--argjson	'temp'		"${temp:-null}"			\
+					--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"	\
+					--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq:-null}"			\
+					--argjson	'chain_voltage'	"${chain_voltage:-null}"		--argjson	'acn'		"${chain_acn:-null}"	\
+					--argjson	'power'			"${power:-null}"				--argjson	'hw_errors'	"${hw_errors:-null}"	\
+					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+					--argjson	'ar'			"${ar:-null}"					--argjson	'asicboost'	"${asicboost:-null}"	\
+																																\
+					'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$chain_voltage,$acn,$power,$hw_errors,$status,$uptime,$ar,$asicboost}' \
+																																\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
@@ -518,20 +518,19 @@ function get_miner_stats {
 					freq_new="$freq"
 				fi
 
-				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan_percent' 'fan_rpm' 'freq_new' 'chain_voltage' 'chain_acn' 'power' 'hw_errors' 'chain_acs' 'uptime' 'ar'
-				stats="$( jq --null-input --compact-output \
-					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
-					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
-					--argjson	'board_temp'	"$board_temp"			--argjson	'fan'		"$fan_percent" \
-					--argjson	'fan_rpm'		"$fan_rpm"				--argjson	'freq'		"$freq_new" \
-					--argjson	'chain_voltage'	"$chain_voltage"		--argjson	'acn'		"$chain_acn" \
-					--argjson	'power'			"$power"				--argjson	'hw_errors'	"$hw_errors" \
-					--argjson	'status'		"$chain_acs"			--argjson	'uptime'	"$uptime" \
-					--argjson	'ar'			"$ar" \
-					\
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $chain_voltage, $acn,
-					$power, $hw_errors, $status, $uptime, $ar}' \
-					\
+#				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan_percent' 'fan_rpm' 'freq_new' 'chain_voltage' 'chain_acn' 'power' 'hw_errors' 'chain_acs' 'uptime' 'ar'
+				stats="$( jq --null-input --compact-output																					\
+					--arg		'algo'			"$algo"							--argjson	'hs'		"${hs:-null}"						\
+					--arg		'hs_units'		"$hs_units"						--argjson	'temp'		"${temp:-null}"						\
+					--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"				\
+					--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq_new:-null}"					\
+					--argjson	'chain_voltage'	"${chain_voltage:-null}"		--argjson	'acn'		"${chain_acn:-null}"				\
+					--argjson	'power'			"${power:-null}"				--argjson	'hw_errors'	"${hw_errors:-null}"				\
+					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"					\
+					--argjson	'ar'			"${ar:-null}"																				\
+																																			\
+					'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$chain_voltage,$acn,$power,$hw_errors,$status,$uptime,$ar}'	\
+																																			\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
@@ -561,16 +560,16 @@ function get_miner_stats {
 				chain_acs="$(	jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | .status | [.[].accept | if . > 0 then "o" else "x" end ] | join("") ]'	<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
 #				hw_errors="$(	jq --compact-output	'.[1]						| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																			<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
 
-				sanitize_vars_for_argjson 'hs' 'temp' 'fan_percent' 'fan_rpm' 'freq' 'chain_acn' 'chain_acs' 'uptime'
-				stats="$( jq --null-input --compact-output \
-					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
-					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
-					--argjson	'fan'			"$fan_percent"			--argjson	'fan_rpm'	"$fan_rpm" \
-					--argjson	'freq'			"$freq"					--argjson	'acn'		"$chain_acn" \
-					--argjson	'status'		"$chain_acs"			--argjson	'uptime'	"$uptime" \
-					\
-					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}' \
-					\
+#				sanitize_vars_for_argjson 'hs' 'temp' 'fan_percent' 'fan_rpm' 'freq' 'chain_acn' 'chain_acs' 'uptime'
+				stats="$( jq --null-input --compact-output																		\
+					--arg		'algo'			"$algo"							--argjson	'hs'		"${hs:-null}"			\
+					--arg		'hs_units'		"$hs_units"						--argjson	'temp'		"${temp:-null}"			\
+					--argjson	'fan'			"${fan_percent:-null}"			--argjson	'fan_rpm'	"${fan_rpm:-null}"		\
+					--argjson	'freq'			"${freq:-null}"					--argjson	'acn'		"${chain_acn:-null}"	\
+					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																																\
+					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}'								\
+																																\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
@@ -611,16 +610,16 @@ function get_miner_stats {
 				chain_acs="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "chain_acs#$?" )
 				hw_errors="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("HW errors")) )		| to_entries | [.[].value] | add | select(.!=null)]'	<<< "$STATS"		)" || error_vars+=( "hw_errors#$?" )
 
-				sanitize_vars_for_argjson 'hs' 'temp' 'fan_percent' 'freq' 'chain_acn' 'hw_errors' 'chain_acs' 'uptime'
-				stats="$( jq --null-input --compact-output \
-					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
-					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
-					--argjson	'fan'			"$fan_percent"			--argjson	'freq'		"$freq" \
-					--argjson	'acn'			"$chain_acn"			--argjson	'hw_errors'	"$hw_errors" \
-					--argjson	'status'		"$chain_acs"			--argjson	'uptime'	"$uptime" \
-					\
-					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}' \
-					\
+#				sanitize_vars_for_argjson 'hs' 'temp' 'fan_percent' 'freq' 'chain_acn' 'hw_errors' 'chain_acs' 'uptime'
+				stats="$( jq --null-input --compact-output																		\
+					--arg		'algo'			"$algo"							--argjson	'hs'		"${hs:-null}"			\
+					--arg		'hs_units'		"$hs_units"						--argjson	'temp'		"${temp:-null}"			\
+					--argjson	'fan'			"${fan_percent:-null}"			--argjson	'freq'		"${freq:-null}"			\
+					--argjson	'acn'			"${chain_acn:-null}"			--argjson	'hw_errors'	"${hw_errors:-null}"	\
+					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																																\
+					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}'							\
+																																\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
@@ -650,15 +649,15 @@ function get_miner_stats {
 #				chain_acs="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
 				hw_errors="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Hardware Errors")) )	| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
 
-				sanitize_vars_for_argjson 'hs' 'temp' 'freq' 'chain_acn' 'hw_errors' 'uptime'
-				stats="$( jq --null-input --compact-output \
-					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
-					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
-					--argjson	'freq'			"$freq"					--argjson	'acn'		"$chain_acn" \
-					--argjson	'hw_errors'		"$hw_errors"			--argjson	'uptime'	"$uptime" \
-					\
-					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}' \
-					\
+#				sanitize_vars_for_argjson 'hs' 'temp' 'freq' 'chain_acn' 'hw_errors' 'uptime'
+				stats="$( jq --null-input --compact-output																		\
+					--arg		'algo'			"$algo"							--argjson	'hs'		"${hs:-null}"			\
+					--arg		'hs_units'		"$hs_units"						--argjson	'temp'		"${temp:-null}"			\
+					--argjson	'freq'			"${freq:-null}"					--argjson	'acn'		"${chain_acn:-null}"	\
+					--argjson	'hw_errors'		"${hw_errors:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																																\
+					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}'											\
+																																\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
@@ -731,19 +730,18 @@ function get_miner_stats {
 
 				power="$( jq --slurp --compact-output '.' <<< "$POWER" )"
 
-				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan_percent' 'fan_rpm' 'freq_new' 'chain_acn' 'power' 'ar' 'hw_errors' 'chain_acs' 'uptime'
-				stats="$( jq --null-input --compact-output \
-					--arg		'algo'			"$algo"					--argjson	'hs'		"$hs" \
-					--arg		'hs_units'		"$hs_units"				--argjson	'temp'		"$temp" \
-					--argjson	'board_temp'	"$board_temp"			--argjson	'fan'		"$fan_percent" \
-					--argjson	'fan_rpm'		"$fan_rpm"				--argjson	'freq'		"$freq_new" \
-					--argjson	'acn'			"$chain_acn"			--argjson	'power'		"$power" \
-					--argjson	'ar'			"$ar"					--argjson	'hw_errors'	"$hw_errors" \
-					--argjson	'status'		"$chain_acs"			--argjson	'uptime'	"$uptime" \
-					\
-					'{$algo, $hs, $hs_units, $temp, $board_temp, $fan, $fan_rpm, $freq, $acn, $power, $ar,
-					$hw_errors, $status, $uptime}' \
-					\
+#				sanitize_vars_for_argjson 'hs' 'temp' 'board_temp' 'fan_percent' 'fan_rpm' 'freq_new' 'chain_acn' 'power' 'ar' 'hw_errors' 'chain_acs' 'uptime'
+				stats="$( jq --null-input --compact-output																		\
+					--arg		'algo'			"$algo"							--argjson	'hs'		"${hs:-null}"			\
+					--arg		'hs_units'		"$hs_units"						--argjson	'temp'		"${temp:-null}"			\
+					--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"	\
+					--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq_new:-null}"		\
+					--argjson	'acn'			"${chain_acn:-null}"			--argjson	'power'		"${power:-null}"		\
+					--argjson	'ar'			"${ar:-null}"					--argjson	'hw_errors'	"${hw_errors:-null}"	\
+					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																																\
+					'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$acn,$power,$ar,$hw_errors,$status,$uptime}'	\
+																																\
 					2> /dev/null
 				)" || error_vars+=( "stats#$?" )
 				(( script_DEBUG )) && debug_print_variable stats algo hs hs_units temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
@@ -893,21 +891,21 @@ function loop {
 	last_cmd_id="$( get_saved_last_cmd_id )"
 
 	# construct a request
-	sanitize_vars_for_argjson 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
+#	sanitize_vars_for_argjson 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
 	request="$(
-		jq --null-input --compact-output \
-			--argjson	rig_id			"$RIG_ID" \
-			--arg		passwd			"$RIG_PASSWD" \
-			--argjson	last_cmd_id		"$last_cmd_id" \
-			--arg		miner			"$MINER" \
-			--argjson	meta			"$META" \
-			--argjson	miner_stats		"$stats" \
-			--argjson	total_khs		"$khs" \
-			--argjson	avg_khs			"$khs_av" \
-			--arg		system_status	"$system_status" \
-			--arg		df				"$df" \
-			--argjson	cpuavg			"$cpuavg" \
-			\
+		jq --null-input --compact-output						\
+			--argjson	rig_id			"${RIG_ID:-null}"		\
+			--arg		passwd			"$RIG_PASSWD"			\
+			--argjson	last_cmd_id		"${last_cmd_id:-null}"	\
+			--arg		miner			"$MINER"				\
+			--argjson	meta			"${META:-null}"			\
+			--argjson	miner_stats		"${stats:-null}"		\
+			--argjson	total_khs		"${khs:-null}"			\
+			--argjson	avg_khs			"${khs_av:-null}"		\
+			--arg		system_status	"$system_status"		\
+			--arg		df				"$df"					\
+			--argjson	cpuavg			"${cpuavg:-null}"		\
+																\
 			'def walk(f):
 				. as $in
 				| if type == "object" then
