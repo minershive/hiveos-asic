@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.21'
+readonly script_version='0.1.22'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -411,6 +411,8 @@ function send_hello_packet {
 	# consts
 	local -r -i curl_initial_connect_timeout=5
 	local -r -i max_connection_attempts=10
+	local -r test_URL="$server_URL/worker/api?a=b"
+	local -r work_URL="$server_URL/worker/api?id_rig=${RIG_ID-}&method=hello"
 
 	# vars
 	local -i attempts_counter curl_connect_timeout curl_max_time curl_exitcode
@@ -424,11 +426,11 @@ function send_hello_packet {
 		(( curl_connect_timeout = curl_initial_connect_timeout + attempts_counter ))
 		(( curl_max_time = curl_connect_timeout * 2 + 1 ))
 		# server sanity check first
-		(( script_DEBUG )) && echo_debug 'Connecting #1 for sanity check...'
+		(( script_DEBUG )) && echo_debug "Connecting for sanity check: '$test_URL'..."
 		server_response_sanity_check="$(
 			curl \
 				--silent --connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
-				"$server_URL/worker/api?a=b"
+				"$test_URL"
 		)"
 		curl_exitcode=$?
 
@@ -438,12 +440,13 @@ function send_hello_packet {
 				(( script_DEBUG )) && echo_debug 'Server response is not empty [OK]'
 				if jq --exit-status '.error and .error.code' <<< "$server_response_sanity_check" > /dev/null 2>&1; then
 					# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
-					(( script_DEBUG )) && echo_debug 'Server is the Hive API server. Connecting #2 for config...'
+					(( script_DEBUG )) && echo_debug 'Server is the Hive API server [OK]'
+					(( script_DEBUG )) && echo_debug "Connecting to get a config: '$work_URL'..."
 					server_response_by_ref="$(
 						curl \
 							--insecure --location --data @- --silent \
 							--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
-							--request POST "$server_URL/worker/api?id_rig=${RIG_ID-}&method=hello" \
+							--request POST "$work_URL" \
 							--header "Content-Type: application/json" \
 						<<< "$server_request_by_ref"
 					)"
