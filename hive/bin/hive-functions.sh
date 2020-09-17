@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.40.1'
+declare -r hive_functions_lib_version='0.40.2'
 #                                        ^^ current number of public functions
 
 
@@ -336,32 +336,25 @@ function is_JSON_string_not_empty_or_null {
 
 function strip_ansi {
 	#
-	# Usage: strip_ansi 'text'
-	#        cat file | strip_ansi
+	# Usage: cat file | strip_ansi
 	#
 	# strips ANSI codes from text
 	#
-	# < or $1: The text to strip
-	# >: ANSI stripped text
+	# stdin: The text to strip
+	# stdout: ANSI stripped text
 	#
 
 	# args
-
-	(( $# <= 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
+	(( $# == 0 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	# vars
-
 	local line=''
 
 	# code
-
+	shopt -s extglob
 	while IFS='' read -r line || [[ -n "$line" ]]; do
-		(
-			shopt -s extglob
-			printf '%s\n' "${line//$'\e'[\[(]*([0-9;])[@-n]/}"
-		)
-	done <<< "$input_text"
+		printf '%s\n' "${line//$'\e'[\[(]*([0-9;])[@-n]/}"
+	done
 }
 
 
