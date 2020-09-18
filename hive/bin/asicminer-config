@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.0'
+readonly script_version='0.2.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -139,7 +139,7 @@ function sanitize_worker_name {
 
 	if [[ -n "$worker_name_corrected" ]]; then
 		worker_name_corrected="${worker_name_corrected//$blacklisted_chars/$safe_char}" # replace blacklisted chars
-		worker_name_corrected="${worker_name_corrected::$max_safe_length}" # trim the length
+#		worker_name_corrected="${worker_name_corrected::$max_safe_length}" # trim the length # !!! disabled temporarily
 	fi
 
 	echo "$worker_name_corrected"
