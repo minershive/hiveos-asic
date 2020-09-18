@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.22'
+readonly script_version='0.1.23'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -331,7 +331,7 @@ function get_kernel_version {
 
 	# add signed status to a kernel info
 	if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
-		if ant-functions is_hiveon_fw_signed; then
+		if ant-functions.sh is_hiveon_fw_signed; then
 			kernel_version+=' signed'
 		else
 			kernel_version+=' unsigned'

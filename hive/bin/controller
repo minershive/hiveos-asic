@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.56'
+readonly script_version='2.1.57'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1255,7 +1255,7 @@ function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && 
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry "$event_type_for_log" "$ASIC_CONF changed, sending it to the back-end..."
 			cp -f "$ASIC_CONF" "$HIVEON_CONF"
-			ant-functions send_hiveon_config
+			ant-functions.sh send_hiveon_config
 		fi
 	fi
 
@@ -1611,7 +1611,7 @@ function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 
 	# code
 
-	if ! ant-functions is_hiveon_fw_signed; then
+	if ! ant-functions.sh is_hiveon_fw_signed; then
 		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) == 0 )); then
 			# one time action
 			print_controller_log_entry "$event_type_for_log" 'Firmware is unsigned'

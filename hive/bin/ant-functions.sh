@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.14'
+declare -r ant_functions_lib_version='0.1.15'
 
 
 # !!! bash strict mode, no unbound variables
@@ -347,7 +347,7 @@ function hiveon_default_config {
 	if [[ -f /etc/config.conf.e ]]; then
 		cp -rf /etc/config.conf.e /config/config.conf
 		message info 'Firmware config reset to default'
-		ant-functions send_hiveon_config
+		send_hiveon_config
 		miner restart
 	fi
 }
