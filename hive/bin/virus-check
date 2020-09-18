@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.6.1'
+readonly script_version='0.6.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -320,8 +320,6 @@ function check_for_suspicious_files {
 }
 
 function check_system_files {
-	(( is_silent )) && return
-
 	# consts
 	local -r label_text='system file md5'
 	local -r -A files_to_check=(
@@ -352,6 +350,32 @@ function check_system_files {
 			fi
 		fi
 	done
+}
+
+function check_uname_and_kernel_match {
+	# consts
+	local -r label_text='kernel version'
+	local -A uname_DICT=(
+		['Antminer T9 Hiveon 1.03@200818']='3.14.0-xilinx-ga36f3af-dirty'
+	)
+
+	# vars
+	local dict_key uname_from_dict uname_actual
+
+	# code
+	if [[ -n "$HIVEON_VERSION" ]]; then
+		dict_key="$ASIC_MODEL $HIVEON_VERSION_full" # f.e. 'Antminer T9 Hiveon 1.03@200818'
+		uname_from_dict="${uname_DICT[$dict_key]-}"
+		if [[ -n "$uname_from_dict" ]]; then
+			uname_actual="$( uname -r )"
+			if [[ "$uname_actual" != "$uname_from_dict" ]]; then
+				pretty_table_row "$label_text" "${BYELLOW-}" "WRONG (is '$uname_actual' but must be '$uname_from_dict')"
+				set_bits_by_mask audit_status status_WARNING
+			else
+				pretty_table_row "$label_text" "${GREEN-}" 'matched'
+			fi
+		fi
+	fi
 }
 
 function print_etc_hosts {
@@ -411,18 +435,17 @@ if (( ! is_silent )); then
 	print_script_version
 fi
 
-(( script_DEBUG )) && { ASIC_MANUFACTURER='Bitmain'; ASIC_MODEL='Antminer S17 Hiveon'; }
-
 case "${ASIC_MANUFACTURER-}" in
 	'Bitmain')
 		pretty_table_row 'model' "${WHITE-}" "$ASIC_MODEL ($ASIC_MANUFACTURER)"
-		[[ -n "${HIVEON_VERSION-}" ]] && pretty_table_row 'version' "${WHITE-}" "Hiveon $HIVEON_VERSION"
+		[[ -n "${HIVEON_VERSION_full-}" ]] && pretty_table_row 'version' "${WHITE-}" "Hiveon $HIVEON_VERSION_full"
 		pretty_table_header 'KNOWN VIRUSES CHECK'
 		check_antbuild
 		check_bitmsfser_info
 		check_nightswitcher
 
 		pretty_table_header 'SUSPICIOUS ITEMS CHECK'
+		check_uname_and_kernel_match
 		check_ntpd_size
 		check_system_files
 		check_for_suspicious_files
@@ -471,6 +494,8 @@ T9 Hiveon 1.03
 bb965c01fbba97604b94813fcdaa0829  /usr/bin/ntpd 358832 bytes
 27a0a0bfeee0d919ef03ba534caab51c  /lib/modules/bitmain_axi.ko
 3.14.0-xilinx-g16220c3  uname -r
+Antminer T9 Hiveon 1.03@200818 == 3.14.0-xilinx-ga36f3af-dirty
+antbuild stock kernel ==          3.14.0-xilinx-gb190cb0-dirty
 
 L3+ Hiveon 1.00
 e5b8378fc39c16f4adbf0503fa988d6f  /usr/bin/ntpd 447336 bytes
