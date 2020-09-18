@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.1'
+readonly script_version='0.2.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -326,8 +326,8 @@ function generate_miner_configuration {
 	for url in $ASICMINER_URL; do
 		pool='{}'
 		# shellcheck disable=SC2016
-		pool="$( jq --null-input --argjson pool "$pool" \
-			--arg user "$ASICMINER_TEMPLATE" --arg url "$url" --arg pass "$ASICMINER_PASS" \
+		pool="$( jq --null-input \
+			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" --arg url "$url" --arg pass "$ASICMINER_PASS" \
 			'$pool + {$user,$url,$pass}'
 		)"
 #		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
@@ -343,8 +343,8 @@ function generate_miner_configuration {
 	if [[ -n "${ASICMINER_TEMPLATE2-}" || -n "${ASICMINER_URL2-}" ]]; then
 		pool='{}'
 		# shellcheck disable=SC2016
-		pool="$( jq --null-input --argjson pool "$pool" \
-			--arg user "$ASICMINER_TEMPLATE2" --arg url "$ASICMINER_URL2" --arg pass "$ASICMINER_PASS2"
+		pool="$( jq --null-input \
+			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" --arg url "$ASICMINER_URL2" --arg pass "$ASICMINER_PASS2" \
 			'$pool + {$user,$url,$pass}'
 		)"
 #		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
@@ -356,8 +356,8 @@ function generate_miner_configuration {
 	if [[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]]; then
 		pool='{}'
 		# shellcheck disable=SC2016
-		pool="$( jq --null-input --argjson pool "$pool" \
-			--arg user "$ASICMINER_TEMPLATE3" --arg url "$ASICMINER_URL3" --arg pass "$ASICMINER_PASS3"
+		pool="$( jq --null-input \
+			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" --arg url "$ASICMINER_URL3" --arg pass "$ASICMINER_PASS3" \
 			'$pool + {$user,$url,$pass}'
 		)"
 #		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
