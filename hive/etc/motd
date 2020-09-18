@@ -211,8 +211,8 @@ local_date="$( date '+%F %T %z' )"
 
 fs_name="$( get_fs_name )"
 
-if [[ -n "$HIVEON_VER" ]]; then
-	fw_version="$( sed -n 3p /usr/bin/compile_ver )"
+if [[ -n "$HIVEON_VERSION" ]]; then
+	fw_version="$HIVEON_VERSION_full"
 elif [[ -x /home/sm/miner/build/cpuminer ]] && [[ -e /flask/setHashinJson ]]; then
 	fw_version="$( /home/sm/miner/build/cpuminer -V | head -n 1 )"
 	if [[ "$ASIC_MODEL" == "Toddminer C1" ]]; then
