@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.1.12'
+readonly script_version='0.2.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -59,9 +59,9 @@ function print_script_usage {
 function parse_arguments {
 	# default flow
 	((
-		save_config_FLAG=1,
-		is_verbose_FLAG=0,
-		compare_configs_ENUM=compare_NONE
+		save_config_FLAG = 1,
+		is_verbose_FLAG = 0,
+		compare_configs_ENUM = compare_NONE
 	))
 
 	# code
@@ -72,11 +72,17 @@ function parse_arguments {
 			;;
 
 			'-f' | '--full-compare' )
-				(( compare_configs_ENUM = compare_FULL ))
+				((
+					save_config_FLAG = 0,
+					compare_configs_ENUM = compare_FULL
+				))
 			;;
 
 			'-p' | '--pools-only-compare' )
-				(( compare_configs_ENUM = compare_POOLS ))
+				((
+					save_config_FLAG = 0,
+					compare_configs_ENUM = compare_POOLS
+				))
 			;;
 
 			'-q' | '--quiet' )
@@ -106,54 +112,259 @@ function parse_arguments {
 	done
 }
 
+function sanitize_worker_name {
+	#
+	# Usage: sanitize_worker_name 'worker_name'
+	#
+	# exit codes:
+	#
+	# 0: sanitized ok, was incorrect
+	# 1: not sanitized (left intact), was correct
+	#
+
+	# args
+	local -r worker_name_original="${1-}"
+
+	# consts
+	#local -r blacklisted_chars='@(:|+|-|_| )' # requires shopt -s extglob
+	local -r blacklisted_chars='[^[:alnum:]]' # leave only alnums -- much better
+	local -r safe_char='x'
+	local -r max_safe_length=8
+
+	# vars
+	local worker_name_corrected
+
+	# code
+	worker_name_corrected="$worker_name_original" # save for comparing later
+
+	if [[ -n "$worker_name_corrected" ]]; then
+		worker_name_corrected="${worker_name_corrected//$blacklisted_chars/$safe_char}" # replace blacklisted chars
+		worker_name_corrected="${worker_name_corrected::$max_safe_length}" # trim the length
+	fi
+
+	echo "$worker_name_corrected"
+	[[ "$worker_name_corrected" != "$worker_name_original" ]] # generate a relevant exit code
+}
+
+function sanitize_ASICMINER_TEMPLATE {
+	#
+	# Usage: sanitize_ASICMINER_TEMPLATE 'ASICMINER_TEMPLATE_to_sanitize'
+	#
+	# exit codes:
+	#
+	# 0: sanitized ok, was incorrect
+	# 1: not sanitized (left intact), was correct
+	#
+
+	# args
+	local -r template_original="${1-}"
+
+	# consts
+	local -r valid_template_RE='%[[:alpha:]][[:alnum:]_]+[[:alpha:]]%'
+
+	# vars
+	local -a template_as_array
+	local IFS WORKER_NAME_field_original WORKER_NAME_field_corrected template_corrected
+
+	# code
+	template_corrected="$template_original" # save for comparing later
+
+	if [[ -n "$template_original" ]]; then
+		IFS='.' template_as_array=( $template_original ) # decompose by '.' delimiter
+		# only if the content does look conventional as in "wallet.worker_name"...
+		if (( ${#template_as_array[@]} == 2 )); then
+			WORKER_NAME_field_original="${template_as_array[1]}"
+			# ...and doesn't contain templates like %WORKER_NAME%
+			if [[ -n "$WORKER_NAME_field_original" && ! "$WORKER_NAME_field_original" =~ $valid_template_RE ]]; then
+				if WORKER_NAME_field_corrected="$( sanitize_worker_name "$WORKER_NAME_field_original" )"; then
+					template_as_array[1]="$WORKER_NAME_field_corrected"
+					IFS='.' template_corrected="${template_as_array[*]}" # compose back
+					echo_warning "Possibly incorrect worker name detected & corrected: $WORKER_NAME_field_original -> $WORKER_NAME_field_corrected" 1>&2
+				fi
+			fi
+		fi
+	fi
+
+	echo "$template_corrected"
+	[[ "$template_corrected" != "$template_original" ]] # generate a relevant exit code
+}
+
+function sanitize_ASICMINER_TEMPLATEs_by_ref {
+	#
+	# Usage: sanitize_ASICMINER_TEMPLATEs_by_ref 'variable_name'...
+	#
+
+	# args
+	# no definition, used later as "$@"
+
+	# vars
+	local this_variable_name this_variable_original_value this_variable_new_value
+	local -a old_values_array new_values_array
+	local -i is_something_changed_FLAG=0
+
+	# code
+	for this_variable_name in "$@"; do
+		local -n this_variable_by_ref="$this_variable_name"
+		this_variable_original_value="$this_variable_by_ref"
+
+		if [[ -n "$this_variable_original_value" ]] && this_variable_new_value="$( sanitize_ASICMINER_TEMPLATE "$this_variable_original_value" )"; then
+			this_variable_by_ref="$this_variable_new_value"
+			# accumulate the changes to display later
+			old_values_array+=( "$this_variable_original_value" )
+			new_values_array+=( "$this_variable_new_value" )
+			is_something_changed_FLAG=1
+		fi
+	done
+
+	if (( is_something_changed_FLAG && save_config_FLAG )); then
+		message warning "${script_basename}: possibly incorrect worker name detected & corrected" --payload --silent <<-EOM
+			We have detected a questionable worker name in the active Flight Sheet and then corrected it to conform with the common conventions*. What exactly was changed:
+
+			Before: ${old_values_array[@]}
+			 After: ${new_values_array[@]}
+
+			If you believe that this is not right, you should update your Flight Sheet to use a template %WORKER_NAME_RAW% instead of %WORKER_NAME%. Also, you may contact Support Team: <a href='https://t.me/hiveonasic_en'>t.me/hiveonasic_en</a>, <a href='https://t.me/hiveonasic'>t.me/hiveonasic</a>, <a href='mailto:bee@hiveos.farm'>bee@hiveos.farm</a>
+
+			* The vast majority of pools DO NOT support a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than 8 characters long.
+		EOM
+	fi
+}
+
+function sanitize_ASICMINER_URL {
+	#
+	# Usage: sanitize_ASICMINER_URL 'ASICMINER_URL_to_sanitize'
+	#
+	# exit codes:
+	#
+	# 0: sanitized ok, was incorrect
+	# 1: not sanitized (left intact), was correct
+	#
+
+	# args
+	local -r url_original="${1-}"
+
+	# consts
+	local -r url_content_wrong='stratum+tcp://stratum+tcp://'
+	local -r url_content_good='stratum+tcp://'
+
+	# vars
+	local url_corrected
+
+	# code
+	url_corrected="$url_original" # save for comparing later
+
+	if [[ -n "$url_original" && "$url_original" == *"$url_content_wrong"* ]]; then
+		url_corrected="${url_original//$url_content_wrong/$url_content_good}"
+		echo_warning "Incorrect pool URL detected & corrected: removed an extra 'stratum+tcp://'" 1>&2
+	fi
+
+	echo "$url_corrected"
+	[[ "$url_corrected" != "$url_original" ]] # generate a relevant exit code
+}
+
+function sanitize_ASICMINER_URLs_by_ref {
+	#
+	# Usage: sanitize_ASICMINER_URLs_by_ref 'variable_name'...
+	#
+
+	# args
+	# no definition, used later as "$@"
+
+	# vars
+	local this_variable_name this_variable_original_value this_variable_new_value
+	local -a old_values_array new_values_array
+	local -i is_something_changed_FLAG=0
+
+	# code
+	for this_variable_name in "$@"; do
+		local -n this_variable_by_ref="$this_variable_name"
+		this_variable_original_value="$this_variable_by_ref"
+
+		if [[ -n "$this_variable_original_value" ]] && this_variable_new_value="$( sanitize_ASICMINER_URL "$this_variable_original_value" )"; then
+			this_variable_by_ref="$this_variable_new_value"
+			# accumulate the changes to display later
+			old_values_array+=( "$this_variable_original_value" )
+			new_values_array+=( "$this_variable_new_value" )
+			is_something_changed_FLAG=1
+		fi
+	done
+
+	if (( is_something_changed_FLAG && save_config_FLAG )); then
+		message warning "${script_basename}: incorrect pool URL detected & corrected" --payload --silent <<-EOM
+			We have detected an incorrect pool URL in the active Flight Sheet and then corrected it. What exactly was changed:
+
+			Before: ${old_values_array[@]}
+			 After: ${new_values_array[@]}
+
+			Please correct your Flight Sheet.
+		EOM
+	fi
+}
+
 function generate_miner_configuration {
 	# vars
 	local -i pools_count pool_index first_url_count
 	local pool pools config_global
 	local line varkey varval
-	local template_label template_placeholder
+	local this_template_label this_template_placeholder
 	local final_configuration
+	local WORKER_NAME_RAW
 
 	# code
+	sanitize_ASICMINER_TEMPLATEs_by_ref 'ASICMINER_TEMPLATE' 'ASICMINER_TEMPLATE2' 'ASICMINER_TEMPLATE3'
+	sanitize_ASICMINER_URLs_by_ref 'ASICMINER_URL' 'ASICMINER_URL2' 'ASICMINER_URL3'
+
 	pools_count=1
 	[[ -n "${ASICMINER_TEMPLATE2-}" || -n "${ASICMINER_URL2-}" ]] && pools_count=2
 	[[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]] && pools_count=3
 
-	#use first pool on ASICMINER_URL, if not epmty ASICMINER_URL2 and ASICMINER_URL3
-	#use first and second pool on ASICMINER_URL, if not empty ASICMINER_URL2 and empty ASICMINER_URL3
+	# !!! ASICMINER_URL can be multi-line, up to 3 lines
+	# use first pool on ASICMINER_URL, if not epmty ASICMINER_URL2 and ASICMINER_URL3
+	# use first and second pool on ASICMINER_URL, if not empty ASICMINER_URL2 and empty ASICMINER_URL3
 	pools='[]'
 	first_url_count=3
 	for url in $ASICMINER_URL; do
 		pool='{}'
 		# shellcheck disable=SC2016
-		{
-			pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
-			pool="$( jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}' )"
-			pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}' )"
-			pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
-		}
+		pool="$( jq --null-input --argjson pool "$pool" \
+			--arg user "$ASICMINER_TEMPLATE" --arg url "$url" --arg pass "$ASICMINER_PASS" \
+			'$pool + {$user,$url,$pass}'
+		)"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}' )"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}' )"
+		# shellcheck disable=SC2016
+		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
+
 		(( first_url_count == pools_count )) && break
 		(( first_url_count-- ))
 	done
+
 	if [[ -n "${ASICMINER_TEMPLATE2-}" || -n "${ASICMINER_URL2-}" ]]; then
 		pool='{}'
 		# shellcheck disable=SC2016
-		{
-			pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
-			pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}' )"
-			pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}' )"
-			pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
-		}
+		pool="$( jq --null-input --argjson pool "$pool" \
+			--arg user "$ASICMINER_TEMPLATE2" --arg url "$ASICMINER_URL2" --arg pass "$ASICMINER_PASS2"
+			'$pool + {$user,$url,$pass}'
+		)"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}' )"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}' )"
+		# shellcheck disable=SC2016
+		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 	fi
 	if [[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]]; then
 		pool='{}'
 		# shellcheck disable=SC2016
-		{
-			pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
-			pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}' )"
-			pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}' )"
-			pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
-		}
+		pool="$( jq --null-input --argjson pool "$pool" \
+			--arg user "$ASICMINER_TEMPLATE3" --arg url "$ASICMINER_URL3" --arg pass "$ASICMINER_PASS3"
+			'$pool + {$user,$url,$pass}'
+		)"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}' )"
+#		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}' )"
+		# shellcheck disable=SC2016
+		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 	fi
 
 	# shellcheck disable=SC2016
@@ -816,15 +1027,19 @@ function generate_miner_configuration {
 	# shellcheck disable=SC2016
 	final_configuration="$( jq --null-input --argjson g "$config_global" --argjson p "$pools" '$p * $g' )"
 
-	# !!! legacy vars, should all be set as "dummy"
+	# legacy vars, should all be set as "dummy"
+	# ??? I'd say we should ditch it for good
 	[[ -z "${EWAL-}" && -z "${ZWAL-}" && -z "${DWAL-}" ]] && echo_error "No WAL address is set"
 
+	# shellcheck disable=SC2034,SC2153
+	WORKER_NAME_RAW="$WORKER_NAME" # a special template to get around a forced worker name sanitizing, if needed
+
 	#replace %template% with its value in a whole file
-	# !!! legacy, might to remove it sometimes
-	for template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME; do
-		local -n template_value="$template_label"
-		template_placeholder="%${template_label}%"
-		[[ -n "$template_value" ]] && final_configuration="${final_configuration//${template_placeholder}/${template_value}}"
+	# !!! legacy, might have to remove it sometimes
+	for this_template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME WORKER_NAME_RAW; do
+		local -n this_template_value="$this_template_label"
+		this_template_placeholder="%${this_template_label}%"
+		[[ -n "$this_template_value" ]] && final_configuration="${final_configuration//${this_template_placeholder}/${this_template_value}}"
 	done
 
 	echo "$final_configuration"
