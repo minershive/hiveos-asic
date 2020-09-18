@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.15'
+declare -r ant_functions_lib_version='0.1.16'
 
 
 # !!! bash strict mode, no unbound variables
@@ -159,6 +159,9 @@ function hiveon_status {
 	local -i tune_board=0 tune_chip=0
 	local system_status
 
+	# consts
+	local -r series_17_RE='^Antminer [ST]17'
+
 	# code
 	if [[ -n "$input_text" && "$input_text" != 'ERR_NO_STATS' ]]; then
 		system_status="$( jq --raw-output '.[0].Type' <<< "$input_text" )"
@@ -187,7 +190,7 @@ function hiveon_status {
 	fi
 
 	#Hiveon before 17 series
-	if [[ -n "$HIVEON_VERSION" && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
+	if [[ -n "$HIVEON_VERSION" && ( ! "$ASIC_MODEL" =~ $series_17_RE ) && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
 		if [[ -s /www/pages/cgi-bin/check-auto-tune-running.cgi ]]; then
 			tune_board="$( sh /www/pages/cgi-bin/check-auto-tune-running.cgi )"
 		fi
