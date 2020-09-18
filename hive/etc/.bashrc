@@ -1,4 +1,4 @@
-function set_prompt () {
+function set_prompt {
   local GRAY="\[\033[1;30m\]"
   local LIGHT_GRAY="\[\033[0;37m\]"
   local CYAN="\[\033[0;36m\]"
@@ -20,9 +20,8 @@ function set_prompt () {
   # PS1="$LIGHT_GREEN\u $YELLOW[$RED\w$YELLOW]$NO_COLOUR "
   # PS1="\u@\h "
 }
-set_prompt
+#set_prompt
 
 PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 
-#motd
-[[ -e /hive/etc/motd ]] && . /hive/etc/motd
+[[ -e /hive/etc/motd ]] && /hive/etc/motd

@@ -396,7 +396,7 @@ Send a message to Hive OS dashboard\
 ```message success|danger|warning|info "message"``` - send a message to the dashboard\
 ```message file /path/filename``` - send a file to the dashboard\
 ```message file.io|transfer.sh /path/filename``` - send a file to the file sharing service\
-```message tag "tag_text"``` - tag a worker with any text. Inside the tag text you can use templates: ```%BUILD%```, ```%FW%```, ```%HOSTNAME%```, ```%IP%```, ```%IP_SAFE%```, ```%MAC%```, ```%MAC_SAFE%```, ```%PROFILE%```, ```%URL%``` and ```%WORKER_NAME_RAW%```.\
+```message tag "tag_text"``` - tag a worker with any text. Inside the tag text you can use templates: ```%BUILD%```, ```%FW%```, ```%HOSTNAME%```, ```%IP%```, ```%IP_SAFE%```, ```%MAC%```, ```%MAC_SAFE%```, ```%PROFILE%```, ```%URL%``` and ```%WORKER_NAME_RAW%```
 
 ### ```miner```
 ```
