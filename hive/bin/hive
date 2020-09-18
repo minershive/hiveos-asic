@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.1'
+readonly script_version='0.1.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -272,7 +272,7 @@ echo_x action 'Generating miner config'
 
 # motd
 echo
-bash /hive/etc/motd
+/hive/etc/motd
 
 
 # mission complete
