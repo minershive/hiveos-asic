@@ -4,46 +4,210 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+# Linted by shellcheck 0.3.7
 #
 
 
-. asic-model
+readonly script_mission='Client for ASICs: LED Blinker'
+readonly script_version='0.1.0'
+readonly script_basename="$( basename "$0" )"
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
-function value() {
-	echo out > /sys/class/gpio/gpio$GPIO_LED_RED/direction
-	nohup /hive/sbin/bash -c "timeout -t $1 /hive/sbin/bash -c \
-		'while true; do echo 1 > /sys/class/gpio/gpio${GPIO_LED_RED}/value; sleep 1; echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value; done'; \
-		echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value" &
+
+# !!! bash strict mode, no unbound variables
+
+set -o nounset
+
+
+# functions
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
 }
 
-function direction() {
-	nohup /hive/sbin/bash -c "timeout -t $1 /hive/sbin/bash -c \
-		'while true; do echo high > /sys/class/gpio/gpio${GPIO_LED_RED}/direction; sleep 1; echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction; done'; \
-		echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction" &
+function print_script_usage {
+	echo "Usage: ${CYAN-}${script_basename} 1-100|stop${NOCOLOR-}"
+	echo
+	echo "Example: ${CYAN-}${script_basename} 15${NOCOLOR-} to blink the LED for 15 minutes"
+	echo "         ${CYAN-}${script_basename} stop${NOCOLOR-} to stop blinking"
+	echo
 }
 
-case "$1" in
-	stop)
-		ps w | grep time | grep while | grep -v '{timeout}' | awk '{print $1}' | xargs kill
-		if [[ $GPIO_PATH == "value" ]]; then
-			echo 0 > /sys/class/gpio/gpio${GPIO_LED_RED}/value
-		elif [[ $GPIO_PATH == "direction" ]]; then
-			echo low > /sys/class/gpio/gpio${GPIO_LED_RED}/direction
-		fi
-	;;
-	*)
-		if [[ $1 =~ ^[0-9]+$ ]]; then
-			if [[ ! -e /sys/class/gpio/gpio$GPIO_LED_RED ]]; then
-				echo "$GPIO_LED_RED" > /sys/class/gpio/export
+function check_GPIO_PATH {
+	# consts
+	local -r valid_methods_RE="^(${led_control_DICT[.methods_list]})$"
+
+	# code
+	if [[ "${GPIO_PATH-}" =~ $valid_methods_RE ]]; then
+		(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): GPIO_PATH '$GPIO_PATH' validated"
+	elif [[ -z "${GPIO_PATH-}" ]]; then
+		echo 'ERROR: no GPIO_PATH defined, please check /hive/bin/asic-model'
+		exit 1
+	else
+		echo "ERROR: wrong GPIO_PATH '$GPIO_PATH', please check /hive/bin/asic-model"
+		exit 1
+	fi
+}
+
+function make_LED {
+	#
+	# Usage: make_LED on|off|init
+	#
+
+	# args
+	local -r command="$1"
+
+	# consts
+	local -r valid_commands_RE="^(${led_control_DICT[.commands_list]})$"
+
+	# vars
+	local full_gpio_path full_gpio_init_path gpio_command
+
+	# code
+	if [[ "$command" =~ $valid_commands_RE ]]; then
+		(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): command '$command' validated"
+	else
+		(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): Unknown command '$command'"
+		return 1
+	fi
+
+	gpio_command="${led_control_DICT[${GPIO_PATH}.${command}]-}"
+
+	(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): $command=$gpio_command"
+
+	case "$gpio_command" in
+		'')
+			(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): command '$command' not defined in dictionary, skipping"
+		;;
+		'init')
+			full_gpio_init_path="${led_control_DICT[${GPIO_PATH}.init_path]}"
+			[[ -n "$full_gpio_init_path" ]] && echo "$gpio_command" > "$full_gpio_init_path"
+		;;
+		*)
+			full_gpio_path="${led_control_DICT[${GPIO_PATH}.path]}"
+			[[ -n "$full_gpio_path" ]] && echo "$gpio_command" > "$full_gpio_path"
+		;;
+	esac
+}
+
+function blink_LED_for {
+	#
+	# Usage: blink_LED_for 'minutes_to_blink'
+	#
+
+	# args
+	local -r -i minutes_to_blink="$1"
+
+	# consts
+	local -r -i seconds_to_blink=$(( minutes_to_blink * 60 ))
+	local -r message="> Blink LED for ${minutes_to_blink}m (${seconds_to_blink}s)"
+
+	# vars
+	local message
+	local -i seconds_to_blink
+
+	# code
+	[[ ! -t 1 ]] && echo -n "$message... "
+
+	SECONDS=0 # initialize internal bash timer
+	make_LED 'init'
+	while (( ! is_SIGUSR1_received_FLAG && SECONDS < seconds_to_blink )); do
+		if [[ -t 1 ]]; then
+			if (( script_DEBUG )); then
+				printf '%s. Remaining: %ss...\n' "$message" $(( seconds_to_blink - SECONDS ))
+			else
+				printf '\r%s. Remaining: %ss...     \r' "$message" $(( seconds_to_blink - SECONDS ))
 			fi
-			if [[ $GPIO_PATH == "value" ]]; then
-				value $(($1 * 60))
-			elif [[ $GPIO_PATH == "direction" ]]; then
-				direction $(($1 * 60))
+		fi
+		make_LED 'on'
+		sleep 1
+		make_LED 'off'
+	done
+
+	make_LED 'off' # just for sure and for '0' minutes (a special case to turn off the LED without waiting for 1 minute)
+
+	if (( is_SIGUSR1_received_FLAG )); then
+		echo "'stop' signal received, exiting"
+	else
+		if [[ -t 1 ]]; then
+			if (( script_DEBUG )); then
+				printf '%s. Done.' "$message"
+			else
+				printf '\r%s. Done.%*s                    ' "$message" "${#message}"
 			fi
 		else
-			echo "Example: 'asic-find 15' for 15 minutes"
+			echo 'Done.'
 		fi
-	;;
-esac
+	fi
+	echo
+}
+
+function send_stop_signal {
+	echo -n "> Sending 'stop' signal to all active $script_basename... "
+	if killall -USR1 "$script_basename" 2> /dev/null; then
+		echo "${GREEN-}OK${NOCOLOR-}"
+	else
+		echo "${BRED-}ERROR${NOCOLOR-} ($script_basename process not found)"
+	fi
+}
+
+
+# sources
+
+source colors
+source asic-model
+
+
+# dictionaries
+
+declare -A -r led_control_DICT=(
+	 ['.commands_list']='on|off|init'
+	  ['.methods_list']='value|direction'
+
+	     ['value.path']="/sys/class/gpio/gpio${GPIO_LED_RED}/value"
+	['value.init_path']="/sys/class/gpio/gpio${GPIO_LED_RED}/direction"
+	       ['value.on']='1'
+	      ['value.off']='0'
+	     ['value.init']='out'
+
+	 ['direction.path']="/sys/class/gpio/gpio${GPIO_LED_RED}/direction"
+	   ['direction.on']='high'
+	  ['direction.off']='low'
+)
+
+
+# vars
+
+declare -i is_SIGUSR1_received_FLAG=0
+
+
+# traps
+
+trap "printf '\n\nInterrupted!\n'; make_LED 'off'; exit" INT HUP # turn off the LED if interrupted
+trap 'is_SIGUSR1_received_FLAG=1' USR1 # signal to stop
+
+
+# code
+
+print_script_version
+check_GPIO_PATH
+
+if [[ "${1-}" == 'stop' ]]; then
+	send_stop_signal
+elif [[ "${1-}" =~ ^[0-9]+$ ]]; then
+	send_stop_signal # shut off all active asic-find scripts
+	is_SIGUSR1_received_FLAG=0 # set the flag back
+	if [[ ! -e "/sys/class/gpio/gpio${GPIO_LED_RED}" ]]; then
+		(( script_DEBUG )) && echo "[DEBUG] /sys/class/gpio/gpio${GPIO_LED_RED} is not exist"
+		echo "$GPIO_LED_RED" > /sys/class/gpio/export
+	fi
+	blink_LED_for "$1"
+else
+	print_script_usage
+fi
+
+echo
