@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.40.2'
+declare -r hive_functions_lib_version='0.42.1'
 #                                        ^^ current number of public functions
 
 
@@ -308,6 +308,7 @@ function is_JSON_string_empty_or_null {
 
 	# args
 
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r JSON_string_to_check="$1"
 
 	# code
@@ -322,11 +323,43 @@ function is_JSON_string_not_empty_or_null {
 
 	# args
 
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r JSON_string_to_check="$1"
 
 	# code
 
 	[[ -n "$JSON_string_to_check" && "$JSON_string_to_check" != 'null' ]]
+}
+
+function is_file_exist_but_empty {
+	#
+	# Usage: is_file_exist_but_empty 'file_name_to_check'
+	#
+
+	# args
+
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_name_to_check="$1"
+
+	# code
+
+	[[ -f "$file_name_to_check" && ! -s "$file_name_to_check" ]]
+}
+
+function is_file_exist_and_contain {
+	#
+	# Usage: is_file_exist_and_contain 'file_name_to_check' 'ERE_string_to_contain'
+	#
+
+	# args
+
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_name_to_check="$1"
+	local -r ERE_string_to_contain="$2"
+
+	# code
+
+	[[ -s "$file_name_to_check" ]] && grep -q "$ERE_string_to_contain" "$file_name_to_check"
 }
 
 
@@ -779,7 +812,7 @@ function snore {
 	# args
 
 	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r __sleep_time="${1-}"
+	local -r __sleep_time="${1-1}" # 1s by default
 
 	# vars
 
@@ -790,8 +823,17 @@ function snore {
 	# shellcheck disable=SC1083
 	# because 'man bash':
 	# Each redirection that may be preceded by a file descriptor number may instead be preceded by a word of the form {varname}.
-	[[ -n "${__snore_fd:-}" ]] || exec {__snore_fd}<> <(:)
-	read -r -t "${__sleep_time}" -u "$__snore_fd" || :
+	[[ -n "${__snore_fd:-}" ]] || { exec {__snore_fd}<> <(:); } 2> /dev/null ||
+	{
+		# workaround for MacOS and similar systems
+		local fifo
+		fifo="$( mktemp -u )"
+		mkfifo -m 700 "$fifo"
+		# shellcheck disable=SC2093
+		exec {__snore_fd}<>"$fifo"
+		rm "$fifo"
+	}
+	read -t "${__sleep_time}" -u "$__snore_fd" || :
 }
 
 
