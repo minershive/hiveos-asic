@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.3'
+readonly script_version='0.2.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -218,14 +218,15 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 
 	if (( is_something_changed_FLAG && save_config_FLAG )); then
 		message warning "${script_basename}: possibly incorrect worker name detected & corrected" --payload --silent <<-EOM
-			We have detected a questionable worker name in the active Flight Sheet and then corrected it to conform with the common conventions*. What exactly was changed:
+			<h3>Please correct your Flight Sheet</h3>We have detected a questionable worker name in the active Flight Sheet and then corrected it* to conform with the common conventions**. What exactly was changed:
 
 			Before: ${old_values_array[@]}
 			 After: ${new_values_array[@]}
 
 			If you believe that this is not right, you should update your Flight Sheet to use a template %WORKER_NAME_RAW% instead of %WORKER_NAME%. Also, you may contact Support Team: <a href='https://t.me/hiveonasic_en'>t.me/hiveonasic_en</a>, <a href='https://t.me/hiveonasic'>t.me/hiveonasic</a>, <a href='mailto:bee@hiveos.farm'>bee@hiveos.farm</a>
 
-			* The vast majority of pools DO NOT support a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than 8 characters long.
+			* Most likely you have to restart the miner for these corrections to take effect.
+			** The vast majority of pools DO NOT support a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than 8 characters long.
 		EOM
 	fi
 }
@@ -291,12 +292,12 @@ function sanitize_ASICMINER_URLs_by_ref {
 
 	if (( is_something_changed_FLAG && save_config_FLAG )); then
 		message warning "${script_basename}: incorrect pool URL detected & corrected" --payload --silent <<-EOM
-			We have detected an incorrect pool URL in the active Flight Sheet and then corrected it. What exactly was changed:
+			<h3>Please correct your Flight Sheet</h3>We have detected an incorrect pool URL in the active Flight Sheet and then corrected it*. What exactly was changed:
 
 			Before: ${old_values_array[@]}
 			 After: ${new_values_array[@]}
 
-			Please correct your Flight Sheet.
+			* Most likely you have to restart the miner for these corrections to take effect.
 		EOM
 	fi
 }
