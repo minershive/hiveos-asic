@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.10'
+readonly script_version='0.5.11'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -960,12 +960,12 @@ function loop {
 	if [[ "$HIVE_URL" == 'https://'* ]]; then
 		log_line warning "API Server $HIVE_URL is not supported, most likely"
 		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for an http form of https'ed HIVE_HOST_URL
-		if (( https_disabled_message_sent == 0 )); then
+		if (( ! https_disabled_message_sent_FLAG )); then
 			cp "$RIG_CONF" "${RIG_CONF}.original"
 			sed -i 's|HIVE_HOST_URL="https://|HIVE_HOST_URL="http://|' "$RIG_CONF"
 			message warning "Server URL with HTTPS might not be supported on this ASIC. It's recommended to switch to HTTP (Settings->Mirror select)" --silent
 			mv "${RIG_CONF}.original" "$RIG_CONF"
-			https_disabled_message_sent=1
+			https_disabled_message_sent_FLAG=1
 		fi
 	fi
 
@@ -1001,7 +1001,6 @@ function loop {
 			# shellcheck disable=SC2005
 			echo "$( < "$latest_curl_log" )"
 			# bc it's a pure bash cat emulation
-			echo
 			sleep_with_progress_bar 1
 		else
 			break
@@ -1045,7 +1044,7 @@ function loop {
 	else
 		local response_stripped="${response//\\n/\\\\n}" # neuter the \n's
 		log_line info "Server answer: $( jq --compact-output --color-output '.result' <<< "$response_stripped" )"
-		skip_the_sleep=1
+		skip_the_sleep_FLAG=1
 	fi
 
 
@@ -1448,12 +1447,13 @@ declare -r miner_API_host='localhost'
 declare -r -i miner_API_port=4028
 declare -r -i push_interval_DEFAULT=10
 
+
 # vars
 
 declare MINER='asicminer'
 declare khs khs_av system_status stats
-declare -i INTERVAL=push_interval_DEFAULT https_disabled_message_sent=0
-declare -i time_wasted_general time_remaining_general skip_the_sleep
+declare -i INTERVAL=push_interval_DEFAULT
+declare -i time_wasted_general time_remaining_general
 declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
 	[2]='http://api.hiveos.farm'
 	[3]='http://paris.hiveos.farm'
@@ -1462,6 +1462,11 @@ declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_UR
 	[6]='http://msk.hiveos.farm'
 	[7]='http://ca1.hiveos.farm'
 )
+
+
+# flags
+
+declare -i https_disabled_message_sent_FLAG=0 skip_the_sleep_FLAG=0
 
 
 # sources
@@ -1500,11 +1505,11 @@ wd start &
 
 while true; do
 	SECONDS=0
-	skip_the_sleep=0
+	skip_the_sleep_FLAG=0
 
 	loop
 
-	if (( skip_the_sleep )); then
+	if (( skip_the_sleep_FLAG )); then
 		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
 		echo
 		(( script_DEBUG )) && log_line warning '[DEBUG] skip the nap to improve responsiveness after receiving a command'
@@ -1512,11 +1517,8 @@ while true; do
 		(( time_wasted_general = SECONDS ))
 		(( time_remaining_general = INTERVAL - time_wasted_general ))
 
-		if (( time_remaining_general > 0 )); then
-			sleep_with_progress_bar "$INTERVAL"
-		else
-			echo
-			log_line warning "Stats sending interval ${time_wasted_general}s >= ${INTERVAL}s, overtime is ${time_remaining_general/-}s"
-		fi
+		(( time_remaining_general < 0 )) && log_line warning "Stats gathering/sending cycle took ${time_wasted_general}s, overtime is ${time_remaining_general/-}s"
+
+		sleep_with_progress_bar "$INTERVAL"
 	fi
 done
