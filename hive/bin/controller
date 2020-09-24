@@ -1630,6 +1630,22 @@ function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 	return $(( is_something_happened ))
 }
 
+function checkup:is_miner_nicelevel {																		(( script_DEBUG )) && debugcho
+
+	# code
+
+	if [[ $ASIC_MODEL =~ $asic_model_RE ]]; then
+		miner_pids=$( ps w | awk "/bmminer\ |cgminer\ /{print \$1}" )
+		for pid in $miner_pids; do
+			ni=$( awk '{print $19}' < /proc/$pid/stat )
+			if (( ni != -10 )); then
+				renice -10 $pid
+			fi
+		done
+	fi
+
+}
+
 function checkup:are_logs_updated {																	(( script_DEBUG )) && debugcho
 
 	# consts
@@ -1948,6 +1964,7 @@ declare -a crontab=(
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
 	'* * * * *		checkup:is_hiveon_config_in_sync'
+	'* * * * *		checkup:is_miner_nicelevel'
 	'*/2 * * * *	checkup:is_build_updated'
 	'*/2 * * * *	checkup:is_memory_full'
 	'*/5 * * * *	execute:agent_screen_dontattach'
