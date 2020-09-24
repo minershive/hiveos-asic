@@ -1632,6 +1632,10 @@ function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 
 function checkup:is_miner_nicelevel {																		(( script_DEBUG )) && debugcho
 
+	# consts
+
+	local -r asic_model_RE='Antminer.+17.+Hiveon'
+
 	# code
 
 	if [[ $ASIC_MODEL =~ $asic_model_RE ]]; then
