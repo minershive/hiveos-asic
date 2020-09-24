@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.58'
+readonly script_version='2.1.59'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1842,15 +1842,14 @@ function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) 
 
 function wait_for_next_minute {																		(( script_DEBUG )) && debugcho
 
-	# if seconds is 00 at the start, wait for a full minute
-	while (( $( format_date_in_seconds -1 '%-S' ) % 60 == 0 )); do
-		snore 0.1
-	done
+	# vars
 
-	while (( $( format_date_in_seconds -1 '%-S' ) % 60 != 0 )); do
-		snore 0.1
-	done
+	local -i current_seconds
 
+	# code
+
+	printf -v current_seconds "%(%-S)T" -1
+	snore $(( 60 - current_seconds )) # if seconds is 00 at the start, wait for a full minute
 }
 
 function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugcho
