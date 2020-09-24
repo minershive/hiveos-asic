@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.2'
+readonly script_version='0.2.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -86,7 +86,7 @@ function parse_arguments {
 			;;
 
 			'-q' | '--quiet' )
-				exec > /dev/null
+				exec > /dev/null 1>&2
 			;;
 
 			'-v' | '--verbose' )
