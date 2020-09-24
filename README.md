@@ -90,7 +90,7 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
   - E3
   - L3+, L3++ *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
   - S7
-  - S9, S9i, S9j, S9k, S9SE, S9-Hydro, S9 (VNISH), [S9 (mskminer)](#antminer-s9-mskminer-s10-mskminer), S11
+  - S9, S9i, S9j, S9k, S9SE, S9-Hydro, [S9 (mskminer)](#antminer-s9-mskminer-s10-mskminer), S11
   - [S10 (mskminer)](#antminer-s9-mskminer-s10-mskminer)
   - S15, T15
   - S17, S17+, S17E, S17 Pro *(please use [Hiveon firmware](https://hiveos.farm/asic/))*
