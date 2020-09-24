@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.6.3'
+readonly script_version='0.6.4'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -224,7 +224,7 @@ function check_antbuild {
 		set_bits_by_mask audit_status status_bitmask
 	fi
 
-	if [[ "$ASIC_MODEL" =~ 'Antminer S9' && "$HIVEON_VERSION" == '1.02' ]]; then
+	if [[ "$ASIC_MODEL" == 'Antminer S9'* && "$HIVEON_VERSION" == '1.02' ]]; then
 
 		# old2
 		if is_program_in_the_PATH 'cksum'; then
@@ -356,9 +356,13 @@ function check_uname_and_kernel_match {
 	# consts
 	local -r label_text='kernel version'
 	local -A uname_DICT=(
-		['Antminer S9 Hiveon 1.02@191120']='3.14.0-xilinx-ga36f3af-dirty'
-		['Antminer T9 Hiveon 1.03@200818']='3.14.0-xilinx-ga36f3af-dirty'
-		['Antminer T9 Hiveon 1.03@200901']='3.14.0-xilinx-ga36f3af-dirty'
+		    ['Antminer S9 Hiveon 1.02@191120']='3.14.0-xilinx-ga36f3af-dirty'
+		    ['Antminer T9 Hiveon 1.03@200818']='3.14.0-xilinx-ga36f3af-dirty'
+		    ['Antminer T9 Hiveon 1.03@200901']='3.14.0-xilinx-ga36f3af-dirty'
+		    ['Antminer T17 Hiveon 2.02@200917']='4.6.0-xilinx-gff8137b-dirty'
+		    ['Antminer T17 Hiveon 2.02@200923']='4.6.0-xilinx-gff8137b-dirty'
+		   ['Antminer S17E Hiveon 1.00@200403']='4.6.0-xilinx-gff8137b-dirty'
+		['Antminer S17 Pro Hiveon 2.00@200608']='4.6.0-xilinx-gff8137b-dirty'
 	)
 
 	# vars
@@ -366,6 +370,8 @@ function check_uname_and_kernel_match {
 
 	# code
 	if [[ -n "$HIVEON_VERSION" ]]; then
+		# shellcheck disable=SC2154
+		# bc $HIVEON_VERSION_full defined in library
 		dict_key="$ASIC_MODEL $HIVEON_VERSION_full" # f.e. 'Antminer T9 Hiveon 1.03@200818'
 		uname_from_dict="${uname_DICT[$dict_key]-}"
 		if [[ -n "$uname_from_dict" ]]; then
