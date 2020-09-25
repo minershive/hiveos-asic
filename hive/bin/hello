@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.25'
+readonly script_version='0.1.26'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -352,7 +352,7 @@ function serve_hiveon_model_cache {
 
 	# vars
 	local hiveon_model_detected='' hiveon_model_saved=''
-	local this_compile_file this_compile_file_2nd_line
+	local this_compile_file this_compile_file_2nd_line new_2nd_line
 
 	# code
 	echo_action 'Processing Hiveon model cache'
@@ -411,8 +411,9 @@ function serve_hiveon_model_cache {
 			this_compile_file_2nd_line="$( sed -n '2p' "$this_compile_file" )"
 			if [[ "$this_compile_file_2nd_line" != "$hiveon_model_detected" ]]; then
 				# add 'Hiveon' to compile_* files
-				echo_action "Adding 'Hiveon' to compile_* files"
-				sed "2s/.*/${hiveon_model_detected} Hiveon/" -i "$this_compile_file"
+				new_2nd_line="$hiveon_model_detected Hiveon"
+				echo_action "Processing $this_compile_file: '$this_compile_file_2nd_line' -> '$new_2nd_line'"
+				sed "2s|.*|$new_2nd_line|" -i "$this_compile_file"
 			fi
 		done
 	fi
