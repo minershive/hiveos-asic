@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.42.1'
+declare -r hive_functions_lib_version='0.42.2'
 #                                        ^^ current number of public functions
 
 
@@ -507,10 +507,13 @@ function khs_to_human_friendly_hashrate {
 
 	# code
 
-	khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
-	hs_decimal=$(( khs_decimal * 1000 ))
-
-	big_decimal_to_human "$hs_decimal" 'H/s'
+	if [[ "$hashrate_in_khs" == '0' || "$hashrate_in_khs" == 'null' ]]; then
+		echo '0 H/s'
+	else
+		khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
+		(( hs_decimal = khs_decimal * 1000 ))
+		big_decimal_to_human "$hs_decimal" 'H/s'
+	fi
 }
 
 
