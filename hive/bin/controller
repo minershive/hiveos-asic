@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.1.59'
+readonly script_version='2.2.0'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1568,7 +1568,7 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 	# consts
 
 	local -r oc_profile_file='/config/profile.txt'
-	local -r asic_model_RE='Antminer.+17.+Hiveon'
+	local -r is_series_17_RE='Antminer.+17.+Hiveon'
 
 	# vars
 
@@ -1576,7 +1576,7 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 
 	# code
 
-	if [[ $ASIC_MODEL =~ $asic_model_RE ]]; then
+	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
 		if [[ ! -s "$oc_profile_file" ]]; then
 			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
 				# one time action
@@ -1630,24 +1630,37 @@ function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_miner_nicelevel {																		(( script_DEBUG )) && debugcho
+function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && debugcho
 
 	# consts
 
-	local -r asic_model_RE='Antminer.+17.+Hiveon'
+	local -r is_series_17_RE='Antminer.+17.+Hiveon'
+
+	# vars
+
+	local this_pid
+	local -i this_pid_niceness
+	local -a proc_stat_parsed
+
+	# flags
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# code
 
-	if [[ $ASIC_MODEL =~ $asic_model_RE ]]; then
-		miner_pids=$( ps w | awk "/bmminer\ |cgminer\ /{print \$1}" )
-		for pid in $miner_pids; do
-			ni=$( awk '{print $19}' < /proc/$pid/stat )
-			if (( ni != -10 )); then
-				renice -10 $pid
+	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
+		for this_pid in $( pidof bmminer cgminer ); do
+			if read -r -a proc_stat_parsed < "/proc/$this_pid/stat"; then
+				this_pid_niceness="${proc_stat_parsed[18]}"
+				if (( this_pid_niceness != -10 )); then
+					renice -10 "$this_pid"
+					is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+				fi
 			fi
 		done
 	fi
 
+	return $(( is_something_happened ))
 }
 
 function checkup:are_logs_updated {																	(( script_DEBUG )) && debugcho
@@ -1882,23 +1895,27 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 	# consts
 
 	local -r -i loop_duration_in_s=60 # 60 seconds for production. you can change it for the debug purposes
+	local -r is_installation_running_RE='(selfupgrade|firmware-upgrade)'
+	local -r is_Hive_starting_RE='(S69hive|/hive/bin/hive|hive_autorun)'
 
 	# vars
 
 	local -a jobs_to_do=()
 	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s job_iterator
-	local job_to_execute
+	local current_process_list job_to_execute
 
 	# code
 
 	while true; do
 		time_before_execution_in_s="$( get_current_system_time_in_seconds )"
 
-		if pgrep_quiet 'selfupgrade|firmware-upgrade'; then
+		current_process_list="$( ps w )"
+
+		if [[ "$current_process_list" =~ $is_installation_running_RE ]]; then
 			# do wait for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
 			print_controller_log_entry "$event_type_for_log" "Upgrade running, skipping checks..."
 			increment_checkup_counter 'upgrade_running' 'alarm'
-		elif pgrep_quiet 'S69hive|/hive/bin/hive|hive_autorun'; then
+		elif [[ "$current_process_list" =~ $is_Hive_starting_RE ]]; then
 			print_controller_log_entry "$event_type_for_log" "Hive starting, skipping checks..."
 		else
 			# do cron work
@@ -1968,7 +1985,7 @@ declare -a crontab=(
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
 	'* * * * *		checkup:is_hiveon_config_in_sync'
-	'* * * * *		checkup:is_miner_nicelevel'
+	'* * * * *		checkup:is_miner_niceness_ok'
 	'*/2 * * * *	checkup:is_build_updated'
 	'*/2 * * * *	checkup:is_memory_full'
 	'*/5 * * * *	execute:agent_screen_dontattach'
