@@ -53,6 +53,37 @@ therefore all delay/time values must be integers.
 EOF
 }
 
+function snore {
+	#
+	# Usage: snore 1
+	#        snore 0.2
+	#
+	# pure bash 'sleep'
+	# https://blog.dhampir.no/content/sleeping-without-a-subprocess-in-bash-and-how-to-sleep-forever
+
+	# args
+	local -r __sleep_time="${1-1}" # 1s by default
+
+	# vars
+	local IFS # reset IFS in case it's set to something weird
+
+	# code
+	# shellcheck disable=SC1083
+	# because 'man bash':
+	# Each redirection that may be preceded by a file descriptor number may instead be preceded by a word of the form {varname}.
+	[[ -n "${__snore_fd:-}" ]] || { exec {__snore_fd}<> <(:); } 2> /dev/null ||
+	{
+		# workaround for MacOS and similar systems
+		local fifo
+		fifo="$( mktemp -u )"
+		mkfifo -m 700 "$fifo"
+		# shellcheck disable=SC2093
+		exec {__snore_fd}<>"$fifo"
+		rm "$fifo"
+	}
+	read -t "${__sleep_time}" -u "$__snore_fd" || :
+}
+
 # Options.
 while getopts ":t:i:d:" option; do
     case "$option" in
@@ -71,12 +102,13 @@ if (($# == 0 || interval <= 0)); then
     exit 1
 fi
 
+# : |           Close stdin for the subshell
 # kill -0 pid   Exit code indicates if a signal may be sent to $pid process.
-(
+: | (
     ((t = timeout))
 
     while ((t > 0)); do
-        sleep $interval
+        snore "$interval"
         kill -0 $$ || exit 0
         ((t -= interval))
     done
@@ -84,8 +116,8 @@ fi
     # Be nice, post SIGTERM first.
     # The 'exit 0' below will be executed if any preceeding command fails.
     kill -s SIGTERM $$ && kill -0 $$ || exit 0
-    sleep $delay
+    snore "$delay"
     kill -s SIGKILL $$
-) 2> /dev/null &
+) &> /dev/null & disown
 
 exec "$@"
