@@ -86,7 +86,7 @@ function parse_arguments {
 			;;
 
 			'-q' | '--quiet' )
-				exec > /dev/null 1>&2
+				exec &> /dev/null
 			;;
 
 			'-v' | '--verbose' )
