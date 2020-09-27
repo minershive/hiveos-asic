@@ -577,6 +577,7 @@ function get_miner_stats {
 		;;
 
 		'b29+.g19'						|\
+		'a9+.g19'						|\
 		'd9.g19'						|\
 		's11.g19'						|\
 		't2t.soc'|'t2t+.soc'			|\

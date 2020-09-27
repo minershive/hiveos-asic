@@ -787,6 +787,16 @@ function generate_miner_configuration {
 			}'
 		;;
 
+		'a9+.g19' )
+			config_global='{
+				"api-listen": true,
+				"api-port": "4028",
+				"api-allow": "R:0/0,W:127.0.0.1"
+				"T1factory": true
+			}'
+		;;
+
+
 		't3.soc' )
 			config_global='{
 				"api-allow": "R:0/0,W:127.0.0.1",

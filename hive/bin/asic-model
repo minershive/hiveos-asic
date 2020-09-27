@@ -343,7 +343,7 @@ function set_ASIC_constants {
 			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # seems unused. will we need it later?
 		;;
 
-		'b29+.g19' )
+		'b29+.g19' | 'a9+.g19' )
 			ASIC_ALGO='Equihash'
 			THIS_MINER_NAME='cgminer'
 			CONFIG_PATH='/config/cgminer.conf'

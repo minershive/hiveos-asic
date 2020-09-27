@@ -652,6 +652,7 @@ execute_install_routine () {
 		# Innosilicon, dragonMint
 
 		'b29+.g19')				echo 'Innosilicon A9'		;	do_install_for 'innosilicon'			;;
+		'a9+.g19')				echo 'Innosilicon A9+'		;	do_install_for 'innosilicon'			;;
 		'd9.g19')				echo 'Innosilicon D9'		;	do_install_for 'innosilicon'			;;
 		's11.g19')				echo 'Innosilicon S11'		;	do_install_for 'innosilicon'			;;
 		't2th.soc')				echo 'Innosilicon T2Th'		;	do_install_for 'innosilicon'			;;
