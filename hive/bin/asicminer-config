@@ -791,7 +791,7 @@ function generate_miner_configuration {
 			config_global='{
 				"api-listen": true,
 				"api-port": "4028",
-				"api-allow": "R:0/0,W:127.0.0.1"
+				"api-allow": "R:0/0,W:127.0.0.1",
 				"T1factory": true
 			}'
 		;;
