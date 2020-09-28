@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.4'
+readonly script_version='0.2.5'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -302,7 +302,14 @@ function sanitize_ASICMINER_URLs_by_ref {
 	fi
 }
 
-function generate_miner_configuration {
+function generate_miner_configuration_to {
+	#
+	# Usage: generate_miner_configuration_to 'variable_name'
+	#
+
+	# args
+	local -r -n function_result_by_ref="$1"
+
 	# vars
 	local -i pools_count pool_index first_url_count
 	local pool pools config_global
@@ -1053,7 +1060,7 @@ function generate_miner_configuration {
 		[[ -n "$this_template_value" ]] && final_configuration="${final_configuration//${this_template_placeholder}/${this_template_value}}"
 	done
 
-	echo "$final_configuration"
+	function_result_by_ref="$final_configuration"
 }
 
 
@@ -1105,7 +1112,7 @@ source "$WALLET_CONF"
 [[ -z "${ASICMINER_URL-}" ]] && die 'ASICMINER_URL is empty' 1
 
 echo_action 'Generating miner config from the Flight Sheet'
-if generated_miner_configuration="$( generate_miner_configuration )" && [[ -n "$generated_miner_configuration" ]]; then
+if generate_miner_configuration_to 'generated_miner_configuration' && [[ -n "$generated_miner_configuration" ]]; then
 	: ok good to go
 else
 	die 'Cannot generate config, exiting' 1
