@@ -70,6 +70,7 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 **Innosilicon**
 |A5/A8 (need test)|•|•|•|•|
 |A9 ZMaster|•|•|•|•|
+|A9+ Zmaster|•|•|•|•|
 |D9 DecredMaster|•|•|•|•|
 |S11 SiaMaster|•|•|•|•|
 |T3 BTCMiner|•|•|•|•|
@@ -107,6 +108,7 @@ Find out more: [Download](https://hiveos.farm/asic), [FAQ](https://hiveos.farm/h
 - Innosilicon
   - A5/A8 (need test)
   - A9 ZMaster
+  - A9+ Zmaster
   - D9 DecredMaster
   - S11 SiaMaster
   - T3 BTCMiner
