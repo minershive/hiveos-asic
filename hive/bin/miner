@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.3.0'
+readonly script_version='1.3.1'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -53,7 +53,12 @@ function script_usage {
 # config functions
 
 function generate_config {
-	/hive/bin/asicminer-config
+	if (( is_no_Flight_Sheet )); then
+		echo_x warning "Flight Sheet not found or invalid (MINER='$MINER'), cannot generate config"
+		return 1
+	else
+		/hive/bin/asicminer-config
+	fi
 }
 
 function print_config {
@@ -461,14 +466,13 @@ else
 fi
 
 if [[ -z "$MINER" ]]; then
-	MINER='asicminer'
-	echo_x warning "No miner set in config, will use default ${CYAN}asicminer${NOCOLOR}"
-fi
-
-# default rig.conf (before applying an any Flight Sheet) contains claymore as a default miner
-if [[ "$MINER" != 'asicminer' ]]; then
-	echo_x warning 'To start mining, you only have to apply a Flight Sheet'
-	message warn   'To start mining, you only have to apply a Flight Sheet'
+	# rig.conf not found or empty
+	echo_x warning "No miner set in $RIG_CONF, will use default ${CYAN}asicminer${NOCOLOR}"
+	is_no_Flight_Sheet=1
+elif [[ "$MINER" != 'asicminer' ]]; then
+	# default rig.conf (before applying an any Flight Sheet) contains claymore as a default miner
+	echo_x warning  'To start mining, you only have to apply a Flight Sheet'
+	message warning 'To start mining, you only have to apply a Flight Sheet' --silent
 	is_no_Flight_Sheet=1
 fi
 
@@ -481,7 +485,6 @@ case "$1" in
 	;;
 
 	'config-gen')
-		(( is_no_Flight_Sheet )) && exit 1
 		generate_config
 	;;
 
@@ -500,24 +503,21 @@ case "$1" in
 							# probably improve it by adding --file option for any of miner logs?
 							# ...or carry over all the log handling to the brand new stand-alone log facility (it's better from the architectural point of view)
 							print_default_log > /tmp/kernel.log
-							message file /tmp/kernel.log
+							message file /tmp/kernel.log --silent
 							rm /tmp/kernel.log					;;
 			*)				print_default_log					;;
 		esac
 	;;
 
 	'restart')
-		(( is_no_Flight_Sheet )) && exit 1
 		miner_restart
 	;;
 
 	'start')
-		(( is_no_Flight_Sheet )) && exit 1
 		miner_start 'by_user'
 	;;
 
 	'stop')
-		(( is_no_Flight_Sheet )) && exit 1
 		miner_stop 'by_user'
 	;;
 
