@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.5'
+readonly script_version='0.2.6'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1060,6 +1060,8 @@ function generate_miner_configuration_to {
 		[[ -n "$this_template_value" ]] && final_configuration="${final_configuration//${this_template_placeholder}/${this_template_value}}"
 	done
 
+	# shellcheck disable=SC2034
+	# bc var have set by reference
 	function_result_by_ref="$final_configuration"
 }
 
@@ -1125,14 +1127,16 @@ if (( ! compare_configs_ENUM )); then
 		key_filter='.pools' # show a short config -- only pools section
 	fi
 
-	jq "$key_filter" <<< "$generated_miner_configuration"
-
-	if (( save_config_FLAG )); then
-		echo_action "Updating $MINER_CONFIG"
-		jq '.' <<< "$generated_miner_configuration" > "$MINER_CONFIG"
-		chmod 644 "$MINER_CONFIG" # -rw-rw-r--
+	if jq "$key_filter" <<< "$generated_miner_configuration" 2> /dev/null; then
+		if (( save_config_FLAG )); then
+			echo_action "Updating $MINER_CONFIG"
+			jq '.' <<< "$generated_miner_configuration" > "$MINER_CONFIG"
+			chmod 644 "$MINER_CONFIG" # -rw-rw-r--
+		else
+			echo_warning "Dry run, updating $MINER_CONFIG skipped"
+		fi
 	else
-		echo_warning "Dry run, updating $MINER_CONFIG skipped"
+		echo_error "Invalid configuration generated: '$generated_miner_configuration'. Writing to the miner config skipped. Please contact Hive support."
 	fi
 else
 	case "$compare_configs_ENUM" in
@@ -1159,12 +1163,12 @@ else
 		else
 			echo_warning 'Configs are DIFFERENT'
 			(( is_verbose_FLAG )) && echo "$diff_result"
-			script_exitcode=1
+			script_exitcode=2
 		fi
 		rm "$temp_FS_config" "$temp_actual_config"
 	else
 		echo_error "$MINER_CONFIG not found or empty. Generate it first."
-		script_exitcode=2
+		script_exitcode=1
 	fi
 fi
 
