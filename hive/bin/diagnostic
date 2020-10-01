@@ -5,8 +5,6 @@
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
-#
 
 
 function rematch {
@@ -15,7 +13,7 @@ function rematch {
 
 	# args
 	local -r regex="$1"
-	local -r string="${2:-$( </dev/stdin )}" # get from arg or stdin
+	local -r string="${2:-$( </dev/fd/0 )}" # get from arg or stdin
 
 	# code
 	[[ "$string" =~ $regex ]]
@@ -69,7 +67,7 @@ nameserver="$( grep -v -m1 '^#' /etc/resolv.conf | awk '{ print $2 }' )"
 # mac
 mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
 # arp
-arp="$( arp -an )"
+arp_check="$( cat /proc/net/arp )"
 # ping gw
 ping_gw="$( ping -c 5 $gateway )"
 ping_gw_count="$( ping_conntrack_check $gateway )"
@@ -95,7 +93,7 @@ echo -e "Ping GW 10 attempts: $ping_gw_count"
 echo -e "Ping DNS:\n$ping_dns\n"
 echo -e "Ping DNS 10 attempts:\n$ping_dns_count\n"
 echo -e "Route:\n$route\n"
-echo -e "Arp:\n$arp\n"
+echo -e "Arp:\n$arp_check\n"
 
 # INET: +ping inet DNS, +location and realip
 echo -e "\n---INET---"
