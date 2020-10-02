@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.27'
+readonly script_version='0.1.28'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -261,7 +261,7 @@ function get_uid {
 	uid="${uid//:}" # trim all ':'
 	uid="${uid,,}" # tolower()
 	for digest_program in sha1sum md5sum; do
-		if which "$digest_program" > /dev/null; then
+		if hash "$digest_program" 2> /dev/null; then
 			uid=( $( "$digest_program" <<< "$uid" ) )
 			break
 		fi
@@ -683,7 +683,7 @@ source "$RIG_CONF"
 
 # Timezone ================================================================
 if [[ -n "${TIMEZONE-}" ]]; then
-	if which timedatectl > /dev/null; then
+	if hash 'timedatectl' 2> /dev/null; then
 		timedatectl set-timezone "$TIMEZONE"
 	else
 		export TZ="$TIMEZONE"

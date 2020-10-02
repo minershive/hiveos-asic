@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.2.1'
+readonly script_version='2.2.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1034,7 +1034,7 @@ function sync_time_with_ntpdate {																	(( script_DEBUG )) && debugcho
 
 	# code
 
-	if which ntpdate; then
+	if is_program_in_the_PATH 'ntpdate'; then
 		ntpdate -u -t 10 "$ntp_server"
 	else
 		# TODO use timedatectl (inno)
