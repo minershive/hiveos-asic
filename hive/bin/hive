@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.2'
+readonly script_version='0.1.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -170,8 +170,11 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 	echo_x action 'Applying crontab'
 	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
 	crontab /hive/etc/crontab.root
-	[[ $( ps aux | grep -c '[c]rond' ) -eq 0 ]] && /usr/sbin/crond
-
+	if which pidof > /dev/null; then # TODO move to library function like is_process_running()
+		pidof crond > /dev/null || /usr/sbin/crond
+	else
+		[[ $( ps aux | grep -c '[c]rond' ) -eq 0 ]] && /usr/sbin/crond
+	fi
 	#hosts patch
 	touch /tmp/hosts
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
@@ -238,12 +241,12 @@ echo_x action 'Saying hello to the server'
 hello boot
 hello_exitcode=$?
 if (( hello_exitcode )); then
-	echo_x error "hello failed with exitcode $hello_exitcode"
+	echo_x warning "hello failed with exitcode $hello_exitcode (it's ok in some cases like the first launch after an upgrade)"
 	if (( hello_exitcode > 1 )); then
 		# '> 1' do mean numerous curl errors
 		echo_x action 'Detaching hello to a background screen session (until the successful connect)'
 		screen -dmS 'trying_to_say_hello' /hive/sbin/bash -c \
-			'c=0; until hello boot; do printf "\n> hello failed with exitcode %u (attempt #%u), waiting 10s...\n" $? $(( ++c )); sleep 10; done |& tee /tmp/hello-boot.log'
+			'c=0; until hello boot; do printf "\n> hello failed with exitcode %u (attempt #%u), waiting 10s...\n" $? $(( ++c )); sleep 60; done |& tee /tmp/hello-boot.log'
 	fi
 fi
 
