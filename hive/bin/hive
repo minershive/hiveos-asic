@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.3'
+readonly script_version='0.1.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -44,6 +44,44 @@ function echo_x {
 	fi
 }
 
+function is_program_running {
+	#
+	# Usage: is_program_running 'program_name'
+	#
+
+	# args
+	(( $# == 1 )) || return 1
+	local -r program_name="${1-}"
+
+	# code
+	if hash pidof 2>/dev/null; then
+		pidof "$program_name" > /dev/null
+	else
+		# shellcheck disable=SC2009
+		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
+		# ...bc we don't have pgrep
+	fi
+}
+
+function is_program_not_running {
+	#
+	# Usage: is_program_not_running 'program_name'
+	#
+
+	# args
+	(( $# == 1 )) || return 1
+	local -r program_name="${1-}"
+
+	# code
+	! if hash pidof 2>/dev/null; then
+		pidof "$program_name" > /dev/null
+	else
+		# shellcheck disable=SC2009
+		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
+		# ...bc we don't have pgrep
+	fi
+}
+
 function kill_all {
 	# args
 	local -r process_name_to_kill="$1"
@@ -53,7 +91,7 @@ function kill_all {
 	local process_name_to_kill_sanitized
 
 	# code
-	if which killall > /dev/null; then
+	if hash killall 2>/dev/null; then
 		killall "$process_name_to_kill" > /dev/null 2>&1
 	else
 		# not all systems have killall
@@ -170,11 +208,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 	echo_x action 'Applying crontab'
 	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
 	crontab /hive/etc/crontab.root
-	if which pidof > /dev/null; then # TODO move to library function like is_process_running()
-		pidof crond > /dev/null || /usr/sbin/crond
-	else
-		[[ $( ps aux | grep -c '[c]rond' ) -eq 0 ]] && /usr/sbin/crond
-	fi
+	is_program_not_running 'crond' && /usr/sbin/crond
 	#hosts patch
 	touch /tmp/hosts
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
