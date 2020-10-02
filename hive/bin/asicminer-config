@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.3.0'
+readonly script_version='0.3.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -275,12 +275,13 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 		if (( ${#almost_valids_pre_array[@]} )); then
 			message_header="Doubtful worker name detected"
 			message_body+="Please check your Flight Sheet. We have detected doubtful characters* in the worker name:"$'\n'$'\n'
-			message_body+="<strong>${almost_valids_pre_array[*]}</strong>"$'\n'
-			message_body+="${almost_valids_post_array[*]}"$'\n'
+			message_body+="  <strong>${almost_valids_pre_array[*]}</strong>"$'\n'
+			message_body+="  ${almost_valids_post_array[*]}"$'\n'
+			(( ${#invalids_pre_array[@]} )) && message_body+=$'\n' # add a newline between
 		fi
 		if (( ${#invalids_pre_array[@]} )); then
 			message_header="Invalid worker name detected and corrected"
-			message_body+="Please fix your Flight Sheet. We have detected AND corrected invalid characters in the worker name."$'\n'$'\n'
+			message_body+="Please fix your Flight Sheet. We have detected AND corrected invalid characters* in the worker name."$'\n'$'\n'
 			message_body+="  Before correction: <strong>${invalids_pre_array[*]}</strong>"$'\n'
 			message_body+="   After correction: <strong>${invalids_post_array[*]}</strong>"$'\n'$'\n'
 		fi
