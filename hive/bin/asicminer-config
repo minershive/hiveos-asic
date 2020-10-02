@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.2.6'
+readonly script_version='0.3.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -116,44 +116,61 @@ function sanitize_worker_name {
 	#
 	# Usage: sanitize_worker_name 'worker_name'
 	#
-	# exit codes:
-	#
-	# 0: sanitized ok, was incorrect
-	# 1: not sanitized (left intact), was correct
+	# exit code: worker_name_validity_ENUM
+	#	{
+	#		worker_name_VALID=0
+	#		worker_name_ALMOST_VALID=1
+	#		worker_name_NOT_VALID=2
+	#		worker_name_EMPTY=3
+	#	}
 	#
 
 	# args
 	local -r worker_name_original="${1-}"
 
 	# consts
-	#local -r blacklisted_chars='@(:|+|-|_| )' # requires shopt -s extglob
-	local -r blacklisted_chars='[^[:alnum:]]' # leave only alnums -- much better
-	local -r safe_char='x'
 	local -r max_safe_length=8
+	local -r safe_char='x'
+	local -r worker_name_valid_RE='^[[:alnum:]]{1,'$max_safe_length'}$'
+	local -r worker_name_almost_valid_RE='^[[:alnum:]_-]+$'
+	local -r blacklisted_chars_RE='[^[:alnum:]_-]'
 
 	# vars
 	local worker_name_corrected
+	local -i worker_name_validity_ENUM
 
 	# code
 	worker_name_corrected="$worker_name_original" # save for comparing later
 
-	if [[ -n "$worker_name_corrected" ]]; then
-		worker_name_corrected="${worker_name_corrected//$blacklisted_chars/$safe_char}" # replace blacklisted chars
-#		worker_name_corrected="${worker_name_corrected::$max_safe_length}" # trim the length # !!! disabled temporarily
+	if [[ "$worker_name_original" =~ $worker_name_valid_RE ]]; then
+		worker_name_validity_ENUM=worker_name_VALID
+	elif [[ "$worker_name_original" =~ $worker_name_almost_valid_RE ]]; then
+		worker_name_validity_ENUM=worker_name_ALMOST_VALID
+	elif [[ -z "$worker_name_original" ]]; then
+		worker_name_corrected='unnamed'
+		worker_name_validity_ENUM=worker_name_EMPTY
+	else
+		worker_name_corrected="${worker_name_original//$blacklisted_chars_RE/$safe_char}" # replace blacklisted chars
+		#worker_name_corrected="${worker_name_corrected::$max_safe_length}" # trim the length # !!! disabled temporarily
+		worker_name_validity_ENUM=worker_name_NOT_VALID
 	fi
 
 	echo "$worker_name_corrected"
-	[[ "$worker_name_corrected" != "$worker_name_original" ]] # generate a relevant exit code
+
+	return $(( worker_name_validity_ENUM ))
 }
 
 function sanitize_ASICMINER_TEMPLATE {
 	#
 	# Usage: sanitize_ASICMINER_TEMPLATE 'ASICMINER_TEMPLATE_to_sanitize'
 	#
-	# exit codes:
-	#
-	# 0: sanitized ok, was incorrect
-	# 1: not sanitized (left intact), was correct
+	# exit code: worker_name_validity_ENUM
+	#	{
+	#		worker_name_VALID=0
+	#		worker_name_ALMOST_VALID=1
+	#		worker_name_NOT_VALID=2
+	#		worker_name_EMPTY=3
+	#	}
 	#
 
 	# args
@@ -164,29 +181,49 @@ function sanitize_ASICMINER_TEMPLATE {
 
 	# vars
 	local -a template_as_array
-	local IFS WORKER_NAME_field_original WORKER_NAME_field_corrected template_corrected
+	local IFS
+	local WORKER_NAME_field_original WORKER_NAME_field_corrected template_corrected
+	local -i worker_name_validity_ENUM
 
 	# code
 	template_corrected="$template_original" # save for comparing later
 
 	if [[ -n "$template_original" ]]; then
-		IFS='.' template_as_array=( $template_original ) # decompose by '.' delimiter
+		# decompose by '.' delimiter
+		IFS='.' template_as_array=( $template_original )
 		# only if the content does look conventional as in "wallet.worker_name"...
 		if (( ${#template_as_array[@]} == 2 )); then
 			WORKER_NAME_field_original="${template_as_array[1]}"
 			# ...and doesn't contain templates like %WORKER_NAME%
-			if [[ -n "$WORKER_NAME_field_original" && ! "$WORKER_NAME_field_original" =~ $valid_template_RE ]]; then
-				if WORKER_NAME_field_corrected="$( sanitize_worker_name "$WORKER_NAME_field_original" )"; then
-					template_as_array[1]="$WORKER_NAME_field_corrected"
-					IFS='.' template_corrected="${template_as_array[*]}" # compose back
-					echo_warning "Possibly incorrect worker name detected & corrected: $WORKER_NAME_field_original -> $WORKER_NAME_field_corrected" 1>&2
-				fi
+			if [[ ! "$WORKER_NAME_field_original" =~ $valid_template_RE ]]; then
+				WORKER_NAME_field_corrected="$( sanitize_worker_name "$WORKER_NAME_field_original" )"
+				worker_name_validity_ENUM=$?
+				case $(( worker_name_validity_ENUM )) in
+
+					"$worker_name_VALID")
+						: skip
+					;;
+
+					"$worker_name_ALMOST_VALID")
+						echo_warning "A doubtful worker name '$WORKER_NAME_field_original' detected (but not corrected)" 1>&2
+						echo_warning "Remove '_' and/or '-' characters in case you cannot connect to the pool" 1>&2
+					;;
+
+					*)
+						# compose the worker name back
+						template_as_array[1]="$WORKER_NAME_field_corrected"
+						IFS='.' template_corrected="${template_as_array[*]}"
+						echo_warning "Invalid worker name detected and corrected: $WORKER_NAME_field_original -> $WORKER_NAME_field_corrected" 1>&2
+					;;
+
+				esac
 			fi
 		fi
 	fi
 
 	echo "$template_corrected"
-	[[ "$template_corrected" != "$template_original" ]] # generate a relevant exit code
+
+	return $(( worker_name_validity_ENUM ))
 }
 
 function sanitize_ASICMINER_TEMPLATEs_by_ref {
@@ -199,35 +236,60 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 
 	# vars
 	local this_variable_name this_variable_original_value this_variable_new_value
-	local -a old_values_array new_values_array
-	local -i is_something_changed_FLAG=0
+	local transformation_container
+	local message_header message_body
+	local -a invalids_pre_array=() invalids_post_array=() almost_valids_pre_array=() almost_valids_post_array=()
+	local -i worker_name_validity_ENUM
 
 	# code
 	for this_variable_name in "$@"; do
 		local -n this_variable_by_ref="$this_variable_name"
 		this_variable_original_value="$this_variable_by_ref"
 
-		if [[ -n "$this_variable_original_value" ]] && this_variable_new_value="$( sanitize_ASICMINER_TEMPLATE "$this_variable_original_value" )"; then
-			this_variable_by_ref="$this_variable_new_value"
-			# accumulate the changes to display later
-			old_values_array+=( "$this_variable_original_value" )
-			new_values_array+=( "$this_variable_new_value" )
-			is_something_changed_FLAG=1
+		if [[ -n "$this_variable_original_value" ]]; then
+			this_variable_new_value="$( sanitize_ASICMINER_TEMPLATE "$this_variable_original_value" )"
+			worker_name_validity_ENUM=$?
+			case "$worker_name_validity_ENUM" in
+
+				"$worker_name_ALMOST_VALID" )
+					transformation_container="${this_variable_original_value#*.}"
+					almost_valids_pre_array+=( "$transformation_container" )
+					transformation_container="${transformation_container//[^_-]/ }"
+					transformation_container="${transformation_container//[^[:space:]]/^}"
+					almost_valids_post_array+=( "$transformation_container" )
+				;;
+
+				"$worker_name_EMPTY" | "$worker_name_NOT_VALID" )
+					# assign a new value
+					this_variable_by_ref="$this_variable_new_value"
+					# accumulate a changes log to display later
+					invalids_pre_array+=( "${this_variable_original_value#*.}" )
+					invalids_post_array+=( "${this_variable_new_value#*.}" )
+				;;
+
+			esac
 		fi
 	done
 
-	if (( is_something_changed_FLAG && save_config_FLAG )); then
-		message warning "${script_basename}: possibly incorrect worker name detected & corrected" --payload --silent <<-EOM
-			<h3>Please correct your Flight Sheet</h3>We have detected a questionable worker name in the active Flight Sheet and then corrected it* to conform with the common conventions**. What exactly was changed:
+	if (( ( ${#almost_valids_pre_array[@]} || ${#invalids_pre_array[@]} ) && save_config_FLAG )); then
+		if (( ${#almost_valids_pre_array[@]} )); then
+			message_header="Doubtful worker name detected"
+			message_body+="Please check your Flight Sheet. We have detected doubtful characters* in the worker name:"$'\n'$'\n'
+			message_body+="<strong>${almost_valids_pre_array[*]}</strong>"$'\n'
+			message_body+="${almost_valids_post_array[*]}"$'\n'
+		fi
+		if (( ${#invalids_pre_array[@]} )); then
+			message_header="Invalid worker name detected and corrected"
+			message_body+="Please fix your Flight Sheet. We have detected AND corrected invalid characters in the worker name."$'\n'$'\n'
+			message_body+="  Before correction: <strong>${invalids_pre_array[*]}</strong>"$'\n'
+			message_body+="   After correction: <strong>${invalids_post_array[*]}</strong>"$'\n'$'\n'
+		fi
 
-			Before: ${old_values_array[@]}
-			 After: ${new_values_array[@]}
+		message_body+='<hr>'
+		message_body+='* The vast majority of pools DO NOT accept a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than 8 characters long.'$'\n'$'\n'
+		message_body+='** If you do not want to see these warnings, please update your Flight Sheet to use a template <strong>%WORKER_NAME_RAW%</strong> instead of <strong>%WORKER_NAME%</strong>'
 
-			If you believe that this is not right, you should update your Flight Sheet to use a template %WORKER_NAME_RAW% instead of %WORKER_NAME%. Also, you may contact Support Team: <a href='https://t.me/hiveonasic_en'>t.me/hiveonasic_en</a>, <a href='https://t.me/hiveonasic'>t.me/hiveonasic</a>, <a href='mailto:bee@hiveos.farm'>bee@hiveos.farm</a>
-
-			* Most likely you have to restart the miner for these corrections to take effect.
-			** The vast majority of pools DO NOT support a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than 8 characters long.
-		EOM
+		message warning "$message_header" --payload --silent <<< "$message_body"
 	fi
 }
 
@@ -256,7 +318,7 @@ function sanitize_ASICMINER_URL {
 
 	if [[ -n "$url_original" && "$url_original" == *"$url_content_wrong"* ]]; then
 		url_corrected="${url_original//$url_content_wrong/$url_content_good}"
-		echo_warning "Incorrect pool URL detected & corrected: removed an extra 'stratum+tcp://'" 1>&2
+		echo_warning "Invalid pool URL detected & corrected: removed an extra 'stratum+tcp://'" 1>&2
 	fi
 
 	echo "$url_corrected"
@@ -291,13 +353,11 @@ function sanitize_ASICMINER_URLs_by_ref {
 	done
 
 	if (( is_something_changed_FLAG && save_config_FLAG )); then
-		message warning "${script_basename}: incorrect pool URL detected & corrected" --payload --silent <<-EOM
-			<h3>Please correct your Flight Sheet</h3>We have detected an incorrect pool URL in the active Flight Sheet and then corrected it*. What exactly was changed:
+		message warning "Invalid pool URL detected & corrected" --payload --silent <<-EOM
+			<h3>Please fix your Flight Sheet</h3>We have detected an invalid pool URL and then corrected it. What exactly was changed:
 
 			Before: ${old_values_array[@]}
 			 After: ${new_values_array[@]}
-
-			* Most likely you have to restart the miner for these corrections to take effect.
 		EOM
 	fi
 }
@@ -1082,10 +1142,16 @@ declare -r MINER_CONFIG="$CONFIG_PATH"
 
 # global enums
 
+# compare_configs_ENUM
 declare -r -i compare_NONE=0
 declare -r -i compare_FULL=1
 declare -r -i compare_POOLS=2
 
+# worker_name_validity_ENUM
+declare -r -i worker_name_VALID=0
+declare -r -i worker_name_ALMOST_VALID=1
+declare -r -i worker_name_NOT_VALID=2
+declare -r -i worker_name_EMPTY=3
 
 # global flags
 
