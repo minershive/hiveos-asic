@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.0.14'
+readonly script_version='1.0.15'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -89,7 +89,7 @@ function screen_start_session {
 	local -i function_exitcode=$(( exitcode_OK ))
 
 	# code
-	if ! which "$cmd" > /dev/null; then
+	if ! is_program_in_the_PATH "$cmd"; then
 		errcho "cannot locate command '$cmd' to run in the screen session"
 		return $(( exitcode_ERROR_CMD_NOT_FOUND ))
 	fi
