@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.11'
+readonly script_version='0.5.12'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -845,11 +845,7 @@ function loop {
 	local cpuavg df last_cmd_id
 
 	# code
-	if ! which 'jq' > /dev/null; then
-		# TODO we could assemble a simple request even without jq, but does it worth it?
-		# !!! DONE
-		log_line error 'jq not found'
-	fi
+	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
 
 	if [[ ! -f "$RIG_CONF" ]]; then
 		log_line error "Config file $RIG_CONF not found, waiting..."
