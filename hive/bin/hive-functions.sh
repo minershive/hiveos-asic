@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.42.2'
+declare -r hive_functions_lib_version='0.44.0'
 #                                        ^^ current number of public functions
 
 
@@ -193,7 +193,39 @@ function is_program_in_the_PATH {
 
 	# code
 
-	type -p "$__program_name" &> /dev/null
+	hash "$__program_name" 2> /dev/null
+}
+
+function is_program_running {
+	#
+	# Usage: is_program_running 'program_name'
+	#
+
+	# args
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r program_name="${1-}"
+
+	# code
+	if is_program_in_the_PATH 'pidof'; then
+		pidof "$program_name" > /dev/null
+	else
+		# shellcheck disable=SC2009
+		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
+		# ...bc we don't have pgrep
+	fi
+}
+
+function is_program_not_running {
+	#
+	# Usage: is_program_not_running 'program_name'
+	#
+
+	# args
+	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r program_name="${1-}"
+
+	# code
+	! is_program_running "$program_name"
 }
 
 function is_function_exist {
