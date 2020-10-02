@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.26'
+readonly script_version='0.1.27'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -363,7 +363,7 @@ function serve_hiveon_model_cache {
 		#hiveon_model_detected="$( grep -Fm1 -e 'Project type:' /var/log/log | awk -F': ' '{print $NF}' )" # old method
 
 		# search for 2 patterns
-		# old one: <not available atm>
+		# old one: 2020-10-02 04:48:01 driver/driver-btm-api.c:1450:bitmain_board_init: Project type: Antminer T17+
 		# new one: 2020-09-25 12:54:24 driver/driver-btm-api.c:2257:bitmain_soc_init: Miner compile time: Fri Sep 25 11:25:18 UTC 2020 type: Antminer S17 Hiveon
 		hiveon_model_detected="$(  awk -F ' type: ' '/Project type: |Miner compile time:.+type: /{ print $NF; exit }' < /var/log/log )"
 		[[ -n "$hiveon_model_detected" ]] && echo_info "Model found in /var/log/log: '$hiveon_model_detected'"
