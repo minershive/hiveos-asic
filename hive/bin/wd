@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.2.8'
+readonly script_version='0.2.9'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -34,14 +34,14 @@ function load_configuration {
 	fi
 
 	if (( ( ! WD_MINER ) && ( ! WD_REBOOT ) )); then
-		message warn 'Restart and reboot timers both set to 0 (zero) minutes. Hahsrate Watchdog disabled. Please configure properly'
+		message warning 'Restart and reboot timers both set to 0 (zero) minutes. Hahsrate Watchdog disabled. Please configure properly' --silent
 		log_line warning 'Restart and reboot timers both set to 0 (zero) minutes. Watchdog not enabled, exiting'
 		exit 1
 	fi
 
 	minhash="$( jq --raw-output ".\"$MINER\"" <<< "$WD_MINHASHES" )"
 	if is_JSON_string_empty_or_null "$minhash"; then
-		message warn "Minimal hashrate for $MINER is not set. You have to configure Hashrate Watchdog"
+		message warning "Minimal hashrate for $MINER is not set. You have to configure Hashrate Watchdog" --silent
 		log_line error "Minimal hashrate for $MINER is not set in config, exiting"
 		exit 1
 	fi
@@ -118,7 +118,7 @@ function loop {
 	if (( WD_REBOOT )); then
 		(( reboot_timeout = WD_REBOOT * 60 ))
 		if (( elapsed >= reboot_timeout )); then
-			message danger "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), rebooting"
+			message danger "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), rebooting" --silent
 			log_line error '!'
 			log_line error "! Rebooting after $WD_REBOOT minutes of continuous barking"
 			log_line error '!'
@@ -132,7 +132,7 @@ function loop {
 	if (( WD_MINER )); then
 		(( miner_restart_timeout = WD_MINER * 60 ))
 		if (( miner_restart_count == 0 && elapsed >= miner_restart_timeout )); then
-			message warn "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), restarting"
+			message warning "$MINER low hashrate ($( khs_to_human_friendly_hashrate "$khs" )), restarting" --silent
 			log_line warning '!'
 			log_line warning "! Restarting $MINER after $WD_MINER minutes of continuous barking"
 			log_line warning '!'
