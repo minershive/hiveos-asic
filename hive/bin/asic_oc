@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.10'
+readonly script_version='0.1.11'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -176,7 +176,7 @@ if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODE
 		fi
 	done
 
-	if [[ -f "$current_config_file" && ! -s "$current_config_file" ]]; then # fix autotune bug
+	if is_file_exist_but_empty "$current_config_file"; then # fix autotune bug
 		echo "WARNING: $current_config_file is empty, deleting..."
 		rm -f "$current_config_file"
 	fi
@@ -418,7 +418,7 @@ else
 		fi
 	done
 
-	if [[ -f "$current_config_file" && ! -s "$current_config_file" ]]; then # fix autotune bug for L3
+	if is_file_exist_but_empty "$current_config_file"; then # fix autotune bug for L3
 		echo "WARNING: $current_config_file is empty, deleting..."
 		rm -f "$current_config_file"
 	fi
