@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.5.12'
+readonly script_version='0.5.13'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -203,7 +203,8 @@ function reduce_hashrate_to_khs {
 	: "${input_hashrate_unit//\/}" # strip an eventual '/'
 
 	input_hashrate_unit_SAFE="$_"
-	if [[ "$input_hashrate_unit_SAFE" == 'khs' ]]; then # don't have to calculate anything
+	if [[ "$input_hashrate_value" == '0' || "$input_hashrate_value" == 'null' || "$input_hashrate_unit_SAFE" == 'khs' ]]; then
+		# don't have to calculate anything, just pass input to output
 		output_hashrate_in_khs_by_ref="$input_hashrate_value"
 		# shellcheck disable=SC2154
 		# bc exitcode_OK declared in library
@@ -820,20 +821,24 @@ function process_khs_and_arr {
 		printf '%.0f\n' "$arr_rounded_to_2" > "$arr_FILE"
 	else
 		arr_to_display=''
-		printf 'null\n' > "$arr_FILE"
+		printf 'null\n' > "$arr_FILE" # watchdog won't bark in case of null
 	fi
 	(( script_DEBUG )) && debug_print_variable 'arr_rounded_to_2'
 
 	# khs section
-	khs_decimal="$( scientific_to_decimal "$khs" )"
-	if (( khs_decimal > 0 )); then
-		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+	if [[ -z "$khs" || "$khs" == '0' || "$khs" == 'null' ]]; then
+		khs_decimal=0
 	else
-		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+		khs_decimal="$( scientific_to_decimal "$khs" )"
 	fi
 
-	# write khs to file for watchdog
-	echo "$khs" > "$khs_FILE"
+	if (( khs_decimal > 0 )); then
+		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+		echo "$khs" > "$khs_FILE" # write actual khs to file (for watchdog)
+	else
+		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
+		echo '0' > "$khs_FILE" # write zero khs to file (for watchdog)
+	fi
 }
 
 function loop {
