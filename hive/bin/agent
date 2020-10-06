@@ -69,6 +69,109 @@ function debug_print_variable {
 	fi
 } 1>&2
 
+function jq_batch_process {
+	#
+	# Usage: jq_batch_process 'jq_batch_request_hashtable_by_ref' 'JSON_input_by_ref'
+	#
+
+	# args
+
+	local -r jq_batch_request_hashtable_by_ref="${1-}"
+	local -r JSON_input_by_ref="${2-}"
+
+	# vars by ref
+	local -r -n _jq_batch_request_hashtable="$jq_batch_request_hashtable_by_ref"
+	local -r -n JSON_input="$JSON_input_by_ref"
+
+	# vars
+	local -A jq_batch_response_hashtable=()
+	local -a jq_batch_response_raw_array=()
+	local this_var this_value this_key
+	#
+	local jq_batch_script='">>BEGIN JQ RESPONSE", ( ' # .[1] |
+	local -i this_index=1
+
+	# code
+	#
+	# 1. assemble the big fat jq batch script with markup
+	# 2. reset output vars to null
+	#
+	for this_var in "${!_jq_batch_request_hashtable[@]}"; do
+		# reset output vars to null
+		local -n this_var_ref="$this_var"
+		this_var_ref='null'
+
+		jq_batch_script+="( \">>BEGIN KEY ${this_var}\", try ( ${_jq_batch_request_hashtable[$this_var]} ) catch null, \"<<END KEY ${this_var}\" )"
+		if (( this_index++ < ${#_jq_batch_request_hashtable[@]} )); then
+			jq_batch_script+=','
+		else
+			jq_batch_script+=' ), "<<END JQ RESPONSE"'
+		fi
+		#jq_batch_script+=$'\n' # pretty-print for debug
+	done
+	#echo "$jq_batch_script"
+
+	#
+	# 3. process jq batch script then get the output to array
+	#
+	if is_JSON_string_not_empty_or_null "$JSON_input"; then
+		#echo "'$JSON_input'" && snore 1
+		mapfile -t jq_batch_response_raw_array < <( jq --compact-output --argjson 'max_fan_rpm' "$max_fan_rpm" "$jq_batch_script" <<< "$JSON_input" )
+		#                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, should refactor to get rid of
+
+		#printf "%s\n" "${jq_batch_response_raw_array[@]}"
+
+		for this_index in "${!jq_batch_response_raw_array[@]}"; do
+			this_value="${jq_batch_response_raw_array[this_index]}"
+			case "$this_value" in
+				'">>BEGIN JQ RESPONSE"')
+					# first element
+					continue
+				;;
+				'">>BEGIN KEY '*'"')
+					this_key="${this_value//\"}" # remove quotes
+					this_key="${this_key##* }" # get last token from string
+					#echo "{ # BEGIN $this_key"
+					jq_batch_response_hashtable["$this_key"]='null' # let us make it as ='null' by default and then get rid of a argjson_sanitizing
+					continue
+				;;
+				'"<<END KEY '*'"')
+					#echo "} # END $this_key"
+					this_key='__undefined_key'
+					continue
+				;;
+				'"<<END JQ RESPONSE"')
+					break
+				;;
+				*)
+					#echo "	$this_key=$this_value"
+					if [[ -n "$this_key" && "$this_key" != '__undefined_key' ]]; then
+						jq_batch_response_hashtable["$this_key"]="$this_value"
+					else
+						errcho "this_key $this_key, this_value $this_value"
+					fi
+				;;
+			esac
+		done
+
+		#
+		# 4. assign each element of array to the corresponding output var
+		#
+		for this_var in "${!_jq_batch_request_hashtable[@]}"; do
+			this_value="${jq_batch_response_hashtable[$this_var]}"
+			if [[ -z "$this_value" ]]; then
+				this_value='null'
+				errcho "this_var $this_var=$this_value"
+			fi
+			local -n this_var_ref="$this_var"
+			this_var_ref="$this_value"
+			#echo "$this_var=$this_var_ref"
+		done
+	else
+		errcho "$JSON_input_by_ref variable is empty"
+	fi
+}
+
 function sanitize_vars_for_argjson { # do not used atm
 	#
 	# Usage: sanitize_vars_for_argjson 'variable_name'...
@@ -327,6 +430,66 @@ function process_pools {
 	fi
 }
 
+function get_hiveon_voltage_cached {
+	# args
+	local -r variable_to_set_by_ref="$1"
+	local -r -n variable_to_set="$variable_to_set_by_ref"
+
+	# consts
+	local -r execute_for_every_nth=5
+
+	# global vars
+	declare -g -i "_${FUNCNAME}_counter"
+	declare -g "_${FUNCNAME}_cached_response"
+
+	# local vars
+	local -r -n counter="_${FUNCNAME}_counter"
+	local -r -n cached_response="_${FUNCNAME}_cached_response"
+
+	# code
+	if [[ -z "$cached_response" ]] || (( counter >= (execute_for_every_nth-1) )); then
+		counter=0
+		# refresh the cache if empty or for every nth time
+		cached_response="$( ant-functions.sh hiveon_voltage <<< "$chain_acn" )"
+		errcho "step $counter/$execute_for_every_nth, var '$cached_response' read from function"
+	else
+		(( counter++ ))
+		errcho "step $counter/$execute_for_every_nth, var '$cached_response' read from cache"
+	fi
+
+	variable_to_set="$cached_response"
+}
+
+function get_hiveon_power_cached {
+	# args
+	local -r variable_to_set_by_ref="$1"
+	local -r -n variable_to_set="$variable_to_set_by_ref"
+
+	# consts
+	local -r execute_for_every_nth=5
+
+	# global vars
+	declare -g -i "_${FUNCNAME}_counter"
+	declare -g "_${FUNCNAME}_cached_response"
+
+	# local vars
+	local -r -n counter="_${FUNCNAME}_counter"
+	local -r -n cached_response="_${FUNCNAME}_cached_response"
+
+	# code
+	if [[ -z "$cached_response" ]] || (( counter >= (execute_for_every_nth-1) )); then
+		counter=0
+		# refresh the cache if empty or for every nth time
+		cached_response="$( ant-functions.sh hiveon_power "$power" "$chain_acn" )"
+		errcho "step $counter/$execute_for_every_nth, var '$cached_response' read from function"
+	else
+		(( counter++ ))
+		errcho "step $counter/$execute_for_every_nth, var '$cached_response' read from cache"
+	fi
+
+	variable_to_set="$cached_response"
+}
+
 function get_miner_stats {
 	#
 	# Usage: get_miner_stats 'miner_name'
@@ -380,7 +543,7 @@ function get_miner_stats {
 				system_status="$( ant-functions.sh hiveon_status 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
 			else
-				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API (like S9): '}{' -> '},{'
+				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API answer (like S9): '}{' -> '},{'
 
 				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
 				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
