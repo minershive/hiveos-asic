@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.3.2'
+readonly script_version='0.3.3'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -206,7 +206,9 @@ function sanitize_ASICMINER_TEMPLATE {
 
 					"$worker_name_ALMOST_VALID")
 						echo_warning "A doubtful worker name '$WORKER_NAME_field_original' detected (but hasn't corrected)" 1>&2
-						echo_warning "Tip: remove '_' and/or '-' characters in case you cannot connect to the pool" 1>&2
+						echo_warning 'Tips in case the miner cannot connect to the pool:' 1>&2
+						echo_warning '1. Remove "_" and/or "-" characters from the worker name' 1>&2
+						echo_warning '2. Use no more than 8 characters in the worker name' 1>&2
 					;;
 
 					*)
