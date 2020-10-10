@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.6.1'
+readonly script_version='0.6.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -75,7 +75,6 @@ function jq_batch_process {
 	#
 
 	# args
-
 	local -r jq_batch_request_hashtable_by_ref="${1-}"
 	local -r JSON_input_by_ref="${2-}"
 
@@ -206,27 +205,34 @@ function milliseconds_to_seconds {
 	#
 
 	# args
-
 	local -r -i milliseconds="${1-}"
 
 	# vars
-
 	local -i s_part ms_part
-	local sign
+	local ms_part_left_padded sign
 
 	# code
-
-	if (( milliseconds < 0 )); then
+	if (( milliseconds > 0 )); then
+		sign=''
+	else
 		milliseconds=0-milliseconds
 		sign='-'
-	else
-		sign=''
 	fi
 
 	(( s_part = milliseconds / 1000,
-	ms_part = milliseconds % 1000 / 10 )) # let's leave only 2 digits after the dot bc we don't have such a precision
+	ms_part = milliseconds % 1000 / 10 ))
+	printf -v ms_part_left_padded '%02u' "$ms_part" # let's leave only 2 digits after the dot bc we don't have a milli precision actually
 
-	printf '%s%u.%u\n' "$sign" "$s_part" "$ms_part"
+	if (( ms_part == 0 )); then
+		# 1.00 -> 1
+		printf '%s%u\n' "$sign" "$s_part"
+	elif (( ms_part % 10 == 0 )); then
+		# 1.10 -> 1.1
+		printf '%s%u.%s\n' "$sign" "$s_part" "${ms_part_left_padded::1}"
+	else
+		# 1.11 -> 1.11
+		printf '%s%u.%s\n' "$sign" "$s_part" "$ms_part_left_padded"
+	fi
 }
 
 function get_time_difference_in_s {
@@ -235,11 +241,9 @@ function get_time_difference_in_s {
 	#
 
 	# args
-
 	local -r -i start_time_in_ms="${1-}"
 
 	# vars
-
 	local -i finish_time_in_ms wasted_time_in_ms
 	local time_difference_in_s
 
@@ -317,15 +321,12 @@ function send_request_to_miner_api {
 	#
 
 	# args
-
 	local -r request_body="${1-}"
 
 	# consts
-
 	local -r -i timeout=7
 
 	# code
-
 	case "$ASIC_MODEL" in
 		'Zig Z1+'|'Zig Z1')
 			timeout "$timeout" nc "$miner_API_host" "$miner_API_port" <<< "$request_body" 2> /dev/null
@@ -941,7 +942,7 @@ function get_mem_as_json_array {
 	#Buffers:           51764 kB
 	while read -r meminfo_parameter_field meminfo_size_field _ || [[ -n "$meminfo_parameter_field" ]]; do
 		[[ "$meminfo_parameter_field" == 'MemTotal:' ]] && (( MemTotal = meminfo_size_field ))
-		[[ "$meminfo_parameter_field" == 'MemAvailable:' ]] && (( MemAvailable =meminfo_size_field ))
+		[[ "$meminfo_parameter_field" == 'MemAvailable:' ]] && (( MemAvailable = meminfo_size_field ))
 		if (( MemTotal != -1 && MemAvailable != -1 )); then
 			is_both_parameters_read_ok_FLAG=1
 			break
