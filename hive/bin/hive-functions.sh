@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.44.0'
+declare -r hive_functions_lib_version='0.44.1'
 #                                        ^^ current number of public functions
 
 
@@ -541,7 +541,12 @@ function khs_to_human_friendly_hashrate {
 
 	if [[ "$hashrate_in_khs" == '0' || "$hashrate_in_khs" == 'null' ]]; then
 		echo '0 H/s'
+	elif [[ "$hashrate_in_khs" != *[Ee]* ]]; then
+		# a number without exponent
+		hs_decimal="$( scientific_to_decimal "${hashrate_in_khs}e3" )" # multiply by 1000 right there and then
+		big_decimal_to_human "$hs_decimal" 'H/s'
 	else
+		# a number with exponent, process with care
 		khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
 		(( hs_decimal = khs_decimal * 1000 ))
 		big_decimal_to_human "$hs_decimal" 'H/s'
