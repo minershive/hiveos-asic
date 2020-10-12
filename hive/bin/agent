@@ -406,77 +406,91 @@ function process_pools {
 	fi
 }
 
-function get_hiveon_voltage_cached_to {
+function cache_cmd {
 	#
-	# Usage: get_hiveon_voltage_cached_to 'variable_to_set_by_ref'
-	#
-
-	# args
-	local -r variable_to_set_by_ref="$1"
-	local -r -n variable_to_set="$variable_to_set_by_ref"
-
-	# consts
-	local -r execute_for_every_nth=3
-
-	# global vars
-	declare -g -i "_${FUNCNAME}_counter"
-	declare -g "_${FUNCNAME}_cached_response"
-
-	# local vars
-	local -r -n counter="_${FUNCNAME}_counter"
-	local -r -n cached_response="_${FUNCNAME}_cached_response"
-
-	# code
-	if [[ -z "$cached_response" ]] || (( counter >= (execute_for_every_nth-1) )); then
-		counter=0
-		# refresh the cache if empty or for every nth time
-		cached_response="$( ant-functions.sh hiveon_voltage <<< "$chain_acn" )"
-		log_line debug "${FUNCNAME}() read data from function [$(( counter+1 ))/$execute_for_every_nth]"
-	else
-		(( counter++ ))
-		log_line debug "${FUNCNAME}() read data from cache [$(( counter+1 ))/$execute_for_every_nth]"
-	fi
-
-	variable_to_set="$cached_response"
-}
-
-function get_hiveon_power_cached_to {
-	#
-	# Usage: get_hiveon_power_cached_to 'variable_to_set_by_ref'
+	# Usage: cache_cmd cmd args...
 	#
 
 	# args
-	local -r variable_to_set_by_ref="$1"
-	local -r -n variable_to_set="$variable_to_set_by_ref"
+	# $@ used down south
+
+	# debug
+	local -r -i FUNC_DEBUG=0
+	(( FUNC_DEBUG )) && local -i time_start_caching_in_ms="$( get_system_uptime_in_milliseconds )" # start timing
 
 	# consts
-	local -r execute_for_every_nth=3
+	local -r -i TTL=50 # 50 seconds
+	local -r cache_FILE='/run/hive/cmd_cache' # '/dev/shm/cmd_cache'
+	local hash; printf -v hash "%s<FD>" "${@:1:2}" # construct a hash from the first two elements in "$@", literalize fields delimiters
+	local -r       last_time_KEY="$hash:last_time"
+	local -r cached_response_KEY="$hash:cached_response"
+	local -r cached_exitcode_KEY="$hash:cached_exitcode"
+	local -r   avg_cold_time_KEY="$hash:avg_cold_time"
+	local -r  avg_hot_time_KEY="$hash:avg_hot_time"
 
-	# global vars
-	declare -g -i "_${FUNCNAME}_counter"
-	declare -g "_${FUNCNAME}_cached_response"
+	# hashes
+	local -A cmd_cache_array; [[ -s "$cache_FILE" ]] && source "$cache_FILE"
+	# direct refs to array elements
+	local -n       last_time="cmd_cache_array['$last_time_KEY']"
+	local -n cached_response="cmd_cache_array['$cached_response_KEY']"
+	local -n cached_exitcode="cmd_cache_array['$cached_exitcode_KEY']"
+	local -n   avg_cold_time="cmd_cache_array['$avg_cold_time_KEY']"
+	local -n    avg_hot_time="cmd_cache_array['$avg_hot_time_KEY']"
 
-	# local vars
-	local -r -n counter="_${FUNCNAME}_counter"
-	local -r -n cached_response="_${FUNCNAME}_cached_response"
+	# flags
+	local -i is_cold_FLAG=0
+
+	# vars
+	local -i current_time time_wasted_caching_in_ms cache_efficiency=0
+	local debug_message tip=''
 
 	# code
-	if [[ -z "$cached_response" ]] || (( counter >= (execute_for_every_nth-1) )); then
-		counter=0
-		# refresh the cache if empty or for every nth time
-		cached_response="$( ant-functions.sh hiveon_power "$power" "$chain_acn" )"
-		log_line debug "${FUNCNAME}() read data from function [$(( counter+1 ))/$execute_for_every_nth]"
-	else
-		(( counter++ ))
-		log_line debug "${FUNCNAME}() read data from cache [$(( counter+1 ))/$execute_for_every_nth]"
+	current_time="$( get_current_system_time_in_seconds )"
+
+	if (( ( $last_time + TTL ) < current_time )); then
+		#   ^ fix unknown bash issue: variable with a reference to a single array element inside an (( arithmetic context ))
+		# refresh the cache
+		cached_response="$( "$@" )"
+		cached_exitcode=$?
+		last_time="$current_time"
+		is_cold_FLAG=1
 	fi
 
-	variable_to_set="$cached_response"
+	if (( FUNC_DEBUG )); then
+		# do timing, averaging, profiling and stuff
+		time_wasted_caching_in_ms="$(( $( get_system_uptime_in_milliseconds ) - time_start_caching_in_ms ))"
+
+		if (( is_cold_FLAG )); then
+			debug_message="exec '${*:1:2}' (exitcode $cached_exitcode), cache age $(( current_time - $last_time ))s"
+			if [[ -z "$avg_cold_time" || "$avg_cold_time" -eq 0 ]]; then
+				avg_cold_time="$time_wasted_caching_in_ms"
+			else
+				avg_cold_time=$(( ( $avg_cold_time + time_wasted_caching_in_ms ) / 2 ))
+			fi
+		else
+			debug_message="cache '${*:1:2}' (exitcode $cached_exitcode), cache age $(( current_time - $last_time ))s"
+			if [[ -z "$avg_hot_time" || "$avg_hot_time" -eq 0 ]]; then
+				avg_hot_time="$time_wasted_caching_in_ms"
+			else
+				avg_hot_time=$(( ( $avg_hot_time + time_wasted_caching_in_ms ) / 2 ))
+			fi
+		fi
+
+		(( $avg_hot_time && $avg_cold_time )) && (( cache_efficiency = ( $avg_cold_time - $avg_hot_time ) * 100 / $avg_hot_time ))
+		(( cache_efficiency <= 100 )) && tip='(caching is not recommended)'
+
+		log_line debug "$debug_message, avg hot/cold time ${avg_hot_time:--}ms/${avg_cold_time:--}ms, efficiency ${cache_efficiency}% $tip" 1>&2
+	fi
+
+	(( is_cold_FLAG )) && declare -p cmd_cache_array > "$cache_FILE" # refresh the cache only if cold
+
+	[[ -n "$cached_response" ]] && echo "$cached_response"
+	return "$cached_exitcode"
 }
 
-function get_miner_stats {
+function fetch_miner_stats {
 	#
-	# Usage: get_miner_stats 'miner_name'
+	# Usage: fetch_miner_stats 'miner_name'
 	#
 
 	# args
@@ -580,8 +594,8 @@ function get_miner_stats {
 				ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
 														'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'				<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
 
-				[[ "$chain_voltage" == '[]'	]] && get_hiveon_voltage_cached_to 'chain_voltage'
-				[[ "$power" != '{}'			]] && get_hiveon_power_cached_to 'power'
+				[[ "$chain_voltage" == '[]'	]] && chain_voltage="$( cache_cmd ant-functions.sh hiveon_voltage <<< "$chain_acn" )"
+				[[ "$power" != '{}'			]] && power="$( cache_cmd ant-functions.sh hiveon_power "$power" "$chain_acn" )"
 				[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
 				[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
 
@@ -911,7 +925,7 @@ function get_loadavg_as_json_array {
 	printf '[%0.1f,%0.1f,%0.1f]\n' "$LA_1m" "$LA_5m" "$LA_15m"
 }
 
-function get_diskfree {
+function get_diskfree_as_string {
 	# arrays
 	local -a lines_array last_line_array
 
@@ -1065,14 +1079,14 @@ function loop {
 	log_line info "${custom_interval_message}Collecting stats from ${WHITE}${MINER}${NOCOLOR} API..."
 
 	time_start_collecting_stats="$( get_system_uptime_in_milliseconds )"
-	get_miner_stats "$MINER"
+	fetch_miner_stats "$MINER"
 	time_wasted_collecting_stats_in_s="$( get_time_difference_in_s $(( time_start_collecting_stats )) )"
 
 	process_khs_and_arr
 
 	mem="$( get_mem_as_json_array )"
 	cpuavg="$( get_loadavg_as_json_array )"
-	df="$( get_diskfree )"
+	df="$( get_diskfree_as_string )"
 	last_cmd_id="$( get_saved_last_cmd_id )"
 
 	# construct a request
