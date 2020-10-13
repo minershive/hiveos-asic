@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.1.0'
+readonly script_version='1.1.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -295,8 +295,11 @@ deploy_hive () {
 
 	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename_w_path" ] || ! gunzip -tf "$persistent_package_filename_w_path" >/dev/null 2>&1; then
 		set_default_download_server_URL
-		for this_URL in "$download_server_URL" "$default_download_server_URL"; do
-			#                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ fall-back server
+		if [ "$download_server_URL" != "$default_download_server_URL" ]; then
+			# if server isn't default one -- add fall-back URL to the collection
+			download_server_URL="$download_server_URL $default_download_server_URL"
+		fi
+		for this_URL in $download_server_URL; do
 			full_package_URL="${this_URL}${remote_package_filename}"
 			#
 			# TODO do check the server availability beforehand and then proceed further or skip to the next one
