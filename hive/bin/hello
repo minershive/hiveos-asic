@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.1.28'
+readonly script_version='0.2.0'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -97,6 +97,7 @@ function parse_arguments {
 function is_JSON_string_empty_or_null {
 	# args
 	local -r JSON_string="$1"
+
 	# code
 	[[ -z "$JSON_string" || "$JSON_string" == 'null' ]]
 }
@@ -104,8 +105,35 @@ function is_JSON_string_empty_or_null {
 function is_JSON_string_not_empty_or_null {
 	# args
 	local -r JSON_string="$1"
+
 	# code
 	[[ -n "$JSON_string" && "$JSON_string" != 'null' ]]
+}
+
+function is_interface_up {
+	# args
+	local -r if_to_check="$1"
+
+	# code
+	if [[ ! -d "/sys/class/net/${if_to_check}" ]]; then
+		echo_error "No such interface: $if_to_check"
+		return 2
+	else
+		[[ $( < "/sys/class/net/${if_to_check}/operstate" ) == 'up' ]]
+	fi
+}
+
+function rematch {
+	# actually we don't have to use pure bash eh?
+	# rematch 'regex' ['string']
+
+	# args
+	local -r regex="$1"
+	local -r string="${2:-$( </dev/fd/0 )}" # get from arg or stdin
+
+	# code
+	[[ "$string" =~ $regex ]]
+	printf '%s\n' "${BASH_REMATCH[@]:1}"
 }
 
 function jq_raw_input_then_slurp {
@@ -163,18 +191,34 @@ function print_JSON_with_header {
 	echo "$entity_to_print"
 }
 
-function get_ips_json {
+function get_ip_as_json {
+	# consts
+	local -r ip_RE='inet addr:([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})'
+
 	# vars
-	local ips_json
+	local ip_address ip_address_as_json
+
+	# flags
+	local -i is_ip_exist_FLAG=0
 
 	# code
 	if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
-		ips_json="[\"$( ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )\"]"
+		ip_address="$( ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
 	else
-		ips_json="[\"$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )\"]"
+		#ip_address="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
+		ip_address="$( LANG=C ifconfig eth0 | rematch "$ip_RE" )"
 	fi
 
-	echo "$ips_json"
+	if [[ -n "$ip_address" ]]; then
+		is_ip_exist_FLAG=1
+		ip_address_as_json="[\"${ip_address}\"]"
+	else
+		ip_address_as_json='null'
+	fi
+
+	echo "$ip_address_as_json"
+
+	(( is_ip_exist_FLAG )) # set exitcode
 }
 
 function get_asic_json {
@@ -365,7 +409,7 @@ function serve_hiveon_model_cache {
 		# search for 2 patterns
 		# old one: 2020-10-02 04:48:01 driver/driver-btm-api.c:1450:bitmain_board_init: Project type: Antminer T17+
 		# new one: 2020-09-25 12:54:24 driver/driver-btm-api.c:2257:bitmain_soc_init: Miner compile time: Fri Sep 25 11:25:18 UTC 2020 type: Antminer S17 Hiveon
-		hiveon_model_detected="$(  awk -F ' type: ' '/Project type: |Miner compile time:.+type: /{ print $NF; exit }' < /var/log/log )"
+		hiveon_model_detected="$( awk -F ' type: ' '/Project type: |Miner compile time:.+type: /{ print $NF; exit }' < /var/log/log )"
 		[[ -n "$hiveon_model_detected" ]] && echo_info "Model found in /var/log/log: '$hiveon_model_detected'"
 	fi
 
@@ -441,7 +485,6 @@ function send_hello_packet {
 
 	# code
 	print_JSON_with_header "Sending request to $server_URL" "$server_request_by_ref"
-	echo
 
 	for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
 		(( curl_connect_timeout = curl_initial_connect_timeout + attempts_counter ))
@@ -527,6 +570,7 @@ declare -i arg_restartminer_FLAG=0		# will need to restart miner after
 declare arg_hostname=''
 declare mb_manufacturer mb_product
 declare server_request_json server_response_json
+declare -i attempts_counter sleep_counter sleep_time sleep_1hr_accumulator
 
 
 # exports
@@ -563,11 +607,34 @@ source asic-model
 
 parse_arguments "$@"
 
+
+# wait for network interface (until eth0 is up AND ip address not blank)
+
+until is_interface_up 'eth0' && ip_json="$( get_ip_as_json )"; do
+	(( sleep_1hr_accumulator >= 3600 )) && (( sleep_1hr_accumulator = 0, sleep_counter = 0 )) # reset an exponential sleeping once in an hour
+
+	((
+		attempts_counter++,
+		sleep_counter++,
+		sleep_time = sleep_counter ** 2,
+		sleep_1hr_accumulator += sleep_time
+	))
+
+	# let's cover weird edge cases
+	if ping -c 1 -W 1 "$( IFS='/'; hostname=( $HIVE_HOST_URL ); echo "${hostname[2]}" )" &> /dev/nul; then
+		echo_info 'The network is up'
+		break
+	fi
+
+	echo_error "eth0 is down or no IP address assigned, yet. Attempt #$attempts_counter (total time $(( sleep_1hr_accumulator / 60 ))m), will try again in ${sleep_time}s..."
+	sleep 1 # $(( sleep_time ))
+done
+
+
 # collect system information
 
 mb_manufacturer="$ASIC_MANUFACTURER"
 mb_product="$ASIC_MODEL"
-ips_json="$( get_ips_json )"
 net_interfaces_json="$( ip -o link | awk '!/LOOPBACK|POINTOPOINT|NOARP/{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq --slurp --compact-output '.' )"
 cpu_model="$( grep -m1 '^model name' /proc/cpuinfo | sed 's/model name[ :\t]*//g' )"
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'
@@ -585,6 +652,7 @@ boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 
 
 # construct a request
+
 # shellcheck disable=SC2016
 server_request_json="$(
 	jq \
@@ -594,7 +662,7 @@ server_request_json="$(
 		--arg passwd "${RIG_PASSWD-}" \
 		--arg boot_time "$boot_POSIX_time" \
 		--argjson boot_event "$arg_boot_FLAG" \
-		--argjson ip "$ips_json" \
+		--argjson ip "$ip_json" \
 		--argjson net_interfaces "$net_interfaces_json" \
 		--arg model "$cpu_model" --arg cores "$cpu_cores" --arg aes "$aes" \
 		--arg manufacturer "$mb_manufacturer" --arg product "$mb_product" \
