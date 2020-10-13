@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.0.28'
+readonly script_version='1.1.0'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -30,18 +30,9 @@ print_script_usage () {
 	echo
 }
 
-echo_action () {
-	echo "${script_basename}> ${*}..."
-}
-
-echo_info () {
-	echo "${script_basename}: ${*}"
-}
-
-die () {
-	echo_action "${*}"
-	exit 1
-} 2>&1
+echo_action ()	{ echo "${script_basename}> ${*}...";	}
+echo_info ()	{ echo "${script_basename}: ${*}"	;	}
+die ()			{ echo_action "${*}"; exit 1		;	} 2>&1
 
 get_random_number_between () {
 	#
@@ -66,7 +57,7 @@ parse_arguments () {
 	# vars
 
 	local this_ARG
-	
+
 	# code
 
 	for this_ARG in "$@"; do
@@ -155,9 +146,9 @@ check_gz_integrity () {
 	fi
 }
 
-get_tar_gz_at_any_cost () {
+fetch_package_at_any_cost () {
 	#
-	# Usage: get_tar_gz_at_any_cost 'URL' 'output_file'
+	# Usage: fetch_package_at_any_cost 'URL' 'output_file'
 	#
 	# overwrites output file only on success
 	#
@@ -215,16 +206,19 @@ set_default_download_server_URL () {
 	# sets download_server_URL global var
 	#
 
-	# conts
+	# consts
 
-#	local whitelabel_download_server_URL_files_collection='/etc/hive-url /config/hive-url' # space-delimited collection
+	local      whitelabel_HIVE_HOST_URL_file_in_FW='/etc/hive-url'				# prio 4
+	local   whitelabel_HIVE_HOST_URL_file_in_NVRAM='/config/hive-url'			# prio 3
+	#local                      HIVE_HOST_URL_file='/config/HIVE_HOST_URL'		# prio 2 # already declared as a gobal readonly, !!! should refactor later
+	local whitelabel_HIVE_DOWNLOADS_URL_file_in_FW='/etc/hive-downloads-url'	# prio 1
 
-	local whitelabel_HIVE_DOWNLOADS_URL_file_in_FW='/etc/hive-downloads-url' # prio 1
-	#local                      HIVE_HOST_URL_file='/config/HIVE_HOST_URL' # prio 2 # already declared as a gobal readonly, !!! should refactor later
-	local   whitelabel_HIVE_HOST_URL_file_in_NVRAM='/config/hive-url' # prio 3
-	local      whitelabel_HIVE_HOST_URL_file_in_FW='/etc/hive-url' # prio 4
-
-	local whitelabel_download_server_URL_files_collection="${whitelabel_HIVE_HOST_URL_file_in_FW} ${whitelabel_HIVE_HOST_URL_file_in_NVRAM} ${HIVE_HOST_URL_file} ${whitelabel_HIVE_DOWNLOADS_URL_file_in_FW}"
+	local whitelabel_download_server_URL_files_collection="
+		$whitelabel_HIVE_HOST_URL_file_in_FW
+		$whitelabel_HIVE_HOST_URL_file_in_NVRAM
+		$HIVE_HOST_URL_file
+		$whitelabel_HIVE_DOWNLOADS_URL_file_in_FW
+	" # the order is important: sorted by prio, from low to high (??? cannot remember why isn't backwards)
 
 	# vars
 
@@ -237,19 +231,12 @@ set_default_download_server_URL () {
 	# 1. try whitelabel file
 	for whitelabel_download_server_URL_file in $whitelabel_download_server_URL_files_collection; do
 		if [ -s "$whitelabel_download_server_URL_file" ]; then
+			# replace 'api.' with 'download.'
+			# !!! potential problem: API server with a pure IP address + firewalled *.hiveos.farm
 			download_server_URL="$( tr -d ';|"' < "$whitelabel_download_server_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
-#			download_server_URL="$( cat "$whitelabel_download_server_URL_file" )"
 			echo_info "Whitelabel server URL found in $whitelabel_download_server_URL_file: $download_server_URL"
 		fi
 	done
-
-#	# 2. try HIVE_HOST_URL file
-#	if [ -s "$HIVE_HOST_URL_file" ]; then
-#		# replace 'api.' with 'download.'
-#		# !!! potential problem: API server with a pure IP address + firewalled *.hiveos.farm
-#		download_server_URL="$( tr -d ';|"' < "$HIVE_HOST_URL_file" | sed 's|api\.|download\.|' )" #'# syntax highlighting fix
-#		echo_info "Server URL found in $HIVE_HOST_URL_file: $download_server_URL"
-#	fi
 
 	# url refining
 	case "$download_server_URL" in
@@ -295,9 +282,12 @@ deploy_hive () {
 
 	# vars
 
-	local full_URL=''
-	local tar_output=''
-	persistent_package_filename_w_path="${NVRAM_path}/${persistent_package_filename}"
+	local full_package_URL='' tar_output='' this_URL
+	local persistent_package_filename_w_path="${NVRAM_path}/${persistent_package_filename}"
+
+	# flags
+
+	local is_package_fetched_ok_FLAG=0
 
 	# code
 
@@ -305,9 +295,22 @@ deploy_hive () {
 
 	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename_w_path" ] || ! gunzip -tf "$persistent_package_filename_w_path" >/dev/null 2>&1; then
 		set_default_download_server_URL
-		full_URL="${download_server_URL}${remote_package_filename}"
-		get_tar_gz_at_any_cost "$full_URL" "$persistent_package_filename_w_path" || die "Error downloading $persistent_package_filename_w_path, exiting"
+		for this_URL in "$download_server_URL" "$default_download_server_URL"; do
+			#                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ fall-back server
+			full_package_URL="${this_URL}${remote_package_filename}"
+			#
+			# TODO do check the server availability beforehand and then proceed further or skip to the next one
+			#
+			if fetch_package_at_any_cost "$full_package_URL" "$persistent_package_filename_w_path"; then
+				is_package_fetched_ok_FLAG=1
+			else
+				echo_info "Error downloading $persistent_package_filename_w_path from $this_URL"
+			fi
+		done
 	fi
+
+	# assert
+	[ "$is_package_fetched_ok_FLAG" -eq 1 ] || die 'Fatal download error, exiting'
 
 	if [ ! -d /config/hive ]; then
 		mkdir -p /config/hive/hive-config
