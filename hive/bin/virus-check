@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.6.5'
+readonly script_version='0.6.6'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -323,13 +323,13 @@ function check_system_files {
 	# consts
 	local -r label_text='system file md5'
 	local -r -A files_to_check=(
-		['/usr/bin/ntpd']='bb965c01fbba97604b94813fcdaa0829 94699039a78b6ee320b2e1a5c436527a e5b8378fc39c16f4adbf0503fa988d6f'
-		#                                                   # Z11e stock
+		['/usr/bin/ntpd']='bb965c01fbba97604b94813fcdaa0829 94699039a78b6ee320b2e1a5c436527a e5b8378fc39c16f4adbf0503fa988d6f e7d50aa47ac3414d978a0e761c55a50c'
+		#                                                   ^ Z11e stock                                                      ^ Z9 stock (not tested) @ 180913
 		['/lib/modules/bitmain_axi.ko']='e78d5effe8c1e4afd1cf514ba23844d1 f552505dcf1e7c61be414a40d6352684 27a0a0bfeee0d919ef03ba534caab51c f2517c6f9554babeb1cfca7ac55aed2d'
-		#                                S9 Hiveon 1.02/1.03, T9 Hiveon 1.03
-		#                                                                 S17/S17 Pro/S17E Hiveon
-		#                                                                                                  T9 1.02@190810
-		#                                                                                                                                   Z11e stock @ 20191023
+		#                                ^ S9 Hiveon 1.02/1.03, T9 Hiveon 1.03
+		#                                                                 ^ S17/S17 Pro/S17E Hiveon
+		#                                                                                                  ^ T9 1.02@190810
+		#                                                                                                                                   ^ Z11e stock @ 191023
 	)
 
 	# vars
