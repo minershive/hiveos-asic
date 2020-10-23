@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.3.0'
+library_version='1.3.1'
 library_basename="$( basename "$0" )"
 
 
@@ -480,15 +480,45 @@ if ! ( return 0 2>/dev/null ); then
 	#	echo
 	#}
 
-	echo "ASIC manufacturer: ${WHITE-}${ASIC_MANUFACTURER}${NOCOLOR-}"
-	echo "ASIC model: ${WHITE-}${ASIC_MODEL}${NOCOLOR-}"
-	echo
-	echo 'ASIC configuration:'
-	echo
-	for variable_name in ASIC_FW_VERSION HIVEON_VERSION_full ASIC_MOUNT_PATH ASIC_ALGO ASIC_CHAIN_COUNT ASIC_MINER_NAME ASIC_LOG_PATH ASIC_CONFIG_PATH ASIC_HASH_UNITS ASIC_HASH_TOTAL_UNITS LOCALIP STAT_TOKEN TEMP_TOKEN ASIC_MAX_FAN_RPM ASIC_FAN_COUNT ASIC_GPIO_PATH ASIC_GPIO_LED_RED ASIC_WEAK_FLASH; do
-		variable_value="${!variable_name-}"
-		[[ -z "$variable_value" ]] && echo -e -n "${GRAY-}"
-		echo -e "     $variable_name=${GREEN-}${variable_value}${NOCOLOR-}"
+#	echo "ASIC manufacturer: ${WHITE-}${ASIC_MANUFACTURER}${NOCOLOR-}"
+#	echo "ASIC model: ${WHITE-}${ASIC_MODEL}${NOCOLOR-}"
+#	echo
+#	echo 'ASIC configuration:'
+#	echo
+	for variable_name in									\
+		ASIC_MANUFACTURER ASIC_MODEL ASIC_FW_VERSION		\
+		divider												\
+		HIVEON_VERSION_full HIVEON_VERSION					\
+		HIVEON_VERSION_major HIVEON_VERSION_minor			\
+		divider												\
+		ASIC_MINER_NAME ASIC_ALGO							\
+		ASIC_HASH_UNITS ASIC_HASH_TOTAL_UNITS				\
+		ASIC_CHAIN_COUNT ASIC_FAN_COUNT ASIC_MAX_FAN_RPM	\
+		divider												\
+		ASIC_MOUNT_PATH ASIC_LOG_PATH ASIC_CONFIG_PATH		\
+		divider												\
+		ASIC_GPIO_PATH ASIC_GPIO_LED_RED ASIC_WEAK_FLASH	\
+		divider												\
+		LOCALIP STAT_TOKEN TEMP_TOKEN						\
+		divider; do
+			if [[ "$variable_name" != 'divider' ]]; then
+				if [[ -v "$variable_name" ]]; then
+					variable_value="${!variable_name-}"
+					if [[ -n "$variable_value" ]]; then
+						variable_value_color="${GREEN-}"
+					else
+						variable_value='empty'
+						variable_value_color="${DGRAY-}"
+					fi
+					variable_name_color="${LGRAY-}"
+				else
+					variable_value='not defined'
+					variable_name_color="${DGRAY-}"
+					variable_value_color="${DGRAY-}"
+				fi
+				printf '  %b%-21.21s %b%s%b\n' "$variable_name_color" "$variable_name" "$variable_value_color" "$variable_value" "${NOCOLOR-}"
+			else
+				echo
+			fi
 	done
-	echo
 fi
