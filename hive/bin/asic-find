@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: LED Blinker'
-readonly script_version='0.1.0'
+readonly script_version='0.1.1'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -37,18 +37,18 @@ function print_script_usage {
 	echo
 }
 
-function check_GPIO_PATH {
+function check_ASIC_GPIO_PATH {
 	# consts
 	local -r valid_methods_RE="^(${led_control_DICT[.methods_list]})$"
 
 	# code
-	if [[ "${GPIO_PATH-}" =~ $valid_methods_RE ]]; then
-		(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): GPIO_PATH '$GPIO_PATH' validated"
-	elif [[ -z "${GPIO_PATH-}" ]]; then
-		echo 'ERROR: no GPIO_PATH defined, please check /hive/bin/asic-model'
+	if [[ "${ASIC_GPIO_PATH-}" =~ $valid_methods_RE ]]; then
+		(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): ASIC_GPIO_PATH '$ASIC_GPIO_PATH' validated"
+	elif [[ -z "${ASIC_GPIO_PATH-}" ]]; then
+		echo 'ERROR: no ASIC_GPIO_PATH defined, please check /hive/bin/asic-model'
 		exit 1
 	else
-		echo "ERROR: wrong GPIO_PATH '$GPIO_PATH', please check /hive/bin/asic-model"
+		echo "ERROR: wrong ASIC_GPIO_PATH '$ASIC_GPIO_PATH', please check /hive/bin/asic-model"
 		exit 1
 	fi
 }
@@ -75,7 +75,7 @@ function make_LED {
 		return 1
 	fi
 
-	gpio_command="${led_control_DICT[${GPIO_PATH}.${command}]-}"
+	gpio_command="${led_control_DICT[${ASIC_GPIO_PATH}.${command}]-}"
 
 	(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): $command=$gpio_command"
 
@@ -84,11 +84,11 @@ function make_LED {
 			(( script_DEBUG )) && echo "[DEBUG] $FUNCNAME(): command '$command' not defined in dictionary, skipping"
 		;;
 		'init')
-			full_gpio_init_path="${led_control_DICT[${GPIO_PATH}.init_path]}"
+			full_gpio_init_path="${led_control_DICT[${ASIC_GPIO_PATH}.init_path]}"
 			[[ -n "$full_gpio_init_path" ]] && echo "$gpio_command" > "$full_gpio_init_path"
 		;;
 		*)
-			full_gpio_path="${led_control_DICT[${GPIO_PATH}.path]}"
+			full_gpio_path="${led_control_DICT[${ASIC_GPIO_PATH}.path]}"
 			[[ -n "$full_gpio_path" ]] && echo "$gpio_command" > "$full_gpio_path"
 		;;
 	esac
@@ -168,13 +168,13 @@ declare -A -r led_control_DICT=(
 	 ['.commands_list']='on|off|init'
 	  ['.methods_list']='value|direction'
 
-	     ['value.path']="/sys/class/gpio/gpio${GPIO_LED_RED}/value"
-	['value.init_path']="/sys/class/gpio/gpio${GPIO_LED_RED}/direction"
+	     ['value.path']="/sys/class/gpio/gpio${ASIC_GPIO_LED_RED}/value"
+	['value.init_path']="/sys/class/gpio/gpio${ASIC_GPIO_LED_RED}/direction"
 	       ['value.on']='1'
 	      ['value.off']='0'
 	     ['value.init']='out'
 
-	 ['direction.path']="/sys/class/gpio/gpio${GPIO_LED_RED}/direction"
+	 ['direction.path']="/sys/class/gpio/gpio${ASIC_GPIO_LED_RED}/direction"
 	   ['direction.on']='high'
 	  ['direction.off']='low'
 )
@@ -194,16 +194,16 @@ trap 'is_SIGUSR1_received_FLAG=1' USR1 # signal to stop
 # code
 
 print_script_version
-check_GPIO_PATH
+check_ASIC_GPIO_PATH
 
 if [[ "${1-}" == 'stop' ]]; then
 	send_stop_signal
 elif [[ "${1-}" =~ ^[0-9]+$ ]]; then
 	send_stop_signal # shut off all active asic-find scripts
 	is_SIGUSR1_received_FLAG=0 # set the flag back
-	if [[ ! -e "/sys/class/gpio/gpio${GPIO_LED_RED}" ]]; then
-		(( script_DEBUG )) && echo "[DEBUG] /sys/class/gpio/gpio${GPIO_LED_RED} is not exist"
-		echo "$GPIO_LED_RED" > /sys/class/gpio/export
+	if [[ ! -e "/sys/class/gpio/gpio${ASIC_GPIO_LED_RED}" ]]; then
+		(( script_DEBUG )) && echo "[DEBUG] /sys/class/gpio/gpio${ASIC_GPIO_LED_RED} is not exist"
+		echo "$ASIC_GPIO_LED_RED" > /sys/class/gpio/export
 	fi
 	blink_LED_for "$1"
 else

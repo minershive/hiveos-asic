@@ -256,7 +256,7 @@ echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing
 # (test) disable avahi-daemon
 if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
 	echo_x action 'Stopping Avahi daemon'
-	[[ -f /etc/init.d/avahi ]] && /etc/init.d/avahi stop
+	[[ -f /etc/init.d/avahi ]] && /etc/init.d/avahi stop # add && -f /usr/sbin/avahi-daemon ???
 	[[ -f /usr/sbin/avahi-daemon ]] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon-disabled
 	# /etc/init.d/avahi stop -- does not work on some models
 	kill_all avahi

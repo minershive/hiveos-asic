@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.3.3'
+readonly script_version='0.3.4'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -1140,7 +1140,7 @@ source colors
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r WALLET_CONF='/hive-config/wallet.conf'
-declare -r MINER_CONFIG="$CONFIG_PATH"
+declare -r MINER_CONFIG="$ASIC_CONFIG_PATH"
 
 
 # global enums
