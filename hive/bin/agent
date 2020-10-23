@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.6.5'
+readonly script_version='0.6.6'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -499,7 +499,7 @@ function fetch_miner_stats {
 
 	# vars
 	local stats_raw max_fan_rpm STATS
-	local algo hs_units hs_total_units uptime hashrate_raw hashrate_raw_avg
+	local algo hs_units hs_total_units uptime hashrate_raw
 	local POOLS active_pool_id
 	local hs temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_acn chain_acs chain_voltage hw_errors power asicboost ar
 
@@ -508,14 +508,12 @@ function fetch_miner_stats {
 
 	# traps
 	function sanitize_khs {
-		[[ -z "$khs"	]] && khs=0
-		[[ -z "$khs_av"	]] && khs_av=0
+		[[ -z "$khs" ]] && khs=0
 	}
 	trap 'sanitize_khs' RETURN
 
 	# code
 	khs=0				# global
-	khs_av=0			# global
 	stats=''			# global
 
 	algo="$ASIC_ALGO"
@@ -546,14 +544,10 @@ function fetch_miner_stats {
 				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API answer (like S9): '}{' -> '},{'
 
 				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-
 				if [[ -z "$hs_total_units" ]]; then
 					reduce_hashrate_to_khs "$hashrate_raw" "$hs_units" khs
-					reduce_hashrate_to_khs "$hashrate_raw_avg" "$hs_units" khs_av
 				else
 					reduce_hashrate_to_khs "$hashrate_raw" "$hs_total_units" khs
-					reduce_hashrate_to_khs "$hashrate_raw_avg" "$hs_total_units" khs_av
 				fi
 
 				system_status="$( ant-functions.sh hiveon_status "$STATS" )"
@@ -639,14 +633,10 @@ function fetch_miner_stats {
 				#fi
 
 				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				hashrate_raw_avg="$( jq --raw-output '.[1]."GHS av"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-
 				if [[ -z "$hs_total_units" ]]; then
 					reduce_hashrate_to_khs "$hashrate_raw" "$hs_units" khs
-					reduce_hashrate_to_khs "$hashrate_raw_avg" "$hs_units" khs_av
 				else
 					reduce_hashrate_to_khs "$hashrate_raw" "$hs_total_units" khs
-					reduce_hashrate_to_khs "$hashrate_raw_avg" "$hs_total_units" khs_av
 				fi
 
 				system_status="$( ant-functions.sh hiveon_status "$STATS" )"
@@ -1101,7 +1091,6 @@ function loop {
 			--argjson	meta			"${META:-null}"			\
 			--argjson	miner_stats		"${stats:-null}"		\
 			--argjson	total_khs		"${khs:-null}"			\
-			--argjson	avg_khs			"${khs_av:-null}"		\
 			--arg		system_status	"$system_status"		\
 			--arg		df				"$df"					\
 			--argjson	mem				"${mem:-null}"			\
@@ -1122,7 +1111,7 @@ function loop {
 				"params": {
 					$rig_id, $passwd, $last_cmd_id,
 					$miner, $meta,
-					$miner_stats, $total_khs, $avg_khs,
+					$miner_stats, $total_khs,
 					$system_status, $df, $mem, $cpuavg
 				}
 			} | walk(
@@ -1139,7 +1128,7 @@ function loop {
 	# fall-back route (like in case of a broken jq or some)
 	if [[ $? -ne 0 || -z "$request" ]]; then
 		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
-		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'khs_av' 'cpuavg'
+		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'cpuavg'
 		# good ol' bash string assembly
 		request="{\"method\":\"stats\",\"jsonrpc\":\"2.0\",\"id\":0,\"params\":{\"rig_id\":${RIG_ID},\"passwd\":\"${RIG_PASSWD}\",\"miner\":\"$MINER\",\"system_status\":\"$system_status\"}}"
 	fi
@@ -1652,7 +1641,7 @@ declare -r -i push_interval_DEFAULT=10
 # vars
 
 declare MINER='asicminer'
-declare khs khs_av system_status stats
+declare khs system_status stats
 declare -i INTERVAL=push_interval_DEFAULT
 declare -i time_wasted_general time_remaining_general
 declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
