@@ -17,7 +17,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.2.1'
+readonly script_version='0.2.2'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -621,7 +621,7 @@ until is_interface_up 'eth0' && ip_json="$( get_ip_as_json )"; do
 	))
 
 	# let's cover weird edge cases
-	if ping -c 1 -W 1 "$( IFS='/'; hostname=( $HIVE_HOST_URL ); echo "${hostname[2]}" )" &> /dev/nul; then
+	if ping -c 1 -W 1 "$( IFS='/'; hostname=( $HIVE_HOST_URL ); echo "${hostname[2]}" )" &> /dev/null; then
 		echo_info 'The network is up'
 		break
 	fi
