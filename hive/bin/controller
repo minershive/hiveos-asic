@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.2.5'
+readonly script_version='2.2.6'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -575,7 +575,11 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 						event_type='warning'
 						# '(http_auth.c.1148) digest: auth failed for  root : wrong password, IP: 127.0.0.1 '
 						parse_error_RE='IP: (([0-9]{1,3}\.){3}[0-9]{1,3})'
-						[[ "$log_message" =~ $parse_error_RE ]] && from_suspicious_IP=" from IP ${BASH_REMATCH[1]}"
+						if [[ "$log_message" =~ $parse_error_RE && "${BASH_REMATCH[1]}" != '127.0.0.1' ]]; then
+							# ASICs with lighttpd-over-nginx do not log IP properly     ^^^^^^^^^^^^^^
+							# only lighttpd alone does it
+							from_suspicious_IP=" from IP ${BASH_REMATCH[1]}"
+						fi
 						message_header='Failed login attempt has been made to the ASIC web interface. Click for details'
 						message_tip="Someone or something$from_suspicious_IP has tried to login to the ASIC web interface with "
 						message_tip+="a wrong login and/or password. If it wasn't you -- you MAY have a virus in the local network "
