@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.6.6'
+readonly script_version='0.7.0'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1029,13 +1029,34 @@ function process_khs_and_arr {
 	fi
 }
 
+function get_avg_khs_as_json {
+	# reads avg_khs from a corresponding file
+
+	# vars
+	local -i the_now avg_khs_FILE_last_updated_time seconds_passed_since_last_updated
+
+	# code
+	if [[ -s "$avg_khs_FILE" ]]; then
+		# check the file for freshness
+		avg_khs_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$avg_khs_FILE" )"
+		set_variable_to_current_system_time_in_seconds 'the_now'
+
+		(( seconds_passed_since_last_updated = the_now - avg_khs_FILE_last_updated_time ))
+
+		if (( seconds_passed_since_last_updated < 120 )); then
+			#                                     ^^^ TODO should set this time to double of averager's calculating interval
+			echo "$( < "$avg_khs_FILE" )"
+		fi
+	fi
+}
+
 function loop {
 	# vars
 	local -i curl_exitcode
 	local -i time_start_collecting_stats time_start_sending_stats
 	local time_wasted_collecting_stats_in_s time_wasted_sending_stats_in_s
 	local PUSH_INTERVAL custom_interval_message
-	local cpuavg df last_cmd_id
+	local cpuavg df last_cmd_id avg_khs
 
 	# code
 	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
@@ -1080,6 +1101,7 @@ function loop {
 	cpuavg="$( get_loadavg_as_json_array )"
 	df="$( get_diskfree_as_string )"
 	last_cmd_id="$( get_saved_last_cmd_id )"
+	avg_khs="$( get_avg_khs_as_json )"
 
 	# construct a request
 	request="$(
@@ -1091,6 +1113,7 @@ function loop {
 			--argjson	meta			"${META:-null}"			\
 			--argjson	miner_stats		"${stats:-null}"		\
 			--argjson	total_khs		"${khs:-null}"			\
+			--argjson	avg_khs			"${avg_khs:-null}"		\
 			--arg		system_status	"$system_status"		\
 			--arg		df				"$df"					\
 			--argjson	mem				"${mem:-null}"			\
@@ -1111,7 +1134,7 @@ function loop {
 				"params": {
 					$rig_id, $passwd, $last_cmd_id,
 					$miner, $meta,
-					$miner_stats, $total_khs,
+					$miner_stats, $total_khs, $avg_khs,
 					$system_status, $df, $mem, $cpuavg
 				}
 			} | walk(
@@ -1128,7 +1151,7 @@ function loop {
 	# fall-back route (like in case of a broken jq or some)
 	if [[ $? -ne 0 || -z "$request" ]]; then
 		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
-		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'cpuavg'
+		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'khs' 'avg_khs' 'cpuavg'
 		# good ol' bash string assembly
 		request="{\"method\":\"stats\",\"jsonrpc\":\"2.0\",\"id\":0,\"params\":{\"rig_id\":${RIG_ID},\"passwd\":\"${RIG_PASSWD}\",\"miner\":\"$MINER\",\"system_status\":\"$system_status\"}}"
 	fi
@@ -1628,11 +1651,12 @@ declare -r HIVEON_CONF_VOLT='/hive-config/hiveon.conf'
 declare -r ASIC_CONF='/config/config.conf'
 # path to runtime vars
 declare -r khs_FILE='/run/hive/khs'
+declare -r avg_khs_FILE='/run/hive/avg_khs' # Averages in JSON format
 declare -r arr_FILE='/run/hive/arr' # Accepted/Rejected ratio * 100
 declare -r last_cmd_id_FILE='/run/hive/last_cmd_id'
 declare -r confseq_FILE='/run/hive/confseq'
 
-declare -r latest_curl_log="/tmp/${script_basename}-curl.log"
+declare -r latest_curl_log="/run/hive/${script_basename}-curl.log"  # looks like /tmp on a few models (at least on S9 hiveon) is on top of NAND -- let's wear it less
 declare -r miner_API_host='localhost'
 declare -r -i miner_API_port=4028
 declare -r -i push_interval_DEFAULT=10
