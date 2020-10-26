@@ -1,0 +1,652 @@
+#!/hive/sbin/bash
+
+
+#
+# Copyright (C) 2016-2020  Hiveon
+# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+# Linted by shellcheck 0.3.7
+#
+
+
+readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
+readonly script_version='0.0.8'
+readonly script_basename="$( basename "$0" )"
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
+#
+source hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+
+
+# !!! bash strict mode, no unbound variables
+
+set -o nounset
+
+
+# functions
+
+function print_script_usage {
+	echo "Usage: ${CYAN-}${script_basename} [run|log]${NOCOLOR-}"
+	echo
+	echo "  ${WHITE-}run${NOCOLOR-}    run in the interactive mode without the screen"
+	echo "  ${WHITE-}log${NOCOLOR-}    show a last $scrollback_buffer_lines lines of log"
+	echo
+}
+
+function errcho {
+	printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*"
+} 1>&2
+
+function smart_round {
+	#
+	# Usage: smart_round 'number_to_round'
+	#
+	# Get rid of insignificant places after the dot
+	#
+
+	# args
+	(( $# == 1 )) || { errcho 'only 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local number_to_round="${1:-0}"
+
+	# vars
+	local -i integer_part magnitude
+	local rounding_template
+
+	# code
+#	if [[ "$number_to_round" != *.* ]]; then
+#		# integer, nothing to round
+#		echo "$number_to_round"
+#		return
+#	fi
+
+#	# ok, float
+	integer_part="${number_to_round%.*}"
+	(( magnitude = ${#integer_part} - 1 ))
+	case "$magnitude" in
+		0		)	rounding_template='%.3g'	;;
+		[1-3]	)	rounding_template='%.4g'	;;
+		[4-10]	)	rounding_template='%.0f'	;;
+		*		)	rounding_template='%g'		;;
+	esac
+	#errcho "integer_part: $integer_part, magnitude: $magnitude, rounding_template: '$rounding_template'"
+	# shellcheck disable=SC2059
+	# bc i need it as is
+	printf "$rounding_template\n" "$number_to_round"
+}
+
+function generate_avg_khs_json {
+	#
+	# Usage: generate_avg_khs_json 'avg_khs_15m' 'avg_khs_1h' ['avg_khs_1d']
+	#
+	# Desired output example: "avg_khs": {"ethash": [159785, 134513], "randomhash2": [88.952, 64.517]}
+	#
+
+	# args
+	(( $# == 2 || $# == 3 )) || { errcho 'only 2 or 3 arguments allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local avg_khs_15m="${1:-0}"
+	local avg_khs_1h="${2:-0}"
+	#local avg_khs_1d="${3:-0}"
+
+	# consts
+	local -r algo='sha256' # debug, comment out in production TODO should get algo from wallet
+
+	# vars
+	local rounded_15m rounded_1h
+
+	# code
+	rounded_15m="$( smart_round "$avg_khs_15m" )"
+	rounded_1h="$( smart_round "$avg_khs_1h" )"
+	errcho "avg_khs_15m: $avg_khs_15m, avg_khs_1h: $avg_khs_1h"
+	printf '{"avg_khs":{"%s":[%s,%s]}}' "$algo" "$rounded_15m" "$rounded_1h" # "$avg_khs_1d"
+}
+
+
+# screen infrastructure
+
+function is_screen_session_exist {
+	#
+	# Usage: is_screen_session_exist ['session name'] -> $?
+	#
+
+	# args
+	(( $# <= 1 )) || { errcho 'only 0 or 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r session_name="${1:-$script_basename}"
+
+	# code
+	if (( script_DEBUG )); then
+		screen -S "$session_name" -X select .
+	else
+		screen -S "$session_name" -X select . > /dev/null # silent
+	fi
+}
+
+function screen_session_attach {
+	#
+	# Usage: screen_session_attach ['session name'] -> $?
+	#
+
+	# args
+	(( $# <= 1 )) || { errcho 'only 0 or 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r session_name="${1:-$script_basename}"
+
+	# code
+	if [[ -t 1 ]]; then
+		echo "Attaching to screen session '$session_name'..."
+		screen -r "$session_name"
+	else
+		echo "Skipping attaching to screen session '$session_name' -- shell is not in interactive mode"
+	fi
+}
+
+function screen_session_create {
+	#
+	# Usage: screen_session_create ['session name' ['session_title']] -> $?
+	#
+
+	# args
+	(( $# <= 2 )) || { errcho 'only 0, 1 or 2 arguments allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r session_name="${1:-$script_basename}"
+	local -r session_title="${2:-$script_mission v$script_version}"
+
+	# code
+	echo "Creating screen session '$session_name'..."
+	if screen -dm -S "$session_name" -t "$session_title" -h "$scrollback_buffer_lines" "$session_name" 'run'; then
+		echo "'$0' started in the screen session"
+		return $(( exitcode_OK ))
+	else
+		echo "Error starting '$0' in the screen session"
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+}
+
+function screen_session_log {
+	#
+	# Usage: screen_session_log ['session name']
+	#
+
+	# args
+	(( $# <= 1 )) || { errcho 'only 0 or 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r session_name="${1:-$script_basename}"
+
+	# code
+
+	if touch "$own_log" 2> /dev/null; then
+		screen -S "$session_name" -p 0 -X hardcopy -h "$own_log"
+		#                         -p Preselect a window. This is useful when you want to reattach to a specific window or
+		#                            you want to send a command via the "-X" option to a specific window.
+		if [[ -f "$own_log" ]]; then
+			awk 'NF {f=1} f' "$own_log" # skip all empty lines, https://stackoverflow.com/a/19767713
+			rm "$own_log"
+		else
+			errcho "screen didn't produce no log"
+			script_exitcode=1
+		fi
+		script_exitcode=0
+	else
+		errcho "cannot write log to $own_log (/tmp is read-only?), exiting..."
+		script_exitcode=1
+	fi
+}
+
+# async infrastructure
+
+function create_spinlock {
+	until ln "$khs_ts_1h_FILE" "$khs_ts_1h_lock_FILE" 2>/dev/null; do
+		errcho 'Waiting for lock being freed'
+		snore 1
+	done
+}
+
+function remove_spinlock {
+	rm -f "$khs_ts_1h_lock_FILE"
+}
+
+function start_bg_job {
+	# args
+	(( $# > 0 )) || { errcho 'at least 1 argument expected'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -a jobspec_ARR=( "$@" )
+
+	# code
+	if ! jobs "%${jobspec_ARR[*]}" &> /dev/null; then
+		if eval "${jobspec_ARR[*]} &"; then
+			errcho "Started '${jobspec_ARR[*]}'"
+		else
+			erccho "'${jobspec_ARR[*]}' starting error"
+			return 1
+		fi
+	else
+		errcho "'${jobspec_ARR[*]}' is already running"
+		return 1
+	fi
+}
+
+function stop_bg_job {
+	# args
+	(( $# > 0 )) || { errcho 'at least 1 argument expected'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -a jobspec_ARR=( "$@" )
+
+	# code
+	if jobs "%${jobspec_ARR[*]}" &> /dev/null; then
+		if kill -s SIGQUIT "%${jobspec_ARR[*]}"; then
+			errcho "Stopped '${jobspec_ARR[*]}'"
+		else
+			errcho "'${jobspec_ARR[*]}' stopping error"
+			return 1
+		fi
+	else
+		errcho "'${jobspec_ARR[*]}' is not running atm"
+		return 1
+	fi
+}
+
+function execute_every_nth_second {
+	# args
+	(( $# > 1 )) || { errcho 'at least 2 arguments expected'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r every_nth_second="${1:-10}" # default to 10s
+	local -r -a command_to_execute_ARR=( "${@:2}" )
+
+	# vars
+	local -i the_now_in_s the_now_after_in_s time_remainder_in_s execution_time_in_s
+	local -i snore_cycle_counter
+	local this_event
+
+	# flags
+	local -i is_halt_condition_FLAG=0
+
+	# traps
+	for this_event in SIGINT SIGHUP SIGQUIT EXIT; do
+		# shellcheck disable=SC2064
+		# bc trap command format
+		trap "is_halt_condition_FLAG=1; errcho \"$this_event received, finishing handler...\"" "$this_event"
+	done
+
+	# code
+	errcho 'Handler started, signal traps set'
+
+	until (( is_halt_condition_FLAG )); do
+		set_variable_to_current_system_time_in_seconds 'the_now_in_s'
+
+		if (( the_now_in_s % every_nth_second != 0 )); then
+			(( time_remainder_in_s = ( every_nth_second - the_now_in_s % every_nth_second ) ))
+		else
+			#errcho "Executing '${command_to_execute_ARR[*]}'"
+			"${command_to_execute_ARR[@]}"
+			set_variable_to_current_system_time_in_seconds 'the_now_after_in_s'
+			(( execution_time_in_s = the_now_after_in_s - the_now_in_s ))
+			(( time_remainder_in_s = ( every_nth_second - the_now_after_in_s % every_nth_second ) ))
+
+			if (( execution_time_in_s > every_nth_second )); then
+				errcho "'${command_to_execute_ARR[*]}' took ${execution_time_in_s}s, more than ${every_nth_second}s"
+			fi
+		fi
+
+		#errcho "sleeping for $time_remainder_in_s seconds"
+		if (( time_remainder_in_s > 0 )); then
+			for (( snore_cycle_counter = 0; snore_cycle_counter < time_remainder_in_s; snore_cycle_counter++ )); do
+				(( is_halt_condition_FLAG )) && break # to finish almost immediately (if signal's fired)
+				snore 1
+			done
+		else
+			errcho "WARNING: time_remainder_in_s == ${time_remainder_in_s}s"
+		fi
+	done
+
+	trap - SIGINT SIGHUP SIGQUIT EXIT
+	errcho 'Handler finished, signal traps cleared'
+}
+
+
+# files
+
+function get_lines_count_in_file {
+	#
+	# Usage: get_lines_count_in_file "file_to_count"
+	#
+	# pure bash alternative to wc -l
+	# https://github.com/dylanaraps/pure-bash-bible#get-the-number-of-lines-in-a-file
+	#
+	# TODO should do profiling what's best -- this thing or the system binary
+
+	# args
+	(( $# <= 1 )) || { errcho 'only 0 or 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_to_count="${1:-$( < /dev/fd/0 )}"
+
+	# vars
+	local -a lines_ARR
+
+	# code
+	if [[ -s "$file_to_count" ]]; then
+		mapfile -tn 0 lines_ARR < "$file_to_count"
+		printf '%s\n' "${#lines_ARR[@]}"
+	elif [[ -f "$file_to_count" ]]; then
+		errcho "$file_to_count is empty"
+		printf '0\n'
+	else
+		errcho "$file_to_count not found"
+		return 1
+	fi
+}
+
+function get_last_n_lines_from_file {
+	#
+	# Usage: get_last_n_lines_from_file 'lines_to_tail' 'file_to_tail'
+	#
+	# pure bash alternative to tail -n
+	# https://github.com/dylanaraps/pure-bash-bible#get-the-last-n-lines-of-a-file
+	#
+	# TODO should do profiling what's best -- this thing or the system binary
+
+	# args
+	(( $# <= 2 )) || { errcho 'only 1 or 2 arguments allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r lines_to_tail="$1"
+	local -r file_to_tail="${2:-$( < /dev/fd/0 )}"
+
+	# vars
+	local -a lines_ARR
+	local -i lines_count
+
+	# code
+	if [[ -s "$file_to_tail" ]]; then
+		mapfile -tn 0 lines_ARR < "$file_to_tail"
+		lines_count="${#lines_ARR[@]}"
+		#errcho "$file_to_tail is $lines_count lines long, printing last $lines_to_tail"
+		if (( lines_count <= lines_to_tail )); then
+			printf '%s\n' "${lines_ARR[@]}"
+		else
+			printf '%s\n' "${lines_ARR[@]: -$lines_to_tail}"
+		fi
+	else
+		errcho "$file_to_tail not found or empty"
+		return 1
+	fi
+}
+
+function prepend_n_0_lines_to_file {
+	#
+	# Usage: prepend_n_0_lines_to_file 'how_much_lines' 'file_to_process'
+	#
+
+	# args
+	(( $# == 2 )) || { errcho 'only 2 arguments allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -i how_much_lines="$1"
+	local -r file_to_process="$2"
+
+	# vars
+	local -i line_counter
+
+	# code
+	if (( how_much_lines > 0 )); then
+		errcho "Prepend $how_much_lines 0-lines to $file_to_process"
+		printf '%s%s' "$(
+			for (( line_counter = 1; line_counter <= how_much_lines; line_counter++ )); do
+				echo "$zero_hashrate_line"
+			done
+		)" "$( < "$file_to_process" )" > "$file_to_process"
+	else
+		errcho "ERROR: Invalid lines count $how_much_lines, skipping"
+		return 1
+	fi
+}
+
+function append_n_0_lines_to_file {
+	#
+	# Usage: append_n_0_lines_to_file 'how_much_lines' 'file_to_process'
+	#
+
+	# args
+	(( $# == 2 )) || { errcho 'only 2 arguments allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -i how_much_lines="$1"
+	local -r file_to_process="$2"
+
+	# vars
+	local -i line_counter
+
+	# code
+	if (( how_much_lines > 0 )); then
+		errcho "Append $how_much_lines 0-lines to $file_to_process"
+		for (( line_counter = 1; line_counter <= how_much_lines; line_counter++ )); do
+			echo "$zero_hashrate_line"
+		done >> "$file_to_process"
+	else
+		errcho "ERROR: Invalid lines count $how_much_lines, skipping"
+		return 1
+	fi
+}
+
+function prepare_khs_ts_1h_file {
+	# vars
+	local -i the_now the_now_minus_1hr
+	local -i khs_ts_FILE_last_updated_time khs_ts_backup_FILE_last_updated_time seconds_passed_since_last_updated
+	local -i khs_ts_FILE_lines_count how_much_gaps_missed_after how_much_zeroes_to_put_after how_much_gaps_missed_before
+	local -a lines_ARR
+
+	# code
+	set_variable_to_current_system_time_in_seconds 'the_now'
+	(( the_now_minus_1hr = the_now - seconds_in_1h ))
+
+	if [[ ! -s "$khs_ts_1h_FILE" ]]; then
+		errcho "$khs_ts_1h_FILE not found or empty, checking backup"
+		if [[ -s "$khs_ts_1h_backup_FILE" ]]; then
+			khs_ts_backup_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_backup_FILE" )"
+			(( seconds_passed_since_last_updated = the_now - khs_ts_backup_FILE_last_updated_time ))
+			if (( seconds_passed_since_last_updated <= seconds_in_1h )); then
+				errcho "Backup file $khs_ts_1h_backup_FILE found, restoring it back"
+				cp -p "$khs_ts_1h_backup_FILE" "$khs_ts_1h_FILE" # -p preserves the timestamp
+			else
+				errcho "Backup file $khs_ts_1h_backup_FILE found, but it's too old. Creating a new time series file $khs_ts_1h_FILE"
+			fi
+		else
+			errcho "Backup file $khs_ts_1h_backup_FILE not found or empty. Creating a new time series file $khs_ts_1h_FILE"
+		fi
+	fi
+
+	if [[ -s "$khs_ts_1h_FILE" ]]; then
+		# there are some time series in file
+		mapfile -tn 0 lines_ARR < "$khs_ts_1h_FILE"
+		khs_ts_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
+		khs_ts_FILE_lines_count="${#lines_ARR[@]}"
+
+		# let's calculate how old they are
+		((
+			seconds_passed_since_last_updated = the_now - khs_ts_FILE_last_updated_time,
+
+			how_much_gaps_missed_after = seconds_passed_since_last_updated / ts_1h_time_gap_in_s,
+			how_much_zeroes_to_put_after = how_much_gaps_missed_after > time_gaps_count_in_1h ? time_gaps_count_in_1h : how_much_gaps_missed_after,
+
+			how_much_gaps_missed_before = time_gaps_count_in_1h - ( khs_ts_FILE_lines_count + how_much_zeroes_to_put_after ),
+			how_much_zeroes_to_put_before = how_much_gaps_missed_before > 0 ? how_much_gaps_missed_before : 0
+		))
+
+		errcho "seconds_passed_since_last_updated: $( seconds2dhms "$seconds_passed_since_last_updated" ), khs_ts_FILE_lines_count: $khs_ts_FILE_lines_count"
+		errcho "how_much_gaps_missed_before: $how_much_gaps_missed_before, how_much_zeroes_to_put_before: $how_much_zeroes_to_put_before"
+		errcho "how_much_gaps_missed_after: $how_much_gaps_missed_after, how_much_zeroes_to_put_after: $how_much_zeroes_to_put_after"
+
+		if (( how_much_zeroes_to_put_before > 0 )); then # insert zeroes at the beginning of the khs_ts file
+			prepend_n_0_lines_to_file "$how_much_zeroes_to_put_before" "$khs_ts_1h_FILE"
+		fi
+
+		if (( how_much_zeroes_to_put_after > 0 )); then # insert zeroes at the end of the khs_ts file
+			append_n_0_lines_to_file "$how_much_zeroes_to_put_after" "$khs_ts_1h_FILE"
+		fi
+
+		if (( how_much_zeroes_to_put_before + khs_ts_FILE_lines_count + how_much_zeroes_to_put_after > time_gaps_count_in_1h )); then
+			errcho "Truncating $(( how_much_zeroes_to_put_before + khs_ts_FILE_lines_count + how_much_zeroes_to_put_after )) lines to the last $time_gaps_count_in_1h lines"
+			get_last_n_lines_from_file "$time_gaps_count_in_1h" "$khs_ts_1h_FILE" > "${khs_ts_1h_FILE}.tmp"
+			mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE"
+		fi
+	else
+		# no time series at all -- fill all with 0
+		append_n_0_lines_to_file "$time_gaps_count_in_1h" "$khs_ts_1h_FILE"
+	fi
+}
+
+
+# background handlers
+
+function backup_khs_ts_1h {
+	# code
+	until [[ -s "$khs_ts_1h_FILE" ]]; do
+		# wait for file
+		snore 1
+	done
+
+	create_spinlock # critical section, we have to wait
+
+	if cp "$khs_ts_1h_FILE" "$khs_ts_1h_backup_FILE"; then
+		errcho "Backup $khs_ts_1h_FILE to $khs_ts_1h_backup_FILE OK"
+	else
+		errcho "Backup $khs_ts_1h_FILE to $khs_ts_1h_backup_FILE FAIL"
+	fi
+
+	remove_spinlock
+}
+
+function khs_ts_1h_loader {
+	# vars
+	local -i the_now khs_FILE_last_updated_time how_old_khs_FILE_in_s
+	local this_event actual_khs_value
+
+	# code
+	errcho "Appending $khs_FILE to $khs_ts_1h_FILE"
+
+	# 1. check how old is khs file
+	set_variable_to_current_system_time_in_seconds 'the_now'
+	khs_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
+	(( how_old_khs_FILE_in_s = the_now - khs_FILE_last_updated_time ))
+
+	# 2. get khs if the file time looks relevant
+	if (( how_old_khs_FILE_in_s <= 20 )); then # TODO should swap a hardcoded '20' to smth like PUSH_INTERVAL*2
+		# khs file is actual, give or take
+		actual_khs_value="$( < "$khs_FILE" )"
+	fi
+
+	# 3. check khs value
+	is_JSON_string_empty_or_null "$actual_khs_value" && actual_khs_value="$zero_hashrate_line"
+
+	# 4. write to tmp file
+	{
+		# 4.1 get the last lines within an hour minus 1
+		get_last_n_lines_from_file $(( time_gaps_count_in_1h - 1 )) "$khs_ts_1h_FILE" # get the last n lines minus 1 (that's reserved for the last measurement)
+
+		# 4.2 append the current khs
+		echo "$actual_khs_value"
+	} > "${khs_ts_1h_FILE}.tmp"
+
+	create_spinlock # critical section
+	mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE"
+	remove_spinlock
+}
+
+function khs_ts_1h_aggregator {
+	# vars
+	local avg_15m avg_1h
+
+	# code
+	errcho "Calculating averages"
+
+	create_spinlock
+	avg_15m="$( get_last_n_lines_from_file "$time_gaps_count_in_15m" "$khs_ts_1h_FILE" | jq --slurp 'add / length' )"
+	avg_1h="$( get_last_n_lines_from_file "$time_gaps_count_in_1h" "$khs_ts_1h_FILE" | jq --slurp 'add / length' )"
+	remove_spinlock
+
+	errcho "generate_avg_khs_json: $( generate_avg_khs_json "$avg_15m" "$avg_1h" | tee "$avg_khs_FILE" )"
+}
+
+
+# main
+
+function run_itself_in_interactive_mode {
+	prepare_khs_ts_1h_file
+
+	start_bg_job execute_every_nth_second "$ts_1h_time_gap_in_s" khs_ts_1h_loader
+	start_bg_job execute_every_nth_second 61 khs_ts_1h_aggregator
+
+# commented out in debug
+#	start_bg_job execute_every_nth_second "$backup_every_nth_second" backup_khs_ts_1h
+#
+
+	trap 'trap - SIGINT SIGHUP SIGQUIT EXIT; wait; remove_spinlock; exit' SIGINT SIGHUP SIGQUIT EXIT
+
+	while true; do
+		#errcho "sleeping for $ts_1h_time_gap_in_s"
+		snore "$ts_1h_time_gap_in_s"
+	done
+
+# don't have to--bc of endless loop
+#	stop_bg_job khs_ts_1h_loader
+#	stop_bg_job khs_ts_1h_aggregator
+}
+
+
+# global sources
+
+source colors
+
+
+# global consts
+
+# dirs
+declare -r work_directory='/run/hive'
+declare -r backup_directory='/home/user/.cache'
+
+# filenames
+declare -r khs_file_name='khs'
+declare -r avg_khs_file_name='avg_khs' # TODO should add an algo to the name
+declare -r khs_ts_1h_file_name='khs_ts_1h' # TODO should add an algo to the name
+
+# derivatives
+declare -r khs_FILE="$work_directory/$khs_file_name"
+declare -r avg_khs_FILE="$work_directory/$avg_khs_file_name"
+declare -r khs_ts_1h_FILE="$work_directory/$khs_ts_1h_file_name"
+declare -r khs_ts_1h_lock_FILE="$work_directory/$khs_ts_1h_file_name.lock"
+declare -r khs_ts_1h_backup_FILE="$backup_directory/$khs_ts_1h_file_name"
+
+# times/frequencies
+declare -r -i ts_1h_time_gap_in_s=10
+declare -r -i backup_every_nth_minute=5
+declare -r -i backup_every_nth_second=$(( backup_every_nth_minute * 60 ))
+declare -r -i seconds_in_1h=$(( 60 * 60 ))
+declare -r -i seconds_in_15m=$(( 15 * 60 ))
+declare -r -i time_gaps_count_in_15m=$(( seconds_in_15m / ts_1h_time_gap_in_s ))
+declare -r -i time_gaps_count_in_1h=$(( seconds_in_1h / ts_1h_time_gap_in_s ))
+
+# other
+declare -r zero_hashrate_line='0' # could it be '' for the sake of the lesser file size?
+declare -r -i scrollback_buffer_lines=300
+declare -r own_log="/tmp/${script_basename}.log"
+
+
+# globas vars
+
+declare -i script_exitcode=0
+
+
+# code
+
+print_script_version
+
+case "${1-}" in
+	'')
+		if is_screen_session_exist; then
+			screen_session_attach
+		else
+			screen_session_create
+			screen_session_attach
+		fi
+	;;
+
+	'run')
+		run_itself_in_interactive_mode
+	;;
+
+	'log')
+		screen_session_log
+	;;
+
+	'-h'|'--help'|*)
+		print_script_usage
+	;;
+esac
+
+exit $(( script_exitcode ))
