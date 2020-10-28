@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.0.8'
+readonly script_version='0.1.13'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -27,11 +27,13 @@ set -o nounset
 # functions
 
 function print_script_usage {
-	echo "Usage: ${CYAN-}${script_basename} [run|log]${NOCOLOR-}"
+	echo "Usage: ${CYAN-}${script_basename} [start|stop|restart|interactive|log]${NOCOLOR-}"
 	echo
-	echo "  ${WHITE-}run${NOCOLOR-}    run in the interactive mode without the screen"
-	echo "  ${WHITE-}log${NOCOLOR-}    show a last $scrollback_buffer_lines lines of log"
-	echo
+	echo "  ${CYAN-}start${NOCOLOR-}          start daemon (also with no arguments)"
+	echo "  ${CYAN-}stop${NOCOLOR-}           stop daemon"
+	echo "  ${CYAN-}restart${NOCOLOR-}        restart daemon"
+	echo "  ${CYAN-}interactive${NOCOLOR-}    run in the interactive mode (without the screen)"
+	echo "  ${CYAN-}log${NOCOLOR-}            show a last $scrollback_buffer_lines lines of log"
 }
 
 function errcho {
@@ -89,7 +91,7 @@ function generate_avg_khs_json {
 	#local avg_khs_1d="${3:-0}"
 
 	# consts
-	local -r algo='sha256' # debug, comment out in production TODO should get algo from wallet
+	local -r algo="${ASIC_ALGO:-N/A}"
 
 	# vars
 	local rounded_15m rounded_1h
@@ -131,17 +133,28 @@ function screen_session_attach {
 	local -r session_name="${1:-$script_basename}"
 
 	# code
-	if [[ -t 1 ]]; then
-		echo "Attaching to screen session '$session_name'..."
-		screen -r "$session_name"
+	echo -n "> Attaching to screen session '$session_name'... "
+	if is_screen_session_exist "$session_name"; then
+		if [[ -t 1 ]]; then
+			if screen -r "$session_name"; then
+				#echo '  Screen session attached'
+				return $(( exitcode_OK ))
+			else
+				echo 'FAILED'
+			fi
+		else
+			echo "SKIPPED (shell isn't interactive)"
+		fi
 	else
-		echo "Skipping attaching to screen session '$session_name' -- shell is not in interactive mode"
+		echo 'NOT FOUND'
 	fi
+
+	return 1
 }
 
-function screen_session_create {
+function screen_session_start {
 	#
-	# Usage: screen_session_create ['session name' ['session_title']] -> $?
+	# Usage: screen_session_start ['session name' ['session_title']] -> $?
 	#
 
 	# args
@@ -149,15 +162,67 @@ function screen_session_create {
 	local -r session_name="${1:-$script_basename}"
 	local -r session_title="${2:-$script_mission v$script_version}"
 
+	# consts
+	local -r -i attempts_limit=120
+
+	# vars
+	local -i attempts_counter=0
+
 	# code
-	echo "Creating screen session '$session_name'..."
-	if screen -dm -S "$session_name" -t "$session_title" -h "$scrollback_buffer_lines" "$session_name" 'run'; then
-		echo "'$0' started in the screen session"
-		return $(( exitcode_OK ))
+	echo -n "> Starting screen session '$session_name'... "
+	if ! is_screen_session_exist "$session_name"; then
+		if screen -dm -S "$session_name" -t "$session_title" -h "$scrollback_buffer_lines" "$session_name" 'interactive'; then
+			snore 0.2 # sometimes screen is pretty slow
+			while ! is_screen_session_exist "$session_name" && (( attempts_counter++ < attempts_limit )); do
+				echo "  Waiting for session to start [$attempts_counter/$attempts_limit]..."
+				snore 0.5 
+			done
+			echo 'OK'
+			return $(( exitcode_OK ))
+		else
+			echo 'FAILED'
+		fi
 	else
-		echo "Error starting '$0' in the screen session"
-		return $(( exitcode_ERROR_NOT_FOUND ))
+		echo 'SKIPPED (already exists)'
 	fi
+
+	return 1
+}
+
+function screen_session_stop {
+	#
+	# Usage: screen_session_stop ['session name'] -> $?
+	#
+
+	# args
+	(( $# <= 1 )) || { errcho 'only 0 or 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r session_name="${1:-$script_basename}"
+
+	# consts
+	local -r -i attempts_limit=120
+
+	# vars
+	local -i attempts_counter=0
+
+	# code
+	echo -n "> Stopping screen session '$session_name'... "
+	if is_screen_session_exist "$session_name"; then
+		if screen -S "$session_name" -X quit; then
+			snore 0.2 # sometimes screen is pretty slow
+			while is_screen_session_exist "$session_name" && (( attempts_counter++ < attempts_limit )); do
+				echo "  Waiting for session to stop [$attempts_counter/$attempts_limit]..."
+				snore 0.5
+			done
+			echo 'OK'
+			return $(( exitcode_OK ))
+		else
+			echo 'FAILED'
+		fi
+	else
+		echo "SKIPPED (does not exist)"
+	fi
+
+	return 1
 }
 
 function screen_session_log {
@@ -170,23 +235,26 @@ function screen_session_log {
 	local -r session_name="${1:-$script_basename}"
 
 	# code
-
-	if touch "$own_log" 2> /dev/null; then
-		screen -S "$session_name" -p 0 -X hardcopy -h "$own_log"
-		#                         -p Preselect a window. This is useful when you want to reattach to a specific window or
-		#                            you want to send a command via the "-X" option to a specific window.
-		if [[ -f "$own_log" ]]; then
-			awk 'NF {f=1} f' "$own_log" # skip all empty lines, https://stackoverflow.com/a/19767713
-			rm "$own_log"
+	if is_screen_session_exist "$session_name"; then
+		if touch "$own_log" 2> /dev/null; then
+			screen -S "$session_name" -p 0 -X hardcopy -h "$own_log"
+			#                         -p Preselect a window. This is useful when you want to reattach to a specific window or
+			#                            you want to send a command via the "-X" option to a specific window.
+			if [[ -f "$own_log" ]]; then
+				awk 'NF {f=1} f' "$own_log" # skip all empty lines, https://stackoverflow.com/a/19767713
+				rm "$own_log"
+				return $(( exitcode_OK ))
+			else
+				errcho "screen didn't produce the log file"
+			fi
 		else
-			errcho "screen didn't produce no log"
-			script_exitcode=1
+			errcho "cannot write log to $own_log (/tmp is read-only?), exiting..."
 		fi
-		script_exitcode=0
 	else
-		errcho "cannot write log to $own_log (/tmp is read-only?), exiting..."
-		script_exitcode=1
+		echo "! Screen session '$session_name' does not exist"
 	fi
+
+	return 1
 }
 
 # async infrastructure
@@ -194,7 +262,7 @@ function screen_session_log {
 function create_spinlock {
 	until ln "$khs_ts_1h_FILE" "$khs_ts_1h_lock_FILE" 2>/dev/null; do
 		errcho 'Waiting for lock being freed'
-		snore 1
+		snore 0.5
 	done
 }
 
@@ -211,14 +279,15 @@ function start_bg_job {
 	if ! jobs "%${jobspec_ARR[*]}" &> /dev/null; then
 		if eval "${jobspec_ARR[*]} &"; then
 			errcho "Started '${jobspec_ARR[*]}'"
+			return $(( exitcode_OK ))
 		else
 			erccho "'${jobspec_ARR[*]}' starting error"
-			return 1
 		fi
 	else
 		errcho "'${jobspec_ARR[*]}' is already running"
-		return 1
 	fi
+
+	return 1
 }
 
 function stop_bg_job {
@@ -228,16 +297,19 @@ function stop_bg_job {
 
 	# code
 	if jobs "%${jobspec_ARR[*]}" &> /dev/null; then
-		if kill -s SIGQUIT "%${jobspec_ARR[*]}"; then
+		if kill -s SIGUSR1 "%${jobspec_ARR[*]}"; then
+#		if kill -s SIGQUIT "%${jobspec_ARR[*]}"; then
 			errcho "Stopped '${jobspec_ARR[*]}'"
+			return $(( exitcode_OK ))
 		else
 			errcho "'${jobspec_ARR[*]}' stopping error"
-			return 1
 		fi
 	else
-		errcho "'${jobspec_ARR[*]}' is not running atm"
-		return 1
+		errcho "'${jobspec_ARR[*]}' is not running atm. Jobs:"
+		jobs -l 1>&2
 	fi
+
+	return 1
 }
 
 function execute_every_nth_second {
@@ -247,7 +319,7 @@ function execute_every_nth_second {
 	local -r -a command_to_execute_ARR=( "${@:2}" )
 
 	# vars
-	local -i the_now_in_s the_now_after_in_s time_remainder_in_s execution_time_in_s
+	local -i the_now_before_in_s the_now_after_in_s time_remainder_in_s execution_time_in_s last_execution_time_in_s
 	local -i snore_cycle_counter
 	local this_event
 
@@ -255,7 +327,8 @@ function execute_every_nth_second {
 	local -i is_halt_condition_FLAG=0
 
 	# traps
-	for this_event in SIGINT SIGHUP SIGQUIT EXIT; do
+#	for this_event in SIGINT SIGHUP SIGQUIT EXIT; do
+	for this_event in SIGUSR1; do
 		# shellcheck disable=SC2064
 		# bc trap command format
 		trap "is_halt_condition_FLAG=1; errcho \"$this_event received, finishing handler...\"" "$this_event"
@@ -264,35 +337,45 @@ function execute_every_nth_second {
 	# code
 	errcho 'Handler started, signal traps set'
 
-	until (( is_halt_condition_FLAG )); do
-		set_variable_to_current_system_time_in_seconds 'the_now_in_s'
+	set_variable_to_current_system_time_in_seconds 'the_now_before_in_s'
+	(( last_execution_time_in_s = the_now_before_in_s ))
 
-		if (( the_now_in_s % every_nth_second != 0 )); then
-			(( time_remainder_in_s = ( every_nth_second - the_now_in_s % every_nth_second ) ))
+	until (( is_halt_condition_FLAG )); do
+		set_variable_to_current_system_time_in_seconds 'the_now_before_in_s'
+
+		if (( the_now_before_in_s % every_nth_second != 0 )); then
+			(( time_remainder_in_s = ( every_nth_second - the_now_before_in_s % every_nth_second ) ))
 		else
+			(( the_now_before_in_s - last_execution_time_in_s > every_nth_second )) &&
+				errcho "HANGING? Skipped $(( ( the_now_before_in_s - last_execution_time_in_s ) / every_nth_second )) duty cycles"
+
 			#errcho "Executing '${command_to_execute_ARR[*]}'"
 			"${command_to_execute_ARR[@]}"
-			set_variable_to_current_system_time_in_seconds 'the_now_after_in_s'
-			(( execution_time_in_s = the_now_after_in_s - the_now_in_s ))
-			(( time_remainder_in_s = ( every_nth_second - the_now_after_in_s % every_nth_second ) ))
 
-			if (( execution_time_in_s > every_nth_second )); then
+			set_variable_to_current_system_time_in_seconds 'the_now_after_in_s'
+			((
+				last_execution_time_in_s = the_now_after_in_s,
+				execution_time_in_s = the_now_after_in_s - the_now_before_in_s,
+				time_remainder_in_s = ( every_nth_second - the_now_after_in_s % every_nth_second )
+			))
+
+			(( execution_time_in_s > every_nth_second )) &&
 				errcho "'${command_to_execute_ARR[*]}' took ${execution_time_in_s}s, more than ${every_nth_second}s"
-			fi
 		fi
 
 		#errcho "sleeping for $time_remainder_in_s seconds"
 		if (( time_remainder_in_s > 0 )); then
 			for (( snore_cycle_counter = 0; snore_cycle_counter < time_remainder_in_s; snore_cycle_counter++ )); do
 				(( is_halt_condition_FLAG )) && break # to finish almost immediately (if signal's fired)
-				snore 1
+				snore 0.95 # layin' some papers
 			done
 		else
 			errcho "WARNING: time_remainder_in_s == ${time_remainder_in_s}s"
 		fi
 	done
 
-	trap - SIGINT SIGHUP SIGQUIT EXIT
+#	trap - SIGINT SIGHUP SIGQUIT EXIT
+	trap - SIGUSR1
 	errcho 'Handler finished, signal traps cleared'
 }
 
@@ -414,6 +497,41 @@ function append_n_0_lines_to_file {
 	fi
 }
 
+function append_last_newline_if_not_exist {
+	#
+	# Usage: append_last_newline_if_not_exist 'file_to_process'
+	#
+	# preserves timestamp
+
+	# args
+	(( $# == 1 )) || { errcho 'only 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_to_process="$1"
+
+	# consts
+	local -r dummy_FILE="$file_to_process.dummy"
+
+	# code
+	if tail -c 1 "$file_to_process" | read -r _; then
+		# terminating newline does exist
+		: ok good to go
+	else
+		errcho "$file_to_process has no newline at the end, appending..."
+
+		# copy timestamp to dummy file
+		touch -r "$file_to_process" "$dummy_FILE" || errcho "'touch -r $file_to_process $dummy_FILE' failed"
+
+		# add newline
+		echo >> "$file_to_process"
+
+		# change timestamp back
+		if touch -r "$dummy_FILE" "$file_to_process"; then
+			rm -f "$dummy_FILE"
+		else
+			errcho "'touch -r $dummy_FILE $file_to_process' failed"
+		fi
+	fi
+}
+
 function prepare_khs_ts_1h_file {
 	# vars
 	local -i the_now the_now_minus_1hr
@@ -441,10 +559,11 @@ function prepare_khs_ts_1h_file {
 		fi
 	fi
 
-	if [[ -s "$khs_ts_1h_FILE" ]]; then
-		# there are some time series in file
-		mapfile -tn 0 lines_ARR < "$khs_ts_1h_FILE"
+	if [[ -s "$khs_ts_1h_FILE" ]]; then # there are some time series in file
+		append_last_newline_if_not_exist "$khs_ts_1h_FILE"
+
 		khs_ts_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
+		mapfile -tn 0 lines_ARR < "$khs_ts_1h_FILE"
 		khs_ts_FILE_lines_count="${#lines_ARR[@]}"
 
 		# let's calculate how old they are
@@ -473,7 +592,7 @@ function prepare_khs_ts_1h_file {
 		if (( how_much_zeroes_to_put_before + khs_ts_FILE_lines_count + how_much_zeroes_to_put_after > time_gaps_count_in_1h )); then
 			errcho "Truncating $(( how_much_zeroes_to_put_before + khs_ts_FILE_lines_count + how_much_zeroes_to_put_after )) lines to the last $time_gaps_count_in_1h lines"
 			get_last_n_lines_from_file "$time_gaps_count_in_1h" "$khs_ts_1h_FILE" > "${khs_ts_1h_FILE}.tmp"
-			mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE"
+			mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE" || errcho "error at $LINENO"
 		fi
 	else
 		# no time series at all -- fill all with 0
@@ -488,6 +607,7 @@ function backup_khs_ts_1h {
 	# code
 	until [[ -s "$khs_ts_1h_FILE" ]]; do
 		# wait for file
+		errcho "> Waiting for $khs_ts_1h_FILE to appear..."
 		snore 1
 	done
 
@@ -505,7 +625,7 @@ function backup_khs_ts_1h {
 function khs_ts_1h_loader {
 	# vars
 	local -i the_now khs_FILE_last_updated_time how_old_khs_FILE_in_s
-	local this_event actual_khs_value
+	local actual_khs_value
 
 	# code
 	errcho "Appending $khs_FILE to $khs_ts_1h_FILE"
@@ -534,7 +654,7 @@ function khs_ts_1h_loader {
 	} > "${khs_ts_1h_FILE}.tmp"
 
 	create_spinlock # critical section
-	mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE"
+	mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE" || errcho "error at $LINENO"
 	remove_spinlock
 }
 
@@ -545,7 +665,7 @@ function khs_ts_1h_aggregator {
 	# code
 	errcho "Calculating averages"
 
-	create_spinlock
+	create_spinlock # critical section
 	avg_15m="$( get_last_n_lines_from_file "$time_gaps_count_in_15m" "$khs_ts_1h_FILE" | jq --slurp 'add / length' )"
 	avg_1h="$( get_last_n_lines_from_file "$time_gaps_count_in_1h" "$khs_ts_1h_FILE" | jq --slurp 'add / length' )"
 	remove_spinlock
@@ -556,32 +676,66 @@ function khs_ts_1h_aggregator {
 
 # main
 
-function run_itself_in_interactive_mode {
-	prepare_khs_ts_1h_file
+function run_in_interactive_mode {
+	# consts
+	local -r -i every_nth_second=$(( 60 * 5 )) # 5 mins
 
-	start_bg_job execute_every_nth_second "$ts_1h_time_gap_in_s" khs_ts_1h_loader
-	start_bg_job execute_every_nth_second 61 khs_ts_1h_aggregator
+	# vars
+	local -i the_now_in_s
+	local this_event
 
-# commented out in debug
-#	start_bg_job execute_every_nth_second "$backup_every_nth_second" backup_khs_ts_1h
-#
+	# flags
+	local -i is_halt_condition_FLAG1=0
 
-	trap 'trap - SIGINT SIGHUP SIGQUIT EXIT; wait; remove_spinlock; exit' SIGINT SIGHUP SIGQUIT EXIT
-
-	while true; do
-		#errcho "sleeping for $ts_1h_time_gap_in_s"
-		snore "$ts_1h_time_gap_in_s"
+	# traps
+	for this_event in SIGINT SIGTERM SIGHUP SIGQUIT SIGTSTP EXIT; do
+		# shellcheck disable=SC2064
+		# bc trap command format
+		trap "is_halt_condition_FLAG1=1; errcho \"$this_event received, finishing...\" &>> /run/hive/log" "$this_event"
 	done
 
-# don't have to--bc of endless loop
-#	stop_bg_job khs_ts_1h_loader
-#	stop_bg_job khs_ts_1h_aggregator
+	# code
+	errcho 'Main cycle started, signal traps set'
+	prepare_khs_ts_1h_file
+
+	start_bg_job execute_every_nth_second "$ts_1h_time_gap_in_s"		'khs_ts_1h_loader'
+	start_bg_job execute_every_nth_second 61							'khs_ts_1h_aggregator'
+#	start_bg_job execute_every_nth_second "$backup_every_nth_second"	'backup_khs_ts_1h'
+
+	SECONDS=0
+
+	until (( is_halt_condition_FLAG1 )); do
+		set_variable_to_current_system_time_in_seconds 'the_now_in_s'
+
+		if (( the_now_in_s % every_nth_second == 0 )); then
+			# print uptime every_nth_second
+			errcho "Uptime $( seconds2dhms "$SECONDS" )"
+		fi
+
+		if (( is_halt_condition_FLAG1 )); then
+			# finish almost immediately (if signal's fired)
+			break
+		else
+			snore 1
+		fi
+	done
+
+	stop_bg_job 'khs_ts_1h_loader'
+	stop_bg_job 'khs_ts_1h_aggregator'
+#	stop_bg_job 'backup_khs_ts_1h'
+
+	wait
+	remove_spinlock
+
+	errcho 'Main cycle finished, signal traps cleared' &>> /run/hive/log
+	trap - SIGINT SIGHUP SIGQUIT EXIT
 }
 
 
 # global sources
 
 source colors
+source asic-model
 
 
 # global consts
@@ -631,22 +785,37 @@ case "${1-}" in
 		if is_screen_session_exist; then
 			screen_session_attach
 		else
-			screen_session_create
+			screen_session_start
 			screen_session_attach
 		fi
 	;;
 
-	'run')
-		run_itself_in_interactive_mode
+	'start')
+		screen_session_start
+	;;
+
+	'stop')
+		screen_session_stop
+	;;
+
+	'restart')
+		screen_session_stop
+		screen_session_start
+	;;
+
+	'interactive')
+		run_in_interactive_mode
 	;;
 
 	'log')
-		screen_session_log
+		screen_session_log; script_exitcode=$?
 	;;
 
 	'-h'|'--help'|*)
 		print_script_usage
 	;;
 esac
+
+echo
 
 exit $(( script_exitcode ))
