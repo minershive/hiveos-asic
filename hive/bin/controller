@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.2.6'
+readonly script_version='2.2.7'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1252,6 +1252,8 @@ function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && 
 
 	# consts
 
+	local -r RIG_CONF_default='/hive-config/rig.conf'
+	local -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 	local -r HIVEON_CONF='/hive-config/hiveon.conf'
 	local -r ASIC_CONF='/config/config.conf'
 
@@ -1261,10 +1263,31 @@ function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && 
 
 	# code
 
+	# quick assert for Hiveon version
+
 	# shellcheck disable=SC2154
 	# bc defined in the asic-model
-	if (( HIVEON_VERSION_major >= 2 )); then
+	if (( HIVEON_VERSION_major < 2 )); then
+		return $(( exitcode_OK_NOTHING_HAPPENED ))
+	fi
 
+	# problem:
+	# 1. we aren't able to send config if RIG_ID isn't set
+	# 2. also we don't want to waste a system resources to source RIG_CONF an every function call
+	# solution:
+	# 1. so we should source RIG_CONF every function call, but till RIG_ID becomes valid
+	# 2. when it has become valid, we're:
+	# 3. setting the flag variable and
+	# 4. use it all the times in the future
+
+	if (( ! is_RIG_ID_ok_FLAG )); then
+		# check RIG_ID
+		if [[ -s "$RIG_CONF" ]] && ( source "$RIG_CONF"; [[ -n "$RIG_ID" ]] ); then
+			is_RIG_ID_ok_FLAG=1
+		fi
+	fi
+
+	if (( is_RIG_ID_ok_FLAG )); then
 		if [[ ! -f "$HIVEON_CONF" ]]; then
 			(( is_something_happened = exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry 'warning' "$HIVEON_CONF not found (looks like the first start ever)"
@@ -1281,7 +1304,6 @@ function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && 
 			print_controller_log_entry 'info' "Copying $ASIC_CONF over $HIVEON_CONF and then sending it to the backend..."
 			ant-functions.sh send_hiveon_config
 		fi
-
 	fi
 
 	return $(( is_something_happened ))
@@ -2000,6 +2022,7 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 # global vars
 
 declare time_source # ntpd|ntpdate|hive
+declare -i is_RIG_ID_ok_FLAG=0 # means NOT OK at the start, will check this (and set to OK) in is_hiveon_config_in_sync() later
 
 
 # crontab
