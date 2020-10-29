@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.16'
+declare -r ant_functions_lib_version='0.1.17'
 
 
 # !!! bash strict mode, no unbound variables
@@ -367,9 +367,15 @@ function send_hiveon_config {
 	local request hiveon_config
 
 	# code
+	if [[ ! -s "$RIG_CONF" ]]; then
+		echo "Cannot send Hiveon config to Hive server, '$RIG_CONF' not found"
+		exit 0
+	fi
+	
 	source "$RIG_CONF"
+
 	if [[ -z "$RIG_ID" ]]; then
-		echo "No RIG_ID, skipping sending config"
+		echo 'Cannot send Hiveon config to Hive server, RIG_ID is empty'
 		exit 0
 	fi
 
