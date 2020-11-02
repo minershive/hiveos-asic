@@ -9,8 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.1'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.7.2'
+readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
@@ -1062,8 +1062,8 @@ function fetch_stats_and_push_them_to_server {
 	# code
 	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
 
+	# RIG_CONF. load it only at the very start or if updated (considering modification time)
 	if [[ -s "$RIG_CONF" ]] && current_RIG_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$RIG_CONF" )"; then
-		# check RIG_CONF modification time. source it only at the very start or if updated
 		if (( saved_RIG_CONF_last_updated_time == 0 || saved_RIG_CONF_last_updated_time != current_RIG_CONF_last_updated_time )) ; then
 			#                       first time ^^^^                             updated ^^
 			log_line action "Loading rig config from $RIG_CONF"
@@ -1075,8 +1075,8 @@ function fetch_stats_and_push_them_to_server {
 		return
 	fi
 
+	# WALLET_CONF. load it only at the very start or if updated (considering modification time)
 	if [[ -s "$WALLET_CONF" ]] && current_WALLET_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$WALLET_CONF" )"; then
-		# check WALLET_CONF modification time. source it only at the very start or if updated
 		if (( saved_WALLET_CONF_last_updated_time == 0 || saved_WALLET_CONF_last_updated_time != current_WALLET_CONF_last_updated_time )); then
 			#                          first time ^^^^                                updated ^^
 			log_line action "Loading wallet config from $WALLET_CONF"
