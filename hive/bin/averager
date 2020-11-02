@@ -11,8 +11,8 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.13'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.1.18'
+readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
@@ -38,6 +38,7 @@ function print_script_usage {
 
 function errcho {
 	printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*"
+	printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*" >> /run/hive/log # DEBUG
 } 1>&2
 
 function smart_round {
@@ -305,8 +306,8 @@ function stop_bg_job {
 			errcho "'${jobspec_ARR[*]}' stopping error"
 		fi
 	else
-		errcho "'${jobspec_ARR[*]}' is not running atm. Jobs:"
-		jobs -l 1>&2
+		errcho "'${jobspec_ARR[*]}' is not running atm. Jobs list:"
+		errcho "$( jobs -l )"
 	fi
 
 	return 1
@@ -327,8 +328,7 @@ function execute_every_nth_second {
 	local -i is_halt_condition_FLAG=0
 
 	# traps
-#	for this_event in SIGINT SIGHUP SIGQUIT EXIT; do
-	for this_event in SIGUSR1; do
+	for this_event in SIGUSR1 SIGINT SIGHUP SIGQUIT EXIT; do
 		# shellcheck disable=SC2064
 		# bc trap command format
 		trap "is_halt_condition_FLAG=1; errcho \"$this_event received, finishing handler...\"" "$this_event"
@@ -374,8 +374,7 @@ function execute_every_nth_second {
 		fi
 	done
 
-#	trap - SIGINT SIGHUP SIGQUIT EXIT
-	trap - SIGUSR1
+	trap - SIGUSR1 SIGINT SIGHUP SIGQUIT EXIT
 	errcho 'Handler finished, signal traps cleared'
 }
 
@@ -678,10 +677,10 @@ function khs_ts_1h_aggregator {
 
 function run_in_interactive_mode {
 	# consts
-	local -r -i every_nth_second=$(( 60 * 5 )) # 5 mins
+	local -r -i uptime_every_nth_minute=5
 
 	# vars
-	local -i the_now_in_s
+	local -i the_now_in_s current_second current_minute
 	local this_event
 
 	# flags
@@ -691,7 +690,7 @@ function run_in_interactive_mode {
 	for this_event in SIGINT SIGTERM SIGHUP SIGQUIT SIGTSTP EXIT; do
 		# shellcheck disable=SC2064
 		# bc trap command format
-		trap "is_halt_condition_FLAG1=1; errcho \"$this_event received, finishing...\" &>> /run/hive/log" "$this_event"
+		trap "trap '' $this_event; is_halt_condition_FLAG1=1; errcho \"$this_event received, finishing...\"" "$this_event"
 	done
 
 	# code
@@ -707,8 +706,12 @@ function run_in_interactive_mode {
 	until (( is_halt_condition_FLAG1 )); do
 		set_variable_to_current_system_time_in_seconds 'the_now_in_s'
 
-		if (( the_now_in_s % every_nth_second == 0 )); then
-			# print uptime every_nth_second
+		if ((
+			current_minute = the_now_in_s / 60 % 60,
+			current_second = the_now_in_s % 60,
+			current_second == 0 && current_minute % uptime_every_nth_minute == 0
+		)); then
+			# print uptime every_nth_minute at 00s
 			errcho "Uptime $( seconds2dhms "$SECONDS" )"
 		fi
 
@@ -716,19 +719,20 @@ function run_in_interactive_mode {
 			# finish almost immediately (if signal's fired)
 			break
 		else
-			snore 1
+			( snore 1 ) # sub-shell for DEBUG
 		fi
 	done
 
-	stop_bg_job 'khs_ts_1h_loader'
-	stop_bg_job 'khs_ts_1h_aggregator'
+	stop_bg_job 'execute_every_nth_second 10 khs_ts_1h_loader'
+	stop_bg_job 'execute_every_nth_second 61 khs_ts_1h_aggregator'
 #	stop_bg_job 'backup_khs_ts_1h'
 
 	wait
 	remove_spinlock
 
-	errcho 'Main cycle finished, signal traps cleared' &>> /run/hive/log
-	trap - SIGINT SIGHUP SIGQUIT EXIT
+	errcho 'Main cycle finished'
+	trap - SIGINT SIGTERM SIGHUP SIGQUIT SIGTSTP EXIT
+	errcho 'Signal traps cleared'
 }
 
 
