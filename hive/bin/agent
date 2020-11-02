@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.2'
+readonly script_version='0.7.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1066,12 +1066,12 @@ function fetch_stats_and_push_them_to_server {
 	if [[ -s "$RIG_CONF" ]] && current_RIG_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$RIG_CONF" )"; then
 		if (( saved_RIG_CONF_last_updated_time == 0 || saved_RIG_CONF_last_updated_time != current_RIG_CONF_last_updated_time )) ; then
 			#                       first time ^^^^                             updated ^^
-			log_line action "Loading rig config from $RIG_CONF"
+			log_line action "Loading rig config $RIG_CONF"
 			source "$RIG_CONF"
 			(( saved_RIG_CONF_last_updated_time = current_RIG_CONF_last_updated_time ))
 		fi
 	else
-		log_line error "Config file $RIG_CONF not found, waiting..."
+		log_line error "Rig config $RIG_CONF not found, waiting..."
 		return
 	fi
 
@@ -1079,12 +1079,12 @@ function fetch_stats_and_push_them_to_server {
 	if [[ -s "$WALLET_CONF" ]] && current_WALLET_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$WALLET_CONF" )"; then
 		if (( saved_WALLET_CONF_last_updated_time == 0 || saved_WALLET_CONF_last_updated_time != current_WALLET_CONF_last_updated_time )); then
 			#                          first time ^^^^                                updated ^^
-			log_line action "Loading wallet config from $WALLET_CONF"
+			log_line action "Loading wallet config $WALLET_CONF"
 			source "$WALLET_CONF"
 			(( saved_WALLET_CONF_last_updated_time = current_WALLET_CONF_last_updated_time ))
 		fi
 	else
-		log_line warning "Wallet file $WALLET_CONF not found, trying to move on without it"
+		log_line warning "Wallet config $WALLET_CONF not found, trying to move on without it"
 	fi
 
 	# if rig config contains PUSH_INTERVAL then change default to custom
