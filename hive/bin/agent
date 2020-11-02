@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.0'
+readonly script_version='0.7.1'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1050,29 +1050,42 @@ function get_avg_khs_as_json {
 	fi
 }
 
-function loop {
+function fetch_stats_and_push_them_to_server {
 	# vars
 	local -i curl_exitcode
 	local -i time_start_collecting_stats time_start_sending_stats
 	local time_wasted_collecting_stats_in_s time_wasted_sending_stats_in_s
 	local PUSH_INTERVAL custom_interval_message
 	local cpuavg df last_cmd_id avg_khs
+	local -i current_RIG_CONF_last_updated_time=0 current_WALLET_CONF_last_updated_time=0
 
 	# code
 	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
 
-	if [[ ! -f "$RIG_CONF" ]]; then
+	if [[ -s "$RIG_CONF" ]] && current_RIG_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$RIG_CONF" )"; then
+		# check RIG_CONF modification time. source it only at the very start or if updated
+		if (( saved_RIG_CONF_last_updated_time == 0 || saved_RIG_CONF_last_updated_time != current_RIG_CONF_last_updated_time )) ; then
+			#                       first time ^^^^                             updated ^^
+			log_line action "Loading rig config from $RIG_CONF"
+			source "$RIG_CONF"
+			(( saved_RIG_CONF_last_updated_time = current_RIG_CONF_last_updated_time ))
+		fi
+	else
 		log_line error "Config file $RIG_CONF not found, waiting..."
 		return
 	fi
 
-	if [[ ! -f "$WALLET_CONF" ]]; then
-		log_line error "Wallet file $WALLET_CONF not found"
+	if [[ -s "$WALLET_CONF" ]] && current_WALLET_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$WALLET_CONF" )"; then
+		# check WALLET_CONF modification time. source it only at the very start or if updated
+		if (( saved_WALLET_CONF_last_updated_time == 0 || saved_WALLET_CONF_last_updated_time != current_WALLET_CONF_last_updated_time )); then
+			#                          first time ^^^^                                updated ^^
+			log_line action "Loading wallet config from $WALLET_CONF"
+			source "$WALLET_CONF"
+			(( saved_WALLET_CONF_last_updated_time = current_WALLET_CONF_last_updated_time ))
+		fi
+	else
+		log_line warning "Wallet file $WALLET_CONF not found, trying to move on without it"
 	fi
-
-	# each time read config again
-	source "$RIG_CONF"
-	source "$WALLET_CONF"
 
 	# if rig config contains PUSH_INTERVAL then change default to custom
 	if [[ -n "${PUSH_INTERVAL-}" ]] && (( PUSH_INTERVAL != push_interval_DEFAULT )); then
@@ -1676,6 +1689,7 @@ declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_UR
 	[6]='http://msk.hiveos.farm'
 	[7]='http://ca1.hiveos.farm'
 )
+declare -i saved_RIG_CONF_last_updated_time=0 saved_WALLET_CONF_last_updated_time=0
 
 
 # flags
@@ -1721,7 +1735,7 @@ while true; do
 	SECONDS=0
 	skip_the_sleep_FLAG=0
 
-	loop
+	fetch_stats_and_push_them_to_server
 
 	if (( skip_the_sleep_FLAG )); then
 		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
