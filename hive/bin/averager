@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.18'
+readonly script_version='0.1.19'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -750,8 +750,8 @@ declare -r backup_directory='/home/user/.cache'
 
 # filenames
 declare -r khs_file_name='khs'
-declare -r avg_khs_file_name='avg_khs' # TODO should add an algo to the name
-declare -r khs_ts_1h_file_name='khs_ts_1h' # TODO should add an algo to the name
+declare -r avg_khs_file_name='khs_avg' # TODO should add an algo to the name?
+declare -r khs_ts_1h_file_name='khs_ts_1h' # TODO should add an algo to the name?
 
 # derivatives
 declare -r khs_FILE="$work_directory/$khs_file_name"
