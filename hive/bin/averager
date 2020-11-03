@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.19'
+readonly script_version='0.1.20'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -29,23 +29,24 @@ set -o nounset
 function print_script_usage {
 	echo "Usage: ${CYAN-}${script_basename} [start|stop|restart|interactive|log]${NOCOLOR-}"
 	echo
-	echo "  ${CYAN-}start${NOCOLOR-}          start daemon (also with no arguments)"
+	echo "  ${CYAN-}start${NOCOLOR-}          start daemon (also it does when being run without any arguments)"
 	echo "  ${CYAN-}stop${NOCOLOR-}           stop daemon"
 	echo "  ${CYAN-}restart${NOCOLOR-}        restart daemon"
-	echo "  ${CYAN-}interactive${NOCOLOR-}    run in the interactive mode (without the screen)"
-	echo "  ${CYAN-}log${NOCOLOR-}            show a last $scrollback_buffer_lines lines of log"
+	echo "  ${CYAN-}interactive${NOCOLOR-}    run in the interactive mode (as is, without the screen)"
+	echo "  ${CYAN-}log${NOCOLOR-}            show a last $screen_hardcopy_log_lines lines of log"
 }
 
 function errcho {
 	printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*"
-	printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*" >> /run/hive/log # DEBUG
-} 1>&2
+	(( script_DEBUG )) &&
+		printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*" >> "$debug_log_FILE"
+} 1>&2 # all output goes to stderr
 
 function smart_round {
 	#
 	# Usage: smart_round 'number_to_round'
 	#
-	# Get rid of insignificant places after the dot
+	# Get rid of the insignificant decimal places after the dot
 	#
 
 	# args
@@ -172,7 +173,7 @@ function screen_session_start {
 	# code
 	echo -n "> Starting screen session '$session_name'... "
 	if ! is_screen_session_exist "$session_name"; then
-		if screen -dm -S "$session_name" -t "$session_title" -h "$scrollback_buffer_lines" "$session_name" 'interactive'; then
+		if screen -dm -S "$session_name" -t "$session_title" -h "$screen_hardcopy_log_lines" "$session_name" 'interactive'; then
 			snore 0.2 # sometimes screen is pretty slow
 			while ! is_screen_session_exist "$session_name" && (( attempts_counter++ < attempts_limit )); do
 				echo "  Waiting for session to start [$attempts_counter/$attempts_limit]..."
@@ -237,19 +238,19 @@ function screen_session_log {
 
 	# code
 	if is_screen_session_exist "$session_name"; then
-		if touch "$own_log" 2> /dev/null; then
-			screen -S "$session_name" -p 0 -X hardcopy -h "$own_log"
+		if touch "$screen_hardcopy_log_FILE" 2> /dev/null; then
+			screen -S "$session_name" -p 0 -X hardcopy -h "$screen_hardcopy_log_FILE"
 			#                         -p Preselect a window. This is useful when you want to reattach to a specific window or
 			#                            you want to send a command via the "-X" option to a specific window.
-			if [[ -f "$own_log" ]]; then
-				awk 'NF {f=1} f' "$own_log" # skip all empty lines, https://stackoverflow.com/a/19767713
-				rm "$own_log"
+			if [[ -f "$screen_hardcopy_log_FILE" ]]; then
+				awk 'NF {f=1} f' "$screen_hardcopy_log_FILE" # skip all empty lines, https://stackoverflow.com/a/19767713
+				rm "$screen_hardcopy_log_FILE"
 				return $(( exitcode_OK ))
 			else
 				errcho "screen didn't produce the log file"
 			fi
 		else
-			errcho "cannot write log to $own_log (/tmp is read-only?), exiting..."
+			errcho "cannot write log to $screen_hardcopy_log_FILE (/tmp is read-only?), exiting..."
 		fi
 	else
 		echo "! Screen session '$session_name' does not exist"
@@ -262,7 +263,7 @@ function screen_session_log {
 
 function create_spinlock {
 	until ln "$khs_ts_1h_FILE" "$khs_ts_1h_lock_FILE" 2>/dev/null; do
-		errcho 'Waiting for lock being freed'
+		errcho 'Spinlock already exists. Waiting for it being freed'
 		snore 0.5
 	done
 }
@@ -300,7 +301,7 @@ function stop_bg_job {
 	if jobs "%${jobspec_ARR[*]}" &> /dev/null; then
 		if kill -s SIGUSR1 "%${jobspec_ARR[*]}"; then
 #		if kill -s SIGQUIT "%${jobspec_ARR[*]}"; then
-			errcho "Stopped '${jobspec_ARR[*]}'"
+			errcho "Stopping '${jobspec_ARR[*]}'"
 			return $(( exitcode_OK ))
 		else
 			errcho "'${jobspec_ARR[*]}' stopping error"
@@ -367,7 +368,7 @@ function execute_every_nth_second {
 		if (( time_remainder_in_s > 0 )); then
 			for (( snore_cycle_counter = 0; snore_cycle_counter < time_remainder_in_s; snore_cycle_counter++ )); do
 				(( is_halt_condition_FLAG )) && break # to finish almost immediately (if signal's fired)
-				snore 0.95 # layin' some papers
+				snore 0.95 # not a whole second -- layin' some papers
 			done
 		else
 			errcho "WARNING: time_remainder_in_s == ${time_remainder_in_s}s"
@@ -652,8 +653,8 @@ function khs_ts_1h_loader {
 		echo "$actual_khs_value"
 	} > "${khs_ts_1h_FILE}.tmp"
 
-	create_spinlock # critical section
-	mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE" || errcho "error at $LINENO"
+	create_spinlock # critical section, we have to wait
+	mv "${khs_ts_1h_FILE}.tmp" "$khs_ts_1h_FILE" || errcho "mv error at $LINENO"
 	remove_spinlock
 }
 
@@ -664,7 +665,7 @@ function khs_ts_1h_aggregator {
 	# code
 	errcho "Calculating averages"
 
-	create_spinlock # critical section
+	create_spinlock # critical section, we have to wait
 	avg_15m="$( get_last_n_lines_from_file "$time_gaps_count_in_15m" "$khs_ts_1h_FILE" | jq --slurp 'add / length' )"
 	avg_1h="$( get_last_n_lines_from_file "$time_gaps_count_in_1h" "$khs_ts_1h_FILE" | jq --slurp 'add / length' )"
 	remove_spinlock
@@ -684,13 +685,13 @@ function run_in_interactive_mode {
 	local this_event
 
 	# flags
-	local -i is_halt_condition_FLAG1=0
+	local -i is_halt_condition_FLAG=0
 
 	# traps
 	for this_event in SIGINT SIGTERM SIGHUP SIGQUIT SIGTSTP EXIT; do
 		# shellcheck disable=SC2064
 		# bc trap command format
-		trap "trap '' $this_event; is_halt_condition_FLAG1=1; errcho \"$this_event received, finishing...\"" "$this_event"
+		trap "trap '' $this_event; is_halt_condition_FLAG=1; errcho \"$this_event received, finishing...\"" "$this_event"
 	done
 
 	# code
@@ -703,7 +704,7 @@ function run_in_interactive_mode {
 
 	SECONDS=0
 
-	until (( is_halt_condition_FLAG1 )); do
+	until (( is_halt_condition_FLAG )); do
 		set_variable_to_current_system_time_in_seconds 'the_now_in_s'
 
 		if ((
@@ -715,7 +716,7 @@ function run_in_interactive_mode {
 			errcho "Uptime $( seconds2dhms "$SECONDS" )"
 		fi
 
-		if (( is_halt_condition_FLAG1 )); then
+		if (( is_halt_condition_FLAG )); then
 			# finish almost immediately (if signal's fired)
 			break
 		else
@@ -727,7 +728,7 @@ function run_in_interactive_mode {
 	stop_bg_job 'execute_every_nth_second 61 khs_ts_1h_aggregator'
 #	stop_bg_job 'backup_khs_ts_1h'
 
-	wait
+	wait || errcho 'Caught another signal while finishing the handlers'
 	remove_spinlock
 
 	errcho 'Main cycle finished'
@@ -746,14 +747,14 @@ source asic-model
 
 # dirs
 declare -r work_directory='/run/hive'
-declare -r backup_directory='/home/user/.cache'
+declare -r backup_directory='/hive-config'
 
 # filenames
 declare -r khs_file_name='khs'
-declare -r avg_khs_file_name='khs_avg' # TODO should add an algo to the name?
-declare -r khs_ts_1h_file_name='khs_ts_1h' # TODO should add an algo to the name?
+declare -r avg_khs_file_name='khs_avg' # TODO should add an algo to the name like in the GPU domain?
+declare -r khs_ts_1h_file_name='khs_ts_1h' # TODO should add an algo to the name like in the GPU domain?
 
-# derivatives
+# full-qualified derivatives
 declare -r khs_FILE="$work_directory/$khs_file_name"
 declare -r avg_khs_FILE="$work_directory/$avg_khs_file_name"
 declare -r khs_ts_1h_FILE="$work_directory/$khs_ts_1h_file_name"
@@ -761,8 +762,8 @@ declare -r khs_ts_1h_lock_FILE="$work_directory/$khs_ts_1h_file_name.lock"
 declare -r khs_ts_1h_backup_FILE="$backup_directory/$khs_ts_1h_file_name"
 
 # times/frequencies
-declare -r -i ts_1h_time_gap_in_s=10
-declare -r -i backup_every_nth_minute=5
+declare -r -i ts_1h_time_gap_in_s=10 # get the hashrate every 10th second
+declare -r -i backup_every_nth_minute=5 # backup every 5th minute
 declare -r -i backup_every_nth_second=$(( backup_every_nth_minute * 60 ))
 declare -r -i seconds_in_1h=$(( 60 * 60 ))
 declare -r -i seconds_in_15m=$(( 15 * 60 ))
@@ -770,9 +771,10 @@ declare -r -i time_gaps_count_in_15m=$(( seconds_in_15m / ts_1h_time_gap_in_s ))
 declare -r -i time_gaps_count_in_1h=$(( seconds_in_1h / ts_1h_time_gap_in_s ))
 
 # other
-declare -r zero_hashrate_line='0' # could it be '' for the sake of the lesser file size?
-declare -r -i scrollback_buffer_lines=300
-declare -r own_log="/tmp/${script_basename}.log"
+declare -r zero_hashrate_line='0' # could it be '' (just newline) for the sake of the lesser file size?
+declare -r debug_log_FILE="/tmp/${script_basename}-debug.log"
+declare -r screen_hardcopy_log_FILE="/tmp/${script_basename}.log"
+declare -r -i screen_hardcopy_log_lines=300
 
 
 # globas vars
@@ -790,7 +792,7 @@ case "${1-}" in
 			screen_session_attach
 		else
 			screen_session_start
-			screen_session_attach
+			screen_session_attach # attach will happen only in interactive shell, otherwise skipped
 		fi
 	;;
 
