@@ -104,14 +104,21 @@ function miner_start {
 	fi
 
 	echo_x action "Starting ${CYAN}$ASIC_MINER_NAME${NOCOLOR}"
+	if [ -f "/config/norespawn" ]; then # instead resume_miner.cgi
+		rm -f /config/norespawn
+	fi
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		generate_config
 		[[ -f /tmp/norespawn ]] && rm -f /tmp/norespawn
-	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
+	elif [ -f '/www/pages/cgi-bin/restart_miner.cgi' ]; then
 		# S17/T17 Hiveon
 		generate_config
-		sh /www/pages/cgi-bin/resume_miner.cgi
+		sh /www/pages/cgi-bin/restart_miner.cgi
+#	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
+#		# S17/T17 Hiveon
+#		generate_config
+#		sh /www/pages/cgi-bin/resume_miner.cgi
 	elif [[ "$ASIC_MODEL" =~ 'Toddminer C1' ]]; then
 		generate_config
 		/hive/bin/todd_api mstart
@@ -191,15 +198,18 @@ function miner_stop {
 
 function miner_restart {
 	echo_x action "Restarting ${CYAN}$ASIC_MINER_NAME${NOCOLOR}"
+	if [ -f "/config/norespawn" ]; then # instead resume_miner.cgi
+		rm -f /config/norespawn
+	fi
 	if [[ -f '/sbin/watchdog_restart.pl' ]]; then
 		# S9/T9 Hiveon
 		generate_config
 		[[ -f /tmp/norespawn ]] && rm -f /tmp/norespawn
 		echo 'ok' > /config/restart
-	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then
-		# S17/T17 Hiveon
-		generate_config
-		sh /www/pages/cgi-bin/resume_miner.cgi
+#	elif [ -f '/www/pages/cgi-bin/resume_miner.cgi' ]; then # still killall
+#		# S17/T17 Hiveon
+#		generate_config
+#		sh /www/pages/cgi-bin/resume_miner.cgi
 	elif [ -f '/www/pages/cgi-bin/restart_miner.cgi' ]; then
 		generate_config
 		sh /www/pages/cgi-bin/restart_miner.cgi

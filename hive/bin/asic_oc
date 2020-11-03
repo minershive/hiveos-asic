@@ -317,7 +317,11 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 	esac
 
 	if (( kill_miner_FLAG )); then
-		killall bmminer
+		if [ -f "/www/pages/cgi-bin/apply_profile.cgi" ]; then
+			sh /www/pages/cgi-bin/apply_profile.cgi
+		else
+			killall bmminer
+		fi
 	fi
 
 	if (( wait_for_tuning_FLAG )); then
