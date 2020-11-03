@@ -9,8 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.4'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.1.5'
+readonly script_basename="${0##*/}"
 
 
 # !!! bash strict mode, no unbound variables
@@ -301,6 +301,10 @@ nohup /hive/bin/controller >> /config/hive-controller.log 2>&1 & disown # disown
 #bmminer is autostarted after in /etc/rcS.d
 #echo_x action 'Starting miner'
 #miner start
+
+
+echo_x action 'Starting averager'
+averager restart
 
 
 echo_x action 'Generating miner config'
