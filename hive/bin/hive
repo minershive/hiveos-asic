@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.5'
+readonly script_version='0.1.6'
 readonly script_basename="${0##*/}"
 
 
@@ -108,6 +108,7 @@ function get_absolute_difference {
 
 function get_datetime_from_server {
 	# consts
+	local -r HIVE_HOST_URL_default='http://api.hiveos.farm'
 	local -r -i max_attempts=10
 
 	# vars
@@ -117,7 +118,11 @@ function get_datetime_from_server {
 
 	# code
 	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # !!! will be needed to start WD later
-	[[ -z "${HIVE_HOST_URL-}" ]] && HIVE_HOST_URL='http://api.hiveos.farm'
+
+	if [[ -z "${HIVE_HOST_URL-}" ]]; then
+		echo_x warning "HIVE_HOST_URL is empty, using default server $HIVE_HOST_URL_default"
+		HIVE_HOST_URL="$HIVE_HOST_URL_default"
+	fi
 
 	# trying to get a datetime (every next pause will be longer and longer)
 	for (( attempts_counter = 1; attempts_counter <= max_attempts; attempts_counter++ )); do
@@ -248,12 +253,12 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_
 fi
 
 
-# test enable MTU autodetect
+# [TEST] enable MTU autodetect
 echo_x action 'Enabling Path MTU Discovery'
 echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing
 
 
-# (test) disable avahi-daemon
+# [TEST] disable avahi-daemon
 if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
 	echo_x action 'Stopping Avahi daemon'
 	[[ -f /etc/init.d/avahi ]] && /etc/init.d/avahi stop # add && -f /usr/sbin/avahi-daemon ???
@@ -263,7 +268,23 @@ if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
 fi
 
 
-echo_x action 'Caching a host resolve'
+# [TEST] add 8.8.8.8 and 1.1.1.1 to resolv.conf
+echo_x action 'Adding fail-over nameservers to resolver'
+if [[ -s /etc/resolv.conf ]]; then
+	for this_public_nameserver in '8.8.8.8' '1.1.1.1'; do
+		if grep -q "^nameserver $this_public_nameserver\$" /etc/resolv.conf; then
+			echo_x warning "Fail-over nameserver $this_public_nameserver" 'ALREADY SET'
+		else
+			echo_x ok "Fail-over nameserver $this_public_nameserver" 'ADDED'
+			printf 'nameserver %s\n' "$this_public_nameserver" >> /etc/resolv.conf
+		fi
+	done
+else
+	echo_x warning '/etc/resolv.conf not found or empty'
+fi
+
+
+echo_x action 'Caching a host resolve for the server'
 cache-hive-ip
 
 
