@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.44.1'
+declare -r hive_functions_lib_version='0.45.0'
 #                                        ^^ current number of public functions
 
 
@@ -614,6 +614,9 @@ function read_variable_from_file {
 	#
 	# Usage: read_variable_from_file 'file_with_variables' 'variable_to_read'
 	#
+	# input file is filtered for valid assignments
+	# caveat: doesn't work well for multi-line assignments
+	# ??? still cannot figure out how to filter them in a proper way
 
 	# args
 
@@ -632,6 +635,40 @@ function read_variable_from_file {
 		# let's don't pollute our scope -- do it in the sub-shell
 		if result="$(
 			source <( grep -E -e '^[_[:alnum:]]+=[^[:space:]]' -- "$file_with_variables" ) # read all *valid* variable assignments
+			[[ -n "${variable_to_read-}" ]] && echo "${variable_to_read-}"
+		)"; then
+			echo "$result"
+		else
+			return $(( exitcode_ERROR_NOT_FOUND ))
+		fi
+	else
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
+}
+
+function read_variable_from_file_unsafe {
+	#
+	# Usage: read_variable_from_file_unsafe 'file_with_variables' 'variable_to_read'
+	#
+	# can be evil if file_with_variables does contain commands or has an invalid syntax
+
+	# args
+
+	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r file_with_variables="${1-}"
+	local -r -n variable_to_read="${2-}"
+
+	# vars
+
+	local result
+
+	# code
+
+	# if file isn't empty or it's a named pipe (for <() constructions)
+	if [[ -s "$file_with_variables" || -p "$file_with_variables" ]]; then
+		# let's don't pollute our scope -- do it in the sub-shell
+		if result="$(
+			source "$file_with_variables"
 			[[ -n "${variable_to_read-}" ]] && echo "${variable_to_read-}"
 		)"; then
 			echo "$result"
@@ -990,12 +1027,44 @@ function expand_hive_templates_in_variable_by_ref {
 	#
 	# Usage: expand_hive_templates_in_variable_by_ref 'string_to_expand_by_ref'
 	#
-	# expand all Hive templates: %fw%, %build%, %profile%, %url%, %mac%
+	# in a given string variable, expand all Hive templates:
+	#
+	#	sw/fw versions:
+	#
+	#		%BUILD%
+	#		%FW%
+	#
+	#	network:
+	#
+	#		%HOSTNAME%
+	#		%IP%
+	#		%IP_SAFE%
+	#		%MAC%
+	#		%MAC_SAFE%
+	#
+	#	OC profile:
+	#
+	#		%PROFILE%
+	#
+	#	RIG_CONF:
+	#
+	#		%URL%
+	#		%WORKER_NAME%, %WORKER_NAME_RAW% (always equal)
+	#
+	#	WALLET_CONF:
+	#
+	#		%EMAIL%
+	#		%EWAL%
+	#		%DWAL%
+	#		%ZWAL%
 	#
 
-	# args
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	# args and asserts
+	(( $# == 1 )) || { errcho 'invalid number of arguments';					return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	[[ -n "$1" ]] || { errcho 'empty argument, must be a variable name';		return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	[[ -v "$1" ]] || { errcho "variable '$1' is not set";						return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n string_to_expand_by_ref="$1"
+	[[ -n "$string_to_expand_by_ref" ]] || { errcho "variable '$1' is empty";	return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	# consts
 	local -r tag_template_RE='%[[:alpha:]][[:alnum:]_]+%'
@@ -1004,23 +1073,29 @@ function expand_hive_templates_in_variable_by_ref {
 	# super local consts haha
 	local -r __RIG_CONF_default='/hive-config/rig.conf'
 	local -r __RIG_CONF="${RIG_CONF:-$__RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+	local -r __WALLET_CONF_default='/hive-config/wallet.conf'
+	local -r __WALLET_CONF="${WALLET_CONF:-$__WALLET_CONF_default}" # for ASIC emulator: set to default only if WALLET_CONF variable is empty
 
 	# vars
-	local this_template this_template_substitution
+	local this_template_raw this_template_keyword this_template_keyword_in_uppercase this_template_substitution
 
 	# code
-	for this_template in $( get_all_matches_unique "$string_to_expand_by_ref" "$tag_template_RE" ); do
+	for this_template_raw in $( get_all_matches_unique "$string_to_expand_by_ref" "$tag_template_RE" ); do
+
+		this_template_keyword="${this_template_raw//%}" # strip '%' chars
+		this_template_keyword_in_uppercase="${this_template_keyword^^}"
 		this_template_substitution=''
-		case "${this_template,,}" in
-			'%build%')
+
+		case "$this_template_keyword_in_uppercase" in
+			'BUILD' )
 				if [[ -s /hive/etc/build ]]; then
 					this_template_substitution="$( < /hive/etc/build )"
 				else
-					this_template_substitution='unknown build'
+					this_template_substitution='ERR_unknown_build'
 				fi
 			;;
 
-			'%fw%')
+			'FW' )
 				#
 				#/usr/bin/compile_ver:
 				#Tue Aug 18 09:03:07 UTC 2020
@@ -1036,50 +1111,59 @@ function expand_hive_templates_in_variable_by_ref {
 				elif [[ -s /usr/bin/compile_time ]]; then
 					this_template_substitution="$( sed -n '1p' /usr/bin/compile_time )"
 				else
-					this_template_substitution='unknown fw'
+					this_template_substitution='ERR_unknown_fw'
 				fi
 			;;
 
-			'%hostname%')
+			'HOSTNAME' )
 				this_template_substitution="$( hostname )"
 			;;
 
-			'%ip%')
+			'IP' )
 				this_template_substitution="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
 			;;
 
-			'%ip_safe%')
+			'IP_SAFE' )
 				: "$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
 				this_template_substitution="${_//./$safe_char}"
 			;;
 
-			'%mac%')
+			'MAC' )
 				this_template_substitution="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
 			;;
 
-			'%mac_safe%')
+			'MAC_SAFE' )
 				: "$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
 				this_template_substitution="${_//:/$safe_char}"
 			;;
 
-			'%profile%')
+			'PROFILE' )
 				this_template_substitution="$( asic-oc status --active-profile-desc )" ||
-					this_template_substitution='unknown profile'
+					this_template_substitution='ERR_unknown_profile'
 			;;
 
-			'%url%')
+			'URL' )
 				#IFS='/' read -r _ _ this_template_substitution <<< "$HIVE_HOST_URL" # extract a domain name
 				# nope
 				# i think it should be FQDN
-				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'HIVE_HOST_URL' )"
+				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'HIVE_HOST_URL' )" ||
+					this_template_substitution='ERR_no_HIVE_HOST_URL_in_RIG_CONF'
 			;;
 
-			'%worker_name_raw%')
-				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'WORKER_NAME' )"
+			'WORKER_NAME' | 'WORKER_NAME_RAW' )
+				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'WORKER_NAME' )" ||
+					this_template_substitution='ERR_no_WORKER_NAME_in_RIG_CONF'
 			;;
+
+			'EMAIL' | 'EWAL' | 'DWAL' | 'ZWAL' )
+				this_template_substitution="$( read_variable_from_file_unsafe "$__WALLET_CONF" "$this_template_keyword_in_uppercase" )" ||
+					this_template_substitution="ERR_no_${this_template_keyword_in_uppercase}_in_WALLET_CONF"
+			;;
+
 		esac
+
 		if [[ -n "$this_template_substitution" ]]; then
-			string_to_expand_by_ref="${string_to_expand_by_ref//$this_template/$this_template_substitution}"
+			string_to_expand_by_ref="${string_to_expand_by_ref//$this_template_raw/$this_template_substitution}"
 		fi
 	done
 }
