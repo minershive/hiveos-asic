@@ -15,8 +15,10 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.3.4'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.4.0'
+readonly script_basename="${0##*/}"
+#
+source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
 # functions
@@ -38,11 +40,6 @@ function die {
 	# code
 	[[ -n "$message" ]] && echo_error "$message"
 	exit $(( exitcode ))
-}
-
-function print_script_version {
-	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
-	echo
 }
 
 function print_script_usage {
@@ -289,7 +286,7 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 		fi
 
 		message_body+='<hr>'
-		message_body+='* The vast majority of pools DO NOT accept a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than 8 characters long.'$'\n'$'\n'
+		message_body+='* The vast majority of pools DO NOT accept a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than <strong>8 characters long</strong>.'$'\n'$'\n'
 		message_body+='** If you do not want to see these warnings, please update your Flight Sheet to use a template <strong>%WORKER_NAME_RAW%</strong> instead of <strong>%WORKER_NAME%</strong>'
 
 		message warning "$message_header" --payload --silent <<< "$message_body"
@@ -377,9 +374,9 @@ function generate_miner_configuration_to {
 	local -i pools_count pool_index first_url_count
 	local pool pools config_global
 	local line varkey varval
-	local this_template_label this_template_placeholder
+#	local this_template_label this_template_placeholder
 	local final_configuration
-	local WORKER_NAME_RAW
+#	local WORKER_NAME_RAW
 
 	# code
 	sanitize_ASICMINER_TEMPLATEs_by_ref 'ASICMINER_TEMPLATE' 'ASICMINER_TEMPLATE2' 'ASICMINER_TEMPLATE3'
@@ -1110,18 +1107,20 @@ function generate_miner_configuration_to {
 
 	# legacy vars, should all be set as "dummy"
 	# ??? I'd say we should ditch it for good
-	[[ -z "${EWAL-}" && -z "${ZWAL-}" && -z "${DWAL-}" ]] && echo_error "No WAL address is set"
+	[[ -z "${EWAL-}" && -z "${ZWAL-}" && -z "${DWAL-}" ]] && echo_error "No WAL addresses is set"
 
-	# shellcheck disable=SC2034,SC2153
-	WORKER_NAME_RAW="$WORKER_NAME" # a special template to get around a forced worker name sanitizing, if needed
+	expand_hive_templates_in_variable_by_ref 'final_configuration'
 
-	#replace %template% with its value in a whole file
-	# !!! legacy, might have to remove it sometimes
-	for this_template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME WORKER_NAME_RAW; do
-		local -n this_template_value="$this_template_label"
-		this_template_placeholder="%${this_template_label}%"
-		[[ -n "$this_template_value" ]] && final_configuration="${final_configuration//${this_template_placeholder}/${this_template_value}}"
-	done
+#	# shellcheck disable=SC2034,SC2153
+#	WORKER_NAME_RAW="$WORKER_NAME" # a special template to get around a forced worker name sanitizing, if needed
+
+#	#replace %template% with its value in a whole file
+#	# !!! legacy, might have to remove it sometimes
+#	for this_template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME WORKER_NAME_RAW; do
+#		local -n this_template_value="$this_template_label"
+#		this_template_placeholder="%${this_template_label}%"
+#		[[ -n "$this_template_value" ]] && final_configuration="${final_configuration//${this_template_placeholder}/${this_template_value}}"
+#	done
 
 	# shellcheck disable=SC2034
 	# bc var have set by reference
