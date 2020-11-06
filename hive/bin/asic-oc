@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.24'
+readonly script_version='0.6.25'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -801,13 +801,27 @@ function generate_active_profile_17 {
 }
 
 function restart_miner_17 {
+	# vars
+	local -i versions_comparison_result
+
+	# code
 	echo '> Restarting miner...'
-	if [[ -s /www/pages/cgi-bin/apply_profile.cgi ]]; then
-		# Hiveon 2.03+ for Series 17
-		echo '1' > /tmp/reopen
-	else
-		killall bmminer
-	fi
+
+	is_first_version_equal_to_second "$HIVEON_VERSION" '2.03'
+	versions_comparison_result=$?
+
+	# shellcheck disable=SC2154
+	# ...bc it's defined in a library
+	case "$versions_comparison_result" in
+		"$exitcode_IS_EQUAL" | "$exitcode_GREATER_THAN" )
+			# Hiveon 2.03+ for Series 17
+			echo '1' > /tmp/reopen
+		;;
+
+		"$exitcode_LESS_THAN" )
+			killall bmminer
+		;;
+	esac
 }
 
 function tune_17_old {
