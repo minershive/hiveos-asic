@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.20'
+readonly script_version='0.1.21'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -628,8 +628,6 @@ function khs_ts_1h_loader {
 	local actual_khs_value
 
 	# code
-	errcho "Appending $khs_FILE to $khs_ts_1h_FILE"
-
 	# 1. check how old is khs file
 	set_variable_to_current_system_time_in_seconds 'the_now'
 	khs_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
@@ -643,6 +641,8 @@ function khs_ts_1h_loader {
 
 	# 3. check khs value
 	is_JSON_string_empty_or_null "$actual_khs_value" && actual_khs_value="$zero_hashrate_line"
+
+	errcho "Appending $khs_ts_1h_FILE with $actual_khs_value khs"
 
 	# 4. write to tmp file
 	{
