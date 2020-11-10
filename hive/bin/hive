@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.6'
+readonly script_version='0.1.7'
 readonly script_basename="${0##*/}"
 
 
@@ -135,13 +135,17 @@ function get_datetime_from_server {
 			sleep "$attempts_counter"
 		else
 			printf -v current_system_date_in_s '%(%s)T' -1
-			date_from_server_in_s="$( grep -Fm1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
-			difference_in_dates="$( get_absolute_difference "$current_system_date_in_s" "$date_from_server_in_s" )"
-			if (( difference_in_dates <= 3 )); then
-				echo_x ok		"Current system date $( date )"	'(up-to-date)'
+			if date_from_server_in_s="$( grep -Fm1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran 2> /dev/null )" && (( date_from_server_in_s )); then
+				difference_in_dates="$( get_absolute_difference "$current_system_date_in_s" "$date_from_server_in_s" )"
+				if (( difference_in_dates <= 3 )); then
+					echo_x ok		"Current system date $( date )"	'(up-to-date)'
+				else
+					echo_x warning	"Current system date $( date )"	'(OBSOLETE)'
+					echo_x ok		'System date set to '			"$( date -s "@$date_from_server_in_s" )"
+				fi
 			else
-				echo_x warning	"Current system date $( date )"	'(OBSOLETE)'
-				echo_x ok		'System date set to '			"$( date -s "@$date_from_server_in_s" )"
+				echo_x error		"The server returned an invalid answer: $server_answer"
+				echo_x warning		"Current system date $( date )"	'(NON-VALIDATED)'
 			fi
 			break
 		fi
