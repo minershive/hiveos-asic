@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.0'
+readonly script_version='0.4.1'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
@@ -1105,11 +1105,11 @@ function generate_miner_configuration_to {
 	# shellcheck disable=SC2016
 	final_configuration="$( jq --null-input --argjson g "$config_global" --argjson p "$pools" '$p * $g' )"
 
-	# legacy vars, should all be set as "dummy"
+	# legacy vars, usually set as "dummy" in wallet.conf
 	# ??? I'd say we should ditch it for good
-	[[ -z "${EWAL-}" && -z "${ZWAL-}" && -z "${DWAL-}" ]] && echo_error "No WAL addresses is set"
+	[[ -z "${DWAL-}" && -z "${EWAL-}" && -z "${ZWAL-}" ]] && echo_error 'Legacy variables DWAL/EWAL/ZWAL are not set (and this is a bit unconventional)'
 
-	expand_hive_templates_in_variable_by_ref 'final_configuration'
+	expand_hive_templates_in_variable_by_ref 'final_configuration' '1' # 1=verbose, will be removed later
 
 #	# shellcheck disable=SC2034,SC2153
 #	WORKER_NAME_RAW="$WORKER_NAME" # a special template to get around a forced worker name sanitizing, if needed
