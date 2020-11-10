@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.45.0'
+declare -r hive_functions_lib_version='0.48.0'
 #                                        ^^ current number of public functions
 
 
@@ -21,7 +21,7 @@ declare -r hive_functions_lib_version='0.45.0'
 
 
 #
-# functions: script infrastructure
+# functions: SCRIPT INFRASTRUCTURE, LOGGING
 #
 
 function print_script_version {
@@ -36,8 +36,14 @@ function errcho {
 	# uniform error logging to stderr
 	#
 
+	# vars
+
+	local -i this_index
+
+	# code
+
 	echo -e -n "${BRED-}$0"
-	for (( i=${#FUNCNAME[@]} - 2; i >= 1; i-- )); { echo -e -n "${RED-}:${BRED-}${FUNCNAME[i]}"; }
+	for (( this_index = ${#FUNCNAME[@]} - 2; this_index >= 1; this_index-- )); { echo -e -n "${RED-}:${BRED-}${FUNCNAME[this_index]}"; }
 	echo -e " error:${NOCOLOR-} $*"
 
 } 1>&2
@@ -52,13 +58,14 @@ function debugcho {
 	# vars
 
 	local this_argument
+	local -i this_index
 
 	# code
 
 	echo -e -n "${DGRAY-}DEBUG $0"
-	for (( i=${#FUNCNAME[@]} - 2; i >= 1; i-- )); { echo -e -n ":${FUNCNAME[i]}"; }
+	for (( this_index = ${#FUNCNAME[@]} - 2; this_index >= 1; this_index-- )); { echo -e -n ":${FUNCNAME[this_index]}"; }
 	for this_argument in "$@"; do
-		printf " %b'%b%q%b'" "${CYAN-}" "${DGRAY-}" "${this_argument}" "${CYAN-}"
+		printf " %b'%b%s%b'" "${CYAN-}" "${DGRAY-}" "${this_argument}" "${CYAN-}"
 	done
 	echo "${NOCOLOR-}"
 
@@ -70,11 +77,13 @@ function log_line {
 	#
 
 	# args
+
 	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __event_type="${1:-info}"
 	local -r __log_entry="${2:-empty}"
 
 	# consts
+
 	local -r -A __event_color_dictionary=(
 		['warning']="${YELLOW}"
 		['debug']="${BPURPLE}"
@@ -89,9 +98,11 @@ function log_line {
 	local -r -i __basename_max_length=10
 
 	# vars
+
 	local __basename_color
 
 	# code
+
 	__basename_color="${__event_color_dictionary[$__event_type]}"
 	[[ -z "$__basename_color"  ]] && __basename_color="${NOCOLOR}" # any unsupported event
 	# shellcheck disable=SC2154
@@ -99,8 +110,9 @@ function log_line {
 }
 
 
+
 #
-# functions: audit
+# functions: AUDIT
 #
 # we need to audit externally--does the script work as intended or not (like the system returns exitcode "file not found")
 # [[ $( script_to_audit ) != 'I AM FINE' ]] && echo "Something wrong with $script_to_check"
@@ -133,8 +145,9 @@ function is_script_exist_and_doing_fine {
 }
 
 
+
 #
-# functions: conditionals
+# functions: CONDITIONALS
 #
 
 function iif {
@@ -202,10 +215,12 @@ function is_program_running {
 	#
 
 	# args
+
 	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r program_name="${1-}"
 
 	# code
+
 	if is_program_in_the_PATH 'pidof'; then
 		pidof "$program_name" > /dev/null
 	else
@@ -221,10 +236,12 @@ function is_program_not_running {
 	#
 
 	# args
+
 	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r program_name="${1-}"
 
 	# code
+
 	! is_program_running "$program_name"
 }
 
@@ -395,36 +412,9 @@ function is_file_exist_and_contain {
 }
 
 
-#
-# functions: text
-#
 
-function strip_ansi {
-	#
-	# Usage: cat file | strip_ansi
-	#
-	# strips ANSI codes from text
-	#
-	# stdin: The text to strip
-	# stdout: ANSI stripped text
-	#
-
-	# args
-	(( $# == 0 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-
-	# vars
-	local line=''
-
-	# code
-	shopt -s extglob
-	while IFS='' read -r line || [[ -n "$line" ]]; do
-		printf '%s\n' "${line//$'\e'[\[(]*([0-9;])[@-n]/}"
-	done
-}
-
-
-#
-# functions: math
+# 
+# functions: MATH
 #
 
 function calculate_percent_from_number {
@@ -554,8 +544,9 @@ function khs_to_human_friendly_hashrate {
 }
 
 
+
 #
-# functions: files
+# functions: FILES
 #
 
 function get_file_last_modified_time_in_seconds {
@@ -719,8 +710,9 @@ function set_variable_in_file {
 }
 
 
+
 #
-# functions: date & time
+# functions: DATE, TIME
 #
 
 function get_system_boot_time_in_seconds {
@@ -765,16 +757,19 @@ function seconds2dhms {
 	#
 
 	# args
+
 	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS (just in case)
 	local -r delimiter_DEFAULT=' '
 	local -r delimiter="${2-${delimiter_DEFAULT}}"
 
 	# vars
+
 	local -i days hours minutes seconds
 	local dhms_string
 
 	# code
+
 	((
 		days = time_in_seconds / 60 / 60 / 24,
 		hours = time_in_seconds / 60 / 60 % 24,
@@ -914,9 +909,78 @@ function snore {
 }
 
 
+
 #
-# functions: strings
+# functions: NETWORK
 #
+
+# shellcheck disable=SC2120
+# bc $1 can be empty
+function get_ip_address {
+	#
+	# Usage: get_ip_address ['interface']
+	#
+
+	# args
+
+	(( $# == 0 || $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r interface_DEFAULT='eth0'
+	local -r interface="${1-$interface_DEFAULT}"
+	
+	# code
+
+	LANG=C ifconfig "$interface" | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }'
+}
+
+# shellcheck disable=SC2120
+# bc $1 can be empty
+function get_mac_address {
+	#
+	# Usage: get_mac_address ['interface']
+	#
+
+	# args
+
+	(( $# == 0 || $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r interface_DEFAULT='eth0'
+	local -r interface="${1-$interface_DEFAULT}"
+
+	# code
+
+	LANG=C ifconfig "$interface" | rematch 'HWaddr (.{17})'
+}
+
+
+
+#
+# functions: TEXT, STRINGS
+#
+
+function strip_ansi {
+	#
+	# Usage: cat file | strip_ansi
+	#
+	# strips ANSI codes from text
+	#
+	# stdin: The text to strip
+	# stdout: ANSI stripped text
+	#
+
+	# args
+
+	(( $# == 0 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+
+	# vars
+
+	local line=''
+
+	# code
+
+	shopt -s extglob
+	while IFS='' read -r line || [[ -n "$line" ]]; do
+		printf '%s\n' "${line//$'\e'[\[(]*([0-9;])[@-n]/}"
+	done
+}
 
 function get_substring_position_in_string {
 	#
@@ -1023,67 +1087,82 @@ function get_all_matches_unique {
 	done
 }
 
+function expand_hive_templates {
+	#
+	# Usage: expand_hive_templates 'string_to_expand' ['is_verbose_FLAG']
+	#
+	# wrapper for expand_hive_templates_in_variable_by_ref()
+
+	# args
+
+	local string_to_expand="$1"
+	local -i is_verbose_FLAG="$2"
+
+	# code
+
+	expand_hive_templates_in_variable_by_ref 'string_to_expand' "$is_verbose_FLAG"
+	echo "$string_to_expand"
+}
+
 function expand_hive_templates_in_variable_by_ref {
 	#
-	# Usage: expand_hive_templates_in_variable_by_ref 'string_to_expand_by_ref'
+	# Usage: expand_hive_templates_in_variable_by_ref 'string_to_expand_by_ref' ['is_verbose_FLAG']
 	#
 	# in a given string variable, expand all Hive templates:
 	#
-	#	sw/fw versions:
+	#	sw/fw versions: %BUILD% %FW%
+	#	network:		%HOSTNAME% %IP% %MAC%
+	#	OC profile:		%PROFILE%
+	#	RIG_CONF:		%URL% %WORKER_NAME% %WORKER_NAME_RAW%
+	#	WALLET_CONF:	%EMAIL% %EWAL% %DWAL% %ZWAL%
 	#
-	#		%BUILD%
-	#		%FW%
-	#
-	#	network:
-	#
-	#		%HOSTNAME%
-	#		%IP%
-	#		%IP_SAFE%
-	#		%MAC%
-	#		%MAC_SAFE%
-	#
-	#	OC profile:
-	#
-	#		%PROFILE%
-	#
-	#	RIG_CONF:
-	#
-	#		%URL%
-	#		%WORKER_NAME%, %WORKER_NAME_RAW% (always equal)
-	#
-	#	WALLET_CONF:
-	#
-	#		%EMAIL%
-	#		%EWAL%
-	#		%DWAL%
-	#		%ZWAL%
-	#
-
+	# BONUS: you could add a special suffix _SAFE to any template to sanitize it
+	
 	# args and asserts
-	(( $# == 1 )) || { errcho 'invalid number of arguments';					return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	[[ -n "$1" ]] || { errcho 'empty argument, must be a variable name';		return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	[[ -v "$1" ]] || { errcho "variable '$1' is not set";						return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+
+	(( $# == 1 || $# == 2 ))	|| { errcho 'invalid number of arguments';					return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	[[ -n "$1" ]]				|| { errcho 'empty argument, must be a variable name';		return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	[[ -v "$1" ]]				|| { errcho "variable '$1' is not set";						return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n string_to_expand_by_ref="$1"
 	[[ -n "$string_to_expand_by_ref" ]] || { errcho "variable '$1' is empty";	return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -i is_verbose_FLAG="${2-0}"
 
 	# consts
+
 	local -r tag_template_RE='%[[:alpha:]][[:alnum:]_]+%'
+	local -r sanitize_keyword_RE='_[Ss][Aa][Ff][Ee]%'
 	local -r safe_char='x'
+	local -r blacklisted_chars_RE='[^[:alnum:]_]'
 
 	# super local consts haha
+
 	local -r __RIG_CONF_default='/hive-config/rig.conf'
 	local -r __RIG_CONF="${RIG_CONF:-$__RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 	local -r __WALLET_CONF_default='/hive-config/wallet.conf'
 	local -r __WALLET_CONF="${WALLET_CONF:-$__WALLET_CONF_default}" # for ASIC emulator: set to default only if WALLET_CONF variable is empty
 
 	# vars
+
 	local this_template_raw this_template_keyword this_template_keyword_in_uppercase this_template_substitution
 
+	# flags
+
+	local -i is_sanitization_required_FLAG=0
+
 	# code
+
 	for this_template_raw in $( get_all_matches_unique "$string_to_expand_by_ref" "$tag_template_RE" ); do
 
-		this_template_keyword="${this_template_raw//%}" # strip '%' chars
-		this_template_keyword_in_uppercase="${this_template_keyword^^}"
+		if [[ "$this_template_raw" =~ $sanitize_keyword_RE ]]; then
+			this_template_keyword="${this_template_raw/$sanitize_keyword_RE/%}" # strip _SAFE suffix
+			is_sanitization_required_FLAG=1
+		else
+			this_template_keyword="$this_template_raw"
+			is_sanitization_required_FLAG=0
+		fi
+
+		this_template_keyword="${this_template_keyword//%}" # strip '%' chars
+		this_template_keyword_in_uppercase="${this_template_keyword^^}" # toupper()
 		this_template_substitution=''
 
 		case "$this_template_keyword_in_uppercase" in
@@ -1120,21 +1199,15 @@ function expand_hive_templates_in_variable_by_ref {
 			;;
 
 			'IP' )
-				this_template_substitution="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
-			;;
-
-			'IP_SAFE' )
-				: "$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
-				this_template_substitution="${_//./$safe_char}"
+				# shellcheck disable=SC2119
+				# bc 'no arguments' does mean default interface
+				this_template_substitution="$( get_ip_address )"
 			;;
 
 			'MAC' )
-				this_template_substitution="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
-			;;
-
-			'MAC_SAFE' )
-				: "$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
-				this_template_substitution="${_//:/$safe_char}"
+				# shellcheck disable=SC2119
+				# bc 'no arguments' does mean default interface
+				this_template_substitution="$( get_mac_address )"
 			;;
 
 			'PROFILE' )
@@ -1163,14 +1236,23 @@ function expand_hive_templates_in_variable_by_ref {
 		esac
 
 		if [[ -n "$this_template_substitution" ]]; then
+			if (( is_sanitization_required_FLAG )); then
+				# sanitize in case of _SAFE suffix
+				this_template_substitution="${this_template_substitution//$blacklisted_chars_RE/$safe_char}" # replace blacklisted chars with a safe char
+			fi
 			string_to_expand_by_ref="${string_to_expand_by_ref//$this_template_raw/$this_template_substitution}"
+			(( is_verbose_FLAG )) && debugcho "Template $this_template_raw expanded to $this_template_substitution"
+		else
+			errcho "Unknown template $this_template_keyword_in_uppercase"
 		fi
+
 	done
 }
 
 
+
 #
-# functions: processes
+# functions: PROCESSES
 #
 
 function pgrep_count {
@@ -1224,8 +1306,9 @@ function pgrep_quiet {
 }
 
 
+
 #
-# the last: functions lister
+# the last: THE FUNCTION LISTER
 #
 
 function __list_functions {
@@ -1270,6 +1353,7 @@ function __list_functions {
 }
 
 
+
 # consts
 
 declare -r __audit_ok_string='I AM DOING FINE'
@@ -1283,6 +1367,7 @@ declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 declare -r -i exitcode_IS_EQUAL=0
 declare -r -i exitcode_GREATER_THAN=1
 declare -r -i exitcode_LESS_THAN=2
+
 
 
 # main
