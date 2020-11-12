@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.48.0'
+declare -r hive_functions_lib_version='0.49.0'
 #                                        ^^ current number of public functions
 
 
@@ -913,6 +913,27 @@ function snore {
 #
 # functions: NETWORK
 #
+
+function is_interface_up {
+	#
+	# Usage: is_interface_up ['interface']
+	#
+
+	# args
+
+	(( $# == 0 || $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r interface_DEFAULT='eth0'
+	local -r interface="${1:-$interface_DEFAULT}"
+
+	# code
+
+	if [[ ! -d "/sys/class/net/$interface" ]]; then
+		errcho "No such interface '$interface'"
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	else
+		[[ $( < "/sys/class/net/${interface}/operstate" ) == 'up' ]]
+	fi
+}
 
 # shellcheck disable=SC2120
 # bc $1 can be empty
