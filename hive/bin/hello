@@ -16,7 +16,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.2.3'
+readonly script_version='0.3.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -50,28 +50,43 @@ function print_script_version {
 }
 
 function print_script_usage {
-	echo -e "Usage: ${CYAN-}${script_basename} [boot] [hostname] [restartminer]${NOCOLOR-}"
+	echo -e "Usage: ${CYAN-}${script_basename} [--boot] [--hostname] [--workername=your_custom_worker_name] [--restartminer]${NOCOLOR-}"
 	echo
 }
 
 function parse_arguments {
 	# vars
-	local this_argument
+	local this_argument worker_name
 
 	# code
 	for this_argument in "$@"; do
 		case "$this_argument" in
-			'boot')
+			'--boot' | 'boot' )
 				arg_boot_FLAG=1
 				echo_info '[OPTION] Boot mode ON'
 			;;
 
-			'hostname')
-				arg_hostname="$( hostname )"
-				echo_info "[OPTION] Using '$arg_hostname' as a worker name"
+			'--hostname' | 'hostname' )
+				worker_name="$( hostname )"
+				if [[ -n "$worker_name" ]]; then
+					arg_worker_name="$worker_name"
+					echo_info "[OPTION] Custom worker name '$arg_worker_name'"
+				else
+					echo_error "Cannot use an empty hostname as a worker name, assignment skipped"
+				fi
 			;;
 
-			'restartminer')
+			'-w='* | '--workername='* | 'workername='* )
+				worker_name="${this_argument#*=}"
+				if [[ -n "$worker_name" ]]; then
+					arg_worker_name="${this_argument#*=}"
+					echo_info "[OPTION] Custom worker name '$arg_worker_name'"
+				else
+					echo_error "Cannot use an empty string as a worker name, assignment skipped"
+				fi
+				;;
+
+			'--restartminer' | 'restartminer' )
 				arg_restartminer_FLAG=1
 				echo_info '[OPTION] Miner will be restarted'
 			;;
@@ -87,7 +102,7 @@ function parse_arguments {
 
 			*)
 				print_script_usage
-				die "Unknown argument '$this_argument'" 1
+				die "Unknown argument '$this_argument', exiting..." 1
 			;;
 		esac
 	done
@@ -111,11 +126,12 @@ function is_JSON_string_not_empty_or_null {
 
 function is_interface_up {
 	# args
-	local -r if_to_check="$1"
+	local -r if_to_check_DEFAULT='eth0'
+	local -r if_to_check="${1:-$if_to_check_DEFAULT}"
 
 	# code
 	if [[ ! -d "/sys/class/net/${if_to_check}" ]]; then
-		echo_error "No such interface: $if_to_check"
+		echo_error "No such interface '$if_to_check'"
 		return 2
 	else
 		[[ $( < "/sys/class/net/${if_to_check}/operstate" ) == 'up' ]]
@@ -220,7 +236,7 @@ function print_JSON_with_header {
 				skipped_lines_count = entity_lines - ( first_lines_count + last_lines_count )
 			))
 			printf '%b\n' "${lines_array[@]: 0:$first_lines_count}"
-			printf '...skipped %u lines...\n' "$skipped_lines_count"
+			echo -e "${DGRAY}...skipped $skipped_lines_count lines...${NOCOLOR}"
 			printf '%b\n' "${lines_array[@]: -$last_lines_count}"
 		fi
 	else
@@ -228,34 +244,137 @@ function print_JSON_with_header {
 	fi
 }
 
-function get_ip_as_json {
+function get_ip_as_string {
 	# consts
 	local -r ip_RE='inet addr:([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})'
 
 	# vars
-	local ip_address ip_address_as_json
-
-	# flags
-	local -i is_ip_exist_FLAG=0
+	local ip_address
 
 	# code
 	if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
 		ip_address="$( ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
 	else
+		# legacy method
 		#ip_address="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
+		# new method
 		ip_address="$( LANG=C ifconfig eth0 | rematch "$ip_RE" )"
 	fi
 
 	if [[ -n "$ip_address" ]]; then
-		is_ip_exist_FLAG=1
-		ip_address_as_json="[\"${ip_address}\"]"
+		echo "$ip_address"
 	else
-		ip_address_as_json='null'
+		return 1
+	fi
+}
+
+function get_ip_as_json {
+	# vars
+	local ip_address
+
+	# code
+	if ip_address="$( get_ip_as_string )" && [[ -n "$ip_address" ]]; then
+		echo "[\"${ip_address}\"]"
+	else
+		echo 'null'
+		return 1
+	fi
+}
+
+function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be the first command in the function to appropriately catch the exit code
+	#
+	# Usage: grab_exit_code_to_flag 'variable_by_ref'
+	#
+
+	# args
+	local -r -n variable_by_ref="$1"
+
+	# code
+	if (( incoming_exitcode == 0 )); then
+		variable_by_ref=1
+	else
+		# shellcheck disable=SC2034
+		# bc by ref
+		variable_by_ref=0
 	fi
 
-	echo "$ip_address_as_json"
+	return "$incoming_exitcode" # pass on the exit code (let's be completely exitcode-transparent like in pipes)
+}
 
-	(( is_ip_exist_FLAG )) # set exitcode
+function get_hostname_from_url {
+	# args
+	local -r url="$1"
+
+	# vars
+	local -a url_as_array
+	local IFS
+
+	# code
+	IFS='/'
+	url_as_array=( $url )
+	echo "${url_as_array[2]}" # http://a.b.c/
+	#                                ^^     ^
+}
+
+function wait_for_network {
+	#
+	# wait for network interface (until eth0 is up AND ip address not blank AND the server is reachable)
+	#
+
+	# consts
+	local -r default_interface='eth0'
+	local -r -i sleep_counter_accumulator_limit_in_secs=200
+
+	# vars
+	local server_hostname ip_address status_message
+	local -i attempts_counter=1 sleep_counter=0 sleep_time=0
+	local -i sleep_counter_accumulator_local=0 sleep_counter_accumulator_total=0
+
+	# flags
+	local -i is_interface_up_FLAG=0 is_ip_assigned_FLAG=0 is_server_reachable_FLAG=0
+	local -i is_messages_allowed_FLAG
+
+	# code
+	server_hostname="$( get_hostname_from_url "$HIVE_HOST_URL" )"
+
+	while true; do
+		is_interface_up "$default_interface"			;	grab_exit_code_to_flag 'is_interface_up_FLAG'
+		ip_address="$( get_ip_as_string )"				;	grab_exit_code_to_flag 'is_ip_assigned_FLAG'
+		ping -c 1 -w 10 "$server_hostname" &> /dev/null	;	grab_exit_code_to_flag 'is_server_reachable_FLAG' # at least 1 ok packet in 10s
+
+		(( is_interface_up_FLAG ))		&& status_message="$default_interface UP, "		|| status_message="$default_interface DOWN, "
+		(( is_ip_assigned_FLAG ))		&& status_message+="IP $ip_address, "			|| status_message+='IP -.-.-.-, '
+		(( is_server_reachable_FLAG ))	&& status_message+="ping $server_hostname OK"	|| status_message+="ping $server_hostname FAILED"
+
+		(( script_DEBUG )) && { is_server_reachable_FLAG=0; is_interface_up_FLAG=0; }
+
+		if (( ! sleep_counter_accumulator_local || sleep_counter_accumulator_local >= sleep_counter_accumulator_limit_in_secs )); then
+			# ^ the very first time and            ^ once in $sleep_counter_accumulator_limit_in_secs:
+			(( sleep_counter_accumulator_local = 0, sleep_counter = 0 )) # reset counters
+			is_messages_allowed_FLAG=1
+		else
+			is_messages_allowed_FLAG=0
+		fi
+
+		(( is_messages_allowed_FLAG )) && echo_info "Network status: $status_message"
+		(( is_server_reachable_FLAG || ( is_interface_up_FLAG && is_ip_assigned_FLAG ) )) && break
+		(( is_messages_allowed_FLAG )) && echo_error "Attempt #$attempts_counter ($(( sleep_counter_accumulator_total / 60 ))m passed), still waiting for network..."
+
+		((
+			attempts_counter++,
+			sleep_counter++,
+			sleep_time = sleep_counter ** 2,
+			sleep_counter_accumulator_local += sleep_time,
+			sleep_counter_accumulator_total += sleep_time
+		))
+
+		if (( script_DEBUG )); then
+			echo_info "Attempt #$attempts_counter (total time $(( sleep_counter_accumulator_local ))s), will try again in ${sleep_time}s..."
+			sleep 1
+		else
+			sleep $(( sleep_time ))
+		fi
+	done
 }
 
 function get_asic_json {
@@ -606,10 +725,9 @@ declare -i arg_restartminer_FLAG=0		# will need to restart miner after
 
 # vars
 
-declare arg_hostname=''
+declare arg_worker_name=''
 declare mb_manufacturer mb_product
 declare server_request_json server_response_json
-declare -i attempts_counter sleep_counter sleep_time sleep_1hr_accumulator
 
 
 # exports
@@ -631,50 +749,31 @@ print_script_version
 
 mkdir -p /hive-config
 
-if [[ -f "$RIG_CONF" ]]; then
-	source "$RIG_CONF"
-else
-	die "Configuration file $RIG_CONF not found" 1
-fi
-
-[[ -z "${FARM_HASH-}" && -z "${RIG_ID-}" ]] && die "Please use FARM_HASH or RIG_ID in $RIG_CONF" 1
-[[ -n "${RIG_ID-}" && -z "${RIG_PASSWD-}" ]] && die "No RIG_PASSWD in $RIG_CONF" 1
-[[ -z "${HIVE_HOST_URL-}" ]] && die "No HIVE_HOST_URL in $RIG_CONF" 1
+# asserts
+[[ -s "$RIG_CONF" ]]												|| die "Configuration file $RIG_CONF is empty or not found, exiting..." 1
+source "$RIG_CONF"
+[[ -n "${FARM_HASH-}" || -n "${RIG_ID-}" ]]							|| die "FARM_HASH or RIG_ID is not defined in $RIG_CONF, exiting..." 1
+[[ ( -n "${RIG_ID-}" && -n "${RIG_PASSWD-}" ) || -z "${RIG_ID-}" ]]	|| die "RIG_PASSWD is not defined in $RIG_CONF, exiting..." 1
+[[ -n "${HIVE_HOST_URL-}" ]]										|| die "HIVE_HOST_URL is not defined in $RIG_CONF, exiting..." 1
 
 source asic-model
 [[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add if not exist
 
+
 parse_arguments "$@"
 
 
-# wait for network interface (until eth0 is up AND ip address not blank)
-
-until is_interface_up 'eth0' && ip_json="$( get_ip_as_json )"; do
-	(( sleep_1hr_accumulator >= 3600 )) && (( sleep_1hr_accumulator = 0, sleep_counter = 0 )) # reset an exponential sleeping once in an hour
-
-	((
-		attempts_counter++,
-		sleep_counter++,
-		sleep_time = sleep_counter ** 2,
-		sleep_1hr_accumulator += sleep_time
-	))
-
-	# let's cover weird edge cases
-	if ping -c 1 -W 1 "$( IFS='/'; hostname=( $HIVE_HOST_URL ); echo "${hostname[2]}" )" &> /dev/null; then
-		echo_info 'The network is up'
-		break
-	fi
-
-	echo_error "eth0 is down or no IP address assigned, yet. Attempt #$attempts_counter (total time $(( sleep_1hr_accumulator / 60 ))m), will try again in ${sleep_time}s..."
-	sleep $(( sleep_time ))
-done
+wait_for_network
 
 
 # collect system information
 
 mb_manufacturer="$ASIC_MANUFACTURER"
 mb_product="$ASIC_MODEL"
+
+ip_json="$( get_ip_as_json )"
 net_interfaces_json="$( ip -o link | awk '!/LOOPBACK|POINTOPOINT|NOARP/{ printf "{\"iface\": \"%s\", \"mac\": \"%s\"}\n", substr($2, 1, length($2)-1), $(NF-2) }' | jq --slurp --compact-output '.' )"
+
 cpu_model="$( grep -m1 '^model name' /proc/cpuinfo | sed 's/model name[ :\t]*//g' )"
 #cpu_hardware=`cat /proc/cpuinfo | grep -m1 "^Hardware" | sed 's/Hardware[ :\t]*//g'
 #[[ -n "$cpu_hardware" ]] && cpu_model="$cpu_model ($cpu_hardware)"
@@ -694,31 +793,34 @@ boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 
 # shellcheck disable=SC2016
 server_request_json="$(
-	jq \
-		--null-input --compact-output \
-		--arg uid "$uid" \
-		--arg rig_id "${RIG_ID-}" \
-		--arg passwd "${RIG_PASSWD-}" \
-		--arg boot_time "$boot_POSIX_time" \
-		--argjson boot_event "$arg_boot_FLAG" \
-		--argjson ip "$ip_json" \
-		--argjson net_interfaces "$net_interfaces_json" \
-		--arg model "$cpu_model" --arg cores "$cpu_cores" --arg aes "$aes" \
-		--arg manufacturer "$mb_manufacturer" --arg product "$mb_product" \
-		--argjson asic "$asic_json" \
-		--arg asic_chain_count "$ASIC_CHAIN_COUNT" \
-		--arg kernel "$kernel" \
-		--arg version "$hive_client_version" \
-		--arg fans_count "$ASIC_FAN_COUNT" \
+	jq --null-input --compact-output									\
+		--arg		rig_id				"${RIG_ID:-}"					\
+		--arg		passwd				"${RIG_PASSWD:-}"				\
+		--arg		uid					"${uid:-}"						\
+		--argjson	boot_time			"${boot_POSIX_time:-null}"		\
+		--argjson	boot_event			"${arg_boot_FLAG:-null}"		\
+		--argjson	ip					"${ip_json:-null}"				\
+		--argjson	net_interfaces		"${net_interfaces_json:-null}"	\
+		--arg		manufacturer		"${mb_manufacturer:-}"			\
+		--arg		product				"${mb_product:-}"				\
+		--arg		model				"${cpu_model:-}"				\
+		--argjson	cores				"${cpu_cores:-null}"			\
+		--argjson	aes					"${aes:-null}"					\
+		--argjson	asic				"${asic_json:-null}"			\
+		--argjson	asic_chain_count	"${ASIC_CHAIN_COUNT:-null}"		\
+		--argjson	fans_count			"${ASIC_FAN_COUNT:-null}"		\
+		--arg		kernel				"${kernel:-}"					\
+		--arg		version				"${hive_client_version:-}"		\
 		'{
 			"method": "hello", "jsonrpc": "2.0", "id": 0,
 			"params": {
-				$rig_id, $passwd,
-				$uid, $boot_time, $boot_event, $ip, $net_interfaces,
+				$rig_id, $passwd, $uid,
+				$boot_time, $boot_event,
+				$ip, $net_interfaces,
 				"mb": {$manufacturer, $product},
 				"cpu": {$model, $cores, $aes},
-				$asic, $asic_chain_count,
-				$kernel, $version, $fans_count
+				$asic, $asic_chain_count, $fans_count,
+				$kernel, $version
 			}
 		}'
 )"
@@ -726,17 +828,17 @@ server_request_json="$(
 
 # try to get a worker name from /config/HIVE_WORKER_NAME
 if [[ -s /config/HIVE_WORKER_NAME ]]; then
-	arg_hostname="$( < /config/HIVE_WORKER_NAME )"
-	echo_info "File /config/HIVE_WORKER_NAME found, using its content as a new worker name: $arg_hostname"
+	arg_worker_name="$( < /config/HIVE_WORKER_NAME )"
+	echo_info "File /config/HIVE_WORKER_NAME found, using its content as a new worker name: $arg_worker_name"
 	rm /config/HIVE_WORKER_NAME
 fi
 
 
-# add hostname as a worker name to server_request_json
-if [[ -n "$arg_hostname" ]]; then
-	echo_info "Using '$arg_hostname' as WORKER_NAME"
+# add a user-defined worker name (either from file or from script arguments) to server_request_json
+if [[ -n "$arg_worker_name" ]]; then
+	echo_info "Using '$arg_worker_name' as WORKER_NAME"
 	# shellcheck disable=SC2016
-	server_request_json="$( jq --arg worker_name "$arg_hostname" --compact-output '. * {"params": {$worker_name}}' <<< "$server_request_json" )"
+	server_request_json="$( jq --arg worker_name "$arg_worker_name" --compact-output '. * {"params": {$worker_name}}' <<< "$server_request_json" )"
 fi
 
 
@@ -759,12 +861,12 @@ send_hello_packet "$HIVE_HOST_URL" 'server_request_json' 'server_response_json' 
 
 
 # and then check json received
-if server_error="$( jq --raw-output '.error' <<< "$server_response_json" )"; then
+if server_error="$( jq --raw-output '.error' <<< "$server_response_json" 2> /dev/null )"; then
 	if is_JSON_string_not_empty_or_null "$server_error"; then
 		die "Server responded with error '$( jq --raw-output '.error.message' <<< "$server_response_json" )'" 1
 	fi
 else
-	die 'Error while parsing server response as a JSON'
+	die 'Error while parsing server response as a JSON, exiting...' 1
 fi
 
 
@@ -779,7 +881,7 @@ fi
 # Save config and check it ================================================================
 received_config="$( jq --raw-output '.result.config' <<< "$server_response_json" )"
 if is_JSON_string_empty_or_null "$received_config"; then
-	die 'No "config" field in server response' 1
+	die 'No "config" field in server response, exiting...' 1
 fi
 # shellcheck disable=SC2015
 echo "$received_config" > "$RIG_CONF" && echo_ok 'Received config saved' || echo_error 'Received config NOT saved'
