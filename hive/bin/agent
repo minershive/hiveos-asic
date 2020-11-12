@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.4'
+readonly script_version='0.7.5'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -517,8 +517,8 @@ function fetch_miner_stats {
 	stats=''			# global
 
 	algo="$ASIC_ALGO"
-	hs_units="$ASIC_HASH_UNITS"
-	hs_total_units="$ASIC_HASH_TOTAL_UNITS"
+	hs_units="$ASIC_HASHRATE_UNITS"
+	hs_total_units="$ASIC_TOTAL_HASHRATE_UNITS"
 	# shellcheck disable=SC2153
 	# ...bc ASIC_MAX_FAN_RPM var is from asic-model
 	max_fan_rpm="$ASIC_MAX_FAN_RPM"

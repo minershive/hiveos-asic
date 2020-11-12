@@ -65,7 +65,7 @@ miner_stat(){
 	local API_ports=(4049 4050 4052)
 	local API_offset=(0 1 3)
 	local algo="$ASIC_ALGO"
-	local hs_units="$ASIC_HASH_UNITS"
+	local hs_units="$ASIC_HASHRATE_UNITS"
 	local uptime=0
 	local total_hs=0
 
