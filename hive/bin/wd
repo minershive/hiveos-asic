@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.3.0'
+readonly script_version='0.3.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -66,12 +66,8 @@ function load_configuration {
 
 function set_lastgood {
 	if [[ -f "$khs_FILE" ]]; then
-		#lastgood_khs=`stat -c %Y "$khs_FILE"`
-		#lastgood_khs="$( date -r "$khs_FILE" +%s )"
 		lastgood_khs="$( get_file_last_modified_time_in_seconds "$khs_FILE" )"
 	else
-		#lastgood_khs=0 can't set it to 0, in case of boot agent may be late
-		#lastgood_khs="$( date +%s )"
 		lastgood_khs="$( get_current_system_time_in_seconds )" # let's count from now on
 	fi
 
