@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.49.0'
+declare -r hive_functions_lib_version='0.49.1'
 #                                        ^^ current number of public functions
 
 
@@ -563,6 +563,9 @@ function get_file_last_modified_time_in_seconds {
 
 	if [[ -f "$file_name" ]]; then
 		date -r "$file_name" '+%s'
+		# or:
+		# stat -c '%Y' "$file_name"
+		# their timing is the same in case 'date' and 'stat' are busybox' commands
 	else
 		errcho "'$file_name' not found"
 		return $(( exitcode_ERROR_NOT_FOUND ))
