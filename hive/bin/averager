@@ -11,12 +11,12 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.21'
+readonly script_version='0.1.22'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
-source hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
 # !!! bash strict mode, no unbound variables
@@ -107,23 +107,6 @@ function generate_avg_khs_json {
 
 
 # screen infrastructure
-
-function is_screen_session_exist {
-	#
-	# Usage: is_screen_session_exist ['session name'] -> $?
-	#
-
-	# args
-	(( $# <= 1 )) || { errcho 'only 0 or 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r session_name="${1:-$script_basename}"
-
-	# code
-	if (( script_DEBUG )); then
-		screen -S "$session_name" -X select .
-	else
-		screen -S "$session_name" -X select . > /dev/null # silent
-	fi
-}
 
 function screen_session_attach {
 	#

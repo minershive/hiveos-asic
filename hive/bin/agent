@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.5'
+readonly script_version='0.7.6'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -169,21 +169,6 @@ function jq_batch_process {
 	else
 		errcho "$JSON_input_by_ref variable is empty"
 	fi
-}
-
-function is_screen_session_running {
-	#
-	# Usage: is_screen_session_running 'screen_session_name'
-	#
-
-	# args
-	local -r screen_session_name="${1-}"
-
-	# code
-	# shellcheck disable=SC2154
-	# bc exitcode_ERROR_SOMETHING_WEIRD declared in library
-	[[ -z "$screen_session_name" ]] && return $(( exitcode_ERROR_SOMETHING_WEIRD )) ### TODO rework
-	screen -S "$screen_session_name" -X . > /dev/null
 }
 
 function screen_session_terminate {
@@ -1462,7 +1447,7 @@ function do_command {
 		;;
 
 		'asic_oc')
-			if is_screen_session_running "$command"; then
+			if is_screen_session_exist "$command"; then
 				screen_session_terminate "$command"
 				log_line warning "Command '$command' already running. Terminated."
 				snore 1
@@ -1490,7 +1475,7 @@ function do_command {
 		;;
 
 		'firmware-upgrade')
-			if is_screen_session_running "$command"; then
+			if is_screen_session_exist "$command"; then
 				log_line warning "Command '$command' already running. Execution skipped."
 				message warning "Firmware upgrade skipped. Click for details" --payload --id="$cmd_id" --silent <<< "Previous firmware upgrade process is still running. Please wait for it to finish and then send the command again."
 				return
