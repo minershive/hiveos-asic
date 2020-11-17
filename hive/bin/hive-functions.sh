@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.49.1'
+declare -r hive_functions_lib_version='0.50.0'
 #                                        ^^ current number of public functions
 
 
@@ -78,7 +78,7 @@ function log_line {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __event_type="${1:-info}"
 	local -r __log_entry="${2:-empty}"
 
@@ -136,7 +136,7 @@ function is_script_exist_and_doing_fine {
 
 	# args
 
-	(( $# != 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# != 1 )) && { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __script_name="${1-}"
 
 	# code
@@ -159,7 +159,7 @@ function iif {
 
 	# args
 
-	(( $# >= 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# >= 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -i __condition="${1-}"
 	local -r -a __cmd=( "${@:2}" )
 
@@ -181,7 +181,7 @@ function iif_pipe {
 
 	# args
 
-	(( $# >= 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# >= 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -i __condition="${1-}"
 	local -r -a __cmd=( "${@:2}" )
 
@@ -201,7 +201,7 @@ function is_program_in_the_PATH {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __program_name="$1"
 
 	# code
@@ -216,7 +216,7 @@ function is_program_running {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r program_name="${1-}"
 
 	# code
@@ -237,7 +237,7 @@ function is_program_not_running {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r program_name="${1-}"
 
 	# code
@@ -256,7 +256,7 @@ function is_function_exist {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __function_name="$1"
 
 	# code
@@ -271,7 +271,7 @@ function is_first_floating_number_bigger_than_second {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r first_number="${1-}"
 	local -r second_number="${2-}"
 
@@ -295,7 +295,7 @@ function is_first_version_equal_to_second {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local first_version="${1-}"
 	local second_version="${2-}"
 
@@ -337,7 +337,7 @@ function is_integer {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r string_to_check="${1-}"
 
 	# consts
@@ -357,7 +357,7 @@ function is_JSON_string_empty_or_null {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r JSON_string_to_check="$1"
 
 	# code
@@ -372,7 +372,7 @@ function is_JSON_string_not_empty_or_null {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r JSON_string_to_check="$1"
 
 	# code
@@ -387,7 +387,7 @@ function is_file_exist_but_empty {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_name_to_check="$1"
 
 	# code
@@ -402,7 +402,7 @@ function is_file_exist_and_contain {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_name_to_check="$1"
 	local -r ERE_string_to_contain="$2"
 
@@ -426,7 +426,7 @@ function calculate_percent_from_number {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -i percent="${1-}"
 	local -r -i number="${2-}"
 
@@ -442,7 +442,7 @@ function set_bits_by_mask {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n variable_by_ref="${1-}"
 	local -r -n bitmask_by_ref="${2-}"
 
@@ -458,7 +458,7 @@ function scientific_to_decimal {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r exponential_number="${1:-0}"
 
 	# code
@@ -473,7 +473,7 @@ function big_decimal_to_human {
 
 	# args
 
-	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	big_decimal_number=${1:-0}
 	name_of_unit=${2:-}
 
@@ -520,7 +520,7 @@ function khs_to_human_friendly_hashrate {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r hashrate_in_khs="${1:-0}"
 
 	# vars
@@ -556,7 +556,7 @@ function get_file_last_modified_time_in_seconds {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_name="${1-}"
 
 	# code
@@ -581,7 +581,7 @@ function get_file_size_in_bytes {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_name="${1-}"
 
 	# arrays
@@ -614,7 +614,7 @@ function read_variable_from_file {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_with_variables="${1-}"
 	local -r -n variable_to_read="${2-}"
 
@@ -648,7 +648,7 @@ function read_variable_from_file_unsafe {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_with_variables="${1-}"
 	local -r -n variable_to_read="${2-}"
 
@@ -683,7 +683,7 @@ function set_variable_in_file {
 
 	# args
 
-	(( $# == 3 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 3 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r file_with_variables="${1-}"
 	local -r variable_to_change="${2-}"
 	local -r new_value="${3-}"
@@ -741,7 +741,7 @@ function set_variable_to_current_system_time_in_seconds {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n variable_to_set_by_ref="${1-}" # get var by ref
 
 	# code
@@ -761,7 +761,7 @@ function seconds2dhms {
 
 	# args
 
-	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS (just in case)
 	local -r delimiter_DEFAULT=' '
 	local -r delimiter="${2-${delimiter_DEFAULT}}"
@@ -803,7 +803,7 @@ function format_date_in_seconds {
 
 	# args
 
-	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -i -r time_in_seconds="${1-}"
 	local -r date_format_DEFAULT='%F %T'
 	local -r date_format="${2-${date_format_DEFAULT}}"
@@ -886,7 +886,7 @@ function snore {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r __sleep_time="${1-1}" # 1s by default
 
 	# vars
@@ -924,7 +924,7 @@ function is_interface_up {
 
 	# args
 
-	(( $# == 0 || $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 0 || $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r interface_DEFAULT='eth0'
 	local -r interface="${1:-$interface_DEFAULT}"
 
@@ -947,7 +947,7 @@ function get_ip_address {
 
 	# args
 
-	(( $# == 0 || $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 0 || $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r interface_DEFAULT='eth0'
 	local -r interface="${1-$interface_DEFAULT}"
 	
@@ -965,7 +965,7 @@ function get_mac_address {
 
 	# args
 
-	(( $# == 0 || $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 0 || $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r interface_DEFAULT='eth0'
 	local -r interface="${1-$interface_DEFAULT}"
 
@@ -992,7 +992,7 @@ function strip_ansi {
 
 	# args
 
-	(( $# == 0 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 0 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	# vars
 
@@ -1013,7 +1013,7 @@ function get_substring_position_in_string {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r substring="${1-}"
 	local -r string="${2-}"
 
@@ -1041,7 +1041,7 @@ function rematch {
 
 	# args
 
-	(( $# == 1 || $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 
 	local -r regex="${1-}"
 	local -r string="${2:-$( < /dev/stdin )}" # get from arg or stdin
@@ -1061,7 +1061,7 @@ function get_all_matches {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local string_to_match="$1"
 	local -r RE="$2"
 
@@ -1091,7 +1091,7 @@ function get_all_matches_unique {
 
 	# args
 
-	(( $# == 2 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local string_to_match="$1"
 	local -r RE="$2"
 
@@ -1144,7 +1144,7 @@ function expand_hive_templates_in_variable_by_ref {
 	
 	# args and asserts
 
-	(( $# == 1 || $# == 2 ))	|| { errcho 'invalid number of arguments';					return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 || $# == 2 ))	|| { errcho "invalid number of arguments: $#";				return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	[[ -n "$1" ]]				|| { errcho 'empty argument, must be a variable name';		return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	[[ -v "$1" ]]				|| { errcho "variable '$1' is not set";						return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r -n string_to_expand_by_ref="$1"
@@ -1288,7 +1288,7 @@ function pgrep_count {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
 
 	# vars
@@ -1313,7 +1313,7 @@ function pgrep_quiet {
 
 	# args
 
-	(( $# == 1 )) || { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
 
 	# vars
@@ -1327,6 +1327,33 @@ function pgrep_quiet {
 #	self="(${$}|${BASHPID})[[:space:]].+$0" # TODO figure out what's best
 
 	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evq -e "$marker" -e "$self" --
+}
+
+
+
+#
+# functions: SCREEN
+#
+
+function is_screen_session_exist {
+	#
+	# Usage: is_screen_session_exist ['screen_session name'] -> $?
+	#
+	# default screen session name is a current script basename
+	#
+
+	# args
+
+	(( $# <= 1 )) || { errcho "invalid number of arguments: $#. only 0 or 1 argument allowed"; return $(( exitcode_ERROR_IN_ARGUMENTS )); } # assert
+	local -r screen_session_name="${1:-$script_basename}"
+
+	# code
+
+	if (( script_DEBUG )); then
+		screen -S "$screen_session_name" -X select .
+	else
+		screen -S "$screen_session_name" -X select . > /dev/null # silent
+	fi
 }
 
 
