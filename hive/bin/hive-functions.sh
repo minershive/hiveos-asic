@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.50.0'
+declare -r hive_functions_lib_version='0.51.0'
 #                                        ^^ current number of public functions
 
 
@@ -104,7 +104,7 @@ function log_line {
 	# code
 
 	__basename_color="${__event_color_dictionary[$__event_type]}"
-	[[ -z "$__basename_color"  ]] && __basename_color="${NOCOLOR}" # any unsupported event
+	[[ -z "$__basename_color" ]] && __basename_color="${NOCOLOR}" # any unsupported event
 	# shellcheck disable=SC2154
 	printf '%b%(%F %T)T %b%-*.*s%b %b%b\n' "${DGRAY}" -1 "$__basename_color" "$__basename_max_length" "$__basename_max_length" "$script_basename" "${NOCOLOR}" "$__log_entry" "${NOCOLOR}"
 }
@@ -413,7 +413,7 @@ function is_file_exist_and_contain {
 
 
 
-# 
+#
 # functions: MATH
 #
 
@@ -950,7 +950,7 @@ function get_ip_address {
 	(( $# == 0 || $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r interface_DEFAULT='eth0'
 	local -r interface="${1-$interface_DEFAULT}"
-	
+
 	# code
 
 	LANG=C ifconfig "$interface" | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }'
@@ -1140,8 +1140,9 @@ function expand_hive_templates_in_variable_by_ref {
 	#	RIG_CONF:		%URL% %WORKER_NAME% %WORKER_NAME_RAW%
 	#	WALLET_CONF:	%EMAIL% %EWAL% %DWAL% %ZWAL%
 	#
-	# BONUS: you could add a special suffix _SAFE to any template to sanitize it
-	
+	# bonus: you could add a special suffix _SAFE or _SAFEST to any template to sanitize it
+	#
+
 	# args and asserts
 
 	(( $# == 1 || $# == 2 ))	|| { errcho "invalid number of arguments: $#";				return $(( exitcode_ERROR_IN_ARGUMENTS )); }
@@ -1153,8 +1154,16 @@ function expand_hive_templates_in_variable_by_ref {
 
 	# consts
 
-	local -r tag_template_RE='%[[:alpha:]][[:alnum:]_]+%'
-	local -r sanitize_keyword_RE='_[Ss][Aa][Ff][Ee]%'
+	local -r valid_tag_template_RE='%[[:alpha:]][[:alnum:]_]+%'
+
+	local -r soft_sanitize_keyword_RE='_[Ss][Aa][Ff][Ee]%' # _SAFE
+	local -r soft_sanitize_blacklisted_chars_RE='[^[:alnum:]_]'
+	local -r soft_sanitize_replacement_char='_'
+
+	local -r hard_sanitize_keyword_RE='_[Ss][Aa][Ff][Ee][Ss][Tt]%' # _SAFEST
+	local -r hard_sanitize_blacklisted_chars_RE='[^[:alnum:]]'
+	local -r hard_sanitize_replacement_char='x'
+
 	local -r safe_char='x'
 	local -r blacklisted_chars_RE='[^[:alnum:]_]'
 
@@ -1165,27 +1174,33 @@ function expand_hive_templates_in_variable_by_ref {
 	local -r __WALLET_CONF_default='/hive-config/wallet.conf'
 	local -r __WALLET_CONF="${WALLET_CONF:-$__WALLET_CONF_default}" # for ASIC emulator: set to default only if WALLET_CONF variable is empty
 
+	# enums
+
+	local -r -i sanitize_NONE=0
+	local -r -i sanitize_SOFT=1
+	local -r -i sanitize_HARD=2
+	local -i sanitization_type
+
 	# vars
 
-	local this_template_raw this_template_keyword this_template_keyword_in_uppercase this_template_substitution
-
-	# flags
-
-	local -i is_sanitization_required_FLAG=0
+	local this_template_raw this_template_raw_sanitize_suffix_stripped this_template_keyword this_template_keyword_in_uppercase this_template_substitution
 
 	# code
 
-	for this_template_raw in $( get_all_matches_unique "$string_to_expand_by_ref" "$tag_template_RE" ); do
+	for this_template_raw in $( get_all_matches_unique "$string_to_expand_by_ref" "$valid_tag_template_RE" ); do
 
-		if [[ "$this_template_raw" =~ $sanitize_keyword_RE ]]; then
-			this_template_keyword="${this_template_raw/$sanitize_keyword_RE/%}" # strip _SAFE suffix
-			is_sanitization_required_FLAG=1
+		if [[ "$this_template_raw" =~ $soft_sanitize_keyword_RE ]]; then
+			(( sanitization_type = sanitize_SOFT ))
+			this_template_raw_sanitize_suffix_stripped="${this_template_raw/$soft_sanitize_keyword_RE/%}" # strip '_SAFE' suffix
+		elif [[ "$this_template_raw" =~ $hard_sanitize_keyword_RE ]]; then
+			(( sanitization_type = sanitize_HARD ))
+			this_template_raw_sanitize_suffix_stripped="${this_template_raw/$hard_sanitize_keyword_RE/%}" # strip '_SAFEST' suffix
 		else
-			this_template_keyword="$this_template_raw"
-			is_sanitization_required_FLAG=0
+			(( sanitization_type = sanitize_NONE ))
+			this_template_raw_sanitize_suffix_stripped="$this_template_raw"
 		fi
 
-		this_template_keyword="${this_template_keyword//%}" # strip '%' chars
+		this_template_keyword="${this_template_raw_sanitize_suffix_stripped//%}" # strip '%' chars
 		this_template_keyword_in_uppercase="${this_template_keyword^^}" # toupper()
 		this_template_substitution=''
 
@@ -1260,11 +1275,18 @@ function expand_hive_templates_in_variable_by_ref {
 		esac
 
 		if [[ -n "$this_template_substitution" ]]; then
-			if (( is_sanitization_required_FLAG )); then
-				# sanitize in case of _SAFE suffix
-				this_template_substitution="${this_template_substitution//$blacklisted_chars_RE/$safe_char}" # replace blacklisted chars with a safe char
-			fi
+			# sanitization
+			case "$sanitization_type" in
+				"$sanitize_SOFT" ) # soft sanitize in case of _SAFE suffix -- replace blacklisted chars with a safe char
+					this_template_substitution="${this_template_substitution//$soft_sanitize_blacklisted_chars_RE/$soft_sanitize_replacement_char}"
+					;;
+				"$sanitize_HARD" ) # hard sanitize in case of _SAFEST suffix
+					this_template_substitution="${this_template_substitution//$hard_sanitize_blacklisted_chars_RE/$hard_sanitize_replacement_char}"
+					;;
+			esac
+			# a template expanding itself
 			string_to_expand_by_ref="${string_to_expand_by_ref//$this_template_raw/$this_template_substitution}"
+			# logging
 			(( is_verbose_FLAG )) && debugcho "Template $this_template_raw expanded to $this_template_substitution"
 		else
 			errcho "Unknown template $this_template_keyword_in_uppercase"
@@ -1342,9 +1364,9 @@ function is_screen_session_exist {
 	# default screen session name is a current script basename
 	#
 
-	# args
+	# args and asserts
 
-	(( $# <= 1 )) || { errcho "invalid number of arguments: $#. only 0 or 1 argument allowed"; return $(( exitcode_ERROR_IN_ARGUMENTS )); } # assert
+	(( $# <= 1 )) || { errcho "invalid number of arguments: $#. only 0 or 1 argument allowed"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r screen_session_name="${1:-$script_basename}"
 
 	# code
@@ -1354,6 +1376,44 @@ function is_screen_session_exist {
 	else
 		screen -S "$screen_session_name" -X select . > /dev/null # silent
 	fi
+}
+
+
+
+#
+# functions: OTHER
+#
+
+function set_variable_to_terminal_width {
+	#
+	# Usage: set_variable_to_terminal_width
+	#
+
+	# args and asserts
+
+	(( $# == 1 ))	|| { errcho "invalid number of arguments: $#";				return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	[[ -n "$1" ]]	|| { errcho 'empty argument, must be a variable name';		return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n variable_to_set="$1"
+
+	# consts
+
+	local -r -i terminal_width_DEFAULT='109' # the width of Hive OS 'remote command result' window
+
+	# vars
+
+	local COLUMNS
+
+	# code
+
+	if [[ -t 1 ]]; then # get $COLUMNS forcefully
+		shopt -s checkwinsize
+		cat /dev/null # poke the bash to get $COLUMNS and $LINES
+		shopt -u checkwinsize
+	#else
+		# use default terminal width
+	fi
+
+	variable_to_set="${COLUMNS:-$terminal_width_DEFAULT}"
 }
 
 
@@ -1370,36 +1430,72 @@ function __list_functions {
 	# consts
 
 	local -r private_function_attribute_RE='^_'
+	local -r -i columns_spacing=2
 
 	# vars
 
-	local function_name=''
-	local -a all_functions=()
-	local -a private_functions=()
-	local -a public_functions=()
+	local this_function_name
+	local -a all_functions_ARR=() private_functions_ARR=() public_functions_ARR=()
+	local -i public_functions_count
+	local -i terminal_width max_name_length
+	local -i columns_count max_columns this_column
+	local -i rows_count this_row
 
 	# code
 
-	all_functions=( $( compgen -A function ) )
+	all_functions_ARR=( $( compgen -A function ) )
 
-	for function_name in "${all_functions[@]}"; do
-		if [[ "${function_name}" =~ $private_function_attribute_RE ]]; then
-			private_functions+=("$function_name")
+	for this_function_name in "${all_functions_ARR[@]}"; do
+		# fill private/public arrays separately
+		if [[ "${this_function_name}" =~ $private_function_attribute_RE ]]; then
+			private_functions_ARR+=( "$this_function_name" )
 		else
-			public_functions+=("$function_name")
+			public_functions_ARR+=( "$this_function_name" )
 		fi
+		# shellcheck disable=SC1073,SC1072
+		((
+			${#this_function_name} > max_name_length ? max_name_length=${#this_function_name} : nil
+		))                                         # nice ternary trick -- the fake "else" part ^^^
 	done
 
-	if (( ${#private_functions[@]} != 0 )); then
-		echo "${#private_functions[@]} private function(s):"
+	if (( ${#private_functions_ARR[@]} != 0 )); then
+		echo "${#private_functions_ARR[@]} private function(s):"
 		echo
-		printf '%s\n' "${private_functions[@]}"
+		printf '%s\n' "${private_functions_ARR[@]}"
 		echo
 	fi
 
-	echo "${#public_functions[@]} public function(s):"
+	#
+	# TODO: are we fancy to make the separate function like print_array_in_columns()?
+	# in other words, do we need such kind of function?
+	#
+
+	set_variable_to_terminal_width 'terminal_width'
+
+	((
+		columns_count = ( terminal_width / ( max_name_length + columns_spacing ) ),
+		public_functions_count = ${#public_functions_ARR[@]}
+	))
+
+	# correct columns_count formula
+	(( (max_name_length*(columns_count+1) + columns_spacing*columns_count ) < terminal_width )) && (( columns_count++ ))
+
+	(( rows_count = ( public_functions_count + ( columns_count-1 ) ) / columns_count ))
+	#                       note the ceiling ^^^^^^^^^^^^^^^^^^^^^
+
+	echo "$public_functions_count public function(s):"
 	echo
-	printf '%s\n' "${public_functions[@]}"
+	for (( this_row = 0; this_row < rows_count; this_row++ )); do
+		for (( this_column = 0; this_column < columns_count; this_column++ )); do
+			(( this_element = this_row + ( this_column * rows_count ) )) # from top to bottom, then proceed to a next column
+			printf '%-*.*s' "$max_name_length" "$max_name_length" "${public_functions_ARR[this_element]}"
+			if (( this_column < columns_count-1 )); then
+				# does print a spacing *between* the columns only
+				printf '%-*.*s' "$columns_spacing" "$columns_spacing" ''
+			fi
+		done
+		printf '\n'
+	done
 	echo
 }
 
@@ -1437,6 +1533,7 @@ if ! ( return 0 2>/dev/null ); then # not sourced
 		*)
 			if is_function_exist "$1"; then
 				"$@" # potentially unsafe
+				exit $? # do an explicit passing of the exit code
 			else
 				errcho "function '$1' is not defined"
 			fi
