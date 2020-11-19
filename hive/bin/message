@@ -11,10 +11,11 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.5.2'
+readonly script_version='0.5.3'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
+#
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
@@ -44,13 +45,14 @@ function print_script_usage {
 	echo -e "    ${CYAN}-e${NOCOLOR}, ${CYAN}--escape-templates${NOCOLOR}    do not expand Hive templates (like %IP%) in a message header"
 	echo -e "    ${CYAN}--header=your_header${NOCOLOR}      use a custom message header: 'message file /var/log/log --header=kernel.log'"
 	echo -e "    ${CYAN}-i=msg_id${NOCOLOR}, ${CYAN}--id=msg_id${NOCOLOR}    add msg_id to a message (mostly used in 'agent' script)"
-	echo -e "    ${CYAN}--payload${NOCOLOR}                 add payload to a message (payload is read from stdin)"
+	echo -e "    ${CYAN}--payload${NOCOLOR}                 add a \"payload\" JSON key to a message (payload content is read from stdin)"
 	echo -e "    ${CYAN}-s${NOCOLOR}, ${CYAN}--silent${NOCOLOR}              silent mode, report only errors"
 	echo -e "    ${CYAN}-v${NOCOLOR}, ${CYAN}--verbose${NOCOLOR}             verbose mode, show request & response"
 	echo
 	echo -e '  Supported templates in the text:'
 	echo
-	echo -e "    %BUILD%, %FW%, %HOSTNAME%, %IP%, %IP_SAFE%, %MAC%, %MAC_SAFE%, %PROFILE%, %URL%, %WORKER_NAME_RAW%"
+	echo -e "    %BUILD%, %FW%, %HOSTNAME%, %IP%, %MAC%, %PROFILE%, %URL%, %WORKER_NAME%, %WORKER_NAME_RAW%"
+	echo -e "    Also you can append a suffix _SAFE or _SAFEST to the templae to sanitize an expanded template content, f.e. %MAC_SAFE%"
 	echo
 }
 
@@ -80,12 +82,10 @@ source colors
 
 # main
 
-if [[ -s "$RIG_CONF" ]]; then
-	source "$RIG_CONF"
-else
-	errcho "Config file $RIG_CONF empty or not found"
-	exit 1
-fi
+# asserts
+[[ -s "$RIG_CONF" ]] || { errcho "Config file $RIG_CONF empty or not found"; exit 1; }
+
+source "$RIG_CONF"
 
 # process first two arguments
 message_type="${1-}"
@@ -169,7 +169,7 @@ for this_argument in "${@:3}"; do
 	esac
 done
 
-# process templates
+# try to expand templates in the message header
 [[ -n "$message_header" ]] && (( ! is_templates_escaped_FLAG )) && expand_hive_templates_in_variable_by_ref 'message_header'
 
 # send file
@@ -279,14 +279,16 @@ fi
 HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
 
 # let's try to connect
-declare -r -i curl_initial_connect_timeout=0
+declare -r -i curl_initial_connect_timeout=2
 declare -r -i max_connection_attempts=15
 declare -i attempts_counter curl_connect_timeout curl_max_time
 declare attempts_message=''
 
 for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
-	(( curl_connect_timeout = curl_initial_connect_timeout + attempts_counter ))
-	(( curl_max_time = curl_connect_timeout * 3 ))
+	((
+		curl_connect_timeout = curl_initial_connect_timeout + attempts_counter,
+		curl_max_time = curl_connect_timeout * 3
+	))
 	response="$(
 		curl \
 			--insecure --location --data @- --silent \
