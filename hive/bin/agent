@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.6'
+readonly script_version='0.7.7'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -511,7 +511,7 @@ function fetch_miner_stats {
 	case "$ASIC_MODEL" in
 		'Antminer '						|\
 		'Antminer E3'					|\
-		'Antminer S9'|'Antminer S9i'|'Antminer S9j'|'Antminer S9 Hydro'|'Antminer S9 (vnish'*|'Antminer S9'*|'Minecenter S9'|\
+		'Antminer S9'|'Antminer S9i'|'Antminer S9j'|'Antminer S9 SE'|'Antminer S9 Hydro'|'Antminer S9 (vnish'*|'Antminer S9'*|'Minecenter S9'|\
 		'Antminer S10'*					|\
 		'Antminer S11'					|\
 		'Antminer S15'					|\
@@ -539,41 +539,41 @@ function fetch_miner_stats {
 
 				process_pools || return
 
-				uptime="$(			jq --raw-output		'.[1].Elapsed'																																<<< "$STATS" )"
-				hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )		| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
-				temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )			| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
-				chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))			| to_entries | [ .[].value | split("-") | max | tonumber ]'				<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
-				board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )			| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
+				uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" )"
+				hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+				temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
+				chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [ .[].value | split("-") | max | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
+				board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
 				fan_percent="$(		jq --compact-output --argjson max_fan_rpm "$max_fan_rpm" \
-														'.[1] | with_entries( select(.key | test("fan\\d+")) )				| to_entries | [ .[].value / $max_fan_rpm * 100 + 0.5 | floor ]'		<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
-				fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )				| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
-				freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("freq_avg\\d+")) )			| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
-				freq_new="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("freq\\d+")) )				| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq_new#$?" )
-				chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )		| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
+														'.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [ .[].value / $max_fan_rpm * 100 + 0.5 | floor ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
+				fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
+				freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
+				freq_new="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("freq\\d+")) )			| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq_new#$?" )
+				chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
 
 				if [[ -s /hive-config/use-smart-acs ]]; then
 					# experimental traffic reduction algo
 					case "$( < /hive-config/use-smart-acs )" in
 						'ok')	log_line warning 'smart-acs traffic reduction: OK mode'
 								chain_acs="$(
-									jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [ .[].value | if test("^[ o]+$") then "ok" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+									jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value | if test("^[ o]+$") then "ok" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
 								;;
 						'full')	log_line warning 'smart-acs traffic reduction: FULL mode'
 								chain_acs="$(
-									jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [ .[].value | if test("^[ o]+$") then "" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'		<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+									jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value | if test("^[ o]+$") then "" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'		<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
 								;;
 					esac
 				else
-					chain_acs="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )		| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+					chain_acs="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
 				fi
 
-				chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_voltage\\d+")) )	| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" )
-				hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )			| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
-#				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )		| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
-				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )		| to_entries | from_entries'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
-				asicboost="$(		jq					'.[1] | with_entries( select(.key | test("chain_power$")) )			| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "asicboost#$?" )
+				chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_voltage\\d+")) )| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" )
+				hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
+#				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | from_entries'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+				asicboost="$(		jq					'.[1] | with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "asicboost#$?" )
 				ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
-														'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'				<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
+														'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'										<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
 
 				[[ "$chain_voltage" == '[]'	]] && chain_voltage="$( cache_cmd ant-functions.sh hiveon_voltage <<< "$chain_acn" )"
 				[[ "$power" != '{}'			]] && power="$( cache_cmd ant-functions.sh hiveon_power "$power" "$chain_acn" )"
