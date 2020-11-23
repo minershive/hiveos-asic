@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.2.0'
+readonly script_version='0.3.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -37,9 +37,13 @@ function print_script_usage {
 }
 
 function errcho {
-	printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*"
+	# consts
+	local -r -i func_name_width=31
+
+	# code
+	printf '%(%T)T %-*.*s %s\n' -1 "$func_name_width" "$func_name_width" "${FUNCNAME[1]}" "$*"
 	(( script_DEBUG )) &&
-		printf '%(%T)T %-28.28s %s\n' -1 "${FUNCNAME[1]}" "$*" >> "$debug_log_FILE"
+		printf '%(%T)T %-*.*s %s\n' -1 "$func_name_width" "$func_name_width" "${FUNCNAME[1]}" "$*" >> "$debug_log_FILE"
 } 1>&2 # all output goes to stderr
 
 function smart_round {
@@ -94,7 +98,7 @@ function generate_avg_khs_json {
 	#local avg_khs_1d="${3:-0}"
 
 	# consts
-	local -r algo="${ASIC_ALGO:-N/A}"
+	local -r this_miner_algo="${ASIC_ALGO:-N/A}"
 
 	# vars
 	local rounded_15m rounded_1h
@@ -104,7 +108,7 @@ function generate_avg_khs_json {
 	rounded_1h="$( smart_round "$avg_khs_1h" )"
 	errcho "avg_khs_15m: $avg_khs_15m, avg_khs_1h: $avg_khs_1h"
 	# and here comes a nameless object:
-	printf '{"%s":[%s,%s]}' "$algo" "$rounded_15m" "$rounded_1h" # "$avg_khs_1d"
+	printf '{"%s":[%s,%s]}' "$this_miner_algo" "$rounded_15m" "$rounded_1h" # "$avg_khs_1d"
 }
 
 
@@ -244,11 +248,12 @@ function screen_session_log {
 	return 1
 }
 
+
 # async infrastructure
 
 function create_spinlock {
 	until ln "$khs_ts_1h_FILE" "$khs_ts_1h_lock_FILE" 2>/dev/null; do
-		errcho 'Spinlock already exists. Waiting for it being freed'
+		errcho "Spinlock does prevent ${FUNCNAME[1]}() to operate. Waiting for lock being freed..."
 		snore 0.5
 	done
 }
@@ -373,7 +378,8 @@ function upload_khs_ts_1h_to_server {
 	#
 
 	# consts
-	local -r algo="${ASIC_ALGO:-N/A}"
+	local -r this_miner_algo="${ASIC_ALGO:-N/A}"
+	local -r jsonrpc_method='set_hashrates_data'
 
 	# vars
 	local server_request_JSON server_response
@@ -382,73 +388,195 @@ function upload_khs_ts_1h_to_server {
 
 	# code
 
-	if [[ -s "$khs_ts_1h_FILE" ]]; then
-		khs_ts_1h_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
-		set_variable_to_current_system_time_in_seconds 'the_now'
-		(( seconds_passed_since_last_updated = the_now - khs_ts_1h_FILE_last_updated_time ))
+	if [[ ! -s "$khs_ts_1h_FILE" ]]; then
+		errcho "$khs_ts_1h_FILE is empty or not found. Nothing to upload"
+		return 1
+	fi
 
-		if (( seconds_passed_since_last_updated < seconds_in_1h )); then
-			# green light to upload
-			errcho "Uploading $algo time series saved $( seconds2dhms "$seconds_passed_since_last_updated" ) ago"
+	khs_ts_1h_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
+	set_variable_to_current_system_time_in_seconds 'the_now'
+	(( seconds_passed_since_last_updated = the_now - khs_ts_1h_FILE_last_updated_time ))
 
-			source "$RIG_CONF"
+	if (( seconds_passed_since_last_updated > seconds_in_1h )); then
+		errcho "$khs_ts_1h_FILE is older than 1 hour. It has no sense to upload a stale data"
+		#rm "$khs_ts_1h_FILE"
+		return 1
+	fi
 
-			create_spinlock # critical section, we have to wait
+	# ok to upload
+	source "$RIG_CONF"
+	errcho "Uploading a backup (time series for $this_miner_algo), last modified $( seconds2dhms "$seconds_passed_since_last_updated" ) ago to $HIVE_HOST_URL"
 
-			# shellcheck disable=SC2016
-			server_request_JSON="$( jq --raw-input --slurp --compact-output					\
-				--argjson	rig_id				"${RIG_ID:-null}"							\
-				--arg		passwd				"${RIG_PASSWD:-}"							\
-				--arg		algo				"${algo:-}"									\
-				--argjson	last_updated		"${khs_ts_1h_FILE_last_updated_time:-null}"	\
-																							\
-				'split("\n") |																# split by newlines
-					map( select( . != "" ) ) |												# get only non-empty lines
-						{
-							"method": "set_hashrates_data", "jsonrpc": "2.0", "id": 0,
-							"params": {
-								$rig_id, $passwd,
-								"data": {
-									($algo): {
-										$last_updated,
-										khs_ts_1h: [ .[] | try tonumber catch null ]		# try to convert strings to numbers then wrap them to an array
-									}
+	create_spinlock # critical section, we have to wait
+
+	# shellcheck disable=SC2016
+	server_request_JSON="$(
+		jq																			\
+			--raw-input --slurp --compact-output									\
+			--arg		method			"${jsonrpc_method:-}"						\
+			--argjson	rig_id			"${RIG_ID:-null}"							\
+			--arg		passwd			"${RIG_PASSWD:-}"							\
+			--arg		algo			"${this_miner_algo:-}"						\
+			--argjson	last_updated	"${khs_ts_1h_FILE_last_updated_time:-null}"	\
+																					\
+			'split("\n") |															# split by newlines
+				map( select( . != "" ) ) |											# get only non-empty lines
+					{
+						$method,
+						"jsonrpc": "2.0",
+						"id": 0,
+						"params": {
+							$rig_id,
+							$passwd,
+							"data": {
+								($algo): {
+									$last_updated,
+									khs_ts_1h: [ .[] | try tonumber catch 0 ]		# try to convert strings to numbers then wrap them to an array
 								}
 							}
 						}
-				' < "$khs_ts_1h_FILE"
-			)"
-			jq_exitcode=$?
+					}
+			' < "$khs_ts_1h_FILE"
+	)"
+	jq_exitcode=$?
 
-			remove_spinlock
+	remove_spinlock
 
-			if (( jq_exitcode == 0 )) && [[ -n "$server_request_JSON" ]]; then
-				# packet created ok, let's curl it
-				server_response="$(
-					curl																					\
-						--insecure --location --data @- --connect-timeout 7 --max-time 15 --silent			\
-						--request POST "$HIVE_HOST_URL/worker/api?id_rig=$RIG_ID&method=set_hashrates_data"	\
-						--header 'Content-Type: application/json'											\
-					<<< "$server_request_JSON"
-				)"
-				curl_exitcode=$?
-
-				if (( curl_exitcode )); then
-					errcho "Error connecting to $HIVE_HOST_URL"
-					errcho "$( human-curl-error "$curl_exitcode" )"
-				else
-					errcho "Uploading time series is completed, server response was: $server_response"
-				fi
-			else
-				errcho "Cannot create a JSON packet: '$server_request_JSON'"
-			fi
-		else
-			errcho "$khs_ts_1h_FILE is older than 1 hour. It has no sense to upload a stale data"
-			#rm "$khs_ts_1h_FILE"
-		fi
-	else
-		errcho "$khs_ts_1h_FILE is empty or not found. Nothing to upload"
+	if (( jq_exitcode )) || is_JSON_string_empty_or_null "$server_request_JSON"; then
+		errcho "Cannot create a JSON request packet: '$server_request_JSON'"
+		return 1
 	fi
+
+	# packet created ok, let's curl it
+	server_response="$(
+		curl																					\
+			--insecure --location --data @- --connect-timeout 7 --max-time 15 --silent			\
+			--request POST "$HIVE_HOST_URL/worker/api?id_rig=$RIG_ID&method=$jsonrpc_method"	\
+			--header 'Content-Type: application/json'											\
+		<<< "$server_request_JSON"
+	)"
+	curl_exitcode=$?
+
+	if (( curl_exitcode )); then
+		errcho "Error connecting to $HIVE_HOST_URL"
+		errcho "$( human-curl-error "$curl_exitcode" )"
+		return 1
+	fi
+
+	errcho "Uploading complete, server response: '$server_response'"
+}
+
+function download_khs_ts_1h_from_server {
+	#
+	# Usage: download_khs_ts_1h_from_server
+	#
+
+	# consts
+	local -r this_miner_algo="${ASIC_ALGO:-N/A}"
+	local -r jsonrpc_method='get_hashrates_data'
+
+	# vars
+	local server_request_JSON server_response
+	local result_data this_algo_data this_algo_name this_algo_last_updated_time this_algo_khs_ts_1h timestamp_for_touch
+	local -i the_now seconds_passed_since_last_updated
+	local -i jq_exitcode curl_exitcode
+
+	# code
+	source "$RIG_CONF"
+	errcho "Downloading a backup (time series for $this_miner_algo) from $HIVE_HOST_URL"
+
+	# shellcheck disable=SC2016
+	server_request_JSON="$(
+		jq													\
+			--null-input --compact-output					\
+			--arg		method		"${jsonrpc_method:-}"	\
+			--argjson	rig_id		"${RIG_ID:-null}"		\
+			--arg		passwd		"${RIG_PASSWD:-}"		\
+															\
+			'{
+				$method,
+				"jsonrpc": "2.0",
+				"id": 0,
+				"params": {
+					$rig_id,
+					$passwd,
+				}
+			}'
+	)"
+	jq_exitcode=$?
+
+	if (( jq_exitcode )) || is_JSON_string_empty_or_null "$server_request_JSON"; then
+		errcho "Cannot create a JSON request packet: '$server_request_JSON'"
+		return 1
+	fi
+
+	# packet created ok, let's curl it
+	server_response="$(
+		curl																					\
+			--insecure --location --data @- --connect-timeout 7 --max-time 15 --silent			\
+			--request POST "$HIVE_HOST_URL/worker/api?id_rig=$RIG_ID&method=$jsonrpc_method"	\
+			--header 'Content-Type: application/json'											\
+		<<< "$server_request_JSON"
+	)"
+	curl_exitcode=$?
+
+	if (( curl_exitcode )); then
+		errcho "Error connecting to $HIVE_HOST_URL"
+		errcho "$( human-curl-error "$curl_exitcode" )"
+		return 1
+	fi
+
+	result_data="$(					jq --compact-output		'.result.data'									<<< "$server_response" )"
+
+	if is_JSON_string_empty_or_null "$result_data"; then
+		errcho "Downloading error, server response: '$server_response'"
+		return 1
+	fi
+
+	# result_data -> this_algo_data
+	this_algo_data="$(				jq --compact-output		'. | to_entries | .[0]'							<<< "$result_data" )"
+
+	# this_algo_data -> ...
+	this_algo_name="$(				jq --raw-output			'.key'											<<< "$this_algo_data" )"
+	this_algo_last_updated_time="$(	jq --raw-output			'.value.last_updated | try tonumber catch 0'	<<< "$this_algo_data" )"
+	this_algo_khs_ts_1h="$(			jq --compact-output		'.value.khs_ts_1h | .[] | try tonumber catch 0'	<<< "$this_algo_data" )"
+
+	set_variable_to_current_system_time_in_seconds 'the_now'
+	(( seconds_passed_since_last_updated = the_now - this_algo_last_updated_time ))
+	errcho "Downloading complete. A server-side backup was created $( seconds2dhms "$seconds_passed_since_last_updated" ) ago"
+
+	if [[ "$this_miner_algo" != "$this_algo_name" ]]; then
+		errcho "Backup algo '$this_algo_name' is not equal to this miner's algo '$this_miner_algo'. Backup will not be used"
+		return 1
+	fi
+
+	# check which backup is younger: server's or local one
+	if [[ -s "$khs_ts_1h_FILE" ]]; then
+		khs_ts_1h_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
+	else
+		khs_ts_1h_FILE_last_updated_time=0
+	fi
+
+	if (( khs_ts_1h_FILE_last_updated_time >= this_algo_last_updated_time )); then
+		errcho "Server-side backup is older than a local one by $( seconds2dhms $(( khs_ts_1h_FILE_last_updated_time - this_algo_last_updated_time )) ). It has no sense to use it"
+		return 1
+	fi
+
+	# check a server-side backup age
+	if (( seconds_passed_since_last_updated > seconds_in_1h )); then
+		errcho "Server-side backup is older than 1 hour. It has no sense to use it"
+		return 1
+	fi
+
+	# ok to save
+	printf -v timestamp_for_touch '%(%Y%m%d%H%M.%S)T' "$this_algo_last_updated_time"
+	errcho "Writing a time series file $khs_ts_1h_FILE"
+
+	create_spinlock # critical section, we have to wait
+	echo "$this_algo_khs_ts_1h" > "$khs_ts_1h_FILE"
+	errcho "Setting timestamp '$timestamp_for_touch'"
+	touch -t "$timestamp_for_touch" "$khs_ts_1h_FILE" || errcho 'Something wrong with touch (unsupported -t option?)'
+	remove_spinlock
 }
 
 
@@ -612,22 +740,24 @@ function prepare_khs_ts_1h_file {
 	local -a lines_ARR
 
 	# code
+	download_khs_ts_1h_from_server
+
 	set_variable_to_current_system_time_in_seconds 'the_now'
 	(( the_now_minus_1hr = the_now - seconds_in_1h ))
 
 	if [[ ! -s "$khs_ts_1h_FILE" ]]; then
-		errcho "$khs_ts_1h_FILE not found or empty, checking backup"
+		errcho "$khs_ts_1h_FILE not found or empty, checking a local backup"
 		if [[ -s "$khs_ts_1h_backup_FILE" ]]; then
 			khs_ts_backup_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_backup_FILE" )"
 			(( seconds_passed_since_last_updated = the_now - khs_ts_backup_FILE_last_updated_time ))
 			if (( seconds_passed_since_last_updated <= seconds_in_1h )); then
-				errcho "Backup file $khs_ts_1h_backup_FILE found, restoring it back"
+				errcho "A local backup file $khs_ts_1h_backup_FILE found, restoring it back"
 				cp -p "$khs_ts_1h_backup_FILE" "$khs_ts_1h_FILE" # -p preserves the timestamp
 			else
-				errcho "Backup file $khs_ts_1h_backup_FILE found, but it's too old. Creating a new time series file $khs_ts_1h_FILE"
+				errcho "A local backup file $khs_ts_1h_backup_FILE found, but it's too old. Creating a new time series file $khs_ts_1h_FILE"
 			fi
 		else
-			errcho "Backup file $khs_ts_1h_backup_FILE not found or empty. Creating a new time series file $khs_ts_1h_FILE"
+			errcho "A local backup file $khs_ts_1h_backup_FILE not found or empty. Creating a new time series file $khs_ts_1h_FILE"
 		fi
 	fi
 
@@ -846,7 +976,7 @@ declare -r -i seconds_in_minute=60
 declare -r -i seconds_in_1h=$(( 60 * seconds_in_minute ))
 declare -r -i seconds_in_15m=$(( 15 * seconds_in_minute ))
 
-declare -r -i upload_every_nth_minute=10 # upload frequency. proposed 5 mins is like 35mb per month per ASIC, too much
+declare -r -i upload_every_nth_minute=10 # upload frequency
 declare -r -i upload_every_nth_second=$(( upload_every_nth_minute * seconds_in_minute ))
 
 declare -r -i backup_every_nth_minute=5 # backup frequency (backups disabled atm)
