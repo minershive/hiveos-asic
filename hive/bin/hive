@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.7'
+readonly script_version='0.1.8'
 readonly script_basename="${0##*/}"
 
 
@@ -275,6 +275,10 @@ fi
 # [TEST] add 8.8.8.8 and 1.1.1.1 to resolv.conf
 echo_x action 'Adding fail-over nameservers to resolver'
 if [[ -s /etc/resolv.conf ]]; then
+	if grep -q '^nameserver 0\.0\.0\.0$' /etc/resolv.conf; then
+		echo_x warning 'Broken nameserver 0.0.0.0' 'REMOVED'
+		sed -i '/^nameserver 0\.0\.0\.0$/d' /etc/resolv.conf
+	fi
 	for this_public_nameserver in '8.8.8.8' '1.1.1.1'; do
 		if grep -q "^nameserver $this_public_nameserver\$" /etc/resolv.conf; then
 			echo_x warning "Fail-over nameserver $this_public_nameserver" 'ALREADY SET'
