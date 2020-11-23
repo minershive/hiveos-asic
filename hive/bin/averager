@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.22'
+readonly script_version='0.1.23'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -84,6 +84,7 @@ function generate_avg_khs_json {
 	# Usage: generate_avg_khs_json 'avg_khs_15m' 'avg_khs_1h' ['avg_khs_1d']
 	#
 	# Desired output example: "avg_khs": {"ethash": [159785, 134513], "randomhash2": [88.952, 64.517]}
+	#                         ^^^^^^^^^ that key created, explicitly, by --argjson jq argument in the agent while forming a stats packet
 	#
 
 	# args
@@ -102,7 +103,8 @@ function generate_avg_khs_json {
 	rounded_15m="$( smart_round "$avg_khs_15m" )"
 	rounded_1h="$( smart_round "$avg_khs_1h" )"
 	errcho "avg_khs_15m: $avg_khs_15m, avg_khs_1h: $avg_khs_1h"
-	printf '{"avg_khs":{"%s":[%s,%s]}}' "$algo" "$rounded_15m" "$rounded_1h" # "$avg_khs_1d"
+	# and here comes a nameless object:
+	printf '{"%s":[%s,%s]}' "$algo" "$rounded_15m" "$rounded_1h" # "$avg_khs_1d"
 }
 
 
