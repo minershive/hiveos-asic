@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.1.23'
+readonly script_version='0.2.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -365,6 +365,93 @@ function execute_every_nth_second {
 }
 
 
+# upload/download (cloud-based backup)
+
+function upload_khs_ts_1h_to_server {
+	#
+	# Usage: upload_khs_ts_1h_to_server
+	#
+
+	# consts
+	local -r algo="${ASIC_ALGO:-N/A}"
+
+	# vars
+	local server_request_JSON server_response
+	local -i the_now seconds_passed_since_last_updated khs_ts_1h_FILE_last_updated_time
+	local -i jq_exitcode curl_exitcode
+
+	# code
+
+	if [[ -s "$khs_ts_1h_FILE" ]]; then
+		khs_ts_1h_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
+		set_variable_to_current_system_time_in_seconds 'the_now'
+		(( seconds_passed_since_last_updated = the_now - khs_ts_1h_FILE_last_updated_time ))
+
+		if (( seconds_passed_since_last_updated < seconds_in_1h )); then
+			# green light to upload
+			errcho "Uploading $algo time series saved $( seconds2dhms "$seconds_passed_since_last_updated" ) ago"
+
+			source "$RIG_CONF"
+
+			create_spinlock # critical section, we have to wait
+
+			# shellcheck disable=SC2016
+			server_request_JSON="$( jq --raw-input --slurp --compact-output					\
+				--argjson	rig_id				"${RIG_ID:-null}"							\
+				--arg		passwd				"${RIG_PASSWD:-}"							\
+				--arg		algo				"${algo:-}"									\
+				--argjson	last_updated		"${khs_ts_1h_FILE_last_updated_time:-null}"	\
+																							\
+				'split("\n") |																# split by newlines
+					map( select( . != "" ) ) |												# get only non-empty lines
+						{
+							"method": "set_hashrates_data", "jsonrpc": "2.0", "id": 0,
+							"params": {
+								$rig_id, $passwd,
+								"data": {
+									($algo): {
+										$last_updated,
+										khs_ts_1h: [ .[] | try tonumber catch null ]		# try to convert strings to numbers then wrap them to an array
+									}
+								}
+							}
+						}
+				' < "$khs_ts_1h_FILE"
+			)"
+			jq_exitcode=$?
+
+			remove_spinlock
+
+			if (( jq_exitcode == 0 )) && [[ -n "$server_request_JSON" ]]; then
+				# packet created ok, let's curl it
+				server_response="$(
+					curl																					\
+						--insecure --location --data @- --connect-timeout 7 --max-time 15 --silent			\
+						--request POST "$HIVE_HOST_URL/worker/api?id_rig=$RIG_ID&method=set_hashrates_data"	\
+						--header 'Content-Type: application/json'											\
+					<<< "$server_request_JSON"
+				)"
+				curl_exitcode=$?
+
+				if (( curl_exitcode )); then
+					errcho "Error connecting to $HIVE_HOST_URL"
+					errcho "$( human-curl-error "$curl_exitcode" )"
+				else
+					errcho "Uploading time series is completed, server response was: $server_response"
+				fi
+			else
+				errcho "Cannot create a JSON packet: '$server_request_JSON'"
+			fi
+		else
+			errcho "$khs_ts_1h_FILE is older than 1 hour. It has no sense to upload a stale data"
+			#rm "$khs_ts_1h_FILE"
+		fi
+	else
+		errcho "$khs_ts_1h_FILE is empty or not found. Nothing to upload"
+	fi
+}
+
+
 # files
 
 function get_lines_count_in_file {
@@ -685,6 +772,7 @@ function run_in_interactive_mode {
 
 	start_bg_job execute_every_nth_second "$ts_1h_time_gap_in_s"		'khs_ts_1h_loader'
 	start_bg_job execute_every_nth_second 61							'khs_ts_1h_aggregator'
+	start_bg_job execute_every_nth_second "$upload_every_nth_second"	'upload_khs_ts_1h_to_server'
 #	start_bg_job execute_every_nth_second "$backup_every_nth_second"	'backup_khs_ts_1h'
 
 	SECONDS=0
@@ -709,8 +797,9 @@ function run_in_interactive_mode {
 		fi
 	done
 
-	stop_bg_job 'execute_every_nth_second 10 khs_ts_1h_loader'
+	stop_bg_job "execute_every_nth_second $ts_1h_time_gap_in_s khs_ts_1h_loader"
 	stop_bg_job 'execute_every_nth_second 61 khs_ts_1h_aggregator'
+	stop_bg_job "execute_every_nth_second $upload_every_nth_second upload_khs_ts_1h_to_server"
 #	stop_bg_job 'backup_khs_ts_1h'
 
 	wait || errcho 'Caught another signal while finishing the handlers'
@@ -730,6 +819,10 @@ source asic-model
 
 # global consts
 
+# Client config
+declare -r RIG_CONF_default='/hive-config/rig.conf'
+declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+
 # dirs
 declare -r work_directory='/run/hive'
 declare -r backup_directory='/hive-config'
@@ -748,15 +841,22 @@ declare -r khs_ts_1h_backup_FILE="$backup_directory/$khs_ts_1h_file_name"
 
 # times/frequencies
 declare -r -i ts_1h_time_gap_in_s=10 # get the hashrate every 10th second
-declare -r -i backup_every_nth_minute=5 # backup every 5th minute
-declare -r -i backup_every_nth_second=$(( backup_every_nth_minute * 60 ))
-declare -r -i seconds_in_1h=$(( 60 * 60 ))
-declare -r -i seconds_in_15m=$(( 15 * 60 ))
+
+declare -r -i seconds_in_minute=60
+declare -r -i seconds_in_1h=$(( 60 * seconds_in_minute ))
+declare -r -i seconds_in_15m=$(( 15 * seconds_in_minute ))
+
+declare -r -i upload_every_nth_minute=10 # upload frequency. proposed 5 mins is like 35mb per month per ASIC, too much
+declare -r -i upload_every_nth_second=$(( upload_every_nth_minute * seconds_in_minute ))
+
+declare -r -i backup_every_nth_minute=5 # backup frequency (backups disabled atm)
+declare -r -i backup_every_nth_second=$(( backup_every_nth_minute * seconds_in_minute ))
+
 declare -r -i time_gaps_count_in_15m=$(( seconds_in_15m / ts_1h_time_gap_in_s ))
 declare -r -i time_gaps_count_in_1h=$(( seconds_in_1h / ts_1h_time_gap_in_s ))
 
 # other
-declare -r zero_hashrate_line='0' # could it be '' (just newline) for the sake of the lesser file size?
+declare -r zero_hashrate_line='0' # could it be '' (just newline) for the sake of the lesser file size? NOTE: '' will conflict with upload func
 declare -r debug_log_FILE="/tmp/${script_basename}-debug.log"
 declare -r screen_hardcopy_log_FILE="/tmp/${script_basename}.log"
 declare -r -i screen_hardcopy_log_lines=300
