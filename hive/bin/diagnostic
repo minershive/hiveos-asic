@@ -8,7 +8,7 @@
 
 
 readonly script_mission='Client for ASICs: Diagnostic'
-readonly script_version='0.0.1'
+readonly script_version='0.0.2'
 readonly script_basename="${0##*/}"
 
 
@@ -82,28 +82,21 @@ echo "Hiveos ver: $agent_full_version"
 
 
 # LAN: +ip, +gw, +dns, +route, +mac, +ping gw, +ping dns, +arp
-# ip
-ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
-# route
-route="$( LANG=C route -n | grep -v 'routing table' | print_with_identation )"
-# gw
-gateway="$( rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' <<< $route )"
-# dns
-nameserver="$( grep -v -m1 '^#' /etc/resolv.conf | awk '{ print $2 }' )"
-# mac
-mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
-# arp
-arp_check="$( cat /proc/net/arp | print_with_identation )"
-# ping gw
-ping_gw="$( ping -c 5 -q "$gateway" | grep -v -e '---' -e '^$' | print_with_identation )"
-ping_gw_count="$( ping_conntrack_check "$gateway" )"
-# ping dns
+ip="$(					LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
+route="$(				LANG=C route -n | grep -v 'routing table' | print_with_identation )"
+gateway="$(				rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' <<< $route )"
+nameserver="$(			grep -v -m1 '^#' /etc/resolv.conf | awk '{ print $2 }' )"
+mac="$(					LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
+arp_check="$(			cat /proc/net/arp | print_with_identation )"
+ping_gw="$(				ping -c 5 -q "$gateway" | grep -v -e '---' -e '^$' | print_with_identation )"
+ping_gw_count="$(		ping_conntrack_check "$gateway" )"
+
 if [[ "$gateway" == "$nameserver" ]]; then
 	is_gateway_and_dns_equal_FLAG=1
 else
 	is_gateway_and_dns_equal_FLAG=0
-	ping_dns="$( ping -c 5 -q "$nameserver" | grep -v -e '---' -e '^$' | print_with_identation )"
-	ping_dns_count="$( ping_conntrack_check "$nameserver" )"
+	ping_dns="$(		ping -c 5 -q "$nameserver" | grep -v -e '---' -e '^$' | print_with_identation )"
+	ping_dns_count="$(	ping_conntrack_check "$nameserver" )"
 fi
 
 
@@ -113,19 +106,23 @@ echo "IP: $ip   Gateway: $gateway   Nameserver: $nameserver   MAC: $mac"
 echo
 echo -e "Ping GW:\n$ping_gw"
 echo
-echo -e "Ping GW 10 attempts: $ping_gw_count"
+echo -e "Ping GW 10 attempts (conntrack check): $ping_gw_count"
 echo
 if (( is_gateway_and_dns_equal_FLAG )); then
 	echo -e "Ping DNS skipped: gateway = dns"
 else
 	echo -e "Ping DNS:\n$ping_dns"
 	echo
-	echo -e "Ping DNS 10 attempts:\n$ping_dns_count"
+	echo -e "Ping DNS 10 attempts (conntrack check):\n$ping_dns_count"
 fi
 echo
 echo -e "Routing table:\n$route"
 echo
 echo -e "ARP cache:\n$arp_check"
+echo
+echo '/etc/resolv.conf:'
+cat /etc/resolv/conf | print_with_identation
+echo
 
 # INET: +ping inet DNS, +location and realip
 echo -e "\n---INET---"
