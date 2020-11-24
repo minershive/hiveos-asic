@@ -63,21 +63,21 @@ function ping_conntrack_check {
 }
 
 
+# main
+
 [[ -s /hive/bin/asic-model ]] && source /hive/bin/asic-model
 [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
 
 
+
 # HW: +date, +model, fw, +agent-version
-echo -e "\n---HW---"
-# date
-echo "Date: $( date )"
-# model
-echo "Model: $ASIC_MODEL ($ASIC_MANUFACTURER)"
-# agent-version
+echo '---HW---'
 [[ -s /hive/etc/VERSION ]] && agent_release_version="$( < /hive/etc/VERSION )"
 [[ -s /hive/etc/build ]] && agent_build_version="$( < /hive/etc/build )"
 agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-release}"
-echo "Hiveos ver: $agent_full_version"
+echo "Date: $( date )"
+echo "Model: $ASIC_MODEL ($ASIC_MANUFACTURER)"
+echo "Client version: $agent_full_version"
 
 
 
@@ -87,7 +87,7 @@ route="$(				LANG=C route -n | grep -v 'routing table' | print_with_identation )
 gateway="$(				rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' <<< $route )"
 nameserver="$(			grep -v -m1 '^#' /etc/resolv.conf | awk '{ print $2 }' )"
 mac="$(					LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
-arp_check="$(			cat /proc/net/arp | print_with_identation )"
+arp_check="$(			print_with_identation < /proc/net/arp )"
 ping_gw="$(				ping -c 5 -q "$gateway" | grep -v -e '---' -e '^$' | print_with_identation )"
 ping_gw_count="$(		ping_conntrack_check "$gateway" )"
 
@@ -98,8 +98,6 @@ else
 	ping_dns="$(		ping -c 5 -q "$nameserver" | grep -v -e '---' -e '^$' | print_with_identation )"
 	ping_dns_count="$(	ping_conntrack_check "$nameserver" )"
 fi
-
-
 
 echo -e "\n---LAN---"
 echo "IP: $ip   Gateway: $gateway   Nameserver: $nameserver   MAC: $mac"
@@ -121,8 +119,9 @@ echo
 echo -e "ARP cache:\n$arp_check"
 echo
 echo '/etc/resolv.conf:'
-cat /etc/resolv/conf | print_with_identation
-echo
+print_with_identation < /etc/resolv.conf
+
+
 
 # INET: +ping inet DNS, +location and realip
 echo -e "\n---INET---"
