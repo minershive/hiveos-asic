@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.1'
+readonly script_version='0.4.2'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
@@ -370,13 +370,14 @@ function generate_miner_configuration_to {
 	# args
 	local -r -n function_result_by_ref="$1"
 
+	# consts
+	local -r env_key_value_pair_RE='^.+=.+$'
+
 	# vars
 	local -i pools_count pool_index first_url_count
-	local pool pools config_global
-	local line varkey varval
-#	local this_template_label this_template_placeholder
+	local this_url pool pools config_global
+	local user_config_line user_config_line_sanitized user_config_variable_key user_config_variable_value
 	local final_configuration
-#	local WORKER_NAME_RAW
 
 	# code
 	sanitize_ASICMINER_TEMPLATEs_by_ref 'ASICMINER_TEMPLATE' 'ASICMINER_TEMPLATE2' 'ASICMINER_TEMPLATE3'
@@ -391,16 +392,13 @@ function generate_miner_configuration_to {
 	# use first and second pool on ASICMINER_URL, if not empty ASICMINER_URL2 and empty ASICMINER_URL3
 	pools='[]'
 	first_url_count=3
-	for url in $ASICMINER_URL; do
+	for this_url in $ASICMINER_URL; do
 		pool='{}'
 		# shellcheck disable=SC2016
 		pool="$( jq --null-input \
-			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" --arg url "$url" --arg pass "$ASICMINER_PASS" \
+			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" --arg url "$this_url" --arg pass "$ASICMINER_PASS" \
 			'$pool + {$user,$url,$pass}'
 		)"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE" '$pool + {$user}' )"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}' )"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS" '$pool + {$pass}' )"
 		# shellcheck disable=SC2016
 		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 
@@ -415,12 +413,10 @@ function generate_miner_configuration_to {
 			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" --arg url "$ASICMINER_URL2" --arg pass "$ASICMINER_PASS2" \
 			'$pool + {$user,$url,$pass}'
 		)"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE2" '$pool + {$user}' )"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL2" '$pool + {$url}' )"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS2" '$pool + {$pass}' )"
 		# shellcheck disable=SC2016
 		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 	fi
+
 	if [[ -n "${ASICMINER_TEMPLATE3-}" || -n "${ASICMINER_URL3-}" ]]; then
 		pool='{}'
 		# shellcheck disable=SC2016
@@ -428,9 +424,6 @@ function generate_miner_configuration_to {
 			--argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" --arg url "$ASICMINER_URL3" --arg pass "$ASICMINER_PASS3" \
 			'$pool + {$user,$url,$pass}'
 		)"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg user "$ASICMINER_TEMPLATE3" '$pool + {$user}' )"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg url "$ASICMINER_URL3" '$pool + {$url}' )"
-#		pool="$( jq --null-input --argjson pool "$pool" --arg pass "$ASICMINER_PASS3" '$pool + {$pass}' )"
 		# shellcheck disable=SC2016
 		pools="$( jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]' )"
 	fi
@@ -460,11 +453,11 @@ function generate_miner_configuration_to {
 		}'
 		pools="${pools//$'\t'/}" # remove tabs
 		pool_index=1
-		for url in $ASICMINER_URL; do
+		for this_url in $ASICMINER_URL; do
 			# shellcheck disable=SC2016
 			{
 				pools="$( jq --null-input --argjson pools "$pools" --arg "UserName${pool_index}" "$ASICMINER_TEMPLATE" '$pools + {$UserName'$pool_index'}' )"
-				pools="$( jq --null-input --argjson pools "$pools" --arg "Pool${pool_index}" "$url" '$pools + {$Pool'$pool_index'}' )"
+				pools="$( jq --null-input --argjson pools "$pools" --arg "Pool${pool_index}" "$this_url" '$pools + {$Pool'$pool_index'}' )"
 				pools="$( jq --null-input --argjson pools "$pools" --arg "Password${pool_index}" "$ASICMINER_PASS" '$pools + {$Password'$pool_index'}' )"
 				pools="$( jq --null-input --argjson pools "$pools" --arg PoolNum "$pool_index" '$pools + {$PoolNum}' )"
 			}
@@ -1077,17 +1070,32 @@ function generate_miner_configuration_to {
 
 	# merge user config options into main config
 	if [[ -n "$ASICMINER_USER_CONFIG" ]]; then
-		while read -r line; do
-			[[ -z "$line" ]] && continue # skip empty lines
-			varkey="$( echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq --raw-output 'to_entries[] | .key' )"
-			varval="$( echo "$line" | sed s/,$// | awk '{print "{"$0"}"}' | jq --raw-output 'to_entries[] | .value' )"
-			#config_global="$( jq '."'$varkey'"="'$varval'"' <<< "$config_global" )"
-			config_global="$( jq ".\"$varkey\"=\"$varval\"" <<< "$config_global" )"
+		while read -r user_config_line || [[ -n "$user_config_line" ]]; do
+			[[ -z "$user_config_line" ]] && continue # skip empty lines
+
+			user_config_line_sanitized="${user_config_line%,}" # cut off a trailing comma, if does exist
+
+			# do support both variable presentation formats:
+			# 1) ENV	key=value
+			# 2) JSON	"key":"value"
+			if [[ "$user_config_line_sanitized" =~ $env_key_value_pair_RE ]]; then
+				# bitmain-disable-fan=1
+				# shellcheck disable=SC2016
+				user_config_variable_key="$( jq --raw-input --raw-output 'index("=") as $ix | (.[:$ix])' <<< "$user_config_line_sanitized" )"
+				# shellcheck disable=SC2016
+				user_config_variable_value="$( jq --raw-input --raw-output 'index("=") as $ix | .[$ix+1:]' <<< "$user_config_line_sanitized" )"
+			else
+				# "bitmain-fan-ctrl":"true"
+				user_config_variable_key="$( jq --raw-output 'to_entries[] | .key'	<<< "{$user_config_line_sanitized}" )" # note the {} pair in {$user_config_line_sanitized} to convert text string to json object
+				user_config_variable_value="$( jq --raw-output 'to_entries[] | .value'	<<< "{$user_config_line_sanitized}" )"
+			fi
+
+			config_global="$( jq ".\"$user_config_variable_key\"=\"$user_config_variable_value\"" <<< "$config_global" )"
 		done <<< "$ASICMINER_USER_CONFIG"
 	fi
 
-	config_global="${config_global//\"true\"/true}"
-	config_global="${config_global//\"false\"/false}"
+	config_global="${config_global//\"true\"/true}" # "true" -> true
+	config_global="${config_global//\"false\"/false}" # "false" -> false
 
 	if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
 		# shellcheck disable=SC2016
@@ -1110,17 +1118,6 @@ function generate_miner_configuration_to {
 	[[ -z "${DWAL-}" && -z "${EWAL-}" && -z "${ZWAL-}" ]] && echo_error 'Legacy variables DWAL/EWAL/ZWAL are not set (and this is a bit unconventional)'
 
 	expand_hive_templates_in_variable_by_ref 'final_configuration' '1' # 1=verbose, will be removed later
-
-#	# shellcheck disable=SC2034,SC2153
-#	WORKER_NAME_RAW="$WORKER_NAME" # a special template to get around a forced worker name sanitizing, if needed
-
-#	#replace %template% with its value in a whole file
-#	# !!! legacy, might have to remove it sometimes
-#	for this_template_label in EWAL DWAL ZWAL EMAIL WORKER_NAME WORKER_NAME_RAW; do
-#		local -n this_template_value="$this_template_label"
-#		this_template_placeholder="%${this_template_label}%"
-#		[[ -n "$this_template_value" ]] && final_configuration="${final_configuration//${this_template_placeholder}/${this_template_value}}"
-#	done
 
 	# shellcheck disable=SC2034
 	# bc var have set by reference
