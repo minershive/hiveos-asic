@@ -16,7 +16,7 @@
 
 # Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.3.0'
+readonly script_version='0.3.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -715,6 +715,7 @@ declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
 declare -r FARM_HASH_valid_RE='^[[:xdigit:]]{40}$'
+declare -r -i platform=2 # 1=GPU Rig, 2=ASIC, 3=ASIC Hub
 
 
 # flags
@@ -794,6 +795,7 @@ boot_POSIX_time="$( get_system_boot_time_in_seconds )"
 # shellcheck disable=SC2016
 server_request_json="$(
 	jq --null-input --compact-output									\
+		--argjson	platform			"${platform:-null}"				\
 		--arg		rig_id				"${RIG_ID:-}"					\
 		--arg		passwd				"${RIG_PASSWD:-}"				\
 		--arg		uid					"${uid:-}"						\
@@ -814,6 +816,7 @@ server_request_json="$(
 		'{
 			"method": "hello", "jsonrpc": "2.0", "id": 0,
 			"params": {
+				$platform,
 				$rig_id, $passwd, $uid,
 				$boot_time, $boot_event,
 				$ip, $net_interfaces,
