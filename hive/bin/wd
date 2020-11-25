@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.3.1'
+readonly script_version='0.3.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -95,7 +95,7 @@ function loop {
 	local -r -i seconds_in_24h=$(( 60 * 60 * 24 ))
 
 	# vars
-	local -i khs_decimal minhash_decimal elapsed_safe_limit
+	local -i khs_integer minhash_integer elapsed_safe_limit
 	local khs
 
 	# code
@@ -104,10 +104,10 @@ function loop {
 	[[ -s "$khs_FILE" ]] && khs="$( < "$khs_FILE" )"
 	: "${khs:=0}" # set to 0 if empty or not defined
 
-	khs_decimal="$( scientific_to_decimal "$khs" )"
-	minhash_decimal="$( scientific_to_decimal "$minhash" )"
+	khs_integer="$( scientific_to_integer "$khs" )"
+	minhash_integer="$( scientific_to_integer "$minhash" )"
 
-	if (( khs_decimal >= minhash_decimal )); then
+	if (( khs_integer >= minhash_integer )); then
 		set_lastgood
 		if (( ok_count == 0 )); then
 			log_line ok "$MINER hashrate OK (${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR} ${GREEN}>=${NOCOLOR} ${WHITE}$( khs_to_human_friendly_hashrate "$minhash" )${NOCOLOR})"

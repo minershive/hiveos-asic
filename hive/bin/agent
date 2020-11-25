@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.7.7'
+readonly script_version='0.7.8'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -967,7 +967,7 @@ function process_khs_and_arr {
 	# compute, display and write out 'arr' (Accepted/Rejected Ratio) and 'khs' for watchdog
 
 	# vars
-	local -i khs_decimal
+	local -i khs_integer
 	local arr_rounded_to_2 arr_to_display
 
 	# code
@@ -1000,12 +1000,12 @@ function process_khs_and_arr {
 
 	# khs section
 	if [[ -z "$khs" || "$khs" == '0' || "$khs" == 'null' ]]; then
-		khs_decimal=0
+		khs_integer=0
 	else
-		khs_decimal="$( scientific_to_decimal "$khs" )"
+		khs_integer="$( scientific_to_integer "$khs" )"
 	fi
 
-	if (( khs_decimal > 0 )); then
+	if (( khs_integer > 0 )); then
 		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
 		echo "$khs" > "$khs_FILE" # write actual khs to file (for watchdog)
 	else

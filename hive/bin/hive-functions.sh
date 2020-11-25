@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.51.1'
+declare -r hive_functions_lib_version='0.51.2'
 #                                        ^^ current number of public functions
 
 
@@ -451,9 +451,9 @@ function set_bits_by_mask {
 	(( variable_by_ref |= bitmask_by_ref )) # bitwise OR
 }
 
-function scientific_to_decimal {
+function scientific_to_integer {
 	#
-	# Usage: scientific_to_decimal 'exponential_number'
+	# Usage: scientific_to_integer 'exponential_number'
 	#
 
 	# args
@@ -468,14 +468,14 @@ function scientific_to_decimal {
 
 function humanize {
 	#
-	# Usage: humanize 'big_decimal_number' ['name_of_unit']
+	# Usage: humanize 'big_integer_number' ['name_of_unit']
 	#
 	# '1100000000000' 'h/s' -> '1.1 Th/s'
 
 	# args
 
 	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	big_decimal_number=${1:-0}
+	big_integer_number=${1:-0}
 	name_of_unit=${2:-}
 
 	# vars
@@ -489,13 +489,13 @@ function humanize {
 	# code
 
 	# check for negative
-	if (( big_decimal_number < 0 )); then
-		(( big_decimal_number = -big_decimal_number )) # strip off the sign
+	if (( big_integer_number < 0 )); then
+		(( big_integer_number = -big_integer_number )) # strip off the sign
 		sign='-'
 	fi
 
-	while (( big_decimal_number >= 1000 )); do
-		(( remainder_rounded_to_two_digits = ( big_decimal_number + 5 ) % 1000 / 10 ))
+	while (( big_integer_number >= 1000 )); do
+		(( remainder_rounded_to_two_digits = ( big_integer_number + 5 ) % 1000 / 10 ))
 
 		if (( remainder_rounded_to_two_digits == 0 )); then
 			# discard '.00'
@@ -508,10 +508,10 @@ function humanize {
 			printf -v period_and_two_digits '.%02u' "$remainder_rounded_to_two_digits"
 		fi
 
-		(( big_decimal_number /= 1000, magnitude_index++ ))
+		(( big_integer_number /= 1000, magnitude_index++ ))
 	done
 
-	echo "${sign}${big_decimal_number}${period_and_two_digits} ${magnitude_char[${magnitude_index}]}${name_of_unit}"
+	echo "${sign}${big_integer_number}${period_and_two_digits} ${magnitude_char[${magnitude_index}]}${name_of_unit}"
 }
 
 function khs_to_human_friendly_hashrate {
@@ -526,7 +526,7 @@ function khs_to_human_friendly_hashrate {
 
 	# vars
 
-	local -i khs_decimal hs_decimal
+	local -i khs_integer hs_integer
 
 	# code
 
@@ -534,13 +534,13 @@ function khs_to_human_friendly_hashrate {
 		echo '0 H/s'
 	elif [[ "$hashrate_in_khs" != *[Ee]* ]]; then
 		# a number without exponent
-		hs_decimal="$( scientific_to_decimal "${hashrate_in_khs}e3" )" # multiply by 1000 right there and then
-		humanize "$hs_decimal" 'H/s'
+		hs_integer="$( scientific_to_integer "${hashrate_in_khs}e3" )" # multiply by 1000 right there and then
+		humanize "$hs_integer" 'H/s'
 	else
 		# a number with exponent, process with care
-		khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
-		(( hs_decimal = khs_decimal * 1000 ))
-		humanize "$hs_decimal" 'H/s'
+		khs_integer="$( scientific_to_integer "$hashrate_in_khs" )"
+		(( hs_integer = khs_integer * 1000 ))
+		humanize "$hs_integer" 'H/s'
 	fi
 }
 
