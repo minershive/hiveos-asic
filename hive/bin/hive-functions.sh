@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.51.0'
+declare -r hive_functions_lib_version='0.51.1'
 #                                        ^^ current number of public functions
 
 
@@ -466,10 +466,11 @@ function scientific_to_decimal {
 	printf "%.0f\n" "$exponential_number"
 }
 
-function big_decimal_to_human {
+function humanize {
 	#
-	# Usage: big_decimal_to_human 'big_decimal_number' ['name_of_unit']
+	# Usage: humanize 'big_decimal_number' ['name_of_unit']
 	#
+	# '1100000000000' 'h/s' -> '1.1 Th/s'
 
 	# args
 
@@ -534,12 +535,12 @@ function khs_to_human_friendly_hashrate {
 	elif [[ "$hashrate_in_khs" != *[Ee]* ]]; then
 		# a number without exponent
 		hs_decimal="$( scientific_to_decimal "${hashrate_in_khs}e3" )" # multiply by 1000 right there and then
-		big_decimal_to_human "$hs_decimal" 'H/s'
+		humanize "$hs_decimal" 'H/s'
 	else
 		# a number with exponent, process with care
 		khs_decimal="$( scientific_to_decimal "$hashrate_in_khs" )"
 		(( hs_decimal = khs_decimal * 1000 ))
-		big_decimal_to_human "$hs_decimal" 'H/s'
+		humanize "$hs_decimal" 'H/s'
 	fi
 }
 
