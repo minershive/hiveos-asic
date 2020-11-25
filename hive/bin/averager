@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.3.0'
+readonly script_version='0.3.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -898,6 +898,7 @@ function run_in_interactive_mode {
 
 	# code
 	errcho 'Main cycle started, signal traps set'
+	remove_spinlock # just to be sure is there a spinlock from the previous session
 	prepare_khs_ts_1h_file
 
 	start_bg_job execute_every_nth_second "$ts_1h_time_gap_in_s"		'khs_ts_1h_loader'
