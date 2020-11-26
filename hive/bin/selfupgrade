@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.17.0'
+readonly script_version='0.17.1'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -274,7 +274,7 @@ die () {
 
 	# code
 
-	[ -n "$message" ] && echo "${BRED}${script_basename}:${NOCOLOR} $message"
+	[ -n "$message" ] && echo -e "${BRED}${script_basename}:${NOCOLOR} $message"
 	exit "$exitcode"
 } 1>&2
 
