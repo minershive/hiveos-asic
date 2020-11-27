@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.3.2'
+library_version='1.3.3'
 library_basename="$( basename "$0" )"
 
 
@@ -136,24 +136,24 @@ function set_ASIC_constants {
 	ASIC_MOUNT_PATH=''
 	ASIC_ALGO='unknown'
 	ASIC_MINER_NAME='na'
-	ASIC_LOG_PATH=''
-	ASIC_CONFIG_PATH=''
+	ASIC_LOG_FILE=''
+	ASIC_MINER_CONFIG_FILE=''
 	ASIC_HASHRATE_UNITS=''
-	ASIC_TOTAL_HASHRATE_UNITS='' # in case there's a difference between total hashrate units and chain hashrate units (like new Z11 fw)
+	ASIC_TOTAL_HASHRATE_UNITS=''	# in case there's a difference between total hashrate units and chain hashrate units (like new Z11 fw)
 	ASIC_MAX_FAN_RPM=6000
 	ASIC_GPIO_LED_RED=''
 	ASIC_GPIO_PATH=''
 	ASIC_FAN_COUNT=2
 	ASIC_CHAIN_COUNT=3
-	ASIC_WEAK_FLASH=0 # weak and weary flash chip like on L3/Z11
+	ASIC_WEAK_FLASH=0				# 0 - not too weak (with the grain of salt yeah), 1 - weak and weary flash chip like them Antminers L3/Z11
 
 	# code
 	case "$ASIC_MODEL" in
 		'Antminer ' )
 			ASIC_ALGO='Tensority'
 			ASIC_MINER_NAME='bmminer'
-			ASIC_LOG_PATH='/var/volatile/tmp/temp'
-			ASIC_CONFIG_PATH='/config/bmminer.conf'
+			ASIC_LOG_FILE='/var/volatile/tmp/temp'
+			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_HASHRATE_UNITS='hs'
 		;;
 
@@ -161,8 +161,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='Blake(2b)'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=45
 			ASIC_GPIO_PATH='value'
@@ -172,8 +172,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='X11'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 			ASIC_GPIO_LED_RED=45
 			ASIC_GPIO_PATH='value'
@@ -183,8 +183,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='Blake256R14'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=941
 			ASIC_GPIO_PATH='value'
@@ -193,8 +193,8 @@ function set_ASIC_constants {
 		'Antminer E3' )
 			ASIC_ALGO='Ethash'
 			ASIC_MINER_NAME='bmminer'
-			ASIC_LOG_PATH='/mnt/tmp/bmminer.log'
-			ASIC_CONFIG_PATH='/config/bmminer.conf'
+			ASIC_LOG_FILE='/mnt/tmp/bmminer.log'
+			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 		;;
 
@@ -202,8 +202,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='Scrypt'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 			ASIC_GPIO_LED_RED=45
 			ASIC_GPIO_PATH='value'
@@ -214,8 +214,8 @@ function set_ASIC_constants {
 		'Antminer S7' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=70
 			#ASIC_GPIO_LED_RED=23
@@ -226,8 +226,8 @@ function set_ASIC_constants {
 		'Antminer S9 (vnish'* | 'Antminer S9'* | 'Minecenter S9' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='bmminer'
-			ASIC_LOG_PATH='/var/volatile/tmp/temp'
-			ASIC_CONFIG_PATH='/config/bmminer.conf'
+			ASIC_LOG_FILE='/var/volatile/tmp/temp'
+			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=37
 			#ASIC_GPIO_LED_RED=38
@@ -237,8 +237,8 @@ function set_ASIC_constants {
 		'Antminer S9k'* | 'Antminer S9 SE'* )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/log/log'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/log/log'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=941
 			ASIC_GPIO_PATH='direction'
@@ -247,8 +247,8 @@ function set_ASIC_constants {
 		'Antminer S10'* )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='bmminer'
-			ASIC_LOG_PATH='/var/volatile/tmp/temp'
-			ASIC_CONFIG_PATH='/config/bmminer.conf'
+			ASIC_LOG_FILE='/var/volatile/tmp/temp'
+			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=37
 			#ASIC_GPIO_LED_RED=38
@@ -259,8 +259,8 @@ function set_ASIC_constants {
 		'Antminer S11' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='bmminer'
-			ASIC_LOG_PATH='/var/volatile/tmp/freq'
-			ASIC_CONFIG_PATH='/config/bmminer.conf'
+			ASIC_LOG_FILE='/var/volatile/tmp/freq'
+			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=70
 			#ASIC_GPIO_LED_RED=71
@@ -270,8 +270,8 @@ function set_ASIC_constants {
 		'Antminer S15' | 'Antminer T15' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/log/log'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/log/log'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=941
 			ASIC_GPIO_PATH='direction'
@@ -280,8 +280,8 @@ function set_ASIC_constants {
 		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17'* )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/log/log'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/log/log'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=941
 			ASIC_GPIO_PATH='direction'
@@ -291,8 +291,8 @@ function set_ASIC_constants {
 		'Antminer T9+'* | 'Antminer T9'* )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='bmminer'
-			ASIC_LOG_PATH='/var/volatile/tmp/temp'
-			ASIC_CONFIG_PATH='/config/bmminer.conf'
+			ASIC_LOG_FILE='/var/volatile/tmp/temp'
+			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=70
 			[[ "$HIVEON_VERSION" == '1.03' ]] && ASIC_GPIO_LED_RED=37
@@ -304,8 +304,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='CryptoNight'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='khs'
 			ASIC_GPIO_LED_RED=45
 			ASIC_GPIO_PATH='value'
@@ -315,8 +315,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='Equihash'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='khs'
 			ASIC_MAX_FAN_RPM=8000
 			ASIC_GPIO_LED_RED=941
@@ -328,8 +328,8 @@ function set_ASIC_constants {
 			ASIC_MOUNT_PATH='config'
 			ASIC_ALGO='Equihash'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/var/volatile/log/messages'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/var/volatile/log/messages'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='khs'
 			ASIC_GPIO_LED_RED=941
 			ASIC_GPIO_PATH='value'
@@ -351,37 +351,37 @@ function set_ASIC_constants {
 		'b29+.g19' | 'a9+.g19' )
 			ASIC_ALGO='Equihash'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='hs'
 		;;
 
 		'd9.g19' )
 			ASIC_ALGO='Blake256R14'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 		;;
 
 		's11.g19' )
 			ASIC_ALGO='Blake2B'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 		;;
 
 		't3.soc' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/tmp/log/cgminer.log'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/tmp/log/cgminer.log'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='khs'
 		;;
 
 		't1.g19' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='/tmp/log/volAnalys0.log'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='/tmp/log/volAnalys0.log'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 		;;
 
@@ -391,8 +391,8 @@ function set_ASIC_constants {
 		't3h+.soc' | 't3+.soc' )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_LOG_PATH='journalctl'
-			ASIC_CONFIG_PATH='/config/cgminer.conf'
+			ASIC_LOG_FILE='journalctl'
+			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 			ASIC_HASHRATE_UNITS='mhs'
 			STAT_TOKEN='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBc2ljTWluZXIiLCJpYXQiOiIxNDcwODM5MzQ1IiwiZXhwIjoiMzMxMzQ3NDkyNjEiLCJ1c2VyIjoiYWRtaW4ifQ'
 			# shellcheck disable=SC2034,SC2046
@@ -404,15 +404,15 @@ function set_ASIC_constants {
 		'T4.G19' )
 			ASIC_ALGO='CryptoNight'
 			ASIC_MINER_NAME='innominer'
-			ASIC_LOG_PATH='/tmp/log/innominer.log'
-			ASIC_CONFIG_PATH='/home/www/conf/miner.conf'
+			ASIC_LOG_FILE='/tmp/log/innominer.log'
+			ASIC_MINER_CONFIG_FILE='/home/www/conf/miner.conf'
 			ASIC_HASHRATE_UNITS='khs'
 		;;
 
 		'Zig Z1'* )
 			ASIC_ALGO='lyra2v2'
 			ASIC_MINER_NAME='cgminer'
-			ASIC_CONFIG_PATH='/var/www/html/resources/cgminer.config'
+			ASIC_MINER_CONFIG_FILE='/var/www/html/resources/cgminer.config'
 			ASIC_HASHRATE_UNITS='mhs'
 			ASIC_MAX_FAN_RPM=4000
 			ASIC_CHAIN_COUNT=4
@@ -423,7 +423,7 @@ function set_ASIC_constants {
 			ASIC_MINER_NAME='cpuminer'
 			ASIC_GPIO_LED_RED=168
 			ASIC_GPIO_PATH='value'
-			ASIC_CONFIG_PATH='/flask/sysconf/config/config.json'
+			ASIC_MINER_CONFIG_FILE='/flask/sysconf/config/config.json'
 			ASIC_HASHRATE_UNITS='ghs'
 			ASIC_MAX_FAN_RPM=7000
 			# shellcheck disable=SC2076,SC2034
@@ -441,8 +441,8 @@ function set_ASIC_constants {
 				fi
 				ASIC_ALGO='eaglesong'
 				ASIC_MINER_NAME='cgminer'
-				ASIC_LOG_PATH='/var/volatile/log/messages'
-				ASIC_CONFIG_PATH='/config/cgminer.conf'
+				ASIC_LOG_FILE='/var/volatile/log/messages'
+				ASIC_MINER_CONFIG_FILE='/config/cgminer.conf'
 				ASIC_HASHRATE_UNITS='ghs'
 				ASIC_MAX_FAN_RPM=1500
 				ASIC_GPIO_LED_RED=23
@@ -480,26 +480,21 @@ if ! ( return 0 2>/dev/null ); then
 	#	echo
 	#}
 
-#	echo "ASIC manufacturer: ${WHITE-}${ASIC_MANUFACTURER}${NOCOLOR-}"
-#	echo "ASIC model: ${WHITE-}${ASIC_MODEL}${NOCOLOR-}"
-#	echo
-#	echo 'ASIC configuration:'
-#	echo
-	for variable_name in									\
-		ASIC_MANUFACTURER ASIC_MODEL ASIC_FW_VERSION		\
-		divider												\
-		HIVEON_VERSION_full HIVEON_VERSION					\
-		HIVEON_VERSION_major HIVEON_VERSION_minor			\
-		divider												\
-		ASIC_MINER_NAME ASIC_ALGO							\
-		ASIC_HASHRATE_UNITS ASIC_TOTAL_HASHRATE_UNITS		\
-		ASIC_CHAIN_COUNT ASIC_FAN_COUNT ASIC_MAX_FAN_RPM	\
-		divider												\
-		ASIC_MOUNT_PATH ASIC_LOG_PATH ASIC_CONFIG_PATH		\
-		divider												\
-		ASIC_GPIO_PATH ASIC_GPIO_LED_RED ASIC_WEAK_FLASH	\
-		divider												\
-		LOCALIP STAT_TOKEN TEMP_TOKEN						\
+	for variable_name in										\
+		ASIC_MANUFACTURER ASIC_MODEL ASIC_FW_VERSION			\
+		divider													\
+		HIVEON_VERSION_full HIVEON_VERSION						\
+		HIVEON_VERSION_major HIVEON_VERSION_minor				\
+		divider													\
+		ASIC_MINER_NAME ASIC_ALGO								\
+		ASIC_HASHRATE_UNITS ASIC_TOTAL_HASHRATE_UNITS			\
+		ASIC_CHAIN_COUNT ASIC_FAN_COUNT ASIC_MAX_FAN_RPM		\
+		divider													\
+		ASIC_MOUNT_PATH ASIC_LOG_FILE ASIC_MINER_CONFIG_FILE	\
+		divider													\
+		ASIC_GPIO_PATH ASIC_GPIO_LED_RED ASIC_WEAK_FLASH		\
+		divider													\
+		LOCALIP STAT_TOKEN TEMP_TOKEN							\
 		divider; do
 			if [[ "$variable_name" != 'divider' ]]; then
 				if [[ -v "$variable_name" ]]; then
@@ -516,7 +511,7 @@ if ! ( return 0 2>/dev/null ); then
 					variable_name_color="${DGRAY-}"
 					variable_value_color="${DGRAY-}"
 				fi
-				printf '  %b%-21.21s %b%s%b\n' "$variable_name_color" "$variable_name" "$variable_value_color" "$variable_value" "${NOCOLOR-}"
+				printf '  %b%-25.25s %b%s%b\n' "$variable_name_color" "$variable_name" "$variable_value_color" "$variable_value" "${NOCOLOR-}"
 			else
 				echo
 			fi

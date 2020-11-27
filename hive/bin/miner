@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.3.2'
+readonly script_version='1.3.3'
 readonly script_basename="$( basename "$0" )"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
@@ -63,8 +63,8 @@ function generate_config {
 
 function print_config {
 	# shows miner config
-	if [[ -n "$ASIC_CONFIG_PATH" ]]; then
-		tail_any_log "$ASIC_CONFIG_PATH"
+	if [[ -n "$ASIC_MINER_CONFIG_FILE" ]]; then
+		tail_any_log "$ASIC_MINER_CONFIG_FILE"
 	else
 		echo_x error "No config path defined for model '$ASIC_MODEL'"
 	fi
@@ -72,8 +72,8 @@ function print_config {
 
 function print_config_raw {
 	# shows miner config without a decoration
-	if [[ -n "$ASIC_CONFIG_PATH" ]]; then
-		cat "$ASIC_CONFIG_PATH"
+	if [[ -n "$ASIC_MINER_CONFIG_FILE" ]]; then
+		cat "$ASIC_MINER_CONFIG_FILE"
 	else
 		echo_x error "No config path defined for model '$ASIC_MODEL'"
 	fi
@@ -238,12 +238,12 @@ function print_default_log {
 		elif [[ "$ASIC_MODEL" =~ 'Toddminer C1' ]]; then
 			/hive/bin/todd_api mlog
 		else
-			if [[ ! -f "$ASIC_LOG_PATH" ]]; then
-				echo_x warning "Log $ASIC_LOG_PATH does not exist yet"
-			elif [[ "$( get_file_size_in_bytes "$ASIC_LOG_PATH" )" -le 1 ]]; then #can be 1, empty line
-				echo_x warning "Log $ASIC_LOG_PATH is empty"
+			if [[ ! -f "$ASIC_LOG_FILE" ]]; then
+				echo_x warning "Log $ASIC_LOG_FILE does not exist yet"
+			elif [[ "$( get_file_size_in_bytes "$ASIC_LOG_FILE" )" -le 1 ]]; then #can be 1, empty line
+				echo_x warning "Log $ASIC_LOG_FILE is empty"
 			else
-				tail_any_log "$ASIC_LOG_PATH"
+				tail_any_log "$ASIC_LOG_FILE"
 			fi
 		fi
 	fi

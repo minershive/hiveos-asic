@@ -15,7 +15,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.2'
+readonly script_version='0.4.3'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
@@ -1136,30 +1136,33 @@ source colors
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r WALLET_CONF='/hive-config/wallet.conf'
-declare -r MINER_CONFIG="$ASIC_CONFIG_PATH"
 
 
 # global enums
 
-# compare_configs_ENUM
+declare -i compare_configs_ENUM
 declare -r -i compare_NONE=0
 declare -r -i compare_FULL=1
 declare -r -i compare_POOLS=2
 
-# worker_name_validity_ENUM
+# worker_name_validity_ENUM used as local var in some functions
 declare -r -i worker_name_VALID=0
 declare -r -i worker_name_ALMOST_VALID=1
 declare -r -i worker_name_NOT_VALID=2
 declare -r -i worker_name_EMPTY=3
 
+declare -i script_exitcode_ENUM=0
+#declare -r -i exitcode_OK=0 # already defined in library
+declare -r -i exitcode_NOT_OK=1
+declare -r -i exitcode_COMPARISON_FAILED=2
+
 # global flags
 
-declare -i save_config_FLAG is_verbose_FLAG compare_configs_ENUM
+declare -i save_config_FLAG is_verbose_FLAG
 
 
 # global vars
 
-declare -i script_exitcode=0
 declare generated_miner_configuration key_filter
 
 
@@ -1185,56 +1188,64 @@ else
 	die 'Cannot generate config, exiting' 1
 fi
 
-if (( ! compare_configs_ENUM )); then
-	if (( is_verbose_FLAG )); then
-		key_filter='.' # show a full config
-	else
-		key_filter='.pools' # show a short config -- only pools section
-	fi
-
-	if jq "$key_filter" <<< "$generated_miner_configuration" 2> /dev/null; then
-		if (( save_config_FLAG )); then
-			echo_action "Updating $MINER_CONFIG"
-			jq '.' <<< "$generated_miner_configuration" > "$MINER_CONFIG"
-			chmod 644 "$MINER_CONFIG" # -rw-rw-r--
+case "$compare_configs_ENUM" in
+	"$compare_NONE" )
+		if (( is_verbose_FLAG )); then
+			key_filter='.' # show a full config
 		else
-			echo_warning "Dry run, updating $MINER_CONFIG skipped"
+			key_filter='.pools' # show a short config -- only pools section
 		fi
-	else
-		echo_error "Invalid configuration generated: '$generated_miner_configuration'. Writing to the miner config skipped. Please contact Hive support."
-	fi
-else
-	case "$compare_configs_ENUM" in
-		"$compare_POOLS")
-			key_filter='.pools'
-			echo_action 'Comparing generated config vs actual miner config (pools section only)'
-		;;
-		"$compare_FULL")
-			key_filter='.'
-			echo_action 'Comparing generated config vs actual miner config (full compare)'
-		;;
-	esac
 
-	if [[ -s "$MINER_CONFIG" ]]; then
-		temp_FS_config="/tmp/$( basename "$MINER_CONFIG" ).flightsheet.tmp"
-		temp_actual_config="/tmp/$( basename "$MINER_CONFIG" ).actual.tmp"
-
-		jq "$key_filter" --sort-keys <<< "$generated_miner_configuration" > "$temp_FS_config"
-		jq "$key_filter" --sort-keys < "$MINER_CONFIG" > "$temp_actual_config"
-
-		if diff_result="$( diff "$temp_actual_config" "$temp_FS_config" )"; then
-			echo_ok 'Configs are OK (identical)'
-			script_exitcode=0
+		if jq "$key_filter" <<< "$generated_miner_configuration" 2> /dev/null; then
+			if (( save_config_FLAG )); then
+				echo_action "Updating $ASIC_MINER_CONFIG_FILE"
+				jq '.' <<< "$generated_miner_configuration" > "$ASIC_MINER_CONFIG_FILE"
+				chmod 644 "$ASIC_MINER_CONFIG_FILE" # -rw-rw-r--
+			else
+				echo_warning "Dry run, updating $ASIC_MINER_CONFIG_FILE skipped"
+			fi
 		else
-			echo_warning 'Configs are DIFFERENT'
-			(( is_verbose_FLAG )) && echo "$diff_result"
-			script_exitcode=2
+			echo_error "Invalid configuration generated: '$generated_miner_configuration'. Writing to the miner config skipped. Please contact Hive support."
 		fi
-		rm "$temp_FS_config" "$temp_actual_config"
-	else
-		echo_error "$MINER_CONFIG not found or empty. Generate it first."
-		script_exitcode=1
-	fi
-fi
+	;;
 
-exit $(( script_exitcode ))
+	"$compare_POOLS" )
+		echo_action 'Comparing generated config vs actual miner config (pools section only)'
+		key_filter='del( .pools[] | select( .url == "" ) ) | .pools' # skip empty pools (empty pools is an artefact of Antminer's cgi-bin scripts used for generating the miner config file)
+	;;& # man bash: Using ;;& in place of ;; causes the shell to test the next pattern list in the statement, if any, and execute any associated list on a successful match.
+
+	"$compare_FULL" )
+		echo_action 'Comparing generated config vs actual miner config (full compare)'
+		key_filter='del( .pools[] | select( .url == "" ) )'
+	;;& # man bash: Using ;;& in place of ;; causes the shell to test the next pattern list in the statement, if any, and execute any associated list on a successful match.
+
+	"$compare_POOLS" | "$compare_FULL" )
+		if [[ -s "$ASIC_MINER_CONFIG_FILE" ]]; then
+			temp_FS_config="/tmp/$( basename "$ASIC_MINER_CONFIG_FILE" ).flightsheet.tmp"
+			temp_actual_config="/tmp/$( basename "$ASIC_MINER_CONFIG_FILE" ).actual.tmp"
+
+			jq "$key_filter" --sort-keys <<< "$generated_miner_configuration" > "$temp_FS_config"
+			jq "$key_filter" --sort-keys < "$ASIC_MINER_CONFIG_FILE" > "$temp_actual_config"
+
+			if [[ -f "$temp_FS_config" && -f "$temp_actual_config" ]]; then
+				if diff_result="$( diff "$temp_actual_config" "$temp_FS_config" )"; then
+					echo_ok 'Configs are OK (identical)'
+					(( script_exitcode_ENUM = exitcode_OK ))
+				else
+					echo_warning 'Configs are DIFFERENT'
+					(( is_verbose_FLAG )) && echo "$diff_result"
+					(( script_exitcode_ENUM = exitcode_COMPARISON_FAILED ))
+				fi
+				rm "$temp_FS_config" "$temp_actual_config"
+			else
+				echo_error "Cannot create files for comparison, is /tmp read-only?"
+				(( script_exitcode_ENUM = exitcode_NOT_OK ))
+			fi
+		else
+			echo_error "$ASIC_MINER_CONFIG_FILE not found or empty. Generate it first."
+			(( script_exitcode_ENUM = exitcode_NOT_OK ))
+		fi
+	;;
+esac
+
+exit $(( script_exitcode_ENUM ))
