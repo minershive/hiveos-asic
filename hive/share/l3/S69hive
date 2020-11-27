@@ -29,25 +29,42 @@ check_h () {
 		URL="hiveos.farm"
 	fi
 
-	if [ -s /config/HIVE_HOST_URL ]; then
-		URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
+#	if [ -s /config/HIVE_HOST_URL ]; then
+#		URL=$( cat /config/HIVE_HOST_URL | tr -d ';|"' | sed s%'api.'%download.% )
+#	fi
+
+#	if ! echo "$URL" | grep -q -s -F "download"; then
+#		URL='http://download.hiveos.farm'
+#	fi
+
+	if [ -s /etc/hive-downloads-url ]; then
+		hive_domain_special="$( cat /etc/hive-downloads-url )"
+	elif [ -s /config/HIVE_HOST_URL ]; then
+		hive_domain_special="$( sed 's|//api\.|//download.|' < /config/HIVE_HOST_URL )"
 	fi
 
-	if ! echo "$URL" | grep -q -s -F "download"; then
-		URL='http://download.hiveos.farm'
-	fi
+	hive_domain_default='http://download.hiveos.farm'
+	hive_domain_backup='http://download2.hiveos.farm'
 
-
+	list_domain="${hive_domain_special} ${hive_domain_default} ${hive_domain_backup}"
+	URL=$( echo "$list_domain" | awk '{print $1}' )
 	if [ "$force_download" = 1 ] || [ ! -e /config/latest.tar.gz ] || ! gunzip -tvf /config/latest.tar.gz >/dev/null 2>&1; then
 		snooze_time="$( get_random_number_between 5 30 )"
 		echo "> ${snooze_time}s random pause (for better bulk update)"
 		sleep "$snooze_time"
 		retries_counter=0
+		domain_list_counter=1
 		until echo "> Downloading from $URL" && curl -f -L --insecure $URL/asic/client/latest.tar.gz -o /tmp/latest_new.tar.gz && echo '> Checking integrity' && gunzip -tvf /tmp/latest_new.tar.gz >/dev/null 2>&1; do
 			retries_counter=$(( retries_counter + 1 ))
 			snooze_time="$( get_random_number_between 15 60 )"
 			echo "Error. Try #${retries_counter} in $snooze_time seconds..."
 			sleep "$snooze_time"
+			domain_list_counter=$(( domain_list_counter + 1 ))
+			URL=$( echo "$list_domain" | cut -d' ' -f"$domain_list_counter" ) #shell awk not work with variable
+			if [ $domain_list_counter -eq $(echo "$list_domain" | wc -w) ]; then
+				domain_list_counter=0
+				URL=$( echo "$list_domain" | cut -d' ' -f$(echo "$list_domain" | wc -w) )
+			fi
 		done
 		cp -rf /tmp/latest_new.tar.gz /config/latest.tar.gz
 		sync
