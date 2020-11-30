@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.17.1'
+readonly script_version='0.17.2'
 readonly script_basename="$( basename "$0" )"
 
 
@@ -382,9 +382,8 @@ get_tar_gz_at_any_cost () {
 			[ -f "$temporary_file" ] && rm -f "$temporary_file"
 			die
 		fi
-		# shellcheck disable=SC2039
-		: $(( retries_counter++ ))
-		snooze_time=$(( base_snooze_time * retries_counter )) # every attempt will be later and later
+		: $(( retries_counter += 1 ))
+		: $(( snooze_time = base_snooze_time * retries_counter )) # every attempt will be later and later
 		: $(( snooze_counter += snooze_time ))
 		echo_info "Take a break, attempt #${retries_counter} in ${snooze_time}s"
 		sleep "$snooze_time"
