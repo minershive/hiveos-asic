@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.2.7'
+readonly script_version='2.3.0'
 readonly script_basename="$( basename "$0" )"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -488,8 +488,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 				case "$log_message" in
 
 					*'Chain['*'] PIC init failed!')
+						# example: 'driver/driver-btm-api.c:242:init_pic_one_chain: Chain[2] PIC init failed!'
 						event_type='error'
-						# 'driver/driver-btm-api.c:242:init_pic_one_chain: Chain[2] PIC init failed!'
 						parse_error_RE='Chain[([0-9+])] PIC init failed'
 						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
@@ -500,8 +500,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					;;
 
 					*'will power off hash board'*)
+						# example: 'driver/driver-btm-api.c:1445:check_asic_number_with_power_on: Chain 0 only find 3 asic, will power off hash board 0'
 						event_type='error'
-						# 'driver/driver-btm-api.c:1445:check_asic_number_with_power_on: Chain 0 only find 3 asic, will power off hash board 0'
 						parse_error_RE='Chain ([0-9]+) only find'
 						[[ "$log_message" =~ $parse_error_RE ]] && failed_chain="#${BASH_REMATCH[1]} "
 						message_header="Chain ${failed_chain}malfunction. Mining stopped. Click for details"
@@ -514,10 +514,9 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 						message_tip+="If that doesn't help, please get the ASIC to the service or repair shop."
 					;;
 
-					*'bad clock counter'*)
-						# 17 2.00 (not sure about version)
+					*'bad clock counter'*)											# 17 2.00 (not sure about version)
+						# example: 'driver/register.c:699:quick_dump_core_hash_clock_counter: bad clock counter. chain = 0, asic = 7, core = 2, found 1, clock counter 0x00000000'
 						event_type='error'
-						# driver/register.c:699:quick_dump_core_hash_clock_counter: bad clock counter. chain = 0, asic = 7, core = 2, found 1, clock counter 0x00000000
 						parse_error_RE='bad clock counter. chain = ([0-9]+), asic = ([0-9]+)'
 						if [[ "$log_message" =~ $parse_error_RE ]]; then
 							failed_chain=" #${BASH_REMATCH[1]}"
@@ -551,7 +550,7 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					;;
 
 					*'No servers were found'*)
-						event_type='error'
+						# example:
 						# Jul 18 13:07:36 (none) local0.err cgminer[998]: No servers were found that could be used to get work from.
 						# Jul 18 13:07:36 (none) local0.err cgminer[998]: Please check the details from the list below of the servers you have input
 						# Jul 18 13:07:36 (none) local0.err cgminer[998]: Most likely you have input the wrong URL, forgotten to add a port, or have not set up workers
@@ -559,6 +558,7 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 						# Jul 18 13:07:36 (none) local0.warn cgminer[998]: Pool: 1  URL: stratum+tcp://zec.ss.poolin.com:1883  User: stoffel.S2101b  Password: 123
 						# Jul 18 13:07:36 (none) local0.warn cgminer[998]: Pool: 2  URL: stratum+tcp://zec.ss.poolin.com:25  User: stoffel.S2101b  Password: 123
 						# Jul 18 13:07:36 (none) local0.err cgminer[998]: No servers could be used! Exiting.
+						event_type='error'
 						message_header='Unable to connect to the pool. Click for details'
 						message_tip="$( grep -iE 'pool|url|server' /var/log/messages | grep -viE 'User: (devfee|hiveon)' | tail )"
 					;;
@@ -572,8 +572,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 				case "$log_message" in
 
 					*'auth failed'*)
+						# example: '(http_auth.c.1148) digest: auth failed for  root : wrong password, IP: 127.0.0.1 '
 						event_type='warning'
-						# '(http_auth.c.1148) digest: auth failed for  root : wrong password, IP: 127.0.0.1 '
 						parse_error_RE='IP: (([0-9]{1,3}\.){3}[0-9]{1,3})'
 						if [[ "$log_message" =~ $parse_error_RE && "${BASH_REMATCH[1]}" != '127.0.0.1' ]]; then
 							# ASICs with lighttpd-over-nginx do not log IP properly     ^^^^^^^^^^^^^^
@@ -595,8 +595,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 				case "$log_message" in
 
 					'ERROR_POWER_LOST'*)
+						# example: 'ERROR_POWER_LOST: power set failed!'
 						event_type='error'
-						# 'ERROR_POWER_LOST: power set failed!'
 						message_header='Power lost. Click for details'
 						message_tip="It could be a problem with the miner PSU or the power transmission from the PSU to the hashboards. "
 						message_tip+="Please do examine closely the every power cable and its connectors and sockets. Clean them out."
@@ -605,8 +605,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					;;
 
 					'ERROR_PIC_LOST'*)
+						# example: 'ERROR_PIC_LOST: PIC init failed'
 						event_type='error'
-						# 'ERROR_PIC_LOST: PIC init failed'
 						message_header='PIC init failed. Click for details'
 						message_tip="PIC is a smart voltage regulator. On each hashboard there's the only one PIC."
 						message_tip+='\n'
@@ -618,8 +618,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					;;
 
 					'ERROR_SOC_INIT'*)
+						# example: 'ERROR_SOC_INIT: soc init failed!'
 						event_type='error'
-						# 'ERROR_SOC_INIT: soc init failed!'
 						message_header='SOC init failed. Click for details'
 						message_tip="It could be a bad connection between the chain and the control board. "
 						message_tip+="Please do examine closely the every ribbon cable, connector and socket. Clean them out."
@@ -628,10 +628,10 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					;;
 
 					'WARN_NET_LOST'*)
+						# example: 'WARN_NET_LOST: network connection lost'
 						event_type='warning'
-						# 'WARN_NET_LOST: network connection lost'
 						message_header='Network lost for a few seconds. Click for details'
-						message_tip="The miner have lost a network connection for a few seconds. The cause could be:
+						message_tip="The miner has lost a network connection for a few seconds. The cause could be:
 									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable --> check connectors & cabling;
 									2) Hanging router --> reboot router;
 									3) Your ISP --> contact your service provider;
@@ -639,10 +639,10 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 					;;
 
 					'ERROR_NET_LOST'*)
+						# example: 'ERROR_NET_LOST: network connection lost'
 						event_type='error'
-						# 'ERROR_NET_LOST: network connection lost'
 						message_header='Network lost for a few minutes. Click for details'
-						message_tip="The miner have lost a network connection for more than a minute. The cause could be:
+						message_tip="The miner has lost a network connection for more than a minute. The cause could be:
 									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable --> check connectors & cabling;
 									2) Hanging router --> reboot router;
 									3) Your ISP --> contact your service provider."
@@ -657,46 +657,44 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 
 			;;
 
-			'/config/watchdog.log')
+			'/config/watchdog.log')													# Hiveon
 
 				case "$log_message" in
 
-					'Tune is in progress'*)
-						# S9, 'Tune is in progress, wait 30 seconds...'
+					'Tune is in progress'*)											# S9
+						# example: 'Tune is in progress, wait 30 seconds...'
 						event_type='skip'
 					;;
 
-					'Found'*'red chips'*)
-						# S9: 'Found 1 red chips, restart'
+					'Found'*'red chips'*)											# S9
+						# example: 'Found 1 red chips, restart'
 						event_type='info'
 						message_header='Auto-tune found a low hashrate chip, fixing'
 					;;
 
-					'Chain '*'found '*'domains')
-						# ST17: 'Chain 1: found 1 bad domains'
+					'Chain '*'found '*'domains')									# ST17
+						# example: 'Chain 1: found 1 bad domains'
 						event_type='info'
 						message_header='Auto-tune found a low hashrate domain, fixing'
 					;;
 
-					*'domains fixed'*)
-						# ST17: 'Red domains fixed, restart'
+					*'domains fixed'*)												# ST17
+						# example: 'Red domains fixed, restart'
 						event_type='ok'
 						message_header='Auto-tune fixed a low hashrate domain, miner restarted'
 					;;
 
-					'Activating profile '*)
-						# ST17, 'Activating profile 11'
+					'Activating profile '*)											# ST17
+						# example: 'Activating profile 11'
 						event_type='skip'
 					;;
 
-					'Re-run cgminer to check temerature sensor type again!')
-						# ST17
+					'Re-run cgminer to check temerature sensor type again!')		# ST17
 						event_type='skip'
 					;;
 
-					'Possible manufacturing defects detected'*)
-						# ST17 Hiveon 2.00
-						# 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
+					'Possible manufacturing defects detected'*)						# ST17 Hiveon 2.00
+						# example: 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
 						if [[ -s /config/stop-mining ]]; then
 							failed_chain="$( < /config/stop-mining )"
 							[[ "$failed_chain" =~ $valid_chain_number_RE ]] && failed_chain="#$(( failed_chain - 1 )) " # chain numbers in the file are 1-based
@@ -728,7 +726,7 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 				case "$log_message" in
 
 					'Config parse:'*)
-						# 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
+						# example: 'Config parse: freq_from=500, freq_to=756, voltage_from=830, voltage_to=890, ideal_percent=97'
 						event_type='ok'
 						message_header='Auto-tune is started. Click for details'
 						message_tip='Auto-tune is started. It will take 30-300 minutes. '
@@ -740,6 +738,33 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 #						event_type='ok'
 #						message_header='Tune done'
 #					;;
+
+				esac
+
+			;;
+
+			'/tmp/freq')															# S9
+
+				case "$log_message" in
+
+					'Fee pools are not alive!')
+						# example: 'Fee pools are not alive!'
+						event_type='warning'
+						message_header='Devfee pools are not available. Click for details'
+						message_tip="The miner cannot access a devfee pool to mine a developer's fee. Mining stopped until this is resolved. "
+						message_tip+='Please check your Internet connection.'
+					;;
+
+					'Fatal Error: network connection lost!')
+						# 'Fatal Error: network connection lost!'
+						event_type='warning'
+						message_header='Network lost. Click for details'
+						message_tip="The miner has lost a network connection. The cause could be:
+									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable --> check connectors & cabling;
+									2) Hanging router --> reboot router;
+									3) Your ISP --> contact your service provider;
+									4) A random Internet glitch."
+					;;
 
 				esac
 
@@ -762,7 +787,7 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 #					;;
 
 					'Achieved '*)
-						# 'Achieved maximum number of restarts'
+						# example: 'Achieved maximum number of restarts'
 						event_type='warning'
 						message_header='Auto-tune attempts are maxed out'
 					;;
@@ -1718,6 +1743,7 @@ function checkup:are_logs_updated {																	(( script_DEBUG )) && debugc
 		'/config/watchdog.log'			# Hiveon 9/15/17
 		'/nvdata/miner_status.log'		# Hiveon 15/17
 		'/tmp/auto-tune'				# Hiveon 9
+		'/tmp/freq'						# Hiveon 9 (awfully organized log without any timestamps)
 		'/tmp/fault.log'				# Hiveon 15/17
 		'/tmp/tune_log.txt'				# Hiveon 15/17
 		'/var/log/log'					# Hiveon 15/17
