@@ -1,5 +1,7 @@
-# List of "IPs" or "IPs WORKER_NAME" where you want to install Hive
+# List of "IPs" or "IPs WORKER_NAME" where you want to install The Client
 # Comments and empty lines are allowed
+#
+# EXAMPLE, NOT FOR REAL USE:
 
 192.168.0.188
 192.168.0.189

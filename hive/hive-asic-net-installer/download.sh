@@ -4,12 +4,12 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-readonly script_mission='Hive OS Client for ASICs: Download bulk install scripts'
-readonly script_version='1.0'
+readonly script_mission='Client for ASICs: Download bulk install scripts'
+readonly script_version='1.0.1'
 
 
 # consts
@@ -26,7 +26,7 @@ print_script_version() {
 }
 
 is_on_busybox() {
-    [ -f "/usr/bin/compile_time" ]
+	[ -f "/usr/bin/compile_time" ]
 }
 
 
@@ -35,10 +35,10 @@ is_on_busybox() {
 print_script_version
 
 if is_on_busybox; then
-    which sshpass > /dev/null || ( echo -e "${CYAN}sshpass${NOCOLOR} is required, upgrade Hive OS Client to latest version: ${CYAN}selfupgrade${NOCOLOR}"; exit 1 )
+	which sshpass > /dev/null || ( echo -e "${CYAN}sshpass${NOCOLOR} is required, update Client to latest version: ${CYAN}selfupgrade${NOCOLOR}"; exit 1 )
 else
-    which sshpass > /dev/null || ( echo -e "${CYAN}sshpass${NOCOLOR} is required, try ${CYAN}apt-get install sshpass${NOCOLOR}"; exit 1 )
-    which curl > /dev/null || ( echo -e "${CYAN}sshpass${NOCOLOR} is required, try ${CYAN}apt-get install curl${NOCOLOR}"; exit 1 )
+	which sshpass > /dev/null || ( echo -e "${CYAN}sshpass${NOCOLOR} is required, try ${CYAN}apt-get install sshpass${NOCOLOR}"; exit 1 )
+	which curl > /dev/null || ( echo -e "${CYAN}sshpass${NOCOLOR} is required, try ${CYAN}apt-get install curl${NOCOLOR}"; exit 1 )
 fi
 
 echo -e "Creating ${WHITE}${bulk_install_dir}...${NOCOLOR}"
