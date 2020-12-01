@@ -10,16 +10,16 @@
 #
 
 
-# !!! bash strict mode, no unbound variables
-#set -o nounset
-
-
-# Sends hello to Hive, receives config files, restarts miner
 readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_version='0.3.1'
+readonly script_mission_decription='Sends hello to server, receives config files, restarts miner'
+readonly script_version='0.3.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
+
+
+# !!! bash strict mode, no unbound variables
+#set -o nounset # commented out for production bc still not tested thoroughly
 
 
 # functions
@@ -518,11 +518,11 @@ function get_kernel_version {
 	# code
 	kernel_version="$( uname --kernel-release )"
 
-	# add Hive Client's version & build to kernel info
+	# add Client's version & build to kernel info
 	hive_client_version="$( get_hive_client_version )"
 	hive_client_build_version="$( get_hive_client_build_version )"
 
-	# add a client release/build version
+	# add a Client's release/build version
 	if [[ -n "$hive_client_version" && -n "$hive_client_build_version" ]]; then
 		kernel_version+=" ($hive_client_version-$hive_client_build_version)"
 	elif [[ -n "$hive_client_version" && -z "$hive_client_build_version" ]]; then
@@ -655,12 +655,12 @@ function send_hello_packet {
 		curl_exitcode=$?
 
 		if (( ! curl_exitcode )); then
-			(( script_DEBUG )) && echo_debug 'Server connected [OK]'
+			(( script_DEBUG )) && echo_debug 'API server connected [OK]'
 			if [[ -n "$server_response_sanity_check" ]]; then
-				(( script_DEBUG )) && echo_debug 'Server response is not empty [OK]'
+				(( script_DEBUG )) && echo_debug 'API server response is not empty [OK]'
 				if jq --exit-status '.error and .error.code' <<< "$server_response_sanity_check" > /dev/null 2>&1; then
 					# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
-					(( script_DEBUG )) && echo_debug 'Server is the Hive API server [OK]'
+					(( script_DEBUG )) && echo_debug 'API server is valid [OK]'
 					(( script_DEBUG )) && echo_debug "Connecting to get a config: '$work_URL'..."
 					server_response_by_ref="$(
 						curl \
@@ -675,7 +675,7 @@ function send_hello_packet {
 				else
 					echo
 					print_JSON_with_header 'Sanity checker received an invalid response' "$server_response_sanity_check"
-					echo_error "Server is not a valid Hive API server. No second chances provided for this type of error."
+					echo_error "Server is not a valid API server. No second chances provided for this type of error."
 					curl_exitcode=1
 					break
 				fi
