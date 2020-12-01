@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 
 #
@@ -9,11 +9,10 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.17'
+declare -r ant_functions_lib_version='0.1.18'
 
 
 # !!! bash strict mode, no unbound variables
-
 #set -o nounset # !!! this is a library, so we don't want to break the other's scripts
 
 
@@ -368,14 +367,14 @@ function send_hiveon_config {
 
 	# code
 	if [[ ! -s "$RIG_CONF" ]]; then
-		echo "Cannot send Hiveon config to Hive server, '$RIG_CONF' not found"
+		echo "Cannot send Hiveon config to API server, '$RIG_CONF' not found"
 		exit 0
 	fi
 	
 	source "$RIG_CONF"
 
 	if [[ -z "$RIG_ID" ]]; then
-		echo 'Cannot send Hiveon config to Hive server, RIG_ID is empty'
+		echo 'Cannot send Hiveon config to API server, RIG_ID is empty'
 		exit 0
 	fi
 
@@ -405,7 +404,7 @@ function send_hiveon_config {
 	# !!! duct tape
 	# protection measures -- we might don't have https on the vast majority of ASICs
 	if [[ "$HIVE_URL" =~ ^https:// ]]; then
-		echo "API Server $HIVE_URL is not supported, most likely"
+		echo "API server $HIVE_URL is not supported, most likely"
 		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for a http form of https'ed HIVE_HOST_URL
 #		if (( https_disabled_message_sent == 0 )); then
 #			cp "$RIG_CONF" "${RIG_CONF}.original"
@@ -437,11 +436,11 @@ function send_hiveon_config {
 				;;
 				'Wrong password')
 					echo "Firmware config sending error: invalid password"
-					message err 'Firmware config sending error' --payload --silent <<< "Invalid password: API Server $this_URL does not validate password '$RIG_PASSWD'"
+					message err 'Firmware config sending error' --payload --silent <<< "Invalid password: API server $this_URL does not validate password '$RIG_PASSWD'"
 				;;
 				'Invalid method')
 					echo "Firmware config sending error: server does not support 'set_asic_config' method"
-					message err 'Firmware config sending error' --payload --silent <<< "Invalid method: API Server $this_URL does not support 'set_asic_config' method"
+					message err 'Firmware config sending error' --payload --silent <<< "Invalid method: API server $this_URL does not support 'set_asic_config' method"
 				;;
 				'null'|'')
 					# all is ok
