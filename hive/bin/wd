@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 
 #
@@ -9,8 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.3.2'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.3.3'
+readonly script_basename="${0##*/}"
 
 
 # functions

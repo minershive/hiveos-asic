@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 
 #
@@ -9,11 +9,11 @@
 
 
 readonly script_mission='Client for ASICs: ssh access control'
-readonly script_version='0.2.3'
+readonly script_version='0.2.4'
+readonly script_basename="${0##*/}"
 
 
 # !!! bash strict mode, no unbound variables
-
 set -o nounset
 
 
@@ -25,8 +25,7 @@ function print_script_version {
 }
 
 function print_script_usage {
-	basename="$( basename "$0" )"
-	echo -e "Usage: ${CYAN-}${basename} status | on | off${NOCOLOR-}"
+	echo -e "Usage: ${CYAN-}${script_basename} status | on | off${NOCOLOR-}"
 	echo
 }
 

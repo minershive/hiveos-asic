@@ -9,8 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: Miner controller'
-readonly script_version='1.3.3'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='1.3.4'
+readonly script_basename="${0##*/}"
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
