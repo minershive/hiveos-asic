@@ -9,14 +9,14 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.0'
+readonly script_version='0.8.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
-#set -o nounset # disabled bc it hasn't been tested thoroughly
+#set -o nounset # commented out for production bc still not tested thoroughly
 
 
 # functions
@@ -1168,7 +1168,7 @@ function fetch_stats_and_push_them_to_server {
 	# !!! and now the duct tape
 	# protection measures -- we don't have https on the vast majority of ASICs
 	if [[ "$HIVE_URL" == 'https://'* ]]; then
-		log_line warning "API Server $HIVE_URL is not supported, most likely"
+		log_line warning "API server $HIVE_URL is not supported, most likely"
 		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for an http form of https'ed HIVE_HOST_URL
 		if (( ! https_disabled_message_sent_FLAG )); then
 			cp "$RIG_CONF" "${RIG_CONF}.original"

@@ -370,7 +370,7 @@ function send_hiveon_config {
 		echo "Cannot send Hiveon config to API server, '$RIG_CONF' not found"
 		exit 0
 	fi
-	
+
 	source "$RIG_CONF"
 
 	if [[ -z "$RIG_ID" ]]; then
