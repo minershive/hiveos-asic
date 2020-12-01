@@ -1,37 +1,37 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: Antminer Series 15/17 Error Report'
-readonly script_version='1.14.10'
+readonly script_version='1.14.11'
+readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
-
 set -o nounset
 
 
 # functions
 
-print_script_version() {
+function print_script_version {
 	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
 	echo
 }
 
-print_script_usage() {
+function print_script_usage {
 	echo -e "Usage: ${CYAN-}$script_basename [number of days]${NOCOLOR-}"
 	echo
 }
 
-set_view() {
+function set_view {
 	local -r -i terminal_width_DEFAULT='109' # the width of Hive OS 'remote command result' window
 	local -r -A view_settings=(
 		[views_list]='wide normal compact'
@@ -87,7 +87,7 @@ set_view() {
 	readonly date_width="${view_settings[${current_view}.date_width]}"
 }
 
-intro() {
+function intro {
 	local -i -r last_errors_count=5
 	local -r errors_RE='ERR|WARN'
 
@@ -106,7 +106,7 @@ intro() {
 	echo
 }
 
-create_calendar() {
+function create_calendar {
 	local -i current_day_in_seconds=0
 	local current_day_in_yymmdd=''
 
@@ -125,7 +125,7 @@ create_calendar() {
 	fi
 }
 
-check_log() {
+function check_log {
 	if [[ ! -d "$logs_dir" ]]; then
 		echo "$logs_dir not found. Is it Antminer Series 15/17?"
 		echo
@@ -135,7 +135,7 @@ check_log() {
 	fi
 }
 
-check_for_1970() {
+function check_for_1970 {
 	if [[ -d "${logs_dir}/1970-01" ]]; then
 		if [[ -n "$( find "${logs_dir}/1970-01/" -name log -type f -mtime "-${days_to_look_back}" )" ]]; then
 				echo "${RED-}WARNING: Recently updated logs from 1970 year are found, check host time settings and ntpd.${NOCOLOR-}"
@@ -146,7 +146,7 @@ check_for_1970() {
 	return 0
 }
 
-get_filtered_log() {
+function get_filtered_log {
 	local -r files_to_grep="$( find "$logs_dir" '/var/log/' -name log -type f )"
 
 	# WARNING: debug is extremely slow (20-30 minutes) on arm machines.
@@ -171,7 +171,7 @@ get_filtered_log() {
 			grep -E "$domains_of_interest" | sed 's@driver/@@' | sed 's@\.c:[0-9]\+:@\.c:@' | sort -su > "$log"
 }
 
-get_unique_events_from_log() {
+function get_unique_events_from_log {
 	# 2020-03-09 18:39:32 driver/fan.c:59:update_fan_status: Error, fan lost, only find 3 (< 8)
 	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 0, fan_speed = 6000
 	# 2020-03-09 18:39:32 driver/fan.c:62:update_fan_status: fan_id = 1, fan_speed = 0
@@ -215,7 +215,7 @@ get_unique_events_from_log() {
 	fi
 }
 
-print_table_header() {
+function print_table_header {
 	# consts
 
 	local -r first_column_header='Events by date'
@@ -290,7 +290,7 @@ print_table_header() {
 	done
 }
 
-calculate_data() {
+function calculate_data {
 	local date_to_process
 
 	local this_event
@@ -329,7 +329,7 @@ calculate_data() {
 	events_data['#all.total']=$(( all_events_total ))
 }
 
-print_table_body() {
+function print_table_body {
 	local this_event_name=''
 	local this_event_name_for_display=''
 	local -i event_is_domain_name=0
@@ -426,7 +426,7 @@ print_table_body() {
 	done
 }
 
-print_stats() {
+function print_stats {
 	local -i -r average_per_day=$(( ${events_data['#all.total']} / days_to_look_back ))
 
 	printf "\n%u events in %u days (%u per day in average)\n" "${events_data['#all.total']}" "$days_to_look_back" "$average_per_day"
@@ -441,8 +441,7 @@ print_stats() {
 # global consts
 
 declare -i -r days_to_look_back_DEFAULT='14'
-declare -r script_basename="$( basename "$0" )"
-declare -r log="/tmp/$( basename "$0" ).log"
+declare -r log="/tmp/${script_basename}.log"
 declare -r logs_dir='/nvdata'
 declare -r miner_status_log_file='/nvdata/miner_status.log'
 declare -r zero_symbol='-'
