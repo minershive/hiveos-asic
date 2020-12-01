@@ -1,5 +1,4 @@
 #!/hive/sbin/bash
-#!/usr/bin/env bash
 
 
 #
@@ -12,14 +11,13 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.3.0'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='2.3.1'
+readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
-
 set -o nounset
 
 
@@ -1121,9 +1119,9 @@ function sync_time_via_hive_server { # not used atm
 	fi
 	if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
 		date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
-		echo "Setting actual date from Hive server: $( date -s "@$date_from_server_in_seconds" )"
+		echo "Setting actual date from API server: $( date -s "@$date_from_server_in_seconds" )"
 	else
-		echo "Network is lost? Cannot get actual date from Hive server ($server_answer)"
+		echo "Network is lost? Cannot get actual date from API server ($server_answer)"
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
 
@@ -1985,11 +1983,11 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 		current_process_list="$( ps w )"
 
 		if [[ "$current_process_list" =~ $is_installation_running_RE ]]; then
-			# do wait for Hive installation to be finished bc we don't have /hive atm and this could fire a false positive
+			# do wait for Client installation to be finished bc we don't have /hive atm and this could fire a false positive
 			print_controller_log_entry "$event_type_for_log" "Upgrade running, skipping checks..."
 			increment_checkup_counter 'upgrade_running' 'alarm'
 		elif [[ "$current_process_list" =~ $is_Hive_starting_RE ]]; then
-			print_controller_log_entry "$event_type_for_log" "Hive starting, skipping checks..."
+			print_controller_log_entry "$event_type_for_log" "Client starting, skipping checks..."
 		else
 			# do cron work
 			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
