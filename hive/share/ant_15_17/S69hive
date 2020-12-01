@@ -4,15 +4,15 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 # Linted by shellcheck 0.3.7
 #
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.1.1'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='1.1.2'
+readonly script_basename="${0##*/}"
 
 
 # functions
@@ -291,7 +291,7 @@ deploy_hive () {
 
 	# code
 
-	echo_action 'Hive deployment launched in the background'
+	echo_action 'The Client deployment launched in the background'
 
 	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename_w_path" ] || ! gunzip -tf "$persistent_package_filename_w_path" >/dev/null 2>&1; then
 		set_default_download_server_URL
@@ -353,7 +353,7 @@ boot_hive () {
 	# Usage: boot_hive &
 	#
 
-	echo_action 'Hive boot launched in the background'
+	echo_action 'The Client boot sequence launched in the background'
 
 	# $FARM_HASH can be defined externally
 	if [ -s "$FARM_HASH_file" ]; then
@@ -363,8 +363,8 @@ boot_hive () {
 		rm "$FARM_HASH_file"
 	fi
 
-	/hive/bin/hive > /tmp/hive-boot.log 2>&1
-	echo_info 'Hive boot starting done'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
+	echo_info 'The Client boot starting done'
 }
 
 

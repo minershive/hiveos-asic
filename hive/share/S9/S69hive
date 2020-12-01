@@ -82,4 +82,4 @@ else
 	export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib"
 fi
 
-/hive/bin/hive > /tmp/hive-boot.log 2>&1
+/hive/bin/hive > /tmp/client-boot.log 2>&1
