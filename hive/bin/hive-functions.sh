@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 
 #
@@ -11,12 +11,11 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.51.2'
+declare -r hive_functions_lib_version='0.51.3'
 #                                        ^^ current number of public functions
 
 
 # !!! bash strict mode, no unbound variables
-
 #set -o nounset # !!! this is a library, so we don't want to break the other's scripts
 
 

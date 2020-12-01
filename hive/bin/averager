@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.3.1'
+readonly script_version='0.3.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -20,7 +20,6 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 
 
 # !!! bash strict mode, no unbound variables
-
 set -o nounset
 
 
@@ -166,7 +165,7 @@ function screen_session_start {
 			snore 0.2 # sometimes screen is pretty slow
 			while ! is_screen_session_exist "$session_name" && (( attempts_counter++ < attempts_limit )); do
 				echo "  Waiting for session to start [$attempts_counter/$attempts_limit]..."
-				snore 0.5 
+				snore 0.5
 			done
 			echo 'OK'
 			return $(( exitcode_OK ))

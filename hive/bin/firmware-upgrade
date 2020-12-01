@@ -9,8 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.18'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.1.19'
+readonly script_basename="${0##*/}"
 
 
 # !!! sh -e

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/hive/sbin/bash
 
 
 #
@@ -11,12 +11,11 @@
 
 
 readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
-readonly script_version='0.2.4'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.2.5'
+readonly script_basename="${0##*/}"
 
 
 # !!! bash strict mode, no unbound variables
-
 set -o nounset
 
 
