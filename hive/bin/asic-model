@@ -11,12 +11,11 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.3.4'
-library_basename="$( basename "$0" )"
+library_version='1.3.5'
+library_basename="${0##*/}"
 
 
 # !!! bash strict mode, no unbound variables
-
 #set -o nounset # !!! this script being sourced constantly, so turning this off for a while -- we don't want to break the other not-yet-refactored scripts
 
 
