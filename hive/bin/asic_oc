@@ -9,8 +9,8 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.11'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.1.12'
+readonly script_basename="${0##*/}"
 
 
 # functions
