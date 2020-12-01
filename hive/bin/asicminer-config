@@ -10,15 +10,15 @@
 #
 
 
-# !!! bash strict mode, no unbound variables
-#set -o nounset # commented out for production bc still not tested thoroughly
-
-
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.3'
+readonly script_version='0.4.4'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+
+
+# !!! bash strict mode, no unbound variables
+#set -o nounset # commented out for production bc still not tested thoroughly
 
 
 # functions
@@ -1205,7 +1205,7 @@ case "$compare_configs_ENUM" in
 				echo_warning "Dry run, updating $ASIC_MINER_CONFIG_FILE skipped"
 			fi
 		else
-			echo_error "Invalid configuration generated: '$generated_miner_configuration'. Writing to the miner config skipped. Please contact Hive support."
+			echo_error "Invalid configuration generated: '$generated_miner_configuration'. Writing to the miner config skipped. Please contact Support Team."
 		fi
 	;;
 
@@ -1221,8 +1221,8 @@ case "$compare_configs_ENUM" in
 
 	"$compare_POOLS" | "$compare_FULL" )
 		if [[ -s "$ASIC_MINER_CONFIG_FILE" ]]; then
-			temp_FS_config="/tmp/$( basename "$ASIC_MINER_CONFIG_FILE" ).flightsheet.tmp"
-			temp_actual_config="/tmp/$( basename "$ASIC_MINER_CONFIG_FILE" ).actual.tmp"
+			temp_FS_config="/tmp/${ASIC_MINER_CONFIG_FILE##*/}.flightsheet.tmp"
+			temp_actual_config="/tmp/${ASIC_MINER_CONFIG_FILE##*/}.actual.tmp"
 
 			jq "$key_filter" --sort-keys <<< "$generated_miner_configuration" > "$temp_FS_config"
 			jq "$key_filter" --sort-keys < "$ASIC_MINER_CONFIG_FILE" > "$temp_actual_config"
