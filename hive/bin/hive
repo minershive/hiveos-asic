@@ -8,8 +8,8 @@
 #
 
 
-readonly script_mission='Client for ASICs: Hive Start'
-readonly script_version='0.1.8'
+readonly script_mission='Client for ASICs: The Client Start'
+readonly script_version='0.1.9'
 readonly script_basename="${0##*/}"
 
 
@@ -193,19 +193,19 @@ source asic-model
 mkdir -p /run/hive
 
 
-# wipe screens. for some reason there can be dead sockets after restart on tmpfs (!!!)
+# wipe screens. for some reason there might be dead sockets after restart on tmpfs (!!!)
 screen -wipe > /dev/null
 
 
-# logo
 uname -a
-echo -e "${BYELLOW-}
- _______ _______ ___ ___ _______
-|   |   |_     _|   |   |    ___|
-|       |_|   |_|   |   |    ___|
-|___|___|_______|\_____/|_______|
-${NOCOLOR-}
-"
+# logo
+#echo -e "${BYELLOW-}
+# _______ _______ ___ ___ _______
+#|   |   |_     _|   |   |    ___|
+#|       |_|   |_|   |   |    ___|
+#|___|___|_______|\_____/|_______|
+#${NOCOLOR-}
+#"
 
 
 if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL =~ "Antminer S9 SE" || $ASIC_MODEL =~ "Antminer S9k" ]]; then
@@ -346,7 +346,7 @@ echo
 
 
 # mission complete
-echo_x ok 'Hive start finished' 'OK'
+echo_x ok 'The Client start finished' 'OK'
 
 
 exit 0
