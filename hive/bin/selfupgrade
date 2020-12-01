@@ -11,8 +11,8 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.17.2'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.17.3'
+readonly script_basename="${0##*/}"
 
 
 #
@@ -178,7 +178,7 @@ print_script_usage () {
 	echo -e "    ${WHITE}-b, --bulk${NOCOLOR}                             turn on bulk update optimization"
 	echo -e "    ${WHITE}-f, --force${NOCOLOR}                            forced update"
 	echo -e "    ${WHITE}--farm-hash=${NOCOLOR}your_FARM_HASH             user-defined Farm hash"
-	echo -e "    ${WHITE}--hive-host-url=${NOCOLOR}your_HIVE_HOST_URL     user-defined API Server URL"
+	echo -e "    ${WHITE}--hive-host-url=${NOCOLOR}your_HIVE_HOST_URL     user-defined API server URL"
 	echo -e "    ${WHITE}--skip-build=${NOCOLOR}devNNN                    skip update if local build = 'devNNN'"
 	echo
 }
@@ -973,7 +973,7 @@ install_innosilicon_innominer () {
 		cat >> /etc/init.d/rcS <<-FILEEOF
 
 			### HIVE AUTORUN ###
-			[ -e /hive/bin/hive ] && nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/hive-boot.log 2>&1; echo "Running Hive..."' > /dev/null 2>&1 &
+			[ -e /hive/bin/hive ] && nohup /hive/sbin/bash -c 'sleep 30; /hive/bin/hive > /tmp/client-boot.log 2>&1; echo "Running The Client..."' > /dev/null 2>&1 &
 			[ -e /hive/bin/hello ] && nohup /hive/sbin/bash -c 'sleep 40; /hive/bin/hello' > /dev/null 2>&1 &
 		FILEEOF
 # legacy cron imitation
@@ -1115,16 +1115,16 @@ install_antminer_bmminer_ro () {
 	sleep 1 # ???
 
 	#/etc/rcS.d/S69hive
-	# actually we don't need S69hive, let's boot Hive directly:
+	# actually we don't need S69hive, let's boot Client directly:
 
-	echo_action 'Booting Hive'
+	echo_action 'Booting The Client'
 
 	if [ -n "$FARM_HASH" ]; then
 		# FARM_HASH could be defined externaly or by command-line option
 		/hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
 		remove_needless_files "${FARM_HASH_file:-SAFE}"
 	fi
-	/hive/bin/hive > /tmp/hive-boot.log 2>&1
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
 }
 
 
@@ -1232,7 +1232,7 @@ set_NVRAM_path () {
 }
 
 #
-# Hive boot, taken from S69hive
+# Client boot, taken from S69hive
 #
 
 set_FARM_HASH () {
