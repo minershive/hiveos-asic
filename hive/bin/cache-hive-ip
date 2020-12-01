@@ -1,5 +1,4 @@
 #!/hive/sbin/bash
-##!/usr/bin/env ash
 
 
 #
@@ -11,13 +10,12 @@
 #
 
 
-readonly script_mission='Client for ASICs: Cache Hive API Server address'
-readonly script_version='0.3.2'
-readonly script_basename="$( basename "$0" )"
+readonly script_mission='Client for ASICs: Cache the API server address'
+readonly script_version='0.3.3'
+readonly script_basename="${0##*/}"
 
 
 # !!! bash strict mode, no unbound variables
-
 set -o nounset
 
 
