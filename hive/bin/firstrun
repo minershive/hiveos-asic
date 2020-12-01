@@ -4,13 +4,13 @@
 #
 # Copyright (C) 2016-2020  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE
+# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: Your First Run'
-readonly script_version='0.1.6'
-readonly script_basename="$( basename "$0" )"
+readonly script_version='0.1.7'
+readonly script_basename="${0##*/}"
 
 
 # functions
@@ -25,16 +25,16 @@ function urldecode {
 	printf '%b\n' "${url_to_decode//%/\\x}"
 }
 
-function set_BRANDING_LOGO {
-	BRANDING_LOGO=$( cat <<-EOF
-		 _______ _______ ___ ___ _______
-		|   |   |_     _|   |   |    ___|
-		|       |_|   |_|   |   |    ___|
-		|___|___|_______|\_____/|_______|
-		EOF
-	)
-	BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
-}
+#function set_BRANDING_LOGO {
+#	BRANDING_LOGO=$( cat <<-EOF
+#		 _______ _______ ___ ___ _______
+#		|   |   |_     _|   |   |    ___|
+#		|       |_|   |_|   |   |    ___|
+#		|___|___|_______|\_____/|_______|
+#		EOF
+#	)
+#	BRANDING_LOGO="${BYELLOW}${BRANDING_LOGO}${NOCOLOR}"
+#}
 
 
 # read, check (rough sanity check) and set HIVE_HOST_URL
@@ -114,7 +114,7 @@ function validate_and_set_HIVE_HOST_URL {
 
 	# code
 	if validated_url="$( sanitize_HIVE_HOST_URL "$url_to_validate_and_set" )"; then
-		echo "Server URL validated and have been set to $validated_url"
+		echo "API server URL validated and have been set to $validated_url"
 	else
 		echo "Something wrong with '$url_to_validate_and_set'. Falling back to default: $validated_url"
 	fi
@@ -127,7 +127,7 @@ function read_url {
 		[[ -z "$url" ]] && break
 		if [[ $url =~ ^(http|https)://.+$ ]]; then
 			HIVE_HOST_URL="$url"
-			echo -e "New server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
+			echo -e "New API server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
 			break
 		fi
 		echo "Invalid URL: '$url'"
@@ -167,7 +167,7 @@ declare -r RIG_CONF='/hive-config/rig.conf'
 
 # global vars
 
-declare BRANDING_LOGO
+#declare BRANDING_LOGO
 
 
 # global exports
@@ -207,7 +207,7 @@ HIVE_HOST_URL_default='http://api.hiveos.farm'
 #
 if [ -s "$WHITELABEL_HOST_URL_file_in_FW" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_FW" )"
-	echo "Default Server URL found in $WHITELABEL_HOST_URL_file_in_FW (firmware): $HIVE_HOST_URL_default"
+	echo "Default API server URL found in $WHITELABEL_HOST_URL_file_in_FW (firmware): $HIVE_HOST_URL_default"
 fi
 
 #
@@ -216,7 +216,7 @@ fi
 #
 if [ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_NVRAM" )"
-	echo "Default Server URL found in $WHITELABEL_HOST_URL_file_in_NVRAM (NVRAM): $HIVE_HOST_URL_default"
+	echo "Default API server URL found in $WHITELABEL_HOST_URL_file_in_NVRAM (NVRAM): $HIVE_HOST_URL_default"
 fi
 
 echo "Default HIVE_HOST_URL set to $HIVE_HOST_URL_default"
@@ -230,15 +230,17 @@ if [[ -n "$HIVE_HOST_URL" ]]; then
 else
 	# then try to read from config
 	if HIVE_HOST_URL="$( read_HIVE_HOST_URL_from_RIG_CONF )"; then
-		echo "HIVE_HOST_URL found in $RIG_CONF. Using Server URL: $HIVE_HOST_URL"
+		echo "HIVE_HOST_URL found in $RIG_CONF. Using API server URL: $HIVE_HOST_URL"
 	else
 		HIVE_HOST_URL="$HIVE_HOST_URL_default"
-		echo "HIVE_HOST_URL variable is not set. Using default Server URL: $HIVE_HOST_URL"
+		echo "HIVE_HOST_URL variable is not set. Using default API server URL: $HIVE_HOST_URL"
 	fi
 fi
 
 #
 # 4. try to read it from file /config/HIVE_HOST_URL. top prio.
+#
+# note: will be removed after using
 #
 if [[ -s "$HIVE_HOST_URL_file" ]]; then
 	echo -n "File '$HIVE_HOST_URL_file' found. It has priority over the others. Checking... "
@@ -250,16 +252,15 @@ if [[ -s "$HIVE_HOST_URL_file" ]]; then
 fi
 
 
-set_BRANDING_LOGO
+#set_BRANDING_LOGO
 
 if [[ ! -f "$RIG_CONF" || $FORCE -eq 1 ]]; then
 #	selfupgrade
 
 	if [[ -z "$FARM_HASH" ]]; then
 		message=$( cat <<-EOF
-			${BRANDING_LOGO}
 			$CYAN
-			Welcome to Miners Hive.
+			Welcome to the Client.
 			This is your first boot, no config found at "$RIG_CONF".
 			Please add your rig in your profile on the web, set the name and password for it.
 			Then get rig id and give it to me.
@@ -269,11 +270,10 @@ if [[ ! -f "$RIG_CONF" || $FORCE -eq 1 ]]; then
 		)
 	else
 		message=$( cat <<-EOF
-			${BRANDING_LOGO}
 			$CYAN
 			Adding worker to your farm...${NOCOLOR}
-			Hive Farm Hash (FARM_HASH) is '${FARM_HASH:-<not set>}'
-			Hive Server URL (HIVE_HOST_URL) is '${HIVE_HOST_URL:-<not set>}'
+			Farm Hash (FARM_HASH) is '${FARM_HASH:-<not set>}'
+			API server URL (HIVE_HOST_URL) is '${HIVE_HOST_URL:-<not set>}'
 
 			$NOCOLOR
 			EOF
@@ -283,9 +283,8 @@ if [[ ! -f "$RIG_CONF" || $FORCE -eq 1 ]]; then
 
 elif [[ ! -f "$HELLO_OK" ]]; then
 	message=$( cat <<-EOF
-		${BRANDING_LOGO}
 		$YELLOW
-		Config "$RIG_CONF" exists but during boot the connection to hive server failed.
+		Config "$RIG_CONF" exists but during boot the connection to the API server failed.
 		Either the server or your network is temporary down.
 		If you have changed the password for this rig, then you need to enter credentials again.$NOCOLOR
 		Run ${CYAN}hello${NOCOLOR} to try again. Or run ${CYAN}firstrun -f${NOCOLOR} to enter new ID and password.
@@ -313,7 +312,7 @@ passwd=
 
 while true; do
 	if [[ -z "$FARM_HASH" ]]; then
-		echo -e "Server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
+		echo -e "API server URL: ${YELLOW}$HIVE_HOST_URL${NOCOLOR}"
 		echo 'Press ENTER if OK (or type a new one)'
 		read_url
 		read_id
