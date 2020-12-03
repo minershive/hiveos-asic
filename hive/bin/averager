@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.3.3'
+readonly script_version='0.3.4'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -53,6 +53,8 @@ function smart_round {
 	#
 
 	# args
+	# shellcheck disable=SC2154
+	# bc 'exitcode_ERROR_IN_ARGUMENTS' already defined in the library
 	(( $# == 1 )) || { errcho 'only 1 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local number_to_round="${1:-0}"
 
@@ -113,6 +115,8 @@ function generate_avg_khs_json {
 
 # screen infrastructure
 
+# shellcheck disable=SC2120
+# bc of the defaults
 function screen_session_attach {
 	#
 	# Usage: screen_session_attach ['session name'] -> $?
@@ -128,6 +132,8 @@ function screen_session_attach {
 		if [[ -t 1 ]]; then
 			if screen -r "$session_name"; then
 				#echo '  Screen session attached'
+				# shellcheck disable=SC2154
+				# bc 'exitcode_OK' already defined in the library
 				return $(( exitcode_OK ))
 			else
 				echo 'FAILED'
@@ -142,6 +148,8 @@ function screen_session_attach {
 	return 1
 }
 
+# shellcheck disable=SC2120
+# bc of the defaults
 function screen_session_start {
 	#
 	# Usage: screen_session_start ['session name' ['session_title']] -> $?
@@ -179,6 +187,8 @@ function screen_session_start {
 	return 1
 }
 
+# shellcheck disable=SC2120
+# bc of the defaults
 function screen_session_stop {
 	#
 	# Usage: screen_session_stop ['session name'] -> $?
@@ -215,6 +225,8 @@ function screen_session_stop {
 	return 1
 }
 
+# shellcheck disable=SC2120
+# bc of the defaults
 function screen_session_log {
 	#
 	# Usage: screen_session_log ['session name']
@@ -371,6 +383,54 @@ function execute_every_nth_second {
 
 # upload/download (cloud-based backup)
 
+function is_api_server_response_ok {
+	#
+	# Usage: is_api_server_response_ok 'curl_exitcode' 'server_response' ['is_silent_FLAG']
+	#
+
+	# assert args
+	(( $# == 2 || $# == 3 )) || { errcho 'only 2 or 3 argument allowed'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+
+	# args
+	local -r -i curl_exitcode="$1"
+	local -r server_response="$2"
+	local -r -i is_silent_FLAG="${3:-0}"
+
+	# vars
+	local server_error_message
+
+	# code
+	if (( curl_exitcode )); then
+		if (( ! is_silent_FLAG )); then
+			errcho "Error connecting to $HIVE_HOST_URL" # TODO the caller func can connect any server, not only $HIVE_HOST_URL
+			errcho "$( human-curl-error "$curl_exitcode" )"
+		fi
+		return 1
+	fi
+
+	if [[ -z "$server_response" ]]; then
+		if (( ! is_silent_FLAG )); then
+			errcho "Error. Server responded with an empty answer."
+		fi
+		return 1
+	fi
+
+	if server_error_message="$( jq --exit-status --raw-output 'if .error and .error.code then "\(.error.message) (\(.error.code))" else false end' <<< "$server_response" )"; then # 'syntax highlighting fix
+		#                          ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
+		if (( ! is_silent_FLAG )); then
+			if [[ -n "$server_error_message" ]]; then
+				errcho "Server error: $server_error_message"
+			else
+				errcho "Server error, raw text: '$server_response'"
+			fi
+		fi
+		return 1
+	fi
+
+	return $(( exitcode_OK ))
+
+}
+
 function upload_khs_ts_1h_to_server {
 	#
 	# Usage: upload_khs_ts_1h_to_server
@@ -456,22 +516,7 @@ function upload_khs_ts_1h_to_server {
 	)"
 	curl_exitcode=$?
 
-	if (( curl_exitcode )); then
-		errcho "Error connecting to $HIVE_HOST_URL"
-		errcho "$( human-curl-error "$curl_exitcode" )"
-		return 1
-	fi
-
-	if [[ -z "$server_response" ]]; then
-		errcho "Error. Received an empty answer from $HIVE_HOST_URL"
-		return 1
-	fi
-
-	if jq --exit-status '.error and .error.code' <<< "$server_response" > /dev/null 2>&1; then
-		# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
-		errcho "Error. Server says something goes wrong: '$server_response'"
-		return 1
-	fi
+	is_api_server_response_ok "$curl_exitcode" "$server_response" || return 1
 
 	errcho "Uploading complete, server response: '$server_response'"
 }
@@ -530,22 +575,7 @@ function download_khs_ts_1h_from_server {
 	)"
 	curl_exitcode=$?
 
-	if (( curl_exitcode )); then
-		errcho "Error connecting to $HIVE_HOST_URL"
-		errcho "$( human-curl-error "$curl_exitcode" )"
-		return 1
-	fi
-
-	if [[ -z "$server_response" ]]; then
-		errcho "Error. Received an empty answer from $HIVE_HOST_URL"
-		return 1
-	fi
-
-	if jq --exit-status '.error and .error.code' <<< "$server_response" > /dev/null 2>&1; then
-		# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
-		errcho "Error. Server says something goes wrong: '$server_response'"
-		return 1
-	fi
+	is_api_server_response_ok "$curl_exitcode" "$server_response" || return 1
 
 	result_data="$(					jq --compact-output		'.result.data'									<<< "$server_response" )"
 
@@ -682,6 +712,8 @@ function prepend_n_0_lines_to_file {
 	# code
 	if (( how_much_lines > 0 )); then
 		errcho "Prepend $how_much_lines 0-lines to $file_to_process"
+		# shellcheck disable=SC2094
+		# bc I know what I am doing
 		printf '%s%s' "$(
 			for (( line_counter = 1; line_counter <= how_much_lines; line_counter++ )); do
 				echo "$zero_hashrate_line"
@@ -1002,6 +1034,8 @@ declare -r -i upload_every_nth_minute=10 # upload frequency
 declare -r -i upload_every_nth_second=$(( upload_every_nth_minute * seconds_in_minute ))
 
 declare -r -i backup_every_nth_minute=5 # backup frequency (backups disabled atm)
+# shellcheck disable=SC2034
+# bc backup functions not used atm
 declare -r -i backup_every_nth_second=$(( backup_every_nth_minute * seconds_in_minute ))
 
 declare -r -i time_gaps_count_in_15m=$(( seconds_in_15m / ts_1h_time_gap_in_s ))
@@ -1026,23 +1060,37 @@ print_script_version
 case "${1-}" in
 	'')
 		if is_screen_session_exist; then
+			# shellcheck disable=SC2119
+			# bc of the defaults
 			screen_session_attach
 		else
+			# shellcheck disable=SC2119
+			# bc of the defaults
 			screen_session_start
+			# shellcheck disable=SC2119
+			# bc of the defaults
 			screen_session_attach # attach will happen only in interactive shell, otherwise skipped
 		fi
 	;;
 
 	'start')
+		# shellcheck disable=SC2119
+		# bc of the defaults
 		screen_session_start
 	;;
 
 	'stop')
+		# shellcheck disable=SC2119
+		# bc of the defaults
 		screen_session_stop
 	;;
 
 	'restart')
+		# shellcheck disable=SC2119
+		# bc of the defaults
 		screen_session_stop
+		# shellcheck disable=SC2119
+		# bc of the defaults
 		screen_session_start
 	;;
 
@@ -1051,7 +1099,10 @@ case "${1-}" in
 	;;
 
 	'log')
-		screen_session_log; script_exitcode=$?
+		# shellcheck disable=SC2119
+		# bc of the defaults
+		screen_session_log
+		script_exitcode=$?
 	;;
 
 	'-h'|'--help'|*)
