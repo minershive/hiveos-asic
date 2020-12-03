@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.3.4'
+readonly script_version='0.3.5'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -145,7 +145,7 @@ function screen_session_attach {
 		echo 'NOT FOUND'
 	fi
 
-	return 1
+	return $(( exitcode_NOT_OK ))
 }
 
 # shellcheck disable=SC2120
@@ -184,7 +184,7 @@ function screen_session_start {
 		echo 'SKIPPED (already exists)'
 	fi
 
-	return 1
+	return $(( exitcode_NOT_OK ))
 }
 
 # shellcheck disable=SC2120
@@ -222,7 +222,7 @@ function screen_session_stop {
 		echo "SKIPPED (does not exist)"
 	fi
 
-	return 1
+	return $(( exitcode_NOT_OK ))
 }
 
 # shellcheck disable=SC2120
@@ -256,7 +256,7 @@ function screen_session_log {
 		echo "! Screen session '$session_name' does not exist"
 	fi
 
-	return 1
+	return $(( exitcode_NOT_OK ))
 }
 
 
@@ -290,7 +290,7 @@ function start_bg_job {
 		errcho "'${jobspec_ARR[*]}' is already running"
 	fi
 
-	return 1
+	return $(( exitcode_NOT_OK ))
 }
 
 function stop_bg_job {
@@ -312,7 +312,7 @@ function stop_bg_job {
 		errcho "$( jobs -l )"
 	fi
 
-	return 1
+	return $(( exitcode_NOT_OK ))
 }
 
 function execute_every_nth_second {
@@ -405,14 +405,14 @@ function is_api_server_response_ok {
 			errcho "Error connecting to $HIVE_HOST_URL" # TODO the caller func can connect any server, not only $HIVE_HOST_URL
 			errcho "$( human-curl-error "$curl_exitcode" )"
 		fi
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	if [[ -z "$server_response" ]]; then
 		if (( ! is_silent_FLAG )); then
 			errcho "Error. Server responded with an empty answer."
 		fi
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	if server_error_message="$( jq --exit-status --raw-output 'if .error and .error.code then "\(.error.message) (\(.error.code))" else false end' <<< "$server_response" )"; then # 'syntax highlighting fix
@@ -424,7 +424,7 @@ function is_api_server_response_ok {
 				errcho "Server error, raw text: '$server_response'"
 			fi
 		fi
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	return $(( exitcode_OK ))
@@ -449,7 +449,7 @@ function upload_khs_ts_1h_to_server {
 
 	if [[ ! -s "$khs_ts_1h_FILE" ]]; then
 		errcho "$khs_ts_1h_FILE is empty or not found. Nothing to upload"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	khs_ts_1h_FILE_last_updated_time="$( get_file_last_modified_time_in_seconds "$khs_ts_1h_FILE" )"
@@ -459,7 +459,7 @@ function upload_khs_ts_1h_to_server {
 	if (( seconds_passed_since_last_updated > seconds_in_1h )); then
 		errcho "$khs_ts_1h_FILE is older than 1 hour. It has no sense to upload a stale data"
 		#rm "$khs_ts_1h_FILE"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# ok to upload
@@ -503,7 +503,7 @@ function upload_khs_ts_1h_to_server {
 
 	if (( jq_exitcode )) || is_JSON_string_empty_or_null "$server_request_JSON"; then
 		errcho "Cannot create a JSON request packet: '$server_request_JSON'"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# packet created ok, let's curl it
@@ -516,7 +516,7 @@ function upload_khs_ts_1h_to_server {
 	)"
 	curl_exitcode=$?
 
-	is_api_server_response_ok "$curl_exitcode" "$server_response" || return 1
+	is_api_server_response_ok "$curl_exitcode" "$server_response" || return $(( exitcode_NOT_OK ))
 
 	errcho "Uploading complete, server response: '$server_response'"
 }
@@ -562,7 +562,7 @@ function download_khs_ts_1h_from_server {
 
 	if (( jq_exitcode )) || is_JSON_string_empty_or_null "$server_request_JSON"; then
 		errcho "Cannot create a JSON request packet: '$server_request_JSON'"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# packet created ok, let's curl it
@@ -575,13 +575,13 @@ function download_khs_ts_1h_from_server {
 	)"
 	curl_exitcode=$?
 
-	is_api_server_response_ok "$curl_exitcode" "$server_response" || return 1
+	is_api_server_response_ok "$curl_exitcode" "$server_response" || return $(( exitcode_NOT_OK ))
 
 	result_data="$(					jq --compact-output		'.result.data'									<<< "$server_response" )"
 
 	if is_JSON_string_empty_or_null "$result_data"; then
 		errcho "Error. There's no '.result.data' in the server response: '$server_response'"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# result_data -> this_algo_data
@@ -598,7 +598,7 @@ function download_khs_ts_1h_from_server {
 
 	if [[ "$this_miner_algo" != "$this_algo_name" ]]; then
 		errcho "Backup algo '$this_algo_name' is not equal to this miner's algo '$this_miner_algo'. Backup will not be used"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# check which backup is younger: server's or local one
@@ -610,13 +610,13 @@ function download_khs_ts_1h_from_server {
 
 	if (( khs_ts_1h_FILE_last_updated_time >= this_algo_last_updated_time )); then
 		errcho "Server-side backup is older than a local one by $( seconds2dhms $(( khs_ts_1h_FILE_last_updated_time - this_algo_last_updated_time )) ). It has no sense to use it"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# check a server-side backup age
 	if (( seconds_passed_since_last_updated > seconds_in_1h )); then
 		errcho "Server-side backup is older than 1 hour. It has no sense to use it"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 
 	# ok to save
@@ -658,7 +658,7 @@ function get_lines_count_in_file {
 		printf '0\n'
 	else
 		errcho "$file_to_count not found"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 }
 
@@ -692,7 +692,7 @@ function get_last_n_lines_from_file {
 		fi
 	else
 		errcho "$file_to_tail not found or empty"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 }
 
@@ -721,7 +721,7 @@ function prepend_n_0_lines_to_file {
 		)" "$( < "$file_to_process" )" > "$file_to_process"
 	else
 		errcho "ERROR: Invalid lines count $how_much_lines, skipping"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 }
 
@@ -746,7 +746,7 @@ function append_n_0_lines_to_file {
 		done >> "$file_to_process"
 	else
 		errcho "ERROR: Invalid lines count $how_much_lines, skipping"
-		return 1
+		return $(( exitcode_NOT_OK ))
 	fi
 }
 
@@ -933,7 +933,7 @@ function khs_ts_1h_aggregator {
 
 function run_in_interactive_mode {
 	# consts
-	local -r -i uptime_every_nth_minute=5
+	local -r -i show_uptime_every_nth_minute=5
 
 	# vars
 	local -i the_now_in_s current_second current_minute
@@ -967,7 +967,7 @@ function run_in_interactive_mode {
 		if ((
 			current_minute = the_now_in_s / 60 % 60,
 			current_second = the_now_in_s % 60,
-			current_second == 0 && current_minute % uptime_every_nth_minute == 0
+			current_second == 0 && current_minute % show_uptime_every_nth_minute == 0
 		)); then
 			# print uptime every_nth_minute at 00s
 			errcho "Uptime $( seconds2dhms "$SECONDS" )"

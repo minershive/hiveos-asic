@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.4'
+readonly script_version='0.4.5'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
@@ -1153,7 +1153,7 @@ declare -r -i worker_name_EMPTY=3
 
 declare -i script_exitcode_ENUM=0
 #declare -r -i exitcode_OK=0 # already defined in library
-declare -r -i exitcode_NOT_OK=1
+#declare -r -i exitcode_NOT_OK=1 # already defined in library
 declare -r -i exitcode_COMPARISON_FAILED=2
 
 # global flags

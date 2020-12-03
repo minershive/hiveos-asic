@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.51.3'
+declare -r hive_functions_lib_version='0.51.4'
 #                                        ^^ current number of public functions
 
 
@@ -1506,6 +1506,7 @@ function __list_functions {
 declare -r __audit_ok_string='I AM DOING FINE'
 # shellcheck disable=SC2034
 declare -r -i exitcode_OK=0
+declare -r -i exitcode_NOT_OK=1
 declare -r -i exitcode_ERROR_NOT_FOUND=1
 declare -r -i exitcode_ERROR_IN_ARGUMENTS=127
 # shellcheck disable=SC2034
