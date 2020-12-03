@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Average Hashrate Aggregator'
-readonly script_version='0.3.2'
+readonly script_version='0.3.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -462,6 +462,17 @@ function upload_khs_ts_1h_to_server {
 		return 1
 	fi
 
+	if [[ -z "$server_response" ]]; then
+		errcho "Error. Received an empty answer from $HIVE_HOST_URL"
+		return 1
+	fi
+
+	if jq --exit-status '.error and .error.code' <<< "$server_response" > /dev/null 2>&1; then
+		# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
+		errcho "Error. Server says something goes wrong: '$server_response'"
+		return 1
+	fi
+
 	errcho "Uploading complete, server response: '$server_response'"
 }
 
@@ -525,10 +536,21 @@ function download_khs_ts_1h_from_server {
 		return 1
 	fi
 
+	if [[ -z "$server_response" ]]; then
+		errcho "Error. Received an empty answer from $HIVE_HOST_URL"
+		return 1
+	fi
+
+	if jq --exit-status '.error and .error.code' <<< "$server_response" > /dev/null 2>&1; then
+		# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
+		errcho "Error. Server says something goes wrong: '$server_response'"
+		return 1
+	fi
+
 	result_data="$(					jq --compact-output		'.result.data'									<<< "$server_response" )"
 
 	if is_JSON_string_empty_or_null "$result_data"; then
-		errcho "Downloading error, server response: '$server_response'"
+		errcho "Error. There's no '.result.data' in the server response: '$server_response'"
 		return 1
 	fi
 
