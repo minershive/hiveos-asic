@@ -8,8 +8,8 @@
 #
 
 
-declare -r ant_functions_lib_mission='Antminer and Hiveon functions'
-declare -r ant_functions_lib_version='0.1.18'
+declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
+declare -r ant_functions_lib_version='0.1.19'
 
 
 # !!! bash strict mode, no unbound variables
@@ -122,7 +122,7 @@ function __list_functions {
 
 #ant functions
 
-function is_hiveon_fw_signed {
+function is_custom_fw_signed {
 
 	# consts
 
