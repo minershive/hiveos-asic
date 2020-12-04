@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.4.0'
+library_version='1.4.1'
 library_basename="${0##*/}"
 
 
@@ -107,13 +107,15 @@ assign_ASIC_CUSTOM_FW_constants () {
 	ASIC_CUSTOM_FW_VERSION_DATE=''	# default: '', no custom fw
 	ASIC_CUSTOM_FW_VERSION_MAJOR=-1	# default: -1, no custom fw
 	ASIC_CUSTOM_FW_VERSION_MINOR=-1	# default: -1, no custom fw
-	ASIC_CUSTOM_FW_BRAND=''	# default: '', no custom fw
+	ASIC_CUSTOM_FW_BRAND=''			# default: '', no custom fw
+	IS_ASIC_CUSTOM_FW=0				# default: 0, no custom fw
 
 	# vars
 	local ASIC_CUSTOM_FW_description_file_content
 
 	# code
 	if [ -s "$ASIC_CUSTOM_FW_description_file" ]; then
+		IS_ASIC_CUSTOM_FW=1
 		#
 		# A sample content of /usr/bin/compile_ver:
 		#
@@ -526,6 +528,7 @@ if ! ( return 0 2>/dev/null ); then
 		ASIC_CUSTOM_FW_BRAND ASIC_CUSTOM_FW_VERSION_RAW				\
 		ASIC_CUSTOM_FW_VERSION_DATE ASIC_CUSTOM_FW_VERSION			\
 		ASIC_CUSTOM_FW_VERSION_MAJOR ASIC_CUSTOM_FW_VERSION_MINOR	\
+		IS_ASIC_CUSTOM_FW											\
 		divider														\
 		ASIC_MINER_NAME ASIC_ALGO									\
 		ASIC_CHAIN_HASHRATE_UNITS ASIC_TOTAL_HASHRATE_UNITS			\
