@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.3.3'
+readonly script_version='2.3.4'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1647,7 +1647,7 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 	# quick assert for Custom FW
 	# shellcheck disable=SC2154
 	# bc defined in the asic-model
-	[[ -n "$ASIC_CUSTOM_FW_BRAND" ]] || return $(( exitcode_OK_NOTHING_HAPPENED ))
+	(( IS_ASIC_CUSTOM_FW )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# ok, check the Series' number
 	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
@@ -1725,7 +1725,7 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 	# quick assert for Custom FW
 	# shellcheck disable=SC2154
 	# bc defined in the asic-model
-	[[ -n "$ASIC_CUSTOM_FW_BRAND" ]] || return $(( exitcode_OK_NOTHING_HAPPENED ))
+	(( IS_ASIC_CUSTOM_FW )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# ok, check the Series' number
 	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then

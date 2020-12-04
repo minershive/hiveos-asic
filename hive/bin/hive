@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.1.10'
+readonly script_version='0.1.11'
 readonly script_basename="${0##*/}"
 
 
@@ -224,7 +224,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 	cp /lib/libnss_files.so.2 /hive/share/S9/lib/libnss_files.so.2
 	sed -i "s/\/etc\/hosts/\/tmp\/hosts/" /hive/share/S9/lib/libnss_files.so.2
 
-	if [[ -z "$ASIC_CUSTOM_FW_BRAND" ]]; then
+	if (( ! IS_ASIC_CUSTOM_FW )); then
 		echo_x action 'Patching upgrade'
 		cd /www/pages/cgi-bin/
 		patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch

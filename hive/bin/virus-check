@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.7.1'
+readonly script_version='0.7.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -166,7 +166,7 @@ function check_antbuild_NOT_USED { # not used
 	local message_color
 
 	# code
-	if [[ -n "$ASIC_CUSTOM_FW_BRAND" ]]; then
+	if (( IS_ASIC_CUSTOM_FW )); then
 		status_bitmask=$(( status_WARNING ))
 		message_color="${BYELLOW-}"
 	else
@@ -205,7 +205,7 @@ function check_antbuild {
 	local message_color custom_fw_specific_message
 
 	# code
-	if [[ -n "$ASIC_CUSTOM_FW_BRAND" ]]; then
+	if (( IS_ASIC_CUSTOM_FW )); then
 		status_bitmask=$(( status_WARNING ))
 		message_color="${BYELLOW-}"
 		custom_fw_specific_message="Virus blocked by $ASIC_CUSTOM_FW_BRAND firmware."
@@ -367,7 +367,7 @@ function check_uname_and_kernel_match {
 	local dict_key uname_from_dict uname_actual
 
 	# code
-	if [[ -n "$ASIC_CUSTOM_FW_BRAND" ]]; then
+	if (( IS_ASIC_CUSTOM_FW )); then
 		dict_key="$ASIC_MODEL $ASIC_CUSTOM_FW_VERSION_RAW" # f.e. 'Antminer T9 Hiveon 1.03@200818'
 		uname_from_dict="${valid_fw_version_kernel_version_pairs_DICT[$dict_key]-}"
 		if [[ -n "$uname_from_dict" ]]; then
@@ -442,7 +442,7 @@ fi
 case "${ASIC_MANUFACTURER-}" in
 	'Bitmain')
 		pretty_table_row 'model' "${WHITE-}" "$ASIC_MODEL ($ASIC_MANUFACTURER)"
-		[[ -n "${ASIC_CUSTOM_FW_BRAND-}" ]] && pretty_table_row 'version' "${WHITE-}" "$ASIC_CUSTOM_FW_BRAND $ASIC_CUSTOM_FW_VERSION_RAW"
+		(( IS_ASIC_CUSTOM_FW )) && pretty_table_row 'version' "${WHITE-}" "$ASIC_CUSTOM_FW_BRAND $ASIC_CUSTOM_FW_VERSION_RAW"
 		pretty_table_header 'KNOWN VIRUSES CHECK'
 		check_antbuild
 		check_bitmsfser_info

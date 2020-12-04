@@ -189,7 +189,7 @@ function hiveon_status {
 	fi
 
 	#Hiveon before 17 series
-	if [[ -n "$ASIC_CUSTOM_FW_BRAND" && ( ! "$ASIC_MODEL" =~ $series_17_RE ) && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
+	if (( IS_ASIC_CUSTOM_FW )) && [[ ( ! "$ASIC_MODEL" =~ $series_17_RE ) && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
 		if [[ -s /www/pages/cgi-bin/check-auto-tune-running.cgi ]]; then
 			tune_board="$( sh /www/pages/cgi-bin/check-auto-tune-running.cgi )"
 		fi
@@ -235,7 +235,7 @@ function hiveon_voltage {
 	local this_chain_voltage IFS voltages_from_adv_config
 
 	# code
-	if [[ -n "$ASIC_CUSTOM_FW_BRAND" && -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
+	if (( IS_ASIC_CUSTOM_FW )) && [[ -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
 		# '[0,0,0,0,0,63,63,63,0,0,0,0,0,0,0,0]' -> '0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0' -> ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 )
 		voltage_mask_array=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
 		# ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 ) -> ( 1,1,1 )
@@ -299,7 +299,7 @@ function hiveon_voltage {
 			errcho 'Voltage mask has no non-zero entries'
 			voltage_mask_array=()
 		fi
-	elif [[ -n "$ASIC_CUSTOM_FW_BRAND" ]]; then
+	elif (( IS_ASIC_CUSTOM_FW )); then
 		errcho "/www/pages/cgi-bin/get_adv_config.cgi not found or empty. Seems like your $ASIC_CUSTOM_FW_BRAND $ASIC_CUSTOM_FW_VERSION is broken."
 	fi
 
