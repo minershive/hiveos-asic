@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.19'
+declare -r ant_functions_lib_version='0.1.20'
 
 
 # !!! bash strict mode, no unbound variables
@@ -159,7 +159,7 @@ function hiveon_status {
 	local system_status
 
 	# consts
-	local -r series_17_RE='^Antminer [ST]17'
+	local -r series_17_RE='^Antminer [STX]17'
 
 	# code
 	if [[ -n "$input_text" && "$input_text" != 'ERR_NO_STATS' ]]; then
@@ -189,7 +189,7 @@ function hiveon_status {
 	fi
 
 	#Hiveon before 17 series
-	if [[ -n "$HIVEON_VERSION" && ( ! "$ASIC_MODEL" =~ $series_17_RE ) && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
+	if [[ -n "$ASIC_CUSTOM_FW_BRAND" && ( ! "$ASIC_MODEL" =~ $series_17_RE ) && ( "$system_status" == 'mining' || "$system_status" == 'ERR_NO_STATS' ) ]]; then
 		if [[ -s /www/pages/cgi-bin/check-auto-tune-running.cgi ]]; then
 			tune_board="$( sh /www/pages/cgi-bin/check-auto-tune-running.cgi )"
 		fi
@@ -235,7 +235,7 @@ function hiveon_voltage {
 	local this_chain_voltage IFS voltages_from_adv_config
 
 	# code
-	if [[ -n "$HIVEON_VERSION" && -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
+	if [[ -n "$ASIC_CUSTOM_FW_BRAND" && -s /www/pages/cgi-bin/get_adv_config.cgi ]]; then
 		# '[0,0,0,0,0,63,63,63,0,0,0,0,0,0,0,0]' -> '0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0' -> ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 )
 		voltage_mask_array=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$input_text" ) )
 		# ( 0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0 ) -> ( 1,1,1 )
@@ -299,8 +299,8 @@ function hiveon_voltage {
 			errcho 'Voltage mask has no non-zero entries'
 			voltage_mask_array=()
 		fi
-	elif [[ -n "$HIVEON_VERSION" ]]; then
-		errcho "/www/pages/cgi-bin/get_adv_config.cgi not found or empty. Seems like your Hiveon $HIVEON_VERSION is broken."
+	elif [[ -n "$ASIC_CUSTOM_FW_BRAND" ]]; then
+		errcho "/www/pages/cgi-bin/get_adv_config.cgi not found or empty. Seems like your $ASIC_CUSTOM_FW_BRAND $ASIC_CUSTOM_FW_VERSION is broken."
 	fi
 
 	IFS=','
@@ -339,7 +339,6 @@ function hiveon_power {
 }
 
 
-#set default hiveon config
 function hiveon_default_config {
 	#
 	# Usage: hiveon_default_config
@@ -349,16 +348,16 @@ function hiveon_default_config {
 	if [[ -f /etc/config.conf.e ]]; then
 		cp -rf /etc/config.conf.e /config/config.conf
 		message info 'Firmware config reset to default'
-		send_hiveon_config
+		send_custom_fw_config_to_server
 		miner restart
 	fi
 }
 
 
 #send hiveon config
-function send_hiveon_config {
+function send_custom_fw_config_to_server {
 	#
-	# Usage: send_hiveon_config
+	# Usage: send_custom_fw_config_to_server
 	#
 	# send hiveon config to API server
 
@@ -367,14 +366,14 @@ function send_hiveon_config {
 
 	# code
 	if [[ ! -s "$RIG_CONF" ]]; then
-		echo "Cannot send Hiveon config to API server, '$RIG_CONF' not found"
+		echo "Cannot send $ASIC_CUSTOM_FW_BRAND config to API server, '$RIG_CONF' not found"
 		exit 0
 	fi
 
 	source "$RIG_CONF"
 
 	if [[ -z "$RIG_ID" ]]; then
-		echo 'Cannot send Hiveon config to API server, RIG_ID is empty'
+		echo "Cannot send $ASIC_CUSTOM_FW_BRAND config to API server, RIG_ID is empty"
 		exit 0
 	fi
 
@@ -431,16 +430,16 @@ function send_hiveon_config {
 			response_message="$( jq --raw-output '.message' <<< "$response" )"
 			case "$response_message" in
 				'Not a Hiveon ASIC')
-					echo "Firmware config sending error: Not a Hiveon ASIC"
-					message err 'Not a Hiveon firmware (cannot send firmware config)' --silent
+					echo "Firmware config sending error: Not a $ASIC_CUSTOM_FW_BRAND ASIC"
+					message error "Not a $ASIC_CUSTOM_FW_BRAND firmware (cannot send firmware config)" --silent
 				;;
 				'Wrong password')
 					echo "Firmware config sending error: invalid password"
-					message err 'Firmware config sending error' --payload --silent <<< "Invalid password: API server $this_URL does not validate password '$RIG_PASSWD'"
+					message error 'Firmware config sending error' --payload --silent <<< "Invalid password: API server $this_URL does not validate password '$RIG_PASSWD'"
 				;;
 				'Invalid method')
 					echo "Firmware config sending error: server does not support 'set_asic_config' method"
-					message err 'Firmware config sending error' --payload --silent <<< "Invalid method: API server $this_URL does not support 'set_asic_config' method"
+					message error 'Firmware config sending error' --payload --silent <<< "Invalid method: API server $this_URL does not support 'set_asic_config' method"
 				;;
 				'null'|'')
 					# all is ok

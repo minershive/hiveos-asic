@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.3.2'
+readonly script_version='2.3.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1135,7 +1135,7 @@ function sync_time_via_hive_server { # not used atm
 # checkup:is_it_the_past
 # checkup:is_memory_full
 # checkup:is_miner_config_in_sync_with_FS
-# checkup:is_hiveon_config_in_sync
+# checkup:is_custom_fw_config_in_sync
 # checkup:is_build_updated
 # checkup:is_virus_found
 # checkup:is_there_JFFS2_error
@@ -1267,7 +1267,7 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_DEBUG )
 	return $(( is_something_happened ))
 }
 
-function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && debugcho
+function checkup:is_custom_fw_config_in_sync {															(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1286,13 +1286,11 @@ function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && 
 
 	# code
 
-	# quick assert for Hiveon version
+	# quick assert for Custom FW version
 
 	# shellcheck disable=SC2154
 	# bc defined in the asic-model
-	if (( HIVEON_VERSION_major < 2 )); then
-		return $(( exitcode_OK_NOTHING_HAPPENED ))
-	fi
+	(( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# problem:
 	# 1. we aren't able to send config if RIG_ID isn't set
@@ -1325,7 +1323,7 @@ function checkup:is_hiveon_config_in_sync {															(( script_DEBUG )) && 
 		if (( is_something_happened )); then
 			cp -f "$ASIC_CONF" "$HIVEON_CONF"
 			print_controller_log_entry 'info' "Copying $ASIC_CONF over $HIVEON_CONF and then sending it to the backend..."
-			ant-functions.sh send_hiveon_config
+			ant-functions.sh 'send_custom_fw_config_to_server'
 		fi
 	fi
 
@@ -1638,7 +1636,7 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 	# consts
 
 	local -r oc_profile_file='/config/profile.txt'
-	local -r is_series_17_RE='Antminer.+17.+Hiveon'
+	local -r is_series_17_RE='Antminer [STX]17'
 
 	# vars
 
@@ -1646,6 +1644,12 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 
 	# code
 
+	# quick assert for Custom FW
+	# shellcheck disable=SC2154
+	# bc defined in the asic-model
+	[[ -n "$ASIC_CUSTOM_FW_BRAND" ]] || return $(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# ok, check the Series' number
 	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
 		if [[ ! -s "$oc_profile_file" ]]; then
 			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
@@ -1681,7 +1685,7 @@ function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 
 	# code
 
-	if ! ant-functions.sh is_custom_fw_signed; then
+	if ! ant-functions.sh 'is_custom_fw_signed'; then
 		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) == 0 )); then
 			# one time action
 			print_controller_log_entry "$event_type_for_log" 'Firmware is unsigned'
@@ -1704,7 +1708,7 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 
 	# consts
 
-	local -r is_series_17_RE='Antminer.+17.+Hiveon'
+	local -r is_series_17_RE='Antminer [STX]17'
 
 	# vars
 
@@ -1718,6 +1722,12 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 
 	# code
 
+	# quick assert for Custom FW
+	# shellcheck disable=SC2154
+	# bc defined in the asic-model
+	[[ -n "$ASIC_CUSTOM_FW_BRAND" ]] || return $(( exitcode_OK_NOTHING_HAPPENED ))
+
+	# ok, check the Series' number
 	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
 		for this_pid in $( pidof bmminer cgminer ); do
 			if read -r -a proc_stat_parsed < "/proc/$this_pid/stat"; then
@@ -1967,7 +1977,7 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 
 	local -r -i loop_duration_in_s=60 # 60 seconds for production. you can change it for the debug purposes
 	local -r is_installation_running_RE='(selfupgrade|firmware-upgrade)'
-	local -r is_Hive_starting_RE='(S69hive|/hive/bin/hive|hive_autorun)'
+	local -r is_Client_starting_RE='(S69hive|/hive/bin/hive|hive_autorun)'
 
 	# vars
 
@@ -1986,8 +1996,8 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 			# do wait for Client installation to be finished bc we don't have /hive atm and this could fire a false positive
 			print_controller_log_entry "$event_type_for_log" "Upgrade running, skipping checks..."
 			increment_checkup_counter 'upgrade_running' 'alarm'
-		elif [[ "$current_process_list" =~ $is_Hive_starting_RE ]]; then
-			print_controller_log_entry "$event_type_for_log" "Client starting, skipping checks..."
+		elif [[ "$current_process_list" =~ $is_Client_starting_RE ]]; then
+			print_controller_log_entry "$event_type_for_log" "The Client starting, skipping checks..."
 		else
 			# do cron work
 			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
@@ -2046,7 +2056,7 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 # global vars
 
 declare time_source # ntpd|ntpdate|hive
-declare -i is_RIG_ID_ok_FLAG=0 # means NOT OK at the start, will check this (and set to OK) in is_hiveon_config_in_sync() later
+declare -i is_RIG_ID_ok_FLAG=0 # means NOT OK at the start, will check this (and set to OK) in is_custom_fw_config_in_sync() later
 
 
 # crontab
@@ -2056,7 +2066,7 @@ declare -a crontab=(
 	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
-	'* * * * *		checkup:is_hiveon_config_in_sync'
+	'* * * * *		checkup:is_custom_fw_config_in_sync'
 	'* * * * *		checkup:is_miner_niceness_ok'
 	'*/2 * * * *	checkup:is_build_updated'
 	'*/2 * * * *	checkup:is_memory_full'
