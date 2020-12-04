@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_decription='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.4.0'
+readonly script_version='0.4.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -785,7 +785,7 @@ aes="$( grep -c '^Features.*aes' /proc/cpuinfo )"
 kernel="$( get_kernel_version )"
 hive_client_version="$( get_hive_client_version )"
 
-[[ -n "$ASIC_CUSTOM_FW_VERSION" ]] && serve_custom_fw_model_cache
+[[ -n "$ASIC_CUSTOM_FW_BRAND" ]] && serve_custom_fw_model_cache
 
 asic_json="$( get_asic_json )"
 uid="$( get_uid )"
