@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.2'
+readonly script_version='0.8.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1246,7 +1246,7 @@ function fetch_stats_and_push_them_to_server {
 	local command
 	#
 	command="$( jq --raw-output '.result.command' <<< "$response" )"
-	if [[ $command == 'OK' ]]; then
+	if [[ "$command" == 'OK' ]]; then
 		if [[ -f "$last_cmd_id_FILE" ]]; then
 			(( script_DEBUG )) && log_line debug "[DEBUG] removing $last_cmd_id_FILE"
 			rm "$last_cmd_id_FILE"
@@ -1410,7 +1410,7 @@ function do_command {
 			else
 				(( time_limit = 60 * 60 * 3 )) # 3 hrs tops
 				# shellcheck disable=SC2076
-				if [[ $ASIC_MODEL == 'Zig Z1' || $ASIC_MODEL == 'Zig Z1+' || $ASIC_MODEL =~ 'Toddminer C1' ]]; then
+				if [[ "$ASIC_MODEL" == 'Zig Z1' || "$ASIC_MODEL" == 'Zig Z1+' || "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
 					# use Debian /usr/bin/timeout
 					exectimeout="nohup timeout $time_limit bash -c"
 				else
