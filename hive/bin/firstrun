@@ -205,7 +205,7 @@ HIVE_HOST_URL_default='http://api.hiveos.farm'
 # 1. try to get a whitelabel default from a config file embedded in firmware
 # WARNING: no fallback procedure defined. URL must be correct.
 #
-if [ -s "$WHITELABEL_HOST_URL_file_in_FW" ]; then
+if [[ -s "$WHITELABEL_HOST_URL_file_in_FW" ]]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_FW" )"
 	echo "Default API server URL found in $WHITELABEL_HOST_URL_file_in_FW (firmware): $HIVE_HOST_URL_default"
 fi
@@ -214,7 +214,7 @@ fi
 # 2. try to get a whitelabel default from a config file written in NVRAM
 # WARNING: no fallback procedure defined. URL must be correct.
 #
-if [ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]; then
+if [[ -s "$WHITELABEL_HOST_URL_file_in_NVRAM" ]]; then
 	HIVE_HOST_URL_default="$( < "$WHITELABEL_HOST_URL_file_in_NVRAM" )"
 	echo "Default API server URL found in $WHITELABEL_HOST_URL_file_in_NVRAM (NVRAM): $HIVE_HOST_URL_default"
 fi
