@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Diagnostic'
-readonly script_version='0.0.3'
+readonly script_version='0.0.4'
 readonly script_basename="${0##*/}"
 
 
@@ -86,7 +86,7 @@ echo "Client version: $agent_full_version"
 ip="$(					LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
 route="$(				LANG=C route -n | grep -v 'routing table' | print_with_identation )"
 gateway="$(				rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' <<< $route )"
-nameserver="$(			grep -v -m1 '^#' /etc/resolv.conf | awk '{ print $2 }' )"
+nameserver="$(			grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )" # first nameserver
 mac="$(					LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
 arp_check="$(			print_with_identation < /proc/net/arp )"
 ping_gw="$(				ping -c 5 -q "$gateway" | grep -v -e '---' -e '^$' | print_with_identation )"
