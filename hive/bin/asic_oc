@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.1.12'
+readonly script_version='0.1.13'
 readonly script_basename="${0##*/}"
 
 
@@ -32,7 +32,7 @@ function ant17:get_description_for_profile {
 	# code
 
 	ASIC_MODEL_short="$( cut -d' ' -f2 <<< "$ASIC_MODEL" )"
-	profile_description_file="/hive/share/profiles/${ASIC_MODEL_short}_${HIVEON_VERSION}_description"
+	profile_description_file="/hive/share/profiles/${ASIC_MODEL_short}_${ASIC_CUSTOM_FW_VERSION}_description"
 
 	read_variable_from_file "$profile_description_file" "profile_${_profile_id}"
 }
@@ -83,10 +83,10 @@ function ant17:print_status {
 		is_profile_saved[$this_profile_id]=1
 	done
 
-	echo "  $ASIC_MODEL @ $HIVEON_VERSION"
+	echo "  $ASIC_MODEL @ $ASIC_CUSTOM_FW_VERSION"
 	echo
 
-	if [[ -s '/config/profile.txt' ]]; then
+	if [[ -s /config/profile.txt ]]; then
 		current_profile_id="$( ant17:get_current_profile_id )"
 		current_profile_description="$( ant17:get_description_for_profile "$current_profile_id" )"
 		current_profile_tune_status="$( read_variable_from_file '/config/profile.txt' 'tune_status' )"
@@ -145,7 +145,7 @@ declare -i kill_miner_FLAG=0 wait_for_tuning_FLAG=0
 
 # main
 
-if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer T9" ]]; then
+if [[ ( "$ASIC_CUSTOM_FW_VERSION" == '1.02' || "$ASIC_CUSTOM_FW_VERSION" == '1.03' ) && ( "$ASIC_MODEL" == 'Antminer S9'* || "$ASIC_MODEL" == 'Antminer T9'* ) ]]; then
 	current_profile_file='/config/autoTune.conf'
 	current_config_file='/config/config.conf'
 	autotune_log_file='/tmp/auto-tune'
@@ -197,7 +197,7 @@ if [[ $HIVEON_VERSION == "1.02" || $HIVEON_VERSION == "1.03" ]] && [[ $ASIC_MODE
 	fi
 	echo 'Autotune config applied!'
 
-elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' || $ASIC_MODEL == 'Antminer T17 Hiveon' ]]; then
+elif [[ "$ASIC_CUSTOM_FW_VERSION" == '1.00' && ( "$ASIC_MODEL" == "Antminer S17 $ASIC_CUSTOM_FW_BRAND"* || "$ASIC_MODEL" == "Antminer T17 $ASIC_CUSTOM_FW_BRAND"* ) ]]; then
 	current_profile_file='/config/profile.txt'
 
 	case "$1" in
@@ -252,7 +252,7 @@ elif [[ $HIVEON_VERSION == '1.00' ]] && [[ $ASIC_MODEL == 'Antminer S17 Hiveon' 
 		miner tuning
 	fi
 
-elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
+elif [[ "$ASIC_MODEL" == 'Antminer S17'* || "$ASIC_MODEL" == 'Antminer T17'* ]]; then
 	current_profile_file='/config/profile.txt'
 
 	case "$1" in
@@ -317,7 +317,7 @@ elif [[ $ASIC_MODEL =~ 'Antminer S17' || $ASIC_MODEL =~ 'Antminer T17' ]]; then
 	esac
 
 	if (( kill_miner_FLAG )); then
-		if [ -f "/www/pages/cgi-bin/apply_profile.cgi" ]; then
+		if [[ -f /www/pages/cgi-bin/apply_profile.cgi ]]; then
 			sh /www/pages/cgi-bin/apply_profile.cgi
 		else
 			killall bmminer
@@ -340,17 +340,17 @@ else
 	current_config_file='/config/config.conf'
 	autotune_log_file='/tmp/auto-tune'
 
-	if [[ $1 == "default" ]]; then
+	if [[ "$1" == 'default' ]]; then
 		rm -rf "$current_profile_file" > /dev/null 2>&1
 		rm -rf "$current_config_file" > /dev/null 2>&1
-		if [[ $ASIC_MODEL =~ 'Antminer L3' ]]; then
+		if [[ "$ASIC_MODEL" == 'Antminer L3'* ]]; then
 			killall -9 cgminer
 		fi
 	else
 		echo "$1" | jq -r '. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"' | sed ':a;N;$!ba;s/\n/\&/g' > "$current_profile_file"
 	fi
 	conftune="$( < "$current_profile_file" )"
-	if [[ -e /usr/bin/compile_ver && $ASIC_MODEL =~ "Antminer S9" ]]; then
+	if [[ -e /usr/bin/compile_ver && "$ASIC_MODEL" == 'Antminer S9'* ]]; then
 		sed -i 's/profile=1\&/profile=1\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' "$current_profile_file"
 		sed -i 's/profile=2\&/profile=2\&slow_freq_start=400\&slow_freq_step=25\&slow_volt_max=840\&/' "$current_profile_file"
 		sed -i 's/profile=3\&/profile=3\&slow_freq_start=400\&slow_freq_step=50\&slow_volt_max=860\&/' "$current_profile_file"
@@ -370,45 +370,19 @@ else
 		snore 1
 
 		case "$conftune" in
-			*"profile=1"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"
-				;;
-			*"profile=2"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"
-				;;
-			*"profile=3"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"
-				;;
-			*"profile=4"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"
-				;;
-			*"profile=5"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=810\&/' "$current_profile_file"
-				;;
-			*"profile=6"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=820\&/' "$current_profile_file"
-				;;
-			*"profile=7"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=820\&/' "$current_profile_file"
-				;;
-			*"profile=8"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=830\&/' "$current_profile_file"
-				;;
-			*"profile=9"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=830\&/' "$current_profile_file"
-				;;
-			*"profile=10"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=840\&/' "$current_profile_file"
-				;;
-			*"profile=11"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=850\&/' "$current_profile_file"
-				;;
-			*"profile=12"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=860\&/' "$current_profile_file"
-				;;
-			*"profile=13"\&*)
-				sed -i 's/voltage_from=[0-9]*\&/voltage_from=870\&/' "$current_profile_file"
-				;;
+			*"profile=1"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"		;;
+			*"profile=2"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"		;;
+			*"profile=3"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"		;;
+			*"profile=4"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=800\&/' "$current_profile_file"		;;
+			*"profile=5"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=810\&/' "$current_profile_file"		;;
+			*"profile=6"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=820\&/' "$current_profile_file"		;;
+			*"profile=7"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=820\&/' "$current_profile_file"		;;
+			*"profile=8"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=830\&/' "$current_profile_file"		;;
+			*"profile=9"\&*		)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=830\&/' "$current_profile_file"		;;
+			*"profile=10"\&*	)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=840\&/' "$current_profile_file"		;;
+			*"profile=11"\&*	)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=850\&/' "$current_profile_file"		;;
+			*"profile=12"\&*	)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=860\&/' "$current_profile_file"		;;
+			*"profile=13"\&*	)		sed -i 's/voltage_from=[0-9]*\&/voltage_from=870\&/' "$current_profile_file"		;;
 		esac
 	fi
 
