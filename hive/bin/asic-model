@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.3.5'
+library_version='1.4.0'
 library_basename="${0##*/}"
 
 
@@ -21,7 +21,7 @@ library_basename="${0##*/}"
 
 # functions
 
-set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
+assign_ASIC_MANUFACTURER_and_ASIC_MODEL_constants () {
 	#
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
@@ -36,6 +36,7 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	if [ -s /usr/bin/compile_time ]; then
 		ASIC_MANUFACTURER='Bitmain'
 		ASIC_MODEL="$( sed -n '2p' /usr/bin/compile_time )"
+		# shellcheck disable=SC2034
 		ASIC_FW_VERSION="$( sed -n '1p' /usr/bin/compile_time )"
 		case "$ASIC_MODEL" in
 			'Blackminer F1'*)
@@ -78,12 +79,14 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 		# Zig new firmware
 		if [ -s /var/www/html/TYPE ]; then
 			# shellcheck disable=SC2001
+			# bc might think about it later
 			ASIC_MODEL="$( echo "$ASIC_MODEL" | sed "s/{{ type() }}/$( cat /var/www/html/TYPE )/" )" #"# syntax highliting fix
 		fi
 	fi
 
 	# Todek Toddminer C1 / C1 PRO
 	if [ -x /home/sm/miner/build/cpuminer ] && [ -e /flask/setHashinJson ]; then
+		# shellcheck disable=SC2034
 		ASIC_MANUFACTURER='Todek'
 		ASIC_MODEL='Toddminer C1'
 		if /home/sm/miner/build/cpuminer -V | head -1 | grep -Fq 'pro'; then
@@ -92,46 +95,74 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 	fi
 }
 
-set_HIVEON_VERSION_variable () {
+assign_ASIC_CUSTOM_FW_constants () {
 	#
 	# !!! shall be sh-friendly
 	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
 	#
 
-	# code
-	HIVEON_VER=''			# global var. deprecated in favor of the more clear HIVEON_VERSION
-	HIVEON_VERSION=''		# global var. default: '', no Hiveon
-	HIVEON_VERSION_full=''	# global var. default: '', no Hiveon
-	HIVEON_VERSION_major=-1	# global var. default: -1, no Hiveon
-	HIVEON_VERSION_minor=-1	# global var. default: -1, no Hiveon
+	# global vars, defaults
+	ASIC_CUSTOM_FW_VERSION=''		# default: '', no custom fw
+	ASIC_CUSTOM_FW_VERSION_RAW=''	# default: '', no custom fw
+	ASIC_CUSTOM_FW_VERSION_DATE=''	# default: '', no custom fw
+	ASIC_CUSTOM_FW_VERSION_MAJOR=-1	# default: -1, no custom fw
+	ASIC_CUSTOM_FW_VERSION_MINOR=-1	# default: -1, no custom fw
+	ASIC_CUSTOM_FW_BRAND=''	# default: '', no custom fw
+
+	# vars
+	local ASIC_CUSTOM_FW_description_file_content
 
 	# code
-	if [ -s /usr/bin/compile_ver ]; then
-		HIVEON_VERSION="$( awk -F'@' 'NR==3 {print $1; exit}' < /usr/bin/compile_ver )"
-		HIVEON_VERSION_full="$( sed -n '3p' /usr/bin/compile_ver )" # f.e. 1.03@200818
+	if [ -s "$ASIC_CUSTOM_FW_description_file" ]; then
+		#
+		# A sample content of /usr/bin/compile_ver:
+		#
+		# Tue Nov 20 10:12:30 UTC 2019
+		# Antminer S9 Hiveon
+		# 1.02@191120
+		# Bigminer
+		#
+		ASIC_CUSTOM_FW_description_file_content="$( cat "$ASIC_CUSTOM_FW_description_file" )"
+
+		# let's parse it to a global variables
+		ASIC_CUSTOM_FW_VERSION_RAW="$( echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '3p' )" # f.e. 1.03@200818
+
+		# take a part before the first '@'   vvvv
+		ASIC_CUSTOM_FW_VERSION="${ASIC_CUSTOM_FW_VERSION_RAW%%@*}"
+		# take a part after the last '@'          vvvv
 		# shellcheck disable=SC2034
-		HIVEON_VER="$HIVEON_VERSION" # legacy
-		# shellcheck disable=SC2034
-		case "$HIVEON_VERSION" in
-			*.*)
+		ASIC_CUSTOM_FW_VERSION_DATE="${ASIC_CUSTOM_FW_VERSION_RAW##*@}"
+
+		case "$ASIC_CUSTOM_FW_VERSION" in
+			*.* ) # is it look like a version?
 				# take a part before the first dot                      vvvv
-				HIVEON_VERSION_major="$( printf '%g\n' "${HIVEON_VERSION%%.*}" 2> /dev/null )"
+				ASIC_CUSTOM_FW_VERSION_MAJOR="$( printf '%g\n' "${ASIC_CUSTOM_FW_VERSION%%.*}" 2> /dev/null )"
 				# take a part after the last dot                        vvvv
-				HIVEON_VERSION_minor="$( printf '%g\n' "${HIVEON_VERSION##*.}" 2> /dev/null )"
+				ASIC_CUSTOM_FW_VERSION_MINOR="$( printf '%g\n' "${ASIC_CUSTOM_FW_VERSION##*.}" 2> /dev/null )"
 				#                                ^^ and then remove leading zeroes, if any
 			;;
 		esac
+
+		ASIC_CUSTOM_FW_BRAND="$( echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '4p' )" # f.e. 'Hiveon' OR whitelabel's brand
+		[ -z "$ASIC_CUSTOM_FW_BRAND" ] && ASIC_CUSTOM_FW_BRAND='Hiveon' # an absent 4th line is equal to 'Hiveon', for backward compatibility
 	fi
+
+	# stub for legacy Hiveon vars
+	# shellcheck disable=SC2034
+	{
+		HIVEON_VER="$ASIC_CUSTOM_FW_VERSION" # deprecated earlier in favor of the more clear HIVEON_VERSION
+		HIVEON_VERSION="$ASIC_CUSTOM_FW_VERSION"
+		HIVEON_VERSION_full="$ASIC_CUSTOM_FW_VERSION_RAW"
+		HIVEON_VERSION_major="$ASIC_CUSTOM_FW_VERSION_MAJOR"
+		HIVEON_VERSION_minor="$ASIC_CUSTOM_FW_VERSION_MINOR"
+	}
 }
 
-function set_ASIC_constants {
+function assign_model_specific_constants {
 	# args
 	local -r ASIC_MODEL="${1-}"
 
-	# vars
-	local firmware_version
-
-	# defaults
+	# global vars, defaults
 	ASIC_MOUNT_PATH=''
 	ASIC_ALGO='unknown'
 	ASIC_MINER_NAME='na'
@@ -145,6 +176,9 @@ function set_ASIC_constants {
 	ASIC_FAN_COUNT=2
 	ASIC_CHAIN_COUNT=3
 	ASIC_WEAK_FLASH=0				# 0 - not too weak (with the grain of salt yeah), 1 - weak and weary flash chip like them Antminers L3/Z11
+
+	# vars
+	local antminer_firmware_version
 
 	# code
 	case "$ASIC_MODEL" in
@@ -294,7 +328,7 @@ function set_ASIC_constants {
 			ASIC_MINER_CONFIG_FILE='/config/bmminer.conf'
 			ASIC_CHAIN_HASHRATE_UNITS='ghs'
 			ASIC_GPIO_LED_RED=70
-			[[ "$HIVEON_VERSION" == '1.03' ]] && ASIC_GPIO_LED_RED=37
+			[[ "$ASIC_CUSTOM_FW_VERSION" == '1.03' ]] && ASIC_GPIO_LED_RED=37
 			ASIC_GPIO_PATH='direction'
 			ASIC_CHAIN_COUNT=9
 		;;
@@ -332,10 +366,12 @@ function set_ASIC_constants {
 			ASIC_CHAIN_HASHRATE_UNITS='khs'
 			ASIC_GPIO_LED_RED=941
 			ASIC_GPIO_PATH='value'
-			# HASH tweak for the latest firmware
-			if firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$firmware_version" == *'Oct'*'2019' ]]; then
+			# hashrate tweak for the latest Z11 firmware
+			if antminer_firmware_version="$( sed -n '1p' /usr/bin/compile_time )" && [[ "$antminer_firmware_version" == *'Oct'*'2019' ]]; then
+				# shellcheck disable=SC2034
 				ASIC_TOTAL_HASHRATE_UNITS='hs'
 			fi
+			# shellcheck disable=SC2034
 			ASIC_WEAK_FLASH=1
 		;;
 
@@ -344,7 +380,7 @@ function set_ASIC_constants {
 			ASIC_MINER_NAME='dwang_btc_miner'
 			ASIC_CHAIN_HASHRATE_UNITS='ghs'
 			# shellcheck disable=SC2034
-			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # seems unused. will we need it later?
+			LOCALIP="$( ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}' )" # ??? seems unused. will we need it later?
 		;;
 
 		'b29+.g19' | 'a9+.g19' )
@@ -414,6 +450,7 @@ function set_ASIC_constants {
 			ASIC_MINER_CONFIG_FILE='/var/www/html/resources/cgminer.config'
 			ASIC_CHAIN_HASHRATE_UNITS='mhs'
 			ASIC_MAX_FAN_RPM=4000
+			# shellcheck disable=SC2034
 			ASIC_CHAIN_COUNT=4
 		;;
 
@@ -427,7 +464,6 @@ function set_ASIC_constants {
 			ASIC_MAX_FAN_RPM=7000
 			# shellcheck disable=SC2076,SC2034
 			[[ "$ASIC_MODEL" =~ 'PRO' ]] && ASIC_FAN_COUNT=4
-			# shellcheck disable=SC2034
 		;;
 
 		'Blackminer F1'* )
@@ -452,11 +488,16 @@ function set_ASIC_constants {
 }
 
 
+# global consts
+
+declare -r ASIC_CUSTOM_FW_description_file='/usr/bin/compile_ver'
+
+
 # code
 
-set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables
-set_HIVEON_VERSION_variable
-set_ASIC_constants "$ASIC_MODEL"
+assign_ASIC_MANUFACTURER_and_ASIC_MODEL_constants
+assign_ASIC_CUSTOM_FW_constants
+assign_model_specific_constants "$ASIC_MODEL"
 
 # check if we're sourced
 if ! ( return 0 2>/dev/null ); then
@@ -479,21 +520,22 @@ if ! ( return 0 2>/dev/null ); then
 	#	echo
 	#}
 
-	for variable_name in										\
-		ASIC_MANUFACTURER ASIC_MODEL ASIC_FW_VERSION			\
-		divider													\
-		HIVEON_VERSION_full HIVEON_VERSION						\
-		HIVEON_VERSION_major HIVEON_VERSION_minor				\
-		divider													\
-		ASIC_MINER_NAME ASIC_ALGO								\
-		ASIC_CHAIN_HASHRATE_UNITS ASIC_TOTAL_HASHRATE_UNITS		\
-		ASIC_CHAIN_COUNT ASIC_FAN_COUNT ASIC_MAX_FAN_RPM		\
-		divider													\
-		ASIC_MOUNT_PATH ASIC_LOG_FILE ASIC_MINER_CONFIG_FILE	\
-		divider													\
-		ASIC_GPIO_PATH ASIC_GPIO_LED_RED ASIC_WEAK_FLASH		\
-		divider													\
-		LOCALIP STAT_TOKEN TEMP_TOKEN							\
+	for variable_name in											\
+		ASIC_MANUFACTURER ASIC_MODEL ASIC_FW_VERSION				\
+		divider														\
+		ASIC_CUSTOM_FW_BRAND ASIC_CUSTOM_FW_VERSION_RAW				\
+		ASIC_CUSTOM_FW_VERSION_DATE ASIC_CUSTOM_FW_VERSION			\
+		ASIC_CUSTOM_FW_VERSION_MAJOR ASIC_CUSTOM_FW_VERSION_MINOR	\
+		divider														\
+		ASIC_MINER_NAME ASIC_ALGO									\
+		ASIC_CHAIN_HASHRATE_UNITS ASIC_TOTAL_HASHRATE_UNITS			\
+		ASIC_CHAIN_COUNT ASIC_FAN_COUNT ASIC_MAX_FAN_RPM			\
+		divider														\
+		ASIC_MOUNT_PATH ASIC_LOG_FILE ASIC_MINER_CONFIG_FILE		\
+		divider														\
+		ASIC_GPIO_PATH ASIC_GPIO_LED_RED ASIC_WEAK_FLASH			\
+		divider														\
+		LOCALIP STAT_TOKEN TEMP_TOKEN								\
 		divider; do
 			if [[ "$variable_name" != 'divider' ]]; then
 				if [[ -v "$variable_name" ]]; then
@@ -510,7 +552,7 @@ if ! ( return 0 2>/dev/null ); then
 					variable_name_color="${DGRAY-}"
 					variable_value_color="${DGRAY-}"
 				fi
-				printf '  %b%-25.25s %b%s%b\n' "$variable_name_color" "$variable_name" "$variable_value_color" "$variable_value" "${NOCOLOR-}"
+				printf '  %b%-28.28s %b%s%b\n' "$variable_name_color" "$variable_name" "$variable_value_color" "$variable_value" "${NOCOLOR-}"
 			else
 				echo
 			fi
