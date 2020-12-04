@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.4.1'
+library_version='1.4.2'
 library_basename="${0##*/}"
 
 
@@ -101,14 +101,17 @@ assign_ASIC_CUSTOM_FW_constants () {
 	# !!! copied from 'selfupgrade' script, PLEASE KEEP IT IN SYNC
 	#
 
+	# consts
+	local asic_custom_fw_brand_default='Hiveon'
+	
 	# global vars, defaults
-	ASIC_CUSTOM_FW_VERSION=''		# default: '', no custom fw
-	ASIC_CUSTOM_FW_VERSION_RAW=''	# default: '', no custom fw
-	ASIC_CUSTOM_FW_VERSION_DATE=''	# default: '', no custom fw
-	ASIC_CUSTOM_FW_VERSION_MAJOR=-1	# default: -1, no custom fw
-	ASIC_CUSTOM_FW_VERSION_MINOR=-1	# default: -1, no custom fw
-	ASIC_CUSTOM_FW_BRAND=''			# default: '', no custom fw
-	IS_ASIC_CUSTOM_FW=0				# default: 0, no custom fw
+	ASIC_CUSTOM_FW_VERSION=''								# default: '', no custom fw
+	ASIC_CUSTOM_FW_VERSION_RAW=''							# default: '', no custom fw
+	ASIC_CUSTOM_FW_VERSION_DATE=''							# default: '', no custom fw
+	ASIC_CUSTOM_FW_VERSION_MAJOR=-1							# default: -1, no custom fw
+	ASIC_CUSTOM_FW_VERSION_MINOR=-1							# default: -1, no custom fw
+	ASIC_CUSTOM_FW_BRAND="$asic_custom_fw_brand_default"	# default: 'Hiveon', if not redefined in /usr/bin/compile_ver
+	IS_ASIC_CUSTOM_FW=0										# default: 0, no custom fw
 
 	# vars
 	local ASIC_CUSTOM_FW_description_file_content
@@ -146,8 +149,9 @@ assign_ASIC_CUSTOM_FW_constants () {
 		esac
 
 		ASIC_CUSTOM_FW_BRAND="$( echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '4p' )" # f.e. 'Hiveon' OR whitelabel's brand
-		[ -z "$ASIC_CUSTOM_FW_BRAND" ] && ASIC_CUSTOM_FW_BRAND='Hiveon' # an absent 4th line is equal to 'Hiveon', for backward compatibility
 	fi
+
+	[ -z "$ASIC_CUSTOM_FW_BRAND" ] && ASIC_CUSTOM_FW_BRAND="$asic_custom_fw_brand_default" # an absent 4th line is equal to 'Hiveon', for backward compatibility
 
 	# stub for legacy Hiveon vars
 	# shellcheck disable=SC2034

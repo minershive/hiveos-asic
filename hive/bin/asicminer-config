@@ -646,9 +646,9 @@ function generate_miner_configuration_to {
 			}'
 		;;
 
-		'Antminer S17+ Hiveon'* | 'Antminer T17+'* |\
+		"Antminer S17+ $ASIC_CUSTOM_FW_BRAND"* | 'Antminer T17+'* |\
 		'Antminer S17E'* | 'Antminer T17E'* |\
-		'Antminer T17 Hiveon' | 'Antminer S17 Hiveon' |\
+		"Antminer T17 $ASIC_CUSTOM_FW_BRAND"* | "Antminer S17 $ASIC_CUSTOM_FW_BRAND"* |\
 		'Antminer X17' )
 			config_global='{
 				"api-listen": true,
