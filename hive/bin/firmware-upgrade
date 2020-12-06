@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.21'
+readonly script_version='0.1.22'
 readonly script_basename="${0##*/}"
 
 
@@ -59,7 +59,7 @@ unhide_certs () {
 
 at_exit () {
 	echo "> Removing temporary directory $directory_to_unpack_fw..."
-	rm -rf "${directory_to_unpack_fw:-SAFE}" || true # ??? "|| true" has no sense because rm with -f argument never returns anything but 0
+	rm -rf "${directory_to_unpack_fw:-SAFE}" # "rm -rf some_file || true" has no sense because rm with -f argument never returns anything but 0
 	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	unhide_certs
@@ -109,7 +109,7 @@ do_upgrade_for () {
 	# remove huge temp files/directories (1M and up)
 	for this_huge_file in $( du -h /tmp/* /var/log/* | awk '/^[0-9.]+M/{print $2}' ); do
 		echo "> Clearing the space, removing $this_huge_file (it's greater than 1M)..."
-		rm -rf "${this_huge_file:-SAFE}" || true
+		rm -rf "${this_huge_file:-SAFE}"
 	done
 
 	# create a temp dir
@@ -200,7 +200,7 @@ upgrade_S9 () {
 				"$directory_to_unpack_fw"	)		: skip										;;
 				'/tmp/screens'				)		: skip										;;
 				*							)		echo "[DEBUG] Removing $this_directory..."
-													rm -rf "${this_directory:-SAFE}" || true	;;
+													rm -rf "${this_directory:-SAFE}"			;;
 			esac
 		fi
 	done
@@ -267,7 +267,7 @@ upgrade_S9 () {
 
 upgrade_ro () {
 	# models with read-only fs
-	[ -e /nvdata/latest.tar.gz ] && { rm -rf /nvdata/latest.tar.gz > /dev/null 2>&1 || true; }
+	[ -e /nvdata/latest.tar.gz ] && rm -rf /nvdata/latest.tar.gz
 
 	exec 2>"$error_log" # redirect stderr to file
 
