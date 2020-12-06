@@ -194,10 +194,10 @@ if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
     netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
     nameserver="$( grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )"
 else
-    mac="$( LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"    
-    ip="$( LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
-    netmask="$( LANG=C ifconfig eth0 | grep 'Mask:' | cut -d: -f4 )"
-    nameserver="$( rematch 'nameserver[ \t]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' < /etc/resolv.conf )"
+    mac="$(			LANG=C ifconfig eth0 |	rematch 'HWaddr (.{17})' )"    
+    ip="$(			LANG=C ifconfig eth0 |	rematch 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' )"
+    netmask="$(		LANG=C ifconfig eth0 |	rematch 'Mask:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' )"
+    nameserver="$(							rematch 'nameserver[ \t]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' < /etc/resolv.conf )"
 fi
 
 hostname="$( hostname )"
