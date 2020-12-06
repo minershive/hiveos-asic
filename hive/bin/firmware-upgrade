@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.20'
+readonly script_version='0.1.21'
 readonly script_basename="${0##*/}"
 
 
@@ -59,7 +59,7 @@ unhide_certs () {
 
 at_exit () {
 	echo "> Removing temporary directory $directory_to_unpack_fw..."
-	rm -rf "${directory_to_unpack_fw:-SAFE}" || true
+	rm -rf "${directory_to_unpack_fw:-SAFE}" || true # ??? "|| true" has no sense because rm with -f argument never returns anything but 0
 	umount "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	rmdir "$directory_to_unpack_fw.boot" 2>/dev/null || true
 	unhide_certs
@@ -135,6 +135,7 @@ download_and_unpack () {
 	echo "> Downloading and unpacking $firmware_filename..."
 	until curl --silent --insecure --location --show-error --connect-timeout 15 "$URL" | tar xvz; do
 		echo -e "! ${BRED}Downloading and unpacking FAIL (attempt $attempt_counter/$max_attempts)${NOCOLOR}"
+		rm -rf "${directory_to_unpack_fw:-SAFE}/"* # remove half-downloaded files for every attempt
 		if [ "$attempt_counter" -ge "$max_attempts" ]; then
 			is_unpacked_ok_FLAG=0
 			break
