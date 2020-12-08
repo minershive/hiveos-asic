@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.5'
+readonly script_version='0.4.6'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
@@ -202,7 +202,7 @@ function sanitize_ASICMINER_TEMPLATE {
 					;;
 
 					"$worker_name_ALMOST_VALID")
-						echo_warning "A doubtful worker name '$WORKER_NAME_field_original' detected (but hasn't corrected)" 1>&2
+						echo_warning "Inadvisable worker name '$WORKER_NAME_field_original' in the Flight Sheet has found" 1>&2
 						echo_warning 'Tips in case the miner cannot connect to the pool:' 1>&2
 						echo_warning '1. Remove "_" and/or "-" characters from the worker name' 1>&2
 						echo_warning '2. Use no more than 8 characters in the worker name' 1>&2
@@ -212,7 +212,7 @@ function sanitize_ASICMINER_TEMPLATE {
 						# compose the worker name back
 						template_as_array[1]="$WORKER_NAME_field_corrected"
 						IFS='.' template_corrected="${template_as_array[*]}"
-						echo_warning "Invalid worker name detected and corrected: $WORKER_NAME_field_original -> $WORKER_NAME_field_corrected" 1>&2
+						echo_warning "Invalid worker name have detected and corrected: $WORKER_NAME_field_original -> $WORKER_NAME_field_corrected" 1>&2
 					;;
 
 				esac
@@ -236,7 +236,7 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 	# vars
 	local this_variable_name this_variable_original_value this_variable_new_value
 	local transformation_container
-	local message_header message_body
+	local message_type message_header message_body
 	local -a invalids_pre_array=() invalids_post_array=() almost_valids_pre_array=() almost_valids_post_array=()
 	local -i worker_name_validity_ENUM
 
@@ -272,15 +272,17 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 
 	if (( ( ${#almost_valids_pre_array[@]} || ${#invalids_pre_array[@]} ) && save_config_FLAG )); then
 		if (( ${#almost_valids_pre_array[@]} )); then
-			message_header="Doubtful worker name detected"
-			message_body+="Please check your Flight Sheet. We have detected doubtful characters* in the worker name:"$'\n'$'\n'
+			message_type='info'
+			message_header="Not exactly great worker name used in the Flight Sheet"
+			message_body+="Please check your Flight Sheet. Inadvisable characters* in the worker name have found:"$'\n'$'\n'
 			message_body+="  <strong>${almost_valids_pre_array[*]}</strong>"$'\n'
 			message_body+="  ${almost_valids_post_array[*]}"$'\n'
 			(( ${#invalids_pre_array[@]} )) && message_body+=$'\n' # add a newline between
 		fi
 		if (( ${#invalids_pre_array[@]} )); then
+			message_type='warning'
 			message_header="Invalid worker name detected and corrected"
-			message_body+="Please fix your Flight Sheet. We have detected AND corrected invalid characters* in the worker name."$'\n'$'\n'
+			message_body+="Please fix your Flight Sheet. Invalid characters* in the worker name have detected AND corrected:"$'\n'$'\n'
 			message_body+="  Before correction: <strong>${invalids_pre_array[*]}</strong>"$'\n'
 			message_body+="   After correction: <strong>${invalids_post_array[*]}</strong>"$'\n'$'\n'
 		fi
@@ -289,7 +291,7 @@ function sanitize_ASICMINER_TEMPLATEs_by_ref {
 		message_body+='* The vast majority of pools DO NOT accept a worker name which contains anything beyond letters and numbers. No under_scores and hy-phens allowed. Also, the worker name should be no more than <strong>8 characters long</strong>.'$'\n'$'\n'
 		message_body+='** If you do not want to see these warnings, please update your Flight Sheet to use a template <strong>%WORKER_NAME_RAW%</strong> instead of <strong>%WORKER_NAME%</strong>'
 
-		message warning "$message_header" --payload --silent <<< "$message_body"
+		message "$message_type" "$message_header" --payload --silent <<< "$message_body"
 	fi
 }
 
