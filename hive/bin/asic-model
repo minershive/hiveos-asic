@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.4.2'
+library_version='1.4.3'
 library_basename="${0##*/}"
 
 
@@ -102,7 +102,7 @@ assign_ASIC_CUSTOM_FW_constants () {
 	#
 
 	# consts
-	local asic_custom_fw_brand_default='Hiveon'
+	local ASIC_CUSTOM_FW_BRAND_default='Hiveon'
 	
 	# global vars, defaults
 	ASIC_CUSTOM_FW_VERSION=''								# default: '', no custom fw
@@ -110,7 +110,9 @@ assign_ASIC_CUSTOM_FW_constants () {
 	ASIC_CUSTOM_FW_VERSION_DATE=''							# default: '', no custom fw
 	ASIC_CUSTOM_FW_VERSION_MAJOR=-1							# default: -1, no custom fw
 	ASIC_CUSTOM_FW_VERSION_MINOR=-1							# default: -1, no custom fw
-	ASIC_CUSTOM_FW_BRAND="$asic_custom_fw_brand_default"	# default: 'Hiveon', if not redefined in /usr/bin/compile_ver
+	ASIC_CUSTOM_FW_BRAND="$ASIC_CUSTOM_FW_BRAND_default"	# default: 'Hiveon', if not redefined in /usr/bin/compile_ver
+	ASIC_CUSTOM_FW_BUID=''									# default: '', no custom fw
+	ASIC_CUSTOM_FW_PUID=''									# default: '', no custom fw
 	IS_ASIC_CUSTOM_FW=0										# default: 0, no custom fw
 
 	# vars
@@ -126,6 +128,9 @@ assign_ASIC_CUSTOM_FW_constants () {
 		# Antminer S9 Hiveon
 		# 1.02@191120
 		# Bigminer
+		# 333956ed-4bda-4f7f-9d29-097f8d68e686
+		# 62e3f4ad-15f4-432e-aebd-6ce164354f81
+		# <EOF>
 		#
 		ASIC_CUSTOM_FW_description_file_content="$( cat "$ASIC_CUSTOM_FW_description_file" )"
 
@@ -148,10 +153,12 @@ assign_ASIC_CUSTOM_FW_constants () {
 			;;
 		esac
 
-		ASIC_CUSTOM_FW_BRAND="$( echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '4p' )" # f.e. 'Hiveon' OR whitelabel's brand
+		ASIC_CUSTOM_FW_BRAND="$(	echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '4p' )" # f.e. 'Hiveon' OR whitelabel's brand
+		ASIC_CUSTOM_FW_BUID="$(		echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '5p' )" # f.e. '333956ed-4bda-4f7f-9d29-097f8d68e686'
+		ASIC_CUSTOM_FW_PUID="$(		echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '6p' )" # f.e. '62e3f4ad-15f4-432e-aebd-6ce164354f81'
 	fi
 
-	[ -z "$ASIC_CUSTOM_FW_BRAND" ] && ASIC_CUSTOM_FW_BRAND="$asic_custom_fw_brand_default" # an absent 4th line is equal to 'Hiveon', for backward compatibility
+	[ -z "$ASIC_CUSTOM_FW_BRAND" ] && ASIC_CUSTOM_FW_BRAND="$ASIC_CUSTOM_FW_BRAND_default" # an absent 4th line is equal to 'Hiveon', for backward compatibility
 
 	# stub for legacy Hiveon vars
 	# shellcheck disable=SC2034
@@ -532,6 +539,7 @@ if ! ( return 0 2>/dev/null ); then
 		ASIC_CUSTOM_FW_BRAND ASIC_CUSTOM_FW_VERSION_RAW				\
 		ASIC_CUSTOM_FW_VERSION_DATE ASIC_CUSTOM_FW_VERSION			\
 		ASIC_CUSTOM_FW_VERSION_MAJOR ASIC_CUSTOM_FW_VERSION_MINOR	\
+		ASIC_CUSTOM_FW_BUID ASIC_CUSTOM_FW_PUID						\
 		IS_ASIC_CUSTOM_FW											\
 		divider														\
 		ASIC_MINER_NAME ASIC_ALGO									\
