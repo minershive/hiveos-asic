@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_decription='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.4.2'
+readonly script_version='0.4.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -162,9 +162,40 @@ function jq_raw_input_then_slurp {
 
 	# code
 	if [[ "$file" == '-' ]]; then
-		jq --raw-input '.' | jq --slurp --compact-output "$JSON_template"
+		# vvvvvvvvvvvvvvvvv -- sanitize all strings to JSON for the next step (add double quotes for every line)
+		#                                 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv -- then slurp these JSON strings to the array of strings
+		jq --raw-input '.'				| jq --slurp --compact-output "$JSON_template"
 	else
-		jq --raw-input '.' < "$file" | jq --slurp --compact-output "$JSON_template"
+		jq --raw-input '.' < "$file"	| jq --slurp --compact-output "$JSON_template"
+	fi
+}
+
+function file_to_json_array {
+	#
+	# Usage: file_to_json_array 'filename' ['JSON_template']
+	#        file_to_json_array - ['JSON_template'] < stdin
+	#        file_to_json_array < stdin
+	#
+
+	# args
+	local -r file="${1-}"
+	local -r JSON_template="${2-}"
+
+	# vars
+	local jq_script='split("\n")' # split input stream by newline
+
+	# code
+	if [[ -n "$JSON_template" ]]; then
+		jq_script+=" | $JSON_template | del( .[] | select( . == null or . == \"\" ) )" # TODO should I move a null removing part to the hello packet generation?
+	fi
+
+	if [[ -z "$file" || "$file" == '-' ]]; then # read from stdin
+		#    vvvvvvvvv sanitize all lines as JSON strings (add double quotes for every line)
+		jq --raw-input --slurp --compact-output "$jq_script"
+		#                ^^^^^ then slurp these JSON strings to the array of strings
+	else
+		# read from file
+		jq --raw-input --slurp --compact-output "$jq_script" < "$file"
 	fi
 }
 
@@ -384,11 +415,17 @@ function get_asic_json {
 	# code
 	# shellcheck disable=SC2154
 	# bc defined in asic-model
-	[[ -s /usr/bin/compile_time && ! -s "$ASIC_CUSTOM_FW_description_file" ]] &&
-		asic_json="$(		jq_raw_input_then_slurp /usr/bin/compile_time				'{"firmware": .[0], "model": .[1], "logic_version": .[2]}'						)"
-	[[ -s "$ASIC_CUSTOM_FW_description_file" ]] &&
-		asic_json="$(		jq_raw_input_then_slurp "$ASIC_CUSTOM_FW_description_file"	'{"firmware": .[0], "model": .[1], "logic_version": .[2]}'						)"
 
+	if [[ -s /usr/bin/compile_time ]]; then # Antminer or Antminer-based machine
+		if (( IS_ASIC_CUSTOM_FW )); then
+			asic_json="$(	file_to_json_array "$ASIC_CUSTOM_FW_description_file"	'{"firmware": .[0], "model": .[1], "logic_version": .[2], "buid": .[4], "puid": .[5]}' )"
+			# TODO should refactor to use constants from asic-model
+		else
+			asic_json="$(	file_to_json_array /usr/bin/compile_time				'{"firmware": .[0], "model": .[1], "logic_version": .[2]}' )"
+		fi
+	fi
+
+	# TODO should move all this to asic-model db
 	case "$ASIC_MODEL" in
 		'Antminer D3 Blissz'*	)
 			asic_json="$(	jq_raw_input_then_slurp /usr/bin/compile_time	'{"firmware": .[0], "model": .[1], "logic_version": "unknown"}'					)";;
@@ -429,7 +466,7 @@ function get_asic_json {
 		't3h+.soc'				)
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T3H+", "logic_version": .[0]}'		)";;
 		't1.g19'				)
-			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "DragonMint T1", "logic_version": .[0]}'		)";;
+			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "DragonMint T1", "logic_version": .[0]}'			)";;
 		'Zig Z1+'				)
 			asic_json="$(	jq_raw_input_then_slurp /var/www/html/VERSION	'{"firmware": .[0], "model": "Zig Z1+", "logic_version": "Zig Z1+"}'			)";;
 		'Zig Z1'				)
