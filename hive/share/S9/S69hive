@@ -9,6 +9,10 @@
 # Linted by shellcheck 0.3.7
 #
 
+readonly own_log="/tmp/${script_basename}.log"
+
+[ -t 1 ] || exec >> "$own_log" 2>&1
+trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
 
 sleep 10
 rm -rf /tmp/*.log
