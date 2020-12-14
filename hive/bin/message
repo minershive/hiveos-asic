@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.5.4'
+readonly script_version='0.5.5'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -72,6 +72,12 @@ declare file_to_send='' file_size
 declare -i curl_exitcode script_exitcode=0
 declare -i is_silent_FLAG=0 is_verbose_FLAG=0 is_templates_escaped_FLAG=0
 declare console_message=''
+
+
+# exports
+
+[[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="${PATH}${PATH:+:}/hive/bin:/hive/sbin" # add only if not exist, also cover a rare case with an empty PATH
+[[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 
 # sources
