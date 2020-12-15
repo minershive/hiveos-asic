@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: DNS helper for udhcpc'
-readonly script_version='0.0.2'
+readonly script_version='0.0.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -33,8 +33,8 @@ declare -r udhcp_event="${1-}"
 
 # consts
 
-declare -r debug_log_DEFAULT='/tmp/udhcp.log'
 declare -r RESOLV_CONF='/etc/resolv.conf'
+declare -r debug_log_DEFAULT="/tmp/${script_basename}.log"
 declare -r -a public_nameservers_collection=(
 	'8.8.8.8'
 	'1.1.1.1'
