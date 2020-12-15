@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: DNS helper for udhcpc'
-readonly script_version='0.0.3'
+readonly script_version='0.0.4'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -25,6 +25,32 @@ function echo_with_timestamp {
 	printf '%(%F %T)T %s\n' -1 "$@"
 }
 
+function is_hook_dir_exist {
+	[[ -d "$hook_DIR" ]]
+}
+
+function install_hook {
+	#
+	# Usage: install_hook
+	#
+	# install/reinstall a symlink to this very script right to the udhcpc hook directory
+	#
+
+	# consts
+	local -r hook_FILE_name='69hive'
+	local -r hook_FILE="${hook_DIR}/${hook_FILE_name}"
+	local -r target_FILE="$0"
+	
+	# code
+	if is_hook_dir_exist; then
+		[[ -e "$hook_FILE" ]] && rm -rf "${hook_FILE:-SAFE}"
+		ln -s "$target_FILE" "$hook_FILE" || return 1
+	else
+		# no udhcpc hook dir found
+		return 1
+	fi
+}
+
 
 # args
 
@@ -34,11 +60,17 @@ declare -r udhcp_event="${1-}"
 # consts
 
 declare -r RESOLV_CONF='/etc/resolv.conf'
+declare -r hook_DIR='/etc/udhcpc.d'
 declare -r debug_log_DEFAULT="/tmp/${script_basename}.log"
 declare -r -a public_nameservers_collection=(
 	'8.8.8.8'
 	'1.1.1.1'
 )
+
+
+# flags
+
+declare -i is_verbose_ARG=0 is_install_ARG=0
 
 
 # vars
