@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: DNS helper for udhcpc'
-readonly script_version='0.0.1'
+readonly script_version='0.0.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -51,7 +51,9 @@ declare own_log this_public_nameserver
 [[ "${PATH-}" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] || export PATH="${PATH-}:/hive/bin:/hive/sbin" # add only if not exist
 [[ "${LD_LIBRARY_PATH-}" =~ (^|:)/hive/lib(:|$) ]] || export LD_LIBRARY_PATH="${LD_LIBRARY_PATH-}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
-if (( script_DEBUG )); then
+if [[ "$udhcp_event" == 'verbose' ]]; then
+	own_log='/dev/stdout'
+elif (( script_DEBUG )); then
 	own_log="$debug_log_DEFAULT"
 else
 	own_log='/dev/null'
@@ -65,9 +67,24 @@ fi
 	cat "$RESOLV_CONF"
 
 	case "$udhcp_event" in
+		'bound' | 'renew' | 'verbose' )
+			# list all DHCP parameters
+			declare this_dhcp_parameter_name all_dhcp_parameters
+			for this_dhcp_parameter_name in	interface	ip			siaddr		sname		boot_file	subnet	\
+											timezone	router		timesvr		namesvr		dns			logsvr	\
+											cookiesvr	lprsvr		hostname	bootsize	domain		swapsvr	\
+											rootpath	ipttl		mtu			broadcast	ntpsrv		wins	\
+											lease		dhcptype	serverid	message		tftp		bootfile; do
+				declare -n this_dhcp_parameter_value="$this_dhcp_parameter_name"
+				[[ -n "${this_dhcp_parameter_value-}" ]] && all_dhcp_parameters+="$this_dhcp_parameter_name='${this_dhcp_parameter_value-}' "
+			done
+			if [[ -n "${all_dhcp_parameters-}" ]]; then
+				echo_with_timestamp "DHCP parameters: $all_dhcp_parameters"
+			else
+				echo_with_timestamp "No DHCP parameters received"
+			fi
 
-		'bound' | 'renew' )
-			# [TEST] add 8.8.8.8 and 1.1.1.1 to resolv.conf
+			# add 8.8.8.8 and 1.1.1.1 to resolv.conf
 			echo_with_timestamp 'Adding fail-over nameservers to resolver...'
 			if [[ -s "$RESOLV_CONF" ]]; then
 				if grep -q '^nameserver 0\.0\.0\.0$' "$RESOLV_CONF"; then
