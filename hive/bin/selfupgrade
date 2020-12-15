@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.17.3'
+readonly script_version='0.17.4'
 readonly script_basename="${0##*/}"
 
 
@@ -284,11 +284,12 @@ die () {
 #
 
 is_curl_available () {
-# ??? which curl > /dev/null
-	case "$ASIC_MODEL" in
-		'Zig Z1' | 'Zig Z1+')	false	;; # 'Toddminer C1' removed
-		*)						true	;;
-	esac
+	which curl > /dev/null
+
+#	case "$ASIC_MODEL" in
+#		'Zig Z1' | 'Zig Z1+')	false	;; # 'Toddminer C1' removed
+#		*)						true	;;
+#	esac
 }
 
 download_from_URL_to_file () {
