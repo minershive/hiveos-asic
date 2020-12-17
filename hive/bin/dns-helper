@@ -2,17 +2,18 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
+# Copyright (C) 2016-2021  Hiveon
 # Distributed under GNU GENERAL PUBLIC LICENSE 2.0
 # License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-readonly script_mission='Client for ASICs: DNS helper for udhcpc'
-readonly script_version='0.0.4'
-readonly script_basename="${0##*/}"
+readonly script_mission='Client for ASICs: Add public DNS servers (udhcpc helper)'
+readonly script_version='0.1.0'
+[[ -L "$0" ]] && readonly script_filename_canonical="$( readlink -f "$0" )" || readonly script_filename_canonical="$0"
+readonly script_basename="${script_filename_canonical##*/}"
 #
-readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -21,12 +22,69 @@ set -o nounset
 
 # functions
 
-function echo_with_timestamp {
-	printf '%(%F %T)T %s\n' -1 "$@"
+function log {
+	if [[ -n "$*" ]]; then
+		while IFS= read -r line || [[ -n "$line" ]]; do
+			if [[ -t 1 ]] || (( is_pretty_output_FLAG )); then
+				printf '%s> %s\n' "$script_basename" "$line"
+			else
+				printf '%(%F %T)T %s\n' -1 "$line"
+			fi
+		done <<< "$*"
+	fi
+}
+
+function log_script_version {
+	log "$script_mission, version $script_version"
+}
+
+function print_script_version {
+	echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
+	echo
+}
+
+function print_script_usage {
+	echo '  Usage:'
+	echo
+	echo -e "    ${CYAN-}$script_basename deconfig|bound|renew|nak${NOCOLOR-}              (while run from udhcpd daemon)"
+	echo -e "    ${CYAN-}$script_basename status|install|uninstall [OPTIONS]${NOCOLOR-}    (while run from terminal or Client script)"
+	echo
+	echo -e '  Commands:'
+	echo
+	echo -e "    ${CYAN-}status${NOCOLOR-}           show a status"
+	echo -e "    ${CYAN-}install${NOCOLOR-}          install a hook"
+	echo -e "    ${CYAN-}uninstall${NOCOLOR-}        uninstall a hook"
+	echo
+	echo -e '  Options:'
+	echo
+	echo -e "    ${CYAN-}-h${NOCOLOR-}, ${CYAN-}--help${NOCOLOR-}       this help"
+	echo -e "    ${CYAN-}-p${NOCOLOR-}, ${CYAN-}--pretty${NOCOLOR-}     pretty output without timestamps (default mode while run from terminal)"
+	echo -e "    ${CYAN-}-v${NOCOLOR-}, ${CYAN-}--verbose${NOCOLOR-}    verbose mode (default mode while run from terminal)"
+	echo
 }
 
 function is_hook_dir_exist {
 	[[ -d "$hook_DIR" ]]
+}
+
+function is_hook_dir_writable {
+	[[ -w "$hook_DIR" ]]
+}
+
+function is_hook_link_valid {
+	[[ "$( readlink -f "$hook_FILE" )" == "$hook_target_FILE" ]]
+}
+
+function is_hook_file_exist {
+	[[ -e "$hook_FILE" ]]
+}
+
+function remove_hook_file {
+	rm -rf "${hook_FILE:-SAFE}"
+}
+
+function link_hook_file {
+	ln -s "$hook_target_FILE" "$hook_FILE"
 }
 
 function install_hook {
@@ -36,32 +94,187 @@ function install_hook {
 	# install/reinstall a symlink to this very script right to the udhcpc hook directory
 	#
 
-	# consts
-	local -r hook_FILE_name='69hive'
-	local -r hook_FILE="${hook_DIR}/${hook_FILE_name}"
-	local -r target_FILE="$0"
-	
+	# flags
+	local -i is_hook_already_in_place_FLAG=0
+
 	# code
+	log 'Installing a hook...'
+
 	if is_hook_dir_exist; then
-		[[ -e "$hook_FILE" ]] && rm -rf "${hook_FILE:-SAFE}"
-		ln -s "$target_FILE" "$hook_FILE" || return 1
+		if is_hook_dir_writable; then
+			if is_hook_file_exist; then
+				is_hook_already_in_place_FLAG=1
+				remove_hook_file
+			fi
+			link_hook_file || return 1 # read-only system?
+		else
+			log "Error: $hook_DIR is read-only"
+			return 1
+		fi
 	else
-		# no udhcpc hook dir found
+		log "Error: $hook_DIR does not exist"
 		return 1
+	fi
+
+	if (( is_hook_already_in_place_FLAG )); then
+		log "$hook_FILE found and refreshed"
+	else
+		log "$hook_FILE installed"
 	fi
 }
 
+function uninstall_hook {
+	#
+	# Usage: uninstall_hook
+	#
+	# install/reinstall a symlink to this very script right to the udhcpc hook directory
+	#
 
-# args
+	# code
+	log 'Uninstalling a hook...'
 
-declare -r udhcp_event="${1-}"
+	if is_hook_dir_exist; then
+		if is_hook_dir_writable; then
+			if is_hook_file_exist; then
+				remove_hook_file || return 1 # remove everything with that name
+			else
+				log "$hook_FILE not found, nothing to uninstall"
+				return 1
+			fi
+		else
+			log "Error: $hook_DIR is read-only"
+			return 1
+		fi
+	else
+		log "Error: $hook_DIR does not exist"
+		return 1
+	fi
+
+	log "$hook_FILE uninstalled"
+}
+
+function parse_arguments {
+	# args
+	# $@ used down south
+
+	# vars
+	local this_argument
+
+	# code
+	for this_argument in "$@"; do
+		case "$this_argument" in
+			'deconfig' | 'bound' | 'renew' | 'nak' | 'install' | 'uninstall' | 'status' )
+				commands_list+=( "$this_argument" ) # add this command to the command stack
+			;;
+
+			'-p' | '--pretty' )
+				is_pretty_output_FLAG=1 # no timestamps
+			;;
+
+			'-v' | '--verbose' )
+				is_verbose_FLAG=1 # forced output to tty
+			;;
+
+			'')
+				: ok good to go
+			;;
+
+			'-h'|'--help')
+				source /hive/bin/colors
+				print_script_version
+				print_script_usage
+				exit 0
+			;;
+
+			*)
+				source /hive/bin/colors
+				print_script_version
+				print_script_usage
+				log "Error: unknown argument '$this_argument'"
+				exit 1
+			;;
+		esac
+	done
+}
+
+function print_dhcp_parameters_from_env {
+	# vars
+	local this_dhcp_parameter_name all_dhcp_parameters
+
+	# code
+	for this_dhcp_parameter_name in	interface	ip			siaddr		sname		boot_file	subnet	\
+									timezone	router		timesvr		namesvr		dns			logsvr	\
+									cookiesvr	lprsvr		hostname	bootsize	domain		swapsvr	\
+									rootpath	ipttl		mtu			broadcast	ntpsrv		wins	\
+									lease		dhcptype	serverid	message		tftp		bootfile; do
+		local -n this_dhcp_parameter_value="$this_dhcp_parameter_name"
+		[[ -n "${this_dhcp_parameter_value-}" ]] && all_dhcp_parameters+="$this_dhcp_parameter_name='${this_dhcp_parameter_value-}' "
+	done
+	if [[ -n "${all_dhcp_parameters-}" ]]; then
+		log "DHCP parameters: $all_dhcp_parameters"
+#	else
+#		log "No DHCP parameters received"
+	fi
+}
+
+function print_RESOLV_CONF {
+	log "$RESOLV_CONF before processing:"
+	log "$( < "$RESOLV_CONF" )"
+}
+
+function process_RESOLV_CONF {
+	# vars
+	local this_public_nameserver
+
+	# code
+	log 'Adding fail-over nameservers to resolver...'
+	if [[ -s "$RESOLV_CONF" ]]; then
+
+		# remove bogus entries
+		if grep -q '^nameserver 0\.0\.0\.0$' "$RESOLV_CONF"; then
+			log 'Broken nameserver 0.0.0.0 REMOVED'
+			sed -i '/^nameserver 0\.0\.0\.0$/d' "$RESOLV_CONF"
+		fi
+
+		# append public DNS resolvers to resolv.conf
+		for this_public_nameserver in "${public_nameservers_collection[@]}"; do
+			if grep -q "^nameserver $this_public_nameserver\$" "$RESOLV_CONF"; then
+				log "Fail-over nameserver $this_public_nameserver ALREADY SET"
+			else
+				log "Fail-over nameserver $this_public_nameserver ADDED"
+				printf 'nameserver %s\n' "$this_public_nameserver" >> "$RESOLV_CONF"
+			fi
+		done
+
+	else
+		log "Error: $RESOLV_CONF not found or empty"
+	fi
+}
+
+function send_debug_message {
+	if /hive/bin/message info "DHCP updated" --payload --silent < "$RESOLV_CONF"; then
+		log 'Message to the dashboard has been sent'
+	else
+		log 'Error: message to the dashboard has NOT been sent'
+	fi
+}
 
 
 # consts
 
 declare -r RESOLV_CONF='/etc/resolv.conf'
+# hook script paths
 declare -r hook_DIR='/etc/udhcpc.d'
+declare -r hook_FILE_name="$script_basename"
+declare -r hook_FILE="${hook_DIR}/${hook_FILE_name}"
+declare -r hook_target_FILE="$script_filename_canonical"
+# other
 declare -r debug_log_DEFAULT="/tmp/${script_basename}.log"
+
+
+# arrays/collections
+
+declare -a commands_list=() status_text=()
 declare -r -a public_nameservers_collection=(
 	'8.8.8.8'
 	'1.1.1.1'
@@ -70,12 +283,12 @@ declare -r -a public_nameservers_collection=(
 
 # flags
 
-declare -i is_verbose_ARG=0 is_install_ARG=0
-
+declare -i is_verbose_FLAG=0 # default is to print nothing
+declare -i is_pretty_output_FLAG=0 # default is to add timestamps
 
 # vars
 
-declare own_log this_public_nameserver
+declare this_command
 
 
 # main()
@@ -83,73 +296,94 @@ declare own_log this_public_nameserver
 [[ "${PATH-}" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] || export PATH="${PATH-}:/hive/bin:/hive/sbin" # add only if not exist
 [[ "${LD_LIBRARY_PATH-}" =~ (^|:)/hive/lib(:|$) ]] || export LD_LIBRARY_PATH="${LD_LIBRARY_PATH-}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
-if [[ "$udhcp_event" == 'verbose' ]]; then
-	own_log='/dev/stdout'
-elif (( script_DEBUG )); then
-	own_log="$debug_log_DEFAULT"
+parse_arguments "$@"
+
+# bend the defaults for the greater context awareness
+if [[ -t 1 ]]; then
+	# context: interactive
+	is_verbose_FLAG=1											# 1. output goes to tty if we're interactive
+	is_pretty_output_FLAG=1										# 2. no timestamps
+	(( ! ${#commands_list[@]} )) && commands_list=( 'status' )	# 2. the action if no command provided
 else
-	own_log='/dev/null'
+	# context: not interactive
+	if (( ! ${#commands_list[@]} )); then
+		log "Error: should be called from udhcpc"
+		exit 1
+	fi
 fi
 
-{
-	# assert
-	[[ -n "$udhcp_event" ]] || { echo_with_timestamp "Error: should be called from udhcpc"; exit 1; }
+# set log: >display | >file | >display and >file | >null
+if (( is_verbose_FLAG )); then
+	if (( script_DEBUG )); then
+		exec &> >( tee "$debug_log_DEFAULT" ) # >display and >file
+#	else
+#		# >display
+	fi
+else
+	if (( script_DEBUG )); then
+		exec &> "$debug_log_DEFAULT" # >file
+	else
+		exec &> /dev/null # no output at all
+	fi
+fi
 
-	echo_with_timestamp "DHCP event '$*' received, $RESOLV_CONF:"
-	cat "$RESOLV_CONF"
+log_script_version
 
-	case "$udhcp_event" in
-		'bound' | 'renew' | 'verbose' )
-			# list all DHCP parameters
-			declare this_dhcp_parameter_name all_dhcp_parameters
-			for this_dhcp_parameter_name in	interface	ip			siaddr		sname		boot_file	subnet	\
-											timezone	router		timesvr		namesvr		dns			logsvr	\
-											cookiesvr	lprsvr		hostname	bootsize	domain		swapsvr	\
-											rootpath	ipttl		mtu			broadcast	ntpsrv		wins	\
-											lease		dhcptype	serverid	message		tftp		bootfile; do
-				declare -n this_dhcp_parameter_value="$this_dhcp_parameter_name"
-				[[ -n "${this_dhcp_parameter_value-}" ]] && all_dhcp_parameters+="$this_dhcp_parameter_name='${this_dhcp_parameter_value-}' "
-			done
-			if [[ -n "${all_dhcp_parameters-}" ]]; then
-				echo_with_timestamp "DHCP parameters: $all_dhcp_parameters"
-			else
-				echo_with_timestamp "No DHCP parameters received"
-			fi
+for this_command in "${commands_list[@]}"; do
+	log "Processing '$this_command' command..."
 
-			# add 8.8.8.8 and 1.1.1.1 to resolv.conf
-			echo_with_timestamp 'Adding fail-over nameservers to resolver...'
-			if [[ -s "$RESOLV_CONF" ]]; then
-				if grep -q '^nameserver 0\.0\.0\.0$' "$RESOLV_CONF"; then
-					echo_with_timestamp 'Broken nameserver 0.0.0.0 REMOVED'
-					sed -i '/^nameserver 0\.0\.0\.0$/d' "$RESOLV_CONF"
-				fi
-				for this_public_nameserver in "${public_nameservers_collection[@]}"; do
-					if grep -q "^nameserver $this_public_nameserver\$" "$RESOLV_CONF"; then
-						echo_with_timestamp "Fail-over nameserver $this_public_nameserver ALREADY SET"
-					else
-						echo_with_timestamp "Fail-over nameserver $this_public_nameserver ADDED"
-						printf 'nameserver %s\n' "$this_public_nameserver" >> "$RESOLV_CONF"
-					fi
-				done
-			else
-				echo_with_timestamp "Error: $RESOLV_CONF not found or empty"
-			fi
+	# udhcpc commands: https://udhcp.busybox.net/README.udhcpc
+	case "$this_command" in
+		'bound' | 'renew' )
+			print_dhcp_parameters_from_env
+			print_RESOLV_CONF
+			process_RESOLV_CONF
+			(( script_DEBUG )) && send_debug_message
+		;;
 
-			if (( script_DEBUG )); then
-				if /hive/bin/message info "DHCP updated" --payload --silent < "$RESOLV_CONF"; then
-					echo_with_timestamp 'Message to the dashboard has been sent'
+		'deconfig' | 'nak' )
+			print_dhcp_parameters_from_env
+			print_RESOLV_CONF
+		;;
+
+		'install' )
+			install_hook
+		;;
+
+		'uninstall' )
+			uninstall_hook
+		;;
+
+		'status' )
+			if is_hook_dir_exist; then
+				if is_hook_dir_writable; then
+					status_text+=(	'Hook dir is OK' )
 				else
-					echo_with_timestamp 'Error: message to the dashboard has NOT been sent'
+					status_text+=(	'Hook dir is READ-ONLY' )
 				fi
+				if is_hook_file_exist; then
+					if is_hook_link_valid; then
+						status_text+=(	' hook file is OK' )
+					else
+						status_text+=(	' hook file link is NOT VALID' )
+					fi
+				else
+					status_text+=(		' hook file is NOT INSTALLED' )
+				fi
+			else
+				status_text+=(		'Hook dir is NOT FOUND' )
 			fi
+			status_text_as_string="$( IFS=','; echo "${status_text[*]}" )"
+			log "$status_text_as_string"
+
+			print_RESOLV_CONF
 		;;
 
 		*)
-			echo_with_timestamp "Nothing to do, $RESOLV_CONF update skipped"
+			log "Nothing to do, $RESOLV_CONF update skipped"
 		;;
 
 	esac
-
-} >> "$own_log" 2>&1
+done
 
 exit 0
