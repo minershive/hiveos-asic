@@ -11,7 +11,8 @@
 
 
 readonly script_mission='Client for ASICs: Cache the API server address'
-readonly script_version='0.3.4'
+readonly script_mission_description='Resolve API Server hostname and write it to /etc/hosts'
+readonly script_version='0.3.5'
 readonly script_basename="${0##*/}"
 
 
@@ -160,7 +161,7 @@ function gethostbyname_new {
 	fi
 }
 
-function set_hostfile {
+function set_hosts_file {
 	# consts
 	local -r abracadabra='MTI3LjAuMC4xCWxvY2FsaG9zdC5sb2NhbGRvbWFpbgkJbG9jYWxob3N0Cgo='
 
@@ -168,7 +169,7 @@ function set_hostfile {
 	case "$ASIC_MODEL" in
 		'Antminer S9k'			|\
 		'Antminer S9 SE')
-			hostfile='/etc/hosts'
+			hosts_file='/etc/hosts'
 		;;
 
 		'Antminer S9'			|\
@@ -189,7 +190,7 @@ function set_hostfile {
 		'Antminer S9 (vnish'*	|\
 		'Antminer S9'*			|\
 		'Antminer S11'*)
-			hostfile='/tmp/hosts'
+			hosts_file='/tmp/hosts'
 			#default for hiveon
 			#127.0.0.1       localhost.localdomain           localhost
 			#
@@ -203,7 +204,7 @@ function set_hostfile {
 		;;
 
 		*)
-			hostfile='/etc/hosts'
+			hosts_file='/etc/hosts'
 		;;
 	esac
 }
@@ -219,40 +220,30 @@ source /hive/bin/asic-model
 
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
-declare -r hostfile_backup='/hive-config/hosts'
+declare -r hosts_file_backup='/hive-config/hosts'
 declare -r -a resolvers_list=( 'local' '8.8.8.8' '1.1.1.1' )
 declare -r -i attempts_limit=30
 
 
 # global vars
 
-declare hostfile HIVE_HOST_URL_stripped ip_address
+declare hosts_file HIVE_HOST_URL_stripped ip_address
 declare -i this_attempt
 
 
 # main
 
 echo_script_version
-set_hostfile
+set_hosts_file
 
-if [[ -f "$hostfile" ]]; then
-	if [[ ! -w "$hostfile" ]] || ! touch "$hostfile"; then
-		die "$hostfile is read-only, exiting" 1
-	fi
-fi
+[[ -f "$hosts_file" && -w "$hosts_file" ]]	|| die "$hosts_file is read-only, exiting" 1			# assert hosts file exists and it's writable
+[[ -f "$RIG_CONF" ]]						|| die "$RIG_CONF not found" 1							# assert config exists
 
-if [[ -f "$RIG_CONF" ]]; then
-	source "$RIG_CONF"
-	[[ -z "$HIVE_HOST_URL" ]] && die 'HIVE_HOST_URL is empty' 1
-else
-	die "$RIG_CONF not found" 1
-fi
+source "$RIG_CONF"
+[[ -n "$HIVE_HOST_URL" ]]					|| die 'HIVE_HOST_URL is empty' 1						# assert HIVE_HOST_URL not empty
 
-#Resolve host and write it to /etc/hosts
-
-IFS=/ read -r _ _ HIVE_HOST_URL_stripped <<< "$HIVE_HOST_URL" # get domain name without trailing slash (and without awk)
-
-[[ -z "$HIVE_HOST_URL_stripped" ]] && die "Unable to parse hostname from $HIVE_HOST_URL" 1
+IFS=/ read -r _ _ HIVE_HOST_URL_stripped <<< "$HIVE_HOST_URL" # get domain name without the trailing slash (and without awk)
+[[ -n "$HIVE_HOST_URL_stripped" ]]			|| die "Unable to parse hostname from $HIVE_HOST_URL" 1	# assert api sever hostname
 
 for (( this_attempt = 1; this_attempt <= attempts_limit; this_attempt++ )); do
 	for this_resolver in "${resolvers_list[@]}"; do
@@ -277,18 +268,18 @@ for (( this_attempt = 1; this_attempt <= attempts_limit; this_attempt++ )); do
 done
 
 if [[ -z "$ip_address" ]]; then
-	if [[ -f "$hostfile_backup" ]]; then
-		echo_action "Restoring $hostfile from $hostfile_backup"
-		cp -rf "$hostfile_backup" "$hostfile"
+	if [[ -f "$hosts_file_backup" ]]; then
+		echo_action "Restoring $hosts_file from $hosts_file_backup"
+		cp -rf "$hosts_file_backup" "$hosts_file"
 	fi
 	die "Unable to resolve $HIVE_HOST_URL_stripped, exiting" 0
 fi
 
-if [[ -s "$hostfile" ]]; then
-	old_hosts="$( < "$hostfile" )"
+if [[ -s "$hosts_file" ]]; then
+	old_hosts="$( < "$hosts_file" )"
 	old_hosts+=$'\n'
 else
-	echo_error "$hostfile not found"
+	echo_error "$hosts_file not found"
 	old_hosts=''
 fi
 
@@ -302,19 +293,19 @@ $ip_address $HIVE_HOST_URL_stripped
 
 # mind the flash memory wear and tear
 if [[ "$old_hosts" != "$new_hosts" ]]; then
-	echo_action "Updating $hostfile with a new address"
-	[[ -e "$hostfile" ]] && rm -rf "$hostfile" # covering a weird edge case where hostfile is a directory
-	echo "$new_hosts" > "$hostfile"
+	echo_action "Updating $hosts_file with a new address"
+	[[ -e "$hosts_file" ]] && rm -rf "${hosts_file:-SAFE}" # covering a weird edge case where hosts_file is a directory
+	echo "$new_hosts" > "$hosts_file"
 	sync
 else
-	echo_info "Server address hasn't been changed, $hostfile update skipped"
+	echo_info "Server address hasn't been changed, $hosts_file update skipped"
 fi
 
-if [[ -s "$hostfile_backup" ]] && cmp -s "$hostfile" "$hostfile_backup"; then
+if [[ -s "$hosts_file_backup" ]] && cmp -s "$hosts_file" "$hosts_file_backup"; then
 	: ok good to go
 else
-	echo_warning "Backup hostfile $hostfile_backup is outdated or not found"
-	echo_action "Updating $hostfile_backup"
-	cp -rf "$hostfile" "$hostfile_backup"
+	echo_warning "Backup hosts_file $hosts_file_backup is outdated or not found"
+	echo_action "Updating $hosts_file_backup"
+	cp -rf "$hosts_file" "$hosts_file_backup"
 	sync
 fi
