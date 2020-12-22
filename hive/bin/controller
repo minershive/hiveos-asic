@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.3.5'
+readonly script_version='2.3.6'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -644,6 +644,16 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 									1) Faulty RJ-45 socket, RJ-45 connector or Ethernet cable --> check connectors & cabling;
 									2) Hanging router --> reboot router;
 									3) Your ISP --> contact your service provider."
+					;;
+
+					'ERROR_TEMP_TOO_LOW'*)
+						# example: 'ERROR_TEMP_TOO_LOW: Environment temperature is too low!'
+						event_type='error'
+						message_header='The miner is frozen. Click for details'
+						message_tip="The miner is unable to work at low temperatures. The environment temperature should be <strong>+20C at least</strong>. Possible solutions:
+									1) Warm the machine up before starting;
+									2) Put a few machines in some sort of heating chain: one's exhaust to second's intake and so forth;
+									2) Do install some pre-heating equipment."
 					;;
 
 					'STATUS_'*		)	event_type='skip'		;;
