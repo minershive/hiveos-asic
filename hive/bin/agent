@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.3'
+readonly script_version='0.8.4'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -163,6 +163,8 @@ function jq_batch_process {
 				errcho "this_var $this_var=$this_value"
 			fi
 			local -n this_var_ref="$this_var"
+			# shellcheck disable=SC2034
+			# bc it's a ref var
 			this_var_ref="$this_value"
 			#echo "$this_var=$this_var_ref"
 		done
@@ -180,6 +182,8 @@ function screen_session_terminate {
 	local -r screen_session_name="${1-}"
 
 	# code
+	# shellcheck disable=SC2154
+	# bc exitcode_ERROR_SOMETHING_WEIRD declared in library
 	[[ -z "$screen_session_name" ]] && return $(( exitcode_ERROR_SOMETHING_WEIRD )) ### TODO rework
 	screen -S "$screen_session_name" -X quit > /dev/null
 }
@@ -400,12 +404,15 @@ function cache_cmd {
 	# $@ used down south
 
 	# debug
-	(( script_DEBUG )) && local -r -i function_DEBUG=1 || local -r -i function_DEBUG=0
-	#                                                                                ^ if you'd fancy to debug this function only
+	if (( script_DEBUG )); then
+		local -r -i function_DEBUG=1
+	else
+		local -r -i function_DEBUG=0 # set to '1' if you'd fancy to debug this function only
+	fi
 	(( function_DEBUG )) && local -i time_start_caching_in_ms="$( get_system_uptime_in_milliseconds )" # start the timing with millisecond resolution
 
 	# consts
-	local -r -i TTL=50 # 50 seconds
+	local -r -i cache_ttl_in_s=50
 	local -r cache_FILE='/run/hive/cmd_cache' # '/dev/shm/cmd_cache'
 	local hash; printf -v hash "%s<FD>" "${@:1:2}" # construct a hash from the first two elements in "$@", literalize fields delimiters
 	local -r       last_time_KEY="$hash:last_time"
@@ -433,8 +440,14 @@ function cache_cmd {
 	# code
 	current_time="$( get_current_system_time_in_seconds )"
 
-	if (( ( $last_time + TTL ) < current_time )); then
-		#   ^ fix unknown bash issue: variable with a reference to a single array element inside an (( arithmetic context ))
+	# shellcheck disable=SC2004
+	# bc $/${} is necessary while the variable been referenced to an array's single element
+
+	#     vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv -- 1. a usual case when the cache is stale
+	if (( ( ( $last_time + cache_ttl_in_s ) < current_time ) || ( $last_time > current_time ) )); then
+		#                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ -- 2. an edge case when the last time is from the future, magically
+		#   ^ fix an unknown bash issue: variable with a reference to a single array element inside an ((arithmetic context))
+
 		# refresh the cache
 		cached_response="$( "$@" )"
 		cached_exitcode=$?
@@ -447,27 +460,39 @@ function cache_cmd {
 		time_wasted_caching_in_ms="$(( $( get_system_uptime_in_milliseconds ) - time_start_caching_in_ms ))"
 
 		if (( is_cold_FLAG )); then
+			# shellcheck disable=SC2004
+			# bc $/${} is necessary while the variable been referenced to an array's single element
 			debug_message="exec '${*:1:2}' (exitcode $cached_exitcode), cache age $(( current_time - $last_time ))s"
 			if [[ -z "$avg_cold_time" || "$avg_cold_time" -eq 0 ]]; then
 				avg_cold_time="$time_wasted_caching_in_ms"
 			else
+				# shellcheck disable=SC2004
+				# bc $/${} is necessary while the variable been referenced to an array's single element
 				avg_cold_time=$(( ( $avg_cold_time + time_wasted_caching_in_ms ) / 2 ))
 			fi
 		else
+			# shellcheck disable=SC2004
+			# bc $/${} is necessary while the variable been referenced to an array's single element
 			debug_message="cache '${*:1:2}' (exitcode $cached_exitcode), cache age $(( current_time - $last_time ))s"
 			if [[ -z "$avg_hot_time" || "$avg_hot_time" -eq 0 ]]; then
 				avg_hot_time="$time_wasted_caching_in_ms"
 			else
+				# shellcheck disable=SC2004
+				# bc $/${} is necessary while the variable been referenced to an array's single element
 				avg_hot_time=$(( ( $avg_hot_time + time_wasted_caching_in_ms ) / 2 ))
 			fi
 		fi
 
+		# shellcheck disable=SC2004
+		# bc $/${} is necessary while the variable been referenced to an array's single element
 		(( $avg_hot_time && $avg_cold_time )) && (( cache_efficiency = ( $avg_cold_time - $avg_hot_time ) * 100 / $avg_hot_time ))
 		(( cache_efficiency <= 100 )) && tip='(caching is not recommended)'
 
 		log_line debug "$debug_message, avg hot/cold time ${avg_hot_time:--}ms/${avg_cold_time:--}ms, efficiency ${cache_efficiency}% $tip" 1>&2
 	fi
 
+	# shellcheck disable=SC2034
+	# bc cmd_cache_array is used in a weird way lol
 	(( is_cold_FLAG )) && declare -p cmd_cache_array > "$cache_FILE" # refresh the cache only if cold
 
 	[[ -n "$cached_response" ]] && echo "$cached_response"
@@ -966,9 +991,9 @@ function process_total_khs_and_arr {
 
 	# code
 
-	# arr section [DISABLED]
+	# !!! arr section temporary DISABLED
 	# not required yet, disabled -- waiting for ARR Watchdog to come someday
-	#
+
 #	if is_JSON_string_not_empty_or_null "$stats"; then
 #		arr_rounded_to_2="$(
 #			jq 'def roundit: . * 100.0 + 0.5 | floor / 100.0;
@@ -1029,6 +1054,8 @@ function get_avg_khs_as_json {
 
 		if (( seconds_passed_since_last_updated < 120 )); then
 			#                                     ^^^ TODO should set this time to double of averager's calculating interval
+			# shellcheck disable=SC2005
+			# bc it's a pure bash cat emulaton
 			echo "$( < "$avg_khs_FILE" )"
 		fi
 	fi
@@ -1322,7 +1349,10 @@ function do_command {
 	# vars
 	local cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
-	local -i curl_exitcode exec_exitcode time_limit
+	local -i curl_exitcode time_limit
+	# shellcheck disable=SC2034
+	# bc it's used in a weird way (in the sinlge quoted commands group)
+	local -i exec_exitcode
 	#local TMUX	# let's test it later
 
 	# code
