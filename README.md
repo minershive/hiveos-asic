@@ -436,6 +436,4 @@ Note: almost all commands have a ```--help``` argument.
 
 ## License
 
-Hive OS Client for ASICs is released under the GPL 2.0 license. See [LICENSE.txt](LICENSE.txt)
-
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+Hive OS Client for ASICs is released under Business Source License 1.1. See [LICENSE.txt](LICENSE.txt)
