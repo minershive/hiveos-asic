@@ -2,17 +2,17 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0 (80%)
 #
 
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.4.4'
+readonly script_version='0.4.5'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -334,7 +334,7 @@ function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be t
 
 function get_hostname_from_url {
 	# args
-	local -r url="$1"
+	local -r url_as_string="$1"
 
 	# vars
 	local -a url_as_array
@@ -342,7 +342,7 @@ function get_hostname_from_url {
 
 	# code
 	IFS='/'
-	url_as_array=( $url )
+	url_as_array=( $url_as_string )
 	echo "${url_as_array[2]}" # http://a.b.c/
 	#                                ^^     ^
 }
@@ -453,7 +453,7 @@ function get_asic_json {
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T2TH+", "logic_version": .[0]}'		)";;
 		't2t.soc'				)
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T2T-24T", "logic_version": .[0]}'		)";;
-		't2thf.soc'				)
+		't2thf+.soc'			)
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T2THf+", "logic_version": .[0]}'		)";;
 		't2t+.soc'				)
 			asic_json="$(	jq_raw_input_then_slurp /etc/hwrevision			'{"firmware": .[1], "model": "Innosilicon T2T+(32T)", "logic_version": .[0]}'	)";; #'# syntax highlighting fix
@@ -489,25 +489,25 @@ function get_uid {
 	#uid=$(echo ${system_uuid}-${cpu_id}-${first_mac} | tr '[:upper:]' '[:lower:]' | sha1sum | awk '{print $1}')
 
 	# arrays
-	local -a uid
+	local -a _uid
 
 	# vars
 	local eth0_mac digest_program
 
 	# code
 	eth0_mac="$( < /sys/class/net/eth0/address )"
-	uid="${mb_product}-${eth0_mac}"
-	uid="${uid//:}" # trim all ':'
-	uid="${uid,,}" # tolower()
+	_uid="${mb_product}-${eth0_mac}"
+	_uid="${_uid//:}" # trim all ':'
+	_uid="${_uid,,}" # tolower()
 	for digest_program in sha1sum md5sum; do
 		if hash "$digest_program" 2> /dev/null; then
-			uid=( $( "$digest_program" <<< "$uid" ) )
+			_uid=( $( "$digest_program" <<< "$_uid" ) )
 			break
 		fi
 	done
 	# shellcheck disable=SC2128
 	# "Expanding an array without an index only gives the first element." -- yes, sure, let's use this useful side effect
-	echo "$uid"
+	echo "$_uid"
 }
 
 function get_hive_client_version {
@@ -638,8 +638,8 @@ function serve_custom_fw_model_cache {
 			fi
 			if [[ "$custom_fw_model_saved" != "$custom_fw_model_detected" ]]; then
 				# if detected model is different -- save detected model to file
-				message info "ASIC model re-detected: $custom_fw_model_detected" --silent
-				echo_action "Saving detected model '$custom_fw_model_detected' to the model cache"
+				message info "ASIC model re-detected: $custom_fw_model_detected" --silent --payload <<< "'$custom_fw_model_saved' -> '$custom_fw_model_detected'"
+				echo_action "Updating previously detected model '$custom_fw_model_saved' with '$custom_fw_model_detected' in the model cache"
 				echo "$custom_fw_model_detected" > "$custom_fw_model_saved_FILE"
 			fi
 		fi
