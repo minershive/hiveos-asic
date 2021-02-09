@@ -2,16 +2,18 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0
 #
 
 
+# shellcheck disable=SC2039
+# bc there's no classic POSIX sh but the ash/dash variant
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.1.2'
+readonly script_version='1.1.3'
 readonly script_basename="${0##*/}"
 
 
@@ -287,13 +289,28 @@ deploy_hive () {
 
 	# flags
 
-	local is_package_fetched_ok_FLAG=0
+	local is_package_inplace_ok_FLAG=0 # the package already exists and its integrity is ok, 1/[0]
+	local is_package_fetched_ok_FLAG=0 # the package was downloaded ok, 1/[0]
 
 	# code
 
 	echo_action 'The Client deployment launched in the background'
 
-	if [ "$force_download_FLAG" -eq 1 ] || [ ! -e "$persistent_package_filename_w_path" ] || ! gunzip -tf "$persistent_package_filename_w_path" >/dev/null 2>&1; then
+	if [ -s "$persistent_package_filename_w_path" ]; then
+		echo_info "$persistent_package_filename_w_path package found"
+		if check_gz_integrity "$persistent_package_filename_w_path"; then
+			is_package_inplace_ok_FLAG=1
+		else
+			rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove broken package, to be sure
+			is_package_inplace_ok_FLAG=0
+		fi
+	else
+		echo_info "$persistent_package_filename_w_path package not found or empty"
+		rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove broken package, to be sure
+		is_package_inplace_ok_FLAG=0
+	fi
+
+	if [ "$is_package_inplace_ok_FLAG" -eq 0 ] || [ "$force_download_FLAG" -eq 1 ]; then
 		set_default_download_server_URL
 		if [ "$download_server_URL" != "$default_download_server_URL" ]; then
 			# if server isn't default one -- add fall-back URL to the collection
@@ -312,8 +329,10 @@ deploy_hive () {
 		done
 	fi
 
-	# assert
-	[ "$is_package_fetched_ok_FLAG" -eq 1 ] || die 'Fatal download error, exiting'
+	# assert: the package is ready for processing
+	if [ "$is_package_inplace_ok_FLAG" -eq 0 ] && [ "$is_package_fetched_ok_FLAG" -eq 0 ]; then
+		die 'Fatal download error, exiting'
+	fi
 
 	if [ ! -d /config/hive ]; then
 		mkdir -p /config/hive/hive-config
@@ -321,7 +340,7 @@ deploy_hive () {
 
 	echo_action "Extracting $persistent_package_filename_w_path"
 
-	cd "$NVRAM_path"
+	cd "$NVRAM_path" || die "Error changing directory to $NVRAM_path, exiting"
 	tar_output="$( tar -xzv -f "$persistent_package_filename_w_path" 2>&1 )" || die "${tar_output}\n\nError extracting $persistent_package_filename_w_path, exiting"
 
 	[ -L /hive ] && rm /hive
@@ -406,6 +425,7 @@ executed_by_rc_FLAG=0
 
 case "$PATH" in
 	*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+	'')							export PATH='/hive/bin:/hive/sbin'			;;
 	*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
 esac
 export LD_LIBRARY_PATH=/hive/lib
@@ -414,14 +434,15 @@ export LD_LIBRARY_PATH=/hive/lib
 # code
 
 [ -t 1 ] || exec >> "$own_log" 2>&1
-trap -- 'echo_info "SIGHUP received, ignoring..."' SIGHUP
+trap 'echo_info "SIGHUP received, ignoring..."' HUP # 'SIGHUP' isn't a POSIX name
 
 set_NVRAM_path
 parse_arguments "$@"
 
 if [ "$executed_by_rc_FLAG" -eq 1 ]; then
 	exec >> "$own_log" 2>&1
-	echo_info "Started by rc, log output to $own_log"
+	pretty_formatted_cmdline="$( printf '%s' "$0"; printf " '%s'" "$@" )"
+	echo_info "Started by rc (cmdline: $pretty_formatted_cmdline), output logged to $own_log"
 fi
 
 echo_action "$script_mission $script_version started"
