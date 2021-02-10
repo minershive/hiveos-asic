@@ -13,7 +13,7 @@
 # shellcheck disable=SC2039
 # bc there's no classic POSIX sh but the ash/dash variant
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.1.3'
+readonly script_version='1.1.4'
 readonly script_basename="${0##*/}"
 
 
@@ -34,7 +34,8 @@ print_script_usage () {
 
 echo_action ()	{ echo "${script_basename}> ${*}...";	}
 echo_info ()	{ echo "${script_basename}: ${*}"	;	}
-die ()			{ echo_action "${*}"; exit 1		;	} 2>&1
+echo_warning ()	{ echo "${script_basename}! ${*}"	;	}
+die ()			{ echo_warning "${*}"; exit 1		;	} 2>&1
 
 get_random_number_between () {
 	#
@@ -98,12 +99,12 @@ parse_arguments () {
 
 download_from_URL_to_file () {
 	#
-	# Usage: download_from_URL_to_file 'URL' 'output_file'
+	# Usage: download_from_URL_to_file 'file_url' 'output_file'
 	#
 
 	# args
 
-	local URL="$1"
+	local file_url="$1"
 	local output_file="$2"
 
 	# vars
@@ -112,10 +113,10 @@ download_from_URL_to_file () {
 
 	# code
 
-	echo_action "Downloading package to $output_file"
-	if ! curl_output="$( curl --insecure --location --fail --silent --show-error --output "$output_file" "$URL" 2>&1 )"; then
-		echo_info "$curl_output"
-		echo_info "$URL failed to download"
+	echo_action "Downloading package from $file_url to $output_file"
+	if ! curl_output="$( curl --insecure --location --fail --silent --show-error --output "$output_file" "$file_url" 2>&1 )"; then
+		echo_warning "$curl_output"
+		echo_warning "Downloading FAILED"
 		return 1
 	else
 		echo_info "Downloaded OK"
@@ -137,10 +138,10 @@ check_gz_integrity () {
 	echo_action "Checking $gz_to_check integrity"
 
 	if [ ! -s "$gz_to_check" ]; then
-		echo_info "$gz_to_check not found or empty"
+		echo_warning "$gz_to_check not found or empty"
 		return 1
 	elif ! gunzip -tf "$gz_to_check" >/dev/null 2>&1; then
-		echo_info "$gz_to_check integrity check failed with error $?"
+		echo_warning "Checking integrity FAILED with error $?"
 		return 1
 	else
 		echo_info "Checked OK"
@@ -182,7 +183,7 @@ fetch_package_at_any_cost () {
 	until download_from_URL_to_file "$URL" "$temporary_file" && check_gz_integrity "$temporary_file"; do
 		if [ "$retries_counter" -ge "$retries_limit" ]; then
 			# return false
-			echo_info "No success, $retries_counter attempts were made in ${snooze_counter}s"
+			echo_warning "No success, $retries_counter attempts were made in ${snooze_counter}s"
 			[ -f "$temporary_file" ] && rm "$temporary_file"
 			return 1
 		fi
@@ -190,12 +191,17 @@ fetch_package_at_any_cost () {
 		: $(( retries_counter++ ))
 		snooze_time=$(( base_snooze_time * retries_counter )) # every attempt will be later and later
 		: $(( snooze_counter += snooze_time ))
-		echo_info "Take a break. Attempt #${retries_counter} in ${snooze_time}s..."
+		echo_warning "Take a break. Attempt #${retries_counter} in ${snooze_time}s..."
 		sleep "$snooze_time"
 	done
 
-	cp -rf "$temporary_file" "$output_file"
-	rm "$temporary_file"
+	echo_action "Copying $temporary_file to $output_file"
+	if cp "$temporary_file" "$output_file"; then
+		echo_info "Copied OK"
+	else
+		echo_warning "Copying FAILED"
+	fi
+	rm "$temporary_file" || echo_warning 'Removing temporary file FAILED'
 	sync
 
 	return 0
@@ -246,11 +252,11 @@ set_default_download_server_URL () {
 			: ok good to go
 			;;
 		'')
-			echo_info "Empty server URL, using default $default_download_server_URL"
+			echo_warning "Empty server URL, using default $default_download_server_URL"
 			download_server_URL="$default_download_server_URL"
 			;;
 		*)
-			echo_info "Invalid server URL '$download_server_URL', using default $default_download_server_URL"
+			echo_warning "Invalid server URL '$download_server_URL', using default $default_download_server_URL"
 			download_server_URL="$default_download_server_URL"
 			;;
 	esac
@@ -277,9 +283,9 @@ set_NVRAM_path () {
 	fi
 }
 
-deploy_hive () {
+deploy_client () {
 	#
-	# Usage: deploy_hive &
+	# Usage: deploy_client &
 	#
 
 	# vars
@@ -296,17 +302,17 @@ deploy_hive () {
 
 	echo_action 'The Client deployment launched in the background'
 
-	if [ -s "$persistent_package_filename_w_path" ]; then
-		echo_info "$persistent_package_filename_w_path package found"
+	if [ -f "$persistent_package_filename_w_path" ]; then
+		echo_info "Package $persistent_package_filename_w_path found"
 		if check_gz_integrity "$persistent_package_filename_w_path"; then
 			is_package_inplace_ok_FLAG=1
 		else
-			rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove broken package, to be sure
+			rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove the broken package, to be sure
 			is_package_inplace_ok_FLAG=0
 		fi
 	else
-		echo_info "$persistent_package_filename_w_path package not found or empty"
-		rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove broken package, to be sure
+		echo_warning "Package $persistent_package_filename_w_path not found"
+		rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove the broken package, to be sure
 		is_package_inplace_ok_FLAG=0
 	fi
 
@@ -324,15 +330,13 @@ deploy_hive () {
 			if fetch_package_at_any_cost "$full_package_URL" "$persistent_package_filename_w_path"; then
 				is_package_fetched_ok_FLAG=1
 			else
-				echo_info "Error downloading $persistent_package_filename_w_path from $this_URL"
+				echo_warning "Downloading $persistent_package_filename_w_path from $this_URL FAILED"
 			fi
 		done
 	fi
 
 	# assert: the package is ready for processing
-	if [ "$is_package_inplace_ok_FLAG" -eq 0 ] && [ "$is_package_fetched_ok_FLAG" -eq 0 ]; then
-		die 'Fatal download error, exiting'
-	fi
+	{ [ "$is_package_inplace_ok_FLAG" -eq 1 ] || [ "$is_package_fetched_ok_FLAG" -eq 1 ]; } || die 'Fatal download error, exiting'
 
 	if [ ! -d /config/hive ]; then
 		mkdir -p /config/hive/hive-config
@@ -340,18 +344,18 @@ deploy_hive () {
 
 	echo_action "Extracting $persistent_package_filename_w_path"
 
-	cd "$NVRAM_path" || die "Error changing directory to $NVRAM_path, exiting"
-	tar_output="$( tar -xzv -f "$persistent_package_filename_w_path" 2>&1 )" || die "${tar_output}\n\nError extracting $persistent_package_filename_w_path, exiting"
+	cd "$NVRAM_path" || die "Changing directory to $NVRAM_path FAILED, exiting"
+	tar_output="$( tar -xzv -f "$persistent_package_filename_w_path" 2>&1 )" || die "${tar_output}\n\nExtracting $persistent_package_filename_w_path FAILED, exiting"
 
 	[ -L /hive ] && rm /hive
 	rm -rf hiveos-asic-*/hive/sbin/teleconsole # remove the legacy before copying
 
 	echo_action 'Copying extracted files to /hive and /home'
-	cp -rf hiveos-asic-*/hive / || die 'Error copying files to /hive, exiting'
-	cp -rf hiveos-asic-*/home / || die 'Error copying files to /home, exiting'
+	cp -rf hiveos-asic-*/hive / || die 'Copying files to /hive FAILED, exiting'
+	cp -rf hiveos-asic-*/home / || die 'Copying files to /home FAILED, exiting'
 
 	echo_action 'Copying finished, removing temporary files'
-	rm -rf hiveos-asic*  || echo_info 'Temporary files removing error'
+	rm -rf hiveos-asic* || echo_warning 'Removing temporary files FAILED'
 	[ -f "${NVRAM_path}/${dev_build_file}" ] && rm -f "${NVRAM_path}/${dev_build_file}"
 
 	sleep 2
@@ -364,12 +368,12 @@ deploy_hive () {
 	#cp -rf /hive/share/S9/.profile /home/root/
 	#cp -rf /hive/share/S9/.screenrc /home/root/
 
-	boot_hive &
+	boot_client &
 }
 
-boot_hive () {
+boot_client () {
 	#
-	# Usage: boot_hive &
+	# Usage: boot_client &
 	#
 
 	echo_action 'The Client boot sequence launched in the background'
@@ -434,7 +438,7 @@ export LD_LIBRARY_PATH=/hive/lib
 # code
 
 [ -t 1 ] || exec >> "$own_log" 2>&1
-trap 'echo_info "SIGHUP received, ignoring..."' HUP # 'SIGHUP' isn't a POSIX name
+trap 'echo_warning "SIGHUP received, ignoring..."' HUP # 'SIGHUP' isn't a POSIX name
 
 set_NVRAM_path
 parse_arguments "$@"
@@ -448,9 +452,9 @@ fi
 echo_action "$script_mission $script_version started"
 
 if [ -e /hive ] && [ "$force_deploy_FLAG" -eq 0 ]; then
-	boot_hive &
+	boot_client &
 else
-	[ "$force_download_FLAG" -eq 1 ] && echo_info 'Force download mode ON'
-	[ "$force_deploy_FLAG" -eq 1 ] && echo_info 'Force deployment mode ON'
-	deploy_hive &
+	[ "$force_download_FLAG" -eq 1 ] && echo_warning 'Force download mode ON'
+	[ "$force_deploy_FLAG" -eq 1 ] && echo_warning 'Force deployment mode ON'
+	deploy_client &
 fi
