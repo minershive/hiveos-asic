@@ -6,12 +6,12 @@
 # Distributed under Business Source License 1.1
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0
 #
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.28'
+readonly script_version='0.6.29'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -64,6 +64,8 @@ function process_arguments {
 	case "${1-}" in
 		'clear-cache')
 			print_script_version
+			# shellcheck disable=SC2207
+			# ...bc care is taken to have word splitting work the right way + way simplier error handling
 			if cached_profiles_array=( $( get_cached_profiles_ids ) ) && (( ${#cached_profiles_array[@]} > 0 )); then
 				# at least one profile is cached
 				echo "Cached profiles found: $( print_array_comma_separated 'cached_profiles_array' )"
@@ -95,6 +97,8 @@ function process_arguments {
 				'-j'|'--json')
 					# {"profile": "10", "tuned_profile": [9, 10, 11]}
 					active_profile="$( get_active_profile_id )"
+					# shellcheck disable=SC2207
+					# ...bc care is taken to have word splitting work the right way + way simplier error handling
 					cached_profiles_array=( $( get_cached_profiles_ids ) )
 					echo "{\"profile\": \"${active_profile:--1}\", \"tuned_profile\": [$( print_array_comma_separated 'cached_profiles_array' )]}"
 					#                                       -1 for factory default profile (no profile at all)
@@ -497,7 +501,13 @@ function deactivate_active_profile_files {
 		this_file_w_path="$active_profile_directory/$this_file"
 		echo -n "  [DEBUG] $this_file_w_path "
 		if [[ -f "$this_file_w_path" ]]; then
-			mv -f "$this_file_w_path" "$this_file_w_path.previous" && echo 'OK (renamed to *.previous)' || echo 'FAIL (rename error)'
+			if [[ "$this_file" == 'config.conf' ]]; then
+				# some sort of a kludge for L3+ Hiveon 1.02
+				# leave an original config.conf because it's crucial to leave it be
+				cp "$this_file_w_path" "$this_file_w_path.previous" && echo 'OK (copied to *.previous)' || echo 'FAIL (copy error)'
+			else
+				mv -f "$this_file_w_path" "$this_file_w_path.previous" && echo 'OK (renamed to *.previous)' || echo 'FAIL (rename error)'
+			fi
 		else
 			echo 'SKIPPED (not exist)'
 		fi
