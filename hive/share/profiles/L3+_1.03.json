@@ -1,0 +1,44 @@
+{
+  "1": {
+    "freq_from": "100",
+    "freq_to": "384",
+    "voltage_from": "255",
+    "voltage_to": "255",
+    "desc": "~504MH, ~660W"
+  },
+  "2": {
+    "freq_from": "100",
+    "freq_to": "431",
+    "voltage_from": "255",
+    "voltage_to": "235",
+    "desc": "~560MH, ~740W"
+  },
+  "3": {
+    "freq_from": "100",
+    "freq_to": "481",
+    "voltage_from": "195",
+    "voltage_to": "175",
+    "desc": "~610MH, ~890W"
+  },
+  "4": {
+    "freq_from": "100",
+    "freq_to": "512",
+    "voltage_from": "125",
+    "voltage_to": "105",
+    "desc": "~645MH, ~1040W"
+  },
+  "5": {
+    "freq_from": "100",
+    "freq_to": "537",
+    "voltage_from": "85",
+    "voltage_to": "65",
+    "desc": "~680MH, ~1160W"
+  },
+  "6": {
+    "freq_from": "100",
+    "freq_to": "575",
+    "voltage_from": "25",
+    "voltage_to": "5",
+    "desc": "~720MH, ~1300W"
+  }
+}
