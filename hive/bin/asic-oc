@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.31'
+readonly script_version='0.6.32'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -361,7 +361,7 @@ function get_key_value_pairs_from_json {
 	local -r input_json="$1"
 
 	# consts
-	local -r jq_key_value='. | with_entries( select(.key) ) | to_entries[] | "\(.key)=\(.value)"'
+	local -r jq_key_value='. | with_entries( select( .key != "desc" ) ) | to_entries[] | "\(.key)=\(.value)"' # filter out a description field -- auto-tune doesn't need this and a subsequent parsing can be complicated, then
 
 	# vars
 	local valid_json # this var name isn't accurate enough
@@ -834,12 +834,12 @@ function tune_L3 {
 
 	# delete log(s) from previous session
 	for this_log in "$autotune_log" "$autotune_L3_new_log"; do
-		[[ -f "$this_log" ]] && rm "$this_log" 
+		[[ -f "$this_log" ]] && rm "$this_log"
 	done
 
 	echo '> 1st phase started...'
 	nohup /usr/bin/auto-tune-chains > "$autotune_debug_log" 2>&1
-	snore 1	
+	snore 1
 	echo '> 2nd phase started...'
 	nohup /usr/bin/auto-tune >> "$autotune_debug_log" 2>&1
 
