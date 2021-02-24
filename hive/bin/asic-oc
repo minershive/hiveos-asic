@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.30'
+readonly script_version='0.6.31'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -677,7 +677,7 @@ function kill_autotune_9 {
 
 	# code
 	(( script_DEBUG )) && echo '> [DEBUG] Stopping auto-tune tools...'
-	for this_process in 'auto-tune' 'tune-yellow' 'auto-chip-tune'; do
+	for this_process in 'auto-tune' 'tune-yellow' 'auto-chip-tune' 'auto-tune-chains'; do
 		kill_counter=0
 		while is_program_running "$this_process"; do
 			if (( ++kill_counter > 10 )); then
@@ -817,6 +817,57 @@ function generate_active_profile_L3 {
 		fi
 	} | replace_newlines_with_ampersands > "$active_profile_file_w_path"
 	(( script_DEBUG )) && { echo "[DEBUG] generated file: [$( cat "$active_profile_file_w_path" )]"; echo; }
+}
+
+function tune_L3 {
+	# consts
+	local -r autotune_log='/tmp/auto-tune'
+	local -r autotune_L3_new_log='/tmp/log'
+	local -r autotune_debug_log='/tmp/auto-tune.nohup.log'
+
+	# vars
+	local this_log
+
+	# code
+	kill_autotune_9
+	echo '> Auto-tune started...'
+
+	# delete log(s) from previous session
+	for this_log in "$autotune_log" "$autotune_L3_new_log"; do
+		[[ -f "$this_log" ]] && rm "$this_log" 
+	done
+
+	echo '> 1st phase started...'
+	nohup /usr/bin/auto-tune-chains > "$autotune_debug_log" 2>&1
+	snore 1	
+	echo '> 2nd phase started...'
+	nohup /usr/bin/auto-tune >> "$autotune_debug_log" 2>&1
+
+	if (( script_DEBUG )); then
+		if [[ ! -f "$active_profile_directory/config.conf" ]]; then
+			echo "  [DEBUG] $active_profile_directory/config.conf not found (but it has to be)" # ??? do we still need this
+		fi
+		if [[ -f "$autotune_debug_log" ]]; then
+			echo '> [DEBUG] Auto-tune log:'
+			cat "$autotune_debug_log"
+			echo
+			rm "$autotune_debug_log"
+		fi
+	fi
+
+	if [[ -s "$autotune_log" ]]; then
+		echo '> Auto-tune log:'
+		cat "$autotune_log"
+		echo
+	elif [[ -s "$autotune_L3_new_log" ]]; then
+		echo '> Auto-tune log (L3+ 1.02):'
+		cat "$autotune_L3_new_log"
+		echo
+	else
+		(( script_DEBUG )) && echo "  [DEBUG] $autotune_log is empty or not found"
+	fi
+
+	echo '> Auto-tune finished'
 }
 
 # Antminer Series 17
@@ -1275,7 +1326,7 @@ elif [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02
 	fi
 
 	if (( have_to_tune_FLAG )); then
-		tune_9
+		tune_L3
 	fi
 
 elif [[ ( "$ASIC_MODEL" == "Antminer S17 $ASIC_CUSTOM_FW_BRAND"* || "$ASIC_MODEL" == "Antminer T17 $ASIC_CUSTOM_FW_BRAND"* ) && "$ASIC_CUSTOM_FW_VERSION" == '1.00' ]]; then
