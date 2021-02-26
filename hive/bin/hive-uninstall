@@ -2,29 +2,34 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
-#cgminer
-[ -e /config/hive/hive ] && rm -rf /config/hive/hive/
-[ -e /config/hive/hive-config ] && rm -rf /config/hive/hive-config/
-[ -e /config/hive_autorun ] && rm -rf /config/hive_autorun
+echo 'Uninstalling the Client...'
 
-#bmminer + z9-mini
-[ -e /etc/rcS.d/S69hive ] && rm -rf /etc/rcS.d/S69hive
+# cgminer
+[ -e /config/hive/hive				] && rm -rf /config/hive/hive/
+[ -e /config/hive/hive-config		] && rm -rf /config/hive/hive-config/
+[ -e /config/hive_autorun			] && rm -rf /config/hive_autorun
 
-#Zig
-[ -e /etc/cron.d/hive ] && rm -rf /etc/cron.d/hive
+# bmminer + z9-mini
+[ -e /etc/rcS.d/S69hive				] && rm -rf /etc/rcS.d/S69hive
 
-#all
+# Zig
+[ -e /etc/cron.d/hive				] && rm -rf /etc/cron.d/hive
+
+# Series 17
+[ -e /nvdata/client-controller.log	] && rm -rf /nvdata/client-controller.log
+[ -e /opt/client-controller.log		] && rm -rf /nvdata/client-controller.log
+
+# all
 rm -rf /hive
 rm -rf /hive-config
 
-echo "Rebooting in 5 seconds"
+echo 'Rebooting in 5 seconds...'
 sleep 5
 
 reboot
-
