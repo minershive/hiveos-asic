@@ -2,14 +2,14 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.0'
+readonly script_version='0.2.1'
 readonly script_basename="${0##*/}"
 
 
@@ -82,12 +82,25 @@ function is_program_not_running {
 	fi
 }
 
+function is_directory_exist_and_writable {
+	#
+	# Usage: is_directory_exist_and_writable 'directory_to_check'
+	#
+
+	# args
+	(( $# == 1 )) || return 1
+	local -r directory_to_check="${1-}"
+
+	# code
+	[[ -d "$directory_to_check" && -w "$directory_to_check" ]]
+}
+
 function kill_all {
 	# args
 	local -r process_name_to_kill="$1"
 
 	# vars
-	local -i this_process
+	local -i this_process_id
 	local process_name_to_kill_sanitized
 
 	# code
@@ -96,8 +109,8 @@ function kill_all {
 	else
 		# not all systems have killall
 		process_name_to_kill_sanitized="[${process_name_to_kill::1}]${process_name_to_kill:1}" # enclose the first char in square [b]rackets
-		for this_process in $( ps | awk "/$process_name_to_kill_sanitized/{print \$1}" ); do
-			kill -9 "$this_process" > /dev/null 2>&1
+		for this_process_id in $( ps | awk "/$process_name_to_kill_sanitized/{print \$1}" ); do
+			kill -9 "$this_process_id" > /dev/null 2>&1
 		done
 	fi
 }
@@ -117,7 +130,7 @@ function get_datetime_from_server {
 	local -i curl_exitcode attempts_counter
 
 	# code
-	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # !!! will be needed to start WD later
+	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF"
 
 	if [[ -z "${HIVE_HOST_URL-}" ]]; then
 		echo_x warning "HIVE_HOST_URL is empty, using default server $HIVE_HOST_URL_default"
@@ -177,8 +190,8 @@ declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to
 
 # sources
 
-source colors
-source asic-model
+source /hive/bin/colors
+source /hive/bin/asic-model
 
 
 # model dependend PATHs and libraries
@@ -215,7 +228,7 @@ if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MO
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
 elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_MODEL =~ "Antminer S10" || $ASIC_MODEL =~ "Antminer T9" || $ASIC_MODEL == "Antminer S9i" || $ASIC_MODEL == "Antminer S9j" || $ASIC_MODEL == "Minecenter S9" || $ASIC_MODEL == "Antminer S9 Hydro" || $ASIC_MODEL == "Antminer E3" || $ASIC_MODEL == "Antminer " || $ASIC_MODEL =~ "Antminer S9 (vnish" || $ASIC_MODEL =~ "Antminer S9" || $ASIC_MODEL =~ "Antminer S11" ]]; then
 	echo_x action 'Applying crontab'
-	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp  /var/spool/cron/crontabs
+	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp /var/spool/cron/crontabs
 	crontab /hive/etc/crontab.root
 	is_program_not_running 'crond' && /usr/sbin/crond
 	#hosts patch
@@ -226,7 +239,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 
 	if (( ! IS_ASIC_CUSTOM_FW )); then
 		echo_x action 'Patching upgrade'
-		cd /www/pages/cgi-bin/
+		cd /www/pages/cgi-bin/ || echo_x error 'Cannot change directory'
 		patch -p10 /www/pages/cgi-bin/upgrade.cgi < /hive/share/S9/upgrade.cgi.patch
 	fi
 	sed -i '/\#\#\# HIVE HECK \#\#\#/,$d' /config/network.conf
@@ -268,7 +281,7 @@ if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
 	[[ -f /etc/init.d/avahi ]] && /etc/init.d/avahi stop # add && -f /usr/sbin/avahi-daemon ???
 	[[ -f /usr/sbin/avahi-daemon ]] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon-disabled
 	# /etc/init.d/avahi stop -- does not work on some models
-	kill_all avahi
+	kill_all 'avahi'
 fi
 
 
@@ -298,18 +311,38 @@ if (( hello_exitcode )); then
 fi
 
 
-[[ -s $RIG_CONF ]] &&
-	source "$RIG_CONF" #will be needed to start WD later
+[[ -s $RIG_CONF ]] && source "$RIG_CONF" #will be needed to start WD later
+
 
 echo_x action 'Starting agent screen session'
 agent-screen dontattach
 
-
+#
 echo_x action 'Starting controller'
-kill_all controller
-#nohup /hive/sbin/bash -c '/hive/bin/controller >> /config/hive-controller.log 2>&1' > /dev/null 2>&1 & disown
-# let's make it simplier:
-nohup /hive/bin/controller >> /config/hive-controller.log 2>&1 & disown # disown is esp. for Innosilicon smart-ass
+kill_all 'controller'
+{
+	#
+	# fix "controller log is too big, /config dir is too small, no space left" issue, rough -- should refactor later
+	#
+	# consts
+	declare -r deprecated_controller_log='/config/hive-controller.log'
+	# vars
+	declare this_nvram_directory controller_log="$deprecated_controller_log"
+	# code
+	for this_nvram_directory in '/nvdata' '/opt' '/config'; do
+		if is_directory_exist_and_writable "$this_nvram_directory"; then
+			controller_log="$this_nvram_directory/client-controller.log"
+			# check for log at the deprecated path
+			if [[ -f "$deprecated_controller_log" ]]; then
+				echo_x action "Transplanting an old controller's log to $controller_log"
+				mv "$deprecated_controller_log" "$controller_log"
+			fi
+			break
+		fi
+	done
+}
+nohup /hive/bin/controller >> "$controller_log" 2>&1 & disown # disown is esp. for Innosilicon smart-ass
+
 
 #bmminer is autostarted after in /etc/rcS.d
 #echo_x action 'Starting miner'
