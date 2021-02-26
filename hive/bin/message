@@ -2,21 +2,22 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0
 #
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.5.5'
+readonly script_version='0.6.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
-source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+[[ -s /hive/bin/hive-functions.sh ]] || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; } # assert
+source /hive/bin/hive-functions.sh
 
 
 # !!! bash strict mode, no unbound variables
@@ -55,6 +56,52 @@ function print_script_usage {
 	echo
 }
 
+function is_api_server_response_ok {
+	#
+	# Usage: is_api_server_response_ok 'response_to_check'
+	#
+
+	# args
+	local -r response_to_check="$1"
+
+	# vars
+	local error_key errors_key
+
+	# code
+	if [[ -n "$response_to_check" ]]; then
+		(( script_DEBUG )) && errcho "[DEBUG] $FUNCNAME(): server response not empty"
+	else
+		echo 'Server response is empty'
+		return 1
+	fi
+
+	if error_key="$( jq '.error' --raw-output <<< "$response_to_check" 2> /dev/null )"; then
+		# by the way, does the .error key deprecated? should prove it
+		(( script_DEBUG )) && errcho "[DEBUG] $FUNCNAME(): server response is a valid JSON (check for .error key)"
+	else
+		echo 'Server response is not a valid JSON'
+		return 1
+	fi
+
+	if errors_key="$( jq 'if .errors.type != null then .errors.type[] else null end' --raw-output <<< "$response_to_check" 2> /dev/null )"; then
+		(( script_DEBUG )) && errcho "[DEBUG] $FUNCNAME(): server response is a valid JSON (check for .errors key)"
+	else
+		echo 'Server response is not a valid JSON'
+		return 1
+	fi
+
+	if is_JSON_string_empty_or_null "$error_key" && is_JSON_string_empty_or_null "$errors_key"; then
+		(( script_DEBUG )) && errcho "[DEBUG] $FUNCNAME(): server response has no .error(s) keys"
+	else
+		#is_JSON_string_not_empty_or_null "$error_key"	&& errcho "API server response 'error': $error_key"
+		#is_JSON_string_not_empty_or_null "$errors_key"	&& errcho "API server response 'errors': $errors_key"
+		echo 'API error'
+		return 1
+	fi
+
+	return 0
+}
+
 
 # consts
 
@@ -67,7 +114,7 @@ declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to
 declare HIVE_API_endpoint this_argument
 declare message_type message_header message_color
 declare id='' id_json payload='' payload_json
-declare request response
+declare api_server_request api_server_response
 declare file_to_send='' file_size
 declare -i curl_exitcode script_exitcode=0
 declare -i is_silent_FLAG=0 is_verbose_FLAG=0 is_templates_escaped_FLAG=0
@@ -82,7 +129,7 @@ declare console_message=''
 
 # sources
 
-source colors
+source /hive/bin/colors
 
 
 # main
@@ -193,8 +240,8 @@ if [[ -n "$file_to_send" ]]; then
 				filesharing_server_response="$( curl --form "file=@$file_to_send" --insecure --silent https://file.io )"
 				curl_exitcode=$?
 				if (( curl_exitcode )); then
-					errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
-					errcho "$( human-curl-error "$curl_exitcode" )"
+					errcho "$console_message ${BRED}NETWORK ERROR ($curl_exitcode)${NOCOLOR}"
+					(( is_verbose_FLAG )) && errcho "$( human-curl-error "$curl_exitcode" )"
 					script_exitcode="$curl_exitcode"
 				else
 					file_io_success="$( jq --raw-output '.success' <<< "$filesharing_server_response" )"
@@ -216,8 +263,8 @@ if [[ -n "$file_to_send" ]]; then
 				filesharing_server_response="$( curl --insecure --silent --upload-file "$file_to_send" "https://transfer.sh/$message_header" )"
 				curl_exitcode=$?
 				if (( curl_exitcode )); then
-					errcho "$console_message ${BRED}NETWORK ERROR${NOCOLOR}"
-					errcho "$( human-curl-error "$curl_exitcode" )"
+					errcho "$console_message ${BRED}NETWORK ERROR ($curl_exitcode)${NOCOLOR}"
+					(( is_verbose_FLAG )) && errcho "$( human-curl-error "$curl_exitcode" )"
 					script_exitcode="$curl_exitcode"
 				else
 					if [[ "$filesharing_server_response" =~ ^https://transfer.sh/ ]]; then
@@ -239,8 +286,13 @@ if [[ -n "$file_to_send" ]]; then
 	fi
 fi
 
+# asserts
+[[ -n "${HIVE_HOST_URL:-}" ]]	|| { errcho 'HIVE_HOST_URL not configured, cannot send a message to nowhere';	exit 1; }
+[[ -n "${RIG_ID:-}" ]]			|| { errcho 'RIG_ID not configured, cannot send a message to nowhere';			exit 1; }
+[[ -n "${RIG_PASSWD:-}" ]]		|| { errcho 'RIG_PASSWD not configured, cannot send a message to nowhere';		exit 1; }
+
 # shellcheck disable=SC2016
-request="$(
+api_server_request="$(
 	jq \
 		--null-input --compact-output \
 		--arg rig_id "$RIG_ID" \
@@ -257,91 +309,91 @@ request="$(
 if [[ -n "$id" ]]; then
 	# shellcheck disable=SC2016
 	id_json="$( jq --arg id "$id" --null-input '{"params": {$id}}' )"
-	request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $id_json" )"
+	api_server_request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$api_server_request $id_json" )"
 fi
 
 # add payload if any
 if [[ -n "$payload" ]]; then
 	# shellcheck disable=SC2016
 	payload_json="$( jq --raw-input --slurp '{"params": {"payload": .}}' <<< "$payload" )"
-	request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$request $payload_json" )"
+	api_server_request="$( jq --slurp --compact-output '.[0] * .[1]' <<< "$api_server_request $payload_json" )"
 fi
 
 if [[ -z "$payload" ]]; then
-	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header'..."
+	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header'"
 elif [[ -n "$file_to_send" ]]; then
-	console_message="Sending file $file_to_send (${file_size} bytes compressed to ${#payload}) to dashboard..."
+	console_message="Sending file $file_to_send (${file_size} bytes compressed to ${#payload})"
 else
-	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)..."
+	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)"
 fi
+console_message+=" to $HIVE_HOST_URL..."
 
 if (( is_verbose_FLAG )); then
 	echo -n 'Request: '
-	jq --color-output '.' <<< "$request"
+	jq --color-output '.' <<< "$api_server_request"
 fi
 
-# send a message
+# send a message, should move to a separate function
 HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
 
 # let's try to connect
 declare -r -i curl_initial_connect_timeout=2
 declare -r -i max_connection_attempts=15
 declare -i attempts_counter curl_connect_timeout curl_max_time
-declare attempts_message=''
+declare attempts_message='' api_server_response_description=''
 
 for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
 	((
 		curl_connect_timeout = curl_initial_connect_timeout + attempts_counter,
 		curl_max_time = curl_connect_timeout * 3
 	))
-	response="$(
+	api_server_response="$(
 		curl \
 			--insecure --location --data @- --silent \
 			--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
 			--request POST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
 			--header 'Content-Type: application/json' \
-		<<< "$request"
+		<<< "$api_server_request"
 	)"
 	curl_exitcode=$?
 	(( attempts_counter > 1 || curl_exitcode )) && attempts_message="[$attempts_counter/$max_connection_attempts] "
 	if (( curl_exitcode )); then
 		is_silent_FLAG=0
 		errcho "${attempts_message}$console_message ${BRED}FAIL ($curl_exitcode)${NOCOLOR}"
-		#errcho "$( human-curl-error "$curl_exitcode" )"
-		sleep "$attempts_counter"
+		(( is_verbose_FLAG )) && errcho "$( human-curl-error "$curl_exitcode" )"
+		snore "$attempts_counter"
 	else
 		break
 	fi
 done
 
-if (( is_verbose_FLAG )); then
-	echo -n 'Response: '
-	jq --color-output '.' <<< "$response"
-fi
-
-# check curl result
+# check and validate the answer
 if (( curl_exitcode )); then
 	errcho "${attempts_message}$console_message ${BRED}FAIL ($curl_exitcode)${NOCOLOR}"
-	#errcho "$( human-curl-error "$curl_exitcode" )"
-	if (( ! is_verbose_FLAG )) && [[ -n "$response" ]]; then
-		errcho "Response: $response"
-	fi
+	(( is_verbose_FLAG )) && errcho "$( human-curl-error "$curl_exitcode" )"
 	script_exitcode="$curl_exitcode"
 else
-	# parse the server answer
-	error="$( jq '.error' --raw-output <<< "$response" )" # does the .error key is deprecated?
-	errors="$( jq 'if .errors.type != null then .errors.type[] else null end' --raw-output <<< "$response" )"
-	if is_JSON_string_not_empty_or_null "$error" || is_JSON_string_not_empty_or_null "$errors"; then
-		errcho "${attempts_message}$console_message ${BRED}API SERVER ERROR${NOCOLOR}"
-		is_JSON_string_not_empty_or_null "$error"	&& errcho "API server response: $error"
-		is_JSON_string_not_empty_or_null "$errors"	&& errcho "API server response: $errors"
-		if (( script_DEBUG )); then
-			errcho "[DEBUG] Full JSON response:"
-			jq '.' --color-output <<< "$response" 1>&2
-		fi
-		script_exitcode=1
-	else
+	if api_server_response_description="$( is_api_server_response_ok "$api_server_response" )"; then
 		(( ! is_silent_FLAG )) && echo_info "${attempts_message}$console_message ${BGREEN}SENT"
+	else
+		script_exitcode=$?
+		errcho "${attempts_message}$console_message ${BRED}API SERVER ERROR${NOCOLOR}"
+		if [[ -n "$api_server_response_description" ]]; then
+			if [[ -n "$api_server_response" ]]; then
+				errcho "$api_server_response_description (${RIG_ID}/${RIG_PASSWD}): $api_server_response"
+			else
+				errcho "$api_server_response_description (${RIG_ID}/${RIG_PASSWD})"
+			fi
+		else
+			errcho 'No error description provided'
+		fi
+	fi
+
+	if (( is_verbose_FLAG && ! script_exitcode )); then
+		if [[ -n "$api_server_response" ]]; then
+			echo -n 'Response: '
+			jq --color-output '.' <<< "$api_server_response" 2> /dev/null || echo "$api_server_response"
+		fi
 	fi
 fi
 
