@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Your First Run'
 readonly script_purpose='Checks if rig.conf config exists, asks for url/rig_id/pass if no config found'
-readonly script_version='0.1.8'
+readonly script_version='0.1.9'
 readonly script_basename="${0##*/}"
 
 
@@ -158,12 +158,12 @@ function ask_user_for_id {
 	# sets global var $user_input_id
 
 	# consts
-	declare -r valid_RIG_ID_RE='^[[:digit:]]+$' # only digits
+	declare -r valid_RIG_ID_RE='^[[:digit:]]+$' # an integer number > 0
 
 	# code
 	while true; do
 		read -p 'Rig ID: ' -r user_input_id
-		[[ "$user_input_id" =~ $valid_RIG_ID_RE ]] && break
+		[[ "$user_input_id" =~ $valid_RIG_ID_RE ]] && (( user_input_id > 0 )) && break
 		echo "Invalid input '$user_input_id'"
 	done
 }
@@ -175,7 +175,7 @@ function ask_user_for_passwd {
 	# sets global var $user_input_passwd
 
 	# consts
-	declare -r valid_RIG_PASSWD_RE='^[[:alnum:]]+$' # any letters and digits, no spaces
+	declare -r valid_RIG_PASSWD_RE='^[[:alnum:]]{1,64}$' # any letters and digits, 1-64, no spaces
 
 	# code
 	while true; do
@@ -197,7 +197,7 @@ declare -r RIG_CONF='/hive-config/rig.conf'
 
 # global RE
 
-declare -r valid_API_URL_RE='^https?://[[:alnum:]\.\-]+(:[[:digit:]]{1,5})?' # no control chars (only alnum|.|-), starting with http(s)://
+declare -r valid_API_URL_RE='^https?://[[:alnum:]\.\-]+(:[[:digit:]]{1,5})?' # no control chars (only alnum|.|-), starting with http(s)://, may end with port number
 
 
 # global vars
