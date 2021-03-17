@@ -116,7 +116,7 @@ function jq_batch_process {
 	if is_JSON_string_not_empty_or_null "$JSON_input"; then
 		#echo "'$JSON_input'" && snore 1
 		mapfile -t jq_batch_response_raw_array < <( jq --compact-output --argjson 'max_fan_rpm' "$ASIC_MAX_FAN_RPM" "$jq_batch_script" <<< "$JSON_input" )
-		#                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, should refactor to get rid of
+		#                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, might refactor to get rid of it?
 
 		#printf "%s\n" "${jq_batch_response_raw_array[@]}"
 
@@ -440,7 +440,7 @@ function cache_cmd {
 	current_time="$( get_current_system_time_in_seconds )"
 
 	[[ -z "$last_time" ]] && last_time=0
-	
+
 	# shellcheck disable=SC2004
 	# bc $/${} is necessary while the variable been referenced to an array's single element
 
@@ -668,7 +668,7 @@ function fetch_miner_stats {
 				miner_count="$( jq '. | length' <<< "$chain_acn" )"
 				if [[ "$( jq --raw-output length <<< "$freq" )" -ne "$miner_count" ]]; then
 					freq_new='[]'
-					freq="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("frequency")) )					| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( "freq#$?" )
+					freq="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("frequency")) )				| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( "freq#$?" )
 					freq_num="$( jq --raw-output '.[0]' <<< "$freq" )" || error_vars+=( "freq_num#$?" )
 					for (( c = 1;  c <= miner_count; c++ )); do
 						freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num | tonumber]' <<< "$freq_new" )" || error_vars+=( "freq_new#$?" )

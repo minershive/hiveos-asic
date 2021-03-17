@@ -2,10 +2,15 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
+
+
+readonly script_mission='Client for ASICs: motd'
+readonly script_version='0.0.1'
+readonly script_basename="${0##*/}"
 
 
 # functions
@@ -44,7 +49,7 @@ function netmask_to_cidr {
 	# vars
 	local -i cidr=0
 	local x
-	
+
 	# code
 	x="0$( printf '%o' ${netmask//./ } )"
 
@@ -83,9 +88,9 @@ function get_fs_name {
 
 function pretty_print {
 	# consts
-	local -r label_color="${LGRAY}"
-	local -r variable_ok_color="${BCYAN}"
-	local -r variable_empty_color="${DGRAY}"
+	local -r label_color="${LGRAY-}"
+	local -r variable_ok_color="${BCYAN-}"
+	local -r variable_empty_color="${DGRAY-}"
 
 	# code
 	while true; do
@@ -102,10 +107,10 @@ function pretty_print {
 		fi
 
 		if [[ -n "$delimiter" ]]; then
-			printf ' %b%s ' "${PURPLE}" "$separator"
+			printf ' %b%s ' "${PURPLE-}" "$separator"
 			shift 3
 		else
-			printf ' %b\n' "${NOCOLOR}"
+			printf ' %b\n' "${NOCOLOR-}"
 			break
 		fi
 	done
@@ -126,24 +131,31 @@ function rematch {
 
 function show_mixed_logs {
 	# consts
-	local -r controller_log='/config/hive-controller.log'
 	local -r miner_status_log='/nvdata/miner_status.log'
 	local -r error_line_marker='MaRkEr'
 	local -r -i error_line_marker_length="${#error_line_marker}"
 	local -r -i tail_lines=12
 
 	# vars
-	local line=''
-	
+	local this_nvram_directory controller_log_probe controller_log='' line=''
+
 	# code
-	if [[ -s "$controller_log" || -s "$miner_status_log" ]]; then
-		echo -e "${DGRAY}-- Last lines from logs --------------------------------------------------------${NOCOLOR}"
-	
+	for this_nvram_directory in '/config' '/nvdata' '/opt'; do
+		controller_log_probe="$this_nvram_directory/client-controller.log"
+		if [[ -s "$controller_log_probe" ]]; then
+			controller_log="$controller_log_probe"
+			break
+		fi
+	done
+
+	if [[ -n "$controller_log" || -s "$miner_status_log" ]]; then
+		echo -e "${DGRAY-}-- Last lines from logs --------------------------------------------------------${NOCOLOR-}"
+
 		{
-			if [[ -s "$controller_log" ]]; then
+			if [[ -n "$controller_log" ]]; then
 				grep -E '^[0-9]{4}' "$controller_log" | tail -n "$tail_lines"
 			fi
-			
+
 			if [[ -s "$miner_status_log" ]]; then
 				while IFS= read -r line; do
 					echo -e "${line}${error_line_marker}"
@@ -152,14 +164,14 @@ function show_mixed_logs {
 		} | sort -us | {
 			while IFS= read -r line; do
 				if [[ "${line: -${error_line_marker_length}}" == "${error_line_marker}" ]]; then
-					echo -e " ${RED}${line::-${error_line_marker_length}}${NOCOLOR}"
+					echo -e " ${RED-}${line::-${error_line_marker_length}}${NOCOLOR-}"
 				else
 					echo -e " $line"
 				fi
 			done
 		} | tail -n "$tail_lines"
-	
-		echo -e "${DGRAY}--------------------------------------------------------------------------------${NOCOLOR}"
+
+		echo -e "${DGRAY-}--------------------------------------------------------------------------------${NOCOLOR-}"
 		echo
 	fi
 }
@@ -189,12 +201,12 @@ agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-r
 gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
 
 if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
-    mac="$( LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"    
+    mac="$( LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"
     ip="$( LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
     netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
     nameserver="$( grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )"
 else
-    mac="$(			LANG=C ifconfig eth0 |	rematch 'HWaddr (.{17})' )"    
+    mac="$(			LANG=C ifconfig eth0 |	rematch 'HWaddr (.{17})' )"
     ip="$(			LANG=C ifconfig eth0 |	rematch 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' )"
     netmask="$(		LANG=C ifconfig eth0 |	rematch 'Mask:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' )"
     nameserver="$(							rematch 'nameserver[ \t]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' < /etc/resolv.conf )"
@@ -230,7 +242,7 @@ fi
 pretty_print 'host' hostname / 'uptime' uptime / 'local date' local_date
 pretty_print 'ip' ip_w_cidr / 'mac' mac / 'gw' gateway / 'dns' nameserver
 echo
-echo -e "${BPURPLE}${ASIC_MODEL:-[not set]} ${PURPLE}${separator} ${fw_version}${NOCOLOR}"
+echo -e "${BPURPLE-}${ASIC_MODEL:-[not set]} ${PURPLE-}${separator} ${fw_version}${NOCOLOR-}"
 echo
 pretty_print 'Worker' WORKER_NAME / 'Flight sheet' fs_name / 'Client' agent_full_version
 pretty_print 'Farm ID' FARM_ID / 'Rig ID' RIG_ID / 'API server' HIVE_HOST_URL
