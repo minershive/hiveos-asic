@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.3.7'
+readonly script_version='2.3.8'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1570,32 +1570,36 @@ function checkup:is_NAND_in_RO_mode {																(( script_DEBUG )) && debug
 
 	local directory_to_check message_header temp_file
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
-	local -i write_failed_FLAG=0
+	local -i is_write_failed_FLAG=0
 
 	# code
 
 	if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
 		# one time action
 		for directory_to_check in "${directories_on_NAND[@]}"; do
-			if [[ -d "$directory_to_check" ]]; then
-				# 1st check
-				if [[ ! -w "$directory_to_check" ]]; then
-					write_failed_FLAG=1
+			# check is directory exist
+			[[ ! -d "$directory_to_check" ]] && continue
+			# 1st check, a simple 'test -w'
+			if [[ ! -w "$directory_to_check" ]]; then
+				is_write_failed_FLAG=1
+			else
+				# 2nd check, create a temp file
+				if ! temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
+					is_write_failed_FLAG=1
 				else
-					# 2nd check, just for sure
-					if ! temp_file="$( mktemp -p "$directory_to_check" 2> /dev/null )"; then
-						write_failed_FLAG=1
-					else
-						rm -rf "$temp_file"
+					# 3rd check, try to open a temp file for write
+					if ! true >> "$temp_file"; then
+						is_write_failed_FLAG=1
 					fi
+					rm -rf "$temp_file"
 				fi
-				if (( write_failed_FLAG )); then
-					message_header="Cannot write to $directory_to_check. NAND is in the read-only state, the ASIC may need a service"
-					print_controller_log_entry "$event_type_for_log" "$message_header"
-					message "$event_type_for_message" "$message_header" --silent
-					set_checkup_counter "$FUNCNAME" 'message_sent' 1
-					is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-				fi
+			fi
+			if (( is_write_failed_FLAG )); then
+				message_header="Cannot write to $directory_to_check. NAND is in the read-only state, the ASIC may need a service"
+				print_controller_log_entry "$event_type_for_log" "$message_header"
+				message "$event_type_for_message" "$message_header" --silent
+				set_checkup_counter "$FUNCNAME" 'message_sent' 1
+				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			fi
 		done
 	else
