@@ -17,7 +17,7 @@ readonly script_basename="${0##*/}"
 
 function seconds2dhms {
 	# Usage: seconds2dhms 'time_in_seconds' ['delimiter']
-	# Renders time_in_seconds to 'XXd XXh XXm XXs' string
+	# Renders time_in_seconds to 'XXd XXh XXm[ XXs]' string
 
 	# args
 	local -i -r time_in_seconds="${1#-}" # strip sign, get abs()
@@ -29,16 +29,16 @@ function seconds2dhms {
 
 	# code
 	((
-		days = time_in_seconds / 60 / 60 / 24,
-		hours = time_in_seconds / 60 / 60 % 24,
-		minutes = time_in_seconds / 60 % 60,
-		seconds = time_in_seconds % 60
+		days	= time_in_seconds / 60 / 60 / 24,
+		hours	= time_in_seconds / 60 / 60 % 24,
+		minutes	= time_in_seconds / 60 % 60,
+		seconds	= time_in_seconds % 60
 	)) # arithmetic context, GOD I LOVE IT
 
-	(( days ))				&&	printf '%ud%s' "$days" "$delimiter"
-	(( hours ))				&&	printf '%uh%s' "$hours" "$delimiter"
-	(( minutes ))			&&	printf '%um%s' "$minutes"
-	(( ! days && ! hours ))	&&	printf '%s%us' "$delimiter" "$seconds" # seconds only in the first hour
+	(( days ))				&&	printf '%ud%s'	"$days" "$delimiter"
+	(( hours ))				&&	printf '%uh%s'	"$hours" "$delimiter"
+	(( minutes ))			&&	printf '%um'	"$minutes"
+	(( ! days && ! hours ))	&&	printf '%s%us'	"$delimiter" "$seconds" # seconds only in the first hour
 								printf '\n'
 }
 
@@ -66,8 +66,9 @@ function get_uptime_in_dhm {
 	local uptime_dhm
 
 	# code
-	uptime_raw=( $( < /proc/uptime ) )
-	uptime_dhm="$( seconds2dhms $(( ${uptime_raw/\.} / 100 )) )"
+	IFS=' ' read -r -a uptime_raw < /proc/uptime
+	uptime_dhm="$( seconds2dhms $(( ${uptime_raw[0]/\.} / 100 )) )"
+
 	echo "$uptime_dhm"
 }
 
@@ -179,14 +180,14 @@ function show_mixed_logs {
 
 # global sources
 
-[[ -s /hive/bin/colors ]] && source /hive/bin/colors
-[[ -s /hive/bin/asic-model ]] && source /hive/bin/asic-model
-[[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
+[[ -s /hive/bin/colors		]] && source /hive/bin/colors
+[[ -s /hive/bin/asic-model	]] && source /hive/bin/asic-model
+[[ -s /hive-config/rig.conf	]] && source /hive-config/rig.conf
 
 
 # global consts
 
-declare -r separator='·'
+declare -r separator='·' # UTF
 
 
 # main()
@@ -194,17 +195,17 @@ declare -r separator='·'
 [[ "$ASIC_MODEL" =~ 'Toddminer C1' && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add only if not exist
 
 # collect sysinfo
-[[ -s /hive/etc/VERSION ]] && agent_release_version="$( < /hive/etc/VERSION )"
-[[ -s /hive/etc/build ]] && agent_build_version="$( < /hive/etc/build )"
+[[ -s /hive/etc/VERSION	]] && agent_release_version="$( < /hive/etc/VERSION )"
+[[ -s /hive/etc/build	]] && agent_build_version="$( < /hive/etc/build )"
 agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-release}"
 
-gateway="$( LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
+gateway="$(			LANG=C route -n | rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' )"
 
 if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
-    mac="$( LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"
-    ip="$( LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
-    netmask="$( LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
-    nameserver="$( grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )"
+    mac="$(			LANG=C ifconfig eth0 | rematch 'ether (.{17})' )"
+    ip="$(			LANG=C ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
+    netmask="$(		LANG=C ifconfig eth0 | grep 'netmask ' | awk '{ print $4 }' )"
+    nameserver="$(	grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )"
 else
     mac="$(			LANG=C ifconfig eth0 |	rematch 'HWaddr (.{17})' )"
     ip="$(			LANG=C ifconfig eth0 |	rematch 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' )"
@@ -214,7 +215,7 @@ fi
 
 hostname="$( hostname )"
 
-mac="${mac,,}"
+mac="${mac,,}" # tolower()
 cidr="$( netmask_to_cidr "$netmask" )"
 ip_w_cidr="${ip} /${cidr}"
 
@@ -254,3 +255,5 @@ fi
 echo
 
 [[ "$1" != '--disable-logs' ]] && show_mixed_logs
+
+exit 0
