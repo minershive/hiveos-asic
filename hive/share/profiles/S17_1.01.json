@@ -1,6 +1,6 @@
 {
   "0": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1630",
     "tune_frequency": "400",
     "tune_power": "1550",
@@ -11,7 +11,7 @@
     "tune_max_frequency": "425"
   },
   "1": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1650",
     "tune_frequency": "425",
     "tune_power": "1650",
@@ -22,7 +22,7 @@
     "tune_max_frequency": "450"
   },
   "2": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1680",
     "tune_frequency": "450",
     "tune_power": "1757",
@@ -33,7 +33,7 @@
     "tune_max_frequency": "475"
   },
   "3": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1700",
     "tune_frequency": "475",
     "tune_power": "1870",
@@ -44,7 +44,7 @@
     "tune_max_frequency": "500"
   },
   "4": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1720",
     "tune_frequency": "500",
     "tune_power": "1955",
@@ -55,7 +55,7 @@
     "tune_max_frequency": "525"
   },
   "5": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1730",
     "tune_frequency": "525",
     "tune_power": "2350",
@@ -66,7 +66,7 @@
     "tune_max_frequency": "550"
   },
   "6": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1750",
     "tune_frequency": "550",
     "tune_power": "2482",
@@ -77,7 +77,7 @@
     "tune_max_frequency": "575"
   },
   "7": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1770",
     "tune_frequency": "575",
     "tune_power": "2550",
@@ -88,7 +88,7 @@
     "tune_max_frequency": "600"
   },
   "8": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1790",
     "tune_frequency": "600",
     "tune_power": "2699",
@@ -99,7 +99,7 @@
     "tune_max_frequency": "625"
   },
   "9": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1810",
     "tune_frequency": "625",
     "tune_power": "2789",
@@ -110,7 +110,7 @@
     "tune_max_frequency": "650"
   },
   "10": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1840",
     "tune_frequency": "650",
     "tune_power": "2896",
@@ -121,7 +121,7 @@
     "tune_max_frequency": "675"
   },
   "11": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1850",
     "tune_frequency": "675",
     "tune_power": "2950",
@@ -132,7 +132,7 @@
     "tune_max_frequency": "695"
   },
   "12": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1870",
     "tune_frequency": "700",
     "tune_power": "3195",
@@ -143,7 +143,7 @@
     "tune_max_frequency": "720"
   },
   "13": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1910",
     "tune_frequency": "725",
     "tune_power": "3350",
@@ -154,7 +154,7 @@
     "tune_max_frequency": "750"
   },
   "14": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1930",
     "tune_frequency": "750",
     "tune_power": "3450",
@@ -165,7 +165,7 @@
     "tune_max_frequency": "775"
   },
   "15": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1940",
     "tune_frequency": "775",
     "tune_power": "3590",
@@ -176,7 +176,7 @@
     "tune_max_frequency": "800"
   },
   "16": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1960",
     "tune_frequency": "800",
     "tune_power": "3657",
@@ -187,7 +187,7 @@
     "tune_max_frequency": "825"
   },
   "17": {
-    "voltage_increase": "40",
+    "voltage_increase": "20",
     "tune_voltage": "1980",
     "tune_frequency": "825",
     "tune_power": "3795",
