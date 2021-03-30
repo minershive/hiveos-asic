@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.51.4'
+declare -r hive_functions_lib_version='0.51.5'
 #                                        ^^ current number of public functions
 
 
@@ -1452,7 +1452,7 @@ function __list_functions {
 		else
 			public_functions_ARR+=( "$this_function_name" )
 		fi
-		# shellcheck disable=SC1073,SC1072
+		# shellcheck disable=SC1073,SC1072,SC1105
 		((
 			${#this_function_name} > max_name_length ? max_name_length=${#this_function_name} : nil
 		))                                         # nice ternary trick -- the fake "else" part ^^^
@@ -1504,18 +1504,24 @@ function __list_functions {
 # consts
 
 declare -r __audit_ok_string='I AM DOING FINE'
-# shellcheck disable=SC2034
-declare -r -i exitcode_OK=0
-declare -r -i exitcode_NOT_OK=1
-declare -r -i exitcode_ERROR_NOT_FOUND=1
-declare -r -i exitcode_ERROR_IN_ARGUMENTS=127
-# shellcheck disable=SC2034
-declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 
-declare -r -i exitcode_IS_EQUAL=0
-declare -r -i exitcode_GREATER_THAN=1
-declare -r -i exitcode_LESS_THAN=2
+# shellcheck disable=SC2034
+{
+	# enum exit codes
+	declare -r -i exitcode_OK=0
+	declare -r -i exitcode_NOT_OK=1
+	declare -r -i exitcode_ERROR_NOT_FOUND=1
+	declare -r -i exitcode_ERROR_IN_ARGUMENTS=127
+	declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 
+	declare -r -i exitcode_IS_EQUAL=0
+	declare -r -i exitcode_GREATER_THAN=1
+	declare -r -i exitcode_LESS_THAN=2
+
+	# regular expressions
+	declare -r positive_integer_RE='^[[:digit:]]+$'
+	declare -r empty_line_RE='^[[:space:]]*$'
+}
 
 
 # main
@@ -1527,7 +1533,7 @@ if ! ( return 0 2>/dev/null ); then # not sourced
 
 	case "$*" in
 		'')
-			source colors
+			source /hive/bin/colors
 			print_script_version
 			__list_functions
 			;;
