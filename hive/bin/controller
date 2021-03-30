@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.3.8'
+readonly script_version='2.4.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -448,7 +448,7 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 
 	local -r -i send_messages_enabled=1
 	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>%b'
-	local -r valid_chain_number_RE='^[0-9]+$'
+	local -r valid_chain_number_RE="$positive_integer_RE"
 
 	# vars
 
@@ -1148,7 +1148,8 @@ function sync_time_via_hive_server { # not used atm
 # routine functions executed by cron
 #
 # checkup:is_it_the_past
-# checkup:is_memory_full
+# checkup:is_NAND_has_enough_free_space
+# checkup:is_RAM_full
 # checkup:is_miner_config_in_sync_with_FS
 # checkup:is_custom_fw_config_in_sync
 # checkup:is_build_updated
@@ -1198,7 +1199,52 @@ function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
 	return $(( is_something_happened ))
 }
 
-function checkup:is_memory_full {																	(( script_DEBUG )) && debugcho
+function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) && debugcho
+
+	# templates
+
+	local -r event_type_for_log='warning'		# error|warning|info
+	local -r event_type_for_message='warning'	# error|warning|info|success
+
+	# consts
+
+	local -r -i NAND_low_space_limit_in_mb=1
+
+	# arrays
+
+	local -a df_output_ARR
+
+	# vars
+
+	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
+	local _ NAND_free_space_in_mb
+
+	# code
+
+	# root@antminer:/# df -m /config
+	# Filesystem           1M-blocks      Used Available Use% Mounted on
+	# /dev/mtdblock9              20         8        12  38% /config
+	# [0]                         [1]        [2]      [3] [4] [5]
+	readarray -t df_output_ARR < <( df -m /config )
+	read -r _ _ _ NAND_free_space_in_mb _ <<< "${df_output_ARR[-1]}" # parse the last line
+
+	if [[ "$NAND_free_space_in_mb" =~ $positive_integer_RE ]]; then
+		if (( NAND_free_space_in_mb < NAND_low_space_limit_in_mb )); then
+			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+			print_controller_log_entry "$event_type_for_log" "/config directory running out of space: $NAND_free_space_in_mb Mb"
+			printf '%s\n' "${df_output_ARR[@]}" | tee >( message "$event_type_for_message" '/config directory running out of space. Click for technical details' --payload --silent )
+		else
+			: ok good to go
+		fi
+	else
+		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
+		print_controller_log_entry "$event_type_for_log" "df bad output '$NAND_free_space_in_mb'"
+	fi
+
+	return $(( is_something_happened ))
+}
+
+function checkup:is_RAM_full {																		(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1282,7 +1328,7 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_DEBUG )
 	return $(( is_something_happened ))
 }
 
-function checkup:is_custom_fw_config_in_sync {															(( script_DEBUG )) && debugcho
+function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1609,7 +1655,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_DEBUG )) && debug
 	return $(( is_something_happened ))
 }
 
-function checkup:is_there_JFFS2_error {															(( script_DEBUG )) && debugcho
+function checkup:is_there_JFFS2_error {																(( script_DEBUG )) && debugcho
 
 	# templates
 
@@ -1821,7 +1867,6 @@ function execute:agent_screen_dontattach {															(( script_DEBUG )) && d
 
 	return $(( is_something_happened ))
 }
-
 
 function print_checkup_summary_report {																(( script_DEBUG )) && debugcho
 
@@ -2090,12 +2135,13 @@ declare -a crontab=(
 	'* * * * *		checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
 	'* * * * *		checkup:is_custom_fw_config_in_sync'
-	'* * * * *		checkup:is_miner_niceness_ok'
+	'*/2 * * * *	checkup:is_miner_niceness_ok'
 	'*/2 * * * *	checkup:is_build_updated'
-	'*/2 * * * *	checkup:is_memory_full'
 	'*/5 * * * *	execute:agent_screen_dontattach'
 	'*/10 * * * *	checkup:is_it_the_past'
 	'*/10 * * * *	checkup:is_virus_found'
+	'@hourly		checkup:is_RAM_full'
+	'@hourly		checkup:is_NAND_has_enough_free_space'
 	'@hourly		checkup:is_there_JFFS2_error'
 	'@hourly		execute:cache_hive_ip'
 	'@midnight		checkup:is_NAND_in_RO_mode'
