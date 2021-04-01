@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.4.2'
+readonly script_version='2.4.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -370,7 +370,7 @@ function list_checkup_counters {																	(( script_DEBUG )) && debugcho
 
 	# vars
 
-	local -A checkups_list=()
+	local -A checkups_list_HASH=()
 	local this_checkup_counter this_checkup_name
 
 	# code
@@ -378,15 +378,15 @@ function list_checkup_counters {																	(( script_DEBUG )) && debugcho
 	# get unique keys to hashtable
 	for this_checkup_counter in "${!checkup_counters[@]}"; do
 		this_checkup_name="${this_checkup_counter%%${unique_delimiter}*}" # cut all after delimiter (and delimiter too), leave only checkup name
-		checkups_list["$this_checkup_name"]='' # ...or any char you want, doesn't matter
+		checkups_list_HASH["$this_checkup_name"]='' # ...or any char you want, doesn't matter
 	done
 
 	# print hashtable keys sorted
 	#while read -r this_checkup_name; do
 	#	echo "$this_checkup_name"
-	#done < <( printf '%s\n' "${!checkups_list[@]}" | sort ) # oh man, why so complex?
+	#done < <( printf '%s\n' "${!checkups_list_HASH[@]}" | sort ) # oh man, why so complex?
 
-	printf '%s\n' "${!checkups_list[@]}" | sort
+	printf '%s\n' "${!checkups_list_HASH[@]}" | sort
 }
 
 
@@ -1053,17 +1053,17 @@ function wipe_memory {																				(( script_DEBUG )) && debugcho
 
 	# vars
 
-	local -a files_greater_than_1M
+	local -a files_greater_than_1mb_ARR=()
 	local -i this_file_size
 	local this_file
 
 	# code
 
-	files_greater_than_1M=( $( LANG=C du -h /tmp/* /var/log/* | awk '/^[0-9\.]+[MG]/{ print $2 }' ) )
+	readarray -t files_greater_than_1mb_ARR < <( LANG=C du -h /tmp/* /var/log/* | awk '/^[0-9\.]+[MG]/{ print $2 }' )
 
-	for this_file in "${files_greater_than_1M[@]}"; do
+	for this_file in "${files_greater_than_1mb_ARR[@]}"; do
 		this_file_size="$( get_file_size_in_bytes "$this_file" )"
-		print_controller_log_entry "$event_type_for_log" "Remove large file $this_file ($this_file_size bytes >= 1Mb)"
+		print_controller_log_entry "$event_type_for_log" "Removing a large log file $this_file ($this_file_size bytes >= 1 Mb)"
 		rm "$this_file"
 	done
 
@@ -1149,7 +1149,7 @@ function sync_time_via_hive_server { # not used atm
 		HIVE_HOST_URL='http://api.hiveos.farm'
 	fi
 	if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
-		date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
+		date_from_server_in_seconds="$( grep -F -m 1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
 		echo "Setting actual date from API server: $( date -s "@$date_from_server_in_seconds" )"
 	else
 		echo "Network is lost? Cannot get actual date from API server ($server_answer)"
@@ -1188,7 +1188,7 @@ function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
 
 	# vars
 
-	local HIVE_HOST_URL server_answer
+	local HIVE_HOST_URL server_answer date_from_server_raw
 	local -i current_year date_from_server_in_seconds
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
 
@@ -1196,7 +1196,7 @@ function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
 
 	printf -v current_year '%(%Y)T' -1
 
-	if (( current_year < 2020 )); then
+	if (( current_year < 2021 )); then
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 
 		HIVE_HOST_URL="$( [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf && echo "${HIVE_HOST_URL-}" )"
@@ -1204,11 +1204,18 @@ function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
-		if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
-			date_from_server_in_seconds="$( grep -F 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
-			print_controller_log_entry "$event_type_for_log" "System date year is $current_year. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+		if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )" && [[ -n "$server_answer" ]]; then
+			if date_from_server_raw="$( grep -F -m 1 'Date:' <<< "$server_answer" )" && [[ -n "$date_from_server_raw" ]]; then
+				if date_from_server_in_seconds="$( cut -d' ' -f3-6 <<< "$date_from_server_raw" | timetran 2> /dev/null )" && [[ "$date_from_server_in_seconds" =~ positive_integer_RE ]]; then
+					print_controller_log_entry "$event_type_for_log" "System date's year is $current_year. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
+				else
+					print_controller_log_entry "$event_type_for_log" "System date's year is $current_year. timetran failed ($server_answer)"
+				fi
+			else
+				print_controller_log_entry "$event_type_for_log" "System date's year is $current_year. Cannot get date from the server's answer, 'Date:' keyword absent ($server_answer)"
+			fi
 		else
-			print_controller_log_entry "$event_type_for_log" "System date year is $current_year. Network is lost, cannot get actual date from server ($server_answer)"
+			print_controller_log_entry "$event_type_for_log" "System date's year is $current_year. Network is lost, cannot get actual date from server ($server_answer)"
 		fi
 	fi
 
@@ -1228,7 +1235,7 @@ function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) 
 
 	# arrays
 
-	local -a df_output_ARR
+	local -a df_output_ARR=()
 
 	# vars
 
@@ -1800,7 +1807,7 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 
 	local this_pid
 	local -i this_pid_niceness
-	local -a proc_stat_parsed
+	local -a proc_stat_parsed_ARR=()
 
 	# flags
 
@@ -1816,8 +1823,8 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 	# ok, check the Series' number
 	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
 		for this_pid in $( pidof bmminer cgminer ); do
-			if read -r -a proc_stat_parsed < "/proc/$this_pid/stat"; then
-				this_pid_niceness="${proc_stat_parsed[18]}"
+			if read -r -a proc_stat_parsed_ARR < "/proc/$this_pid/stat"; then
+				this_pid_niceness="${proc_stat_parsed_ARR[18]}"
 				if (( this_pid_niceness != -10 )); then
 					renice -10 "$this_pid"
 					is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
@@ -1898,24 +1905,24 @@ function print_checkup_summary_report {																(( script_DEBUG )) && deb
 
 	# vars
 
-	local -a checkups_list=()
+	local -a checkups_list_ARR=()
 	local this_checkup
 	local -i alarm_counter idle_counter total_counter
 	local -i number_of_alarmed_checkups=0 total_number_of_checkups=0
 
 	# code
 
-	readarray -t checkups_list < <( list_checkup_counters ) # you know, <<< $() operator is slower than < <()
+	readarray -t checkups_list_ARR < <( list_checkup_counters ) # you know, <<< $() operator is slower than < <()
 
 	# get number_of_alarmed_checkups
-	for this_checkup in "${checkups_list[@]}"; do
+	for this_checkup in "${checkups_list_ARR[@]}"; do
 		alarm_counter="$( get_checkup_counter "$this_checkup" 'alarm' )"
 		if (( alarm_counter != 0 )); then
 			(( number_of_alarmed_checkups++ ))
 		fi
 	done
 
-	total_number_of_checkups="${#checkups_list[@]}"
+	total_number_of_checkups="${#checkups_list_ARR[@]}"
 
 	if (( number_of_alarmed_checkups == 0 )); then
 		print_controller_log_entry "$event_type_for_log" 'Controller daily report: everything was OK over the past 24h'
@@ -1923,7 +1930,7 @@ function print_checkup_summary_report {																(( script_DEBUG )) && deb
 		print_controller_log_entry "$event_type_for_log" "Controller daily report, $number_of_alarmed_checkups/$total_number_of_checkups checkups involved:"
 
 		#printf '%33.33s %-35.35s %7.7s %7.7s\n' '' 'Checkup' 'Alarms' 'Total'
-		for this_checkup in "${checkups_list[@]}"; do
+		for this_checkup in "${checkups_list_ARR[@]}"; do
 			alarm_counter="$( get_checkup_counter "$this_checkup" 'alarm' )"
 			if (( alarm_counter != 0 )); then
 				idle_counter="$( get_checkup_counter "$this_checkup" 'idle' )"
@@ -1978,8 +1985,8 @@ function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) 
 	# args
 
 	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r -n _crontab_array="${1-}" # by ref
-	local -r -n _jobs_to_do_array="${2-}" # by ref
+	local -r -n _crontab_ARR="${1-}" # by ref
+	local -r -n _jobs_to_do_ARR="${2-}" # by ref
 
 	# consts
 
@@ -1992,7 +1999,7 @@ function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) 
 
 	# vars
 
-	local -a crontab_line_splitted
+	local -a crontab_line_splitted_ARR
 	local -i start_time line_iterator field_iterator this_field_time_value
 	local crontab_line_raw cmd_to_exec this_field
 
@@ -2000,36 +2007,36 @@ function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) 
 
 	start_time="$( get_current_system_time_in_seconds )"
 
-	_jobs_to_do_array=() # reset jobs_to_do
+	_jobs_to_do_ARR=() # reset jobs_to_do
 
 	# for each crontab line
-	for (( line_iterator=0; line_iterator < ${#_crontab_array[@]}; line_iterator++ )); do
-		crontab_line_raw="${_crontab_array[line_iterator]}"
+	for (( line_iterator=0; line_iterator < ${#_crontab_ARR[@]}; line_iterator++ )); do
+		crontab_line_raw="${_crontab_ARR[line_iterator]}"
 
 		if [[ ! "$crontab_line_raw" =~ $valid_crontab_line_RE ]]; then
 			errcho "invalid crontab line '$crontab_line_raw'"
 			continue
 		fi
 
-		read -r -a crontab_line_splitted <<< "$crontab_line_raw"
+		read -r -a crontab_line_splitted_ARR <<< "$crontab_line_raw"
 
-		# transform specials
-		case "${crontab_line_splitted[0]}" in
-			'@hourly')					crontab_line_splitted=( '0' '*' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
-			'@daily' | '@midnight')		crontab_line_splitted=( '0' '0' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
-			'@weekly')					crontab_line_splitted=( '0' '0' '*' '*' '0' "${crontab_line_splitted[@]:$H}" );;
-			'@monthly')					crontab_line_splitted=( '0' '0' '1' '*' '*' "${crontab_line_splitted[@]:$H}" );;
+		# transform the specials
+		case "${crontab_line_splitted_ARR[0]}" in
+			'@hourly')					crontab_line_splitted_ARR=( '0' '*' '*' '*' '*' "${crontab_line_splitted_ARR[@]:$H}" );;
+			'@daily' | '@midnight')		crontab_line_splitted_ARR=( '0' '0' '*' '*' '*' "${crontab_line_splitted_ARR[@]:$H}" );;
+			'@weekly')					crontab_line_splitted_ARR=( '0' '0' '*' '*' '0' "${crontab_line_splitted_ARR[@]:$H}" );;
+			'@monthly')					crontab_line_splitted_ARR=( '0' '0' '1' '*' '*' "${crontab_line_splitted_ARR[@]:$H}" );;
 		esac
 
 		# for each field in line
 		for (( field_iterator=0; field_iterator <= CMD; field_iterator++ )); do
 			if (( field_iterator == CMD )); then # add a command to array
-				cmd_to_exec="${crontab_line_splitted[*]:$CMD}" # note: *, not @
-				_jobs_to_do_array+=( "$cmd_to_exec" )
+				cmd_to_exec="${crontab_line_splitted_ARR[*]:$CMD}" # note: *, not @
+				_jobs_to_do_ARR+=( "$cmd_to_exec" )
 				break
 			fi
 
-			this_field="${crontab_line_splitted[field_iterator]}"
+			this_field="${crontab_line_splitted_ARR[field_iterator]}"
 			this_field_time_value="$( format_date_in_seconds "$start_time" "${cron_fields_dictionary[field_iterator]}" )"
 
 			if [[ "$this_field" =~ $asterisk_RE ]] && (( this_field_time_value % ${this_field##*/} != 0 )); then # handle * and */num
@@ -2068,7 +2075,7 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 
 	# vars
 
-	local -a jobs_to_do=()
+	local -a jobs_to_do_ARR=()
 	local -i time_before_execution_in_s time_after_execution_in_s execution_time_in_s job_iterator
 	local current_process_list job_to_execute
 
@@ -2087,9 +2094,9 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 			print_controller_log_entry "$event_type_for_log" "The Client starting, skipping checks..."
 		else
 			# do cron work
-			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do'
-			for (( job_iterator=0; job_iterator < ${#jobs_to_do[@]}; job_iterator++ )); do
-				job_to_execute="${jobs_to_do[job_iterator]}"
+			populate_array_with_actual_cron_jobs 'crontab' 'jobs_to_do_ARR'
+			for (( job_iterator=0; job_iterator < ${#jobs_to_do_ARR[@]}; job_iterator++ )); do
+				job_to_execute="${jobs_to_do_ARR[job_iterator]}"
 				# !!! possible flaw: we have no any time limits here
 				eval "$job_to_execute"
 				# shellcheck disable=SC2181
