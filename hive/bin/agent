@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.7'
+readonly script_version='0.8.8'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1209,7 +1209,7 @@ function fetch_stats_and_push_them_to_server {
 		fi
 	fi
 
-	local -i curl_connect_timeout=3 curl_max_time=7 # a somewhat shorter timeouts for the first attempt
+	local -i curl_connect_timeout=5 curl_max_time=7 # a somewhat shorter timeouts for the first attempt
 	local -i attempts_counter=1
 	for this_URL in "${HIVE_URL_collection[@]}"; do
 		if [[ "$HIVE_URL" != *'hiveos.farm'* && "$this_URL" == *'hiveos.farm'* ]]; then
