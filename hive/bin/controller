@@ -10,8 +10,9 @@
 #
 
 
+# shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.4.1'
+readonly script_version='2.4.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -448,6 +449,8 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 
 	local -r -i send_messages_enabled=1
 	local -r message_body_template='Log:  <strong>%b</strong>\nDate: %s\nType: %s<hr><h3>%b</h3>%b'
+	# shellcheck disable=SC2154
+	# bc defined in the library
 	local -r valid_chain_number_RE="$positive_integer_RE"
 
 	# vars
@@ -1305,8 +1308,8 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_DEBUG )
 
 	# consts
 
-	local -r initial_crontab_entry="*/5 * * * *	$FUNCNAME"
-	local -r further_crontab_entry="@hourly		$FUNCNAME"
+	local -r initial_crontab_entry="*/5 * * * *	${FUNCNAME[0]}"
+	local -r further_crontab_entry="@hourly		${FUNCNAME[0]}"
 
 	# vars
 
@@ -1335,7 +1338,7 @@ function checkup:is_miner_config_in_sync_with_FS {													(( script_DEBUG )
 			for this_crontab_element in "${!crontab[@]}"; do
 				case "${crontab[this_crontab_element]}" in
 					"$initial_crontab_entry")	crontab[this_crontab_element]="$further_crontab_entry"
-												print_controller_log_entry 'info' "Adjusting crontab for '$FUNCNAME' to run once in an hour"
+												print_controller_log_entry 'info' "Adjusting crontab for '${FUNCNAME[0]}' to run once in an hour"
 												break											;;
 					"$further_crontab_entry")	break											;;
 				esac
@@ -1515,13 +1518,13 @@ function checkup:is_build_updated {																	(( script_DEBUG )) && debugc
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
 	else
-		if (( $( get_checkup_counter "$FUNCNAME" 'actual_VERSION_file_missed' ) == 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'actual_VERSION_file_missed' ) == 0 )); then
 			# one time action
 			message_header="$actual_VERSION_file missed, please check"
 			print_controller_log_entry 'warning' "$message_header"
 			# shellcheck disable=SC2012
 			ls -ALl /hive/etc /hive-config | message 'warning' "$message_header" --payload --silent
-			set_checkup_counter "$FUNCNAME" 'actual_VERSION_file_missed' 1
+			set_checkup_counter "${FUNCNAME[0]}" 'actual_VERSION_file_missed' 1
 		fi
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
@@ -1556,31 +1559,31 @@ function checkup:is_virus_found {																	(( script_DEBUG )) && debugcho
 	# code
 
 	if is_program_in_the_PATH 'virus-check'; then
-		if (( $( get_checkup_counter "$FUNCNAME" 'program_not_found' ) > 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'program_not_found' ) > 0 )); then
 			# one time action
 			print_controller_log_entry 'info' "'virus-check' program found again"
-			set_checkup_counter "$FUNCNAME" 'program_not_found' 0
+			set_checkup_counter "${FUNCNAME[0]}" 'program_not_found' 0
 		fi
 	else
-		if (( $( get_checkup_counter "$FUNCNAME" 'program_not_found' ) == 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'program_not_found' ) == 0 )); then
 			# one time action
 			print_controller_log_entry 'error' "'virus-check' program not found"
-			set_checkup_counter "$FUNCNAME" 'program_not_found' 1
+			set_checkup_counter "${FUNCNAME[0]}" 'program_not_found' 1
 		fi
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
 
 	if is_script_exist_and_doing_fine 'virus-check'; then
-		if (( $( get_checkup_counter "$FUNCNAME" 'program_goes_bananas' ) > 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'program_goes_bananas' ) > 0 )); then
 			# one time action
 			print_controller_log_entry 'info' "'virus-check' program back from bananaland"
-			set_checkup_counter "$FUNCNAME" 'program_goes_bananas' 0
+			set_checkup_counter "${FUNCNAME[0]}" 'program_goes_bananas' 0
 		fi
 	else
-		if (( $( get_checkup_counter "$FUNCNAME" 'program_goes_bananas' ) == 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'program_goes_bananas' ) == 0 )); then
 			# one time action
 			print_controller_log_entry 'error' "'virus-check' program goes bananas"
-			set_checkup_counter "$FUNCNAME" 'program_goes_bananas' 1
+			set_checkup_counter "${FUNCNAME[0]}" 'program_goes_bananas' 1
 		fi
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
@@ -1603,7 +1606,7 @@ function checkup:is_virus_found {																	(( script_DEBUG )) && debugcho
 				tag_label="$tag_label_DANGER"
 				;;
 		esac
-		if (( $( get_checkup_counter "$FUNCNAME" 'message_sent' ) == 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'message_sent' ) == 0 )); then
 			# !!! flaw: if another virus will arise, no message will be sent till reboot
 			# one time action
 			print_controller_log_entry "$event_type_for_log" "$message_header"
@@ -1611,7 +1614,7 @@ function checkup:is_virus_found {																	(( script_DEBUG )) && debugcho
 			if (( assign_tag_to_worker )); then
 				message tag "$tag_label" --silent
 			fi
-			set_checkup_counter "$FUNCNAME" 'message_sent' 1
+			set_checkup_counter "${FUNCNAME[0]}" 'message_sent' 1
 		fi
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 	fi
@@ -1638,7 +1641,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_DEBUG )) && debug
 
 	# code
 
-	if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
+	if ! is_checkup_counter_set "${FUNCNAME[0]}" 'message_sent'; then
 		# one time action
 		for directory_to_check in "${directories_on_NAND[@]}"; do
 			# check is directory exist
@@ -1662,7 +1665,7 @@ function checkup:is_NAND_in_RO_mode {																(( script_DEBUG )) && debug
 				message_header="Cannot write to $directory_to_check. NAND is in the read-only state, the ASIC may need a service"
 				print_controller_log_entry "$event_type_for_log" "$message_header"
 				message "$event_type_for_message" "$message_header" --silent
-				set_checkup_counter "$FUNCNAME" 'message_sent' 1
+				set_checkup_counter "${FUNCNAME[0]}" 'message_sent' 1
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			fi
 		done
@@ -1692,13 +1695,13 @@ function checkup:is_there_JFFS2_error {																(( script_DEBUG )) && deb
 
 	# code
 
-	if ! is_checkup_counter_set "$FUNCNAME" 'message_sent'; then
+	if ! is_checkup_counter_set "${FUNCNAME[0]}" 'message_sent'; then
 		# one time action
 		if jffs2_errors_list="$( dmesg | grep -Ei "$jffs2_errors_RE" )" && [[ -n "$jffs2_errors_list" ]]; then
 			printf -v message_body "Mining is not affected (most likely). It could be in connection with an unclean reboot OR, rarely, with a NAND wear and tear. The first is completely harmless, but the second does suggest that the ASIC's control board may need a service or replacement in the very near future.\n\nErrors:\n\n%s" "$jffs2_errors_list"
 			print_controller_log_entry "$event_type_for_log" "$message_header"
 			message "$event_type_for_message" "$message_header" --silent --payload <<< "$message_body"
-			set_checkup_counter "$FUNCNAME" 'message_sent' 1
+			set_checkup_counter "${FUNCNAME[0]}" 'message_sent' 1
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
 	else
@@ -1735,18 +1738,18 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 	# ok, check the Series' number
 	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
 		if [[ ! -s "$oc_profile_file" ]]; then
-			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) == 0 )); then
+			if (( $( get_checkup_counter "${FUNCNAME[0]}" 'oc_profile_not_found' ) == 0 )); then
 				# one time action
 				print_controller_log_entry "$event_type_for_log" 'OC profile not found or empty'
 				message "$event_type_for_message" "$message_header" --silent
-				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 1
+				set_checkup_counter "${FUNCNAME[0]}" 'oc_profile_not_found' 1
 				is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			fi
 		else
-			if (( $( get_checkup_counter "$FUNCNAME" 'oc_profile_not_found' ) > 0 )); then
+			if (( $( get_checkup_counter "${FUNCNAME[0]}" 'oc_profile_not_found' ) > 0 )); then
 				# one time action
 				print_controller_log_entry 'info' 'OC profile returns back'
-				set_checkup_counter "$FUNCNAME" 'oc_profile_not_found' 0
+				set_checkup_counter "${FUNCNAME[0]}" 'oc_profile_not_found' 0
 			fi
 		fi
 	fi
@@ -1769,18 +1772,18 @@ function checkup:is_fw_signed {																		(( script_DEBUG )) && debugcho
 	# code
 
 	if ! ant-functions.sh 'is_custom_fw_signed'; then
-		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) == 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'fw_is_unsigned' ) == 0 )); then
 			# one time action
 			print_controller_log_entry "$event_type_for_log" 'Firmware is unsigned'
 			message "$event_type_for_message" "$message_header" --silent
-			set_checkup_counter "$FUNCNAME" 'fw_is_unsigned' 1
+			set_checkup_counter "${FUNCNAME[0]}" 'fw_is_unsigned' 1
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 		fi
 	else
-		if (( $( get_checkup_counter "$FUNCNAME" 'fw_is_unsigned' ) > 0 )); then
+		if (( $( get_checkup_counter "${FUNCNAME[0]}" 'fw_is_unsigned' ) > 0 )); then
 			# one time action
 			print_controller_log_entry 'info' 'Firmware is signed now'
-			set_checkup_counter "$FUNCNAME" 'fw_is_unsigned' 0
+			set_checkup_counter "${FUNCNAME[0]}" 'fw_is_unsigned' 0
 		fi
 	fi
 
@@ -2011,7 +2014,7 @@ function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) 
 		read -r -a crontab_line_splitted <<< "$crontab_line_raw"
 
 		# transform specials
-		case "${crontab_line_splitted}" in
+		case "${crontab_line_splitted[0]}" in
 			'@hourly')					crontab_line_splitted=( '0' '*' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
 			'@daily' | '@midnight')		crontab_line_splitted=( '0' '0' '*' '*' '*' "${crontab_line_splitted[@]:$H}" );;
 			'@weekly')					crontab_line_splitted=( '0' '0' '*' '*' '0' "${crontab_line_splitted[@]:$H}" );;
@@ -2127,9 +2130,9 @@ declare -r ntp_server='pool.ntp.org'
 
 # global sources
 
-source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
-source colors || echo 'ERROR: /hive/bin/colors not found'
-source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+source /hive/bin/asic-model			|| echo 'ERROR: /hive/bin/asic-model not found'
+source /hive/bin/colors				|| echo 'ERROR: /hive/bin/colors not found'
+source /hive/bin/hive-functions.sh	|| { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
 # global exports
