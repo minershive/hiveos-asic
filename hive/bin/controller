@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.4.0'
+readonly script_version='2.4.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -938,23 +938,36 @@ function print_last_lines_from_own_log {															(( script_DEBUG )) && deb
 	local -r filter="${1-}"
 
 	# consts
+	local -r deprecated_controller_log='/config/hive-controller.log'
 
+	# RE
 	local -r filter_RE='(error|warning|Shrink log|Truncate log|selfupgrade|updated from|New date)'
 	#                                 | patterns from the legacy versions
 
+	# vars
+	local this_nvram_directory controller_log="$deprecated_controller_log"
+
 	# code
 
-	if [[ -s "$controller_log_file" ]]; then
+	# code
+	for this_nvram_directory in '/nvdata' '/opt' '/config'; do
+		if [[ -s "$this_nvram_directory/client-controller.log" ]]; then
+			controller_log="$this_nvram_directory/client-controller.log"
+			break
+		fi
+	done
+
+	if [[ -s "$controller_log" ]]; then
 		case "$filter" in
 			'all')
-				tail -n "$log_lines_to_tail" "$controller_log_file"
+				tail -n "$log_lines_to_tail" "$controller_log"
 				;;
 			''|*)
-				grep -Ev -e '^[[:space:]]' -- "$controller_log_file" | grep -Fv -e '> Sending ' -- | grep -Ei -e "$filter_RE" --
+				grep -Ev -e '^[[:space:]]' -- "$controller_log" | grep -Fv -e '> Sending ' -- | grep -Ei -e "$filter_RE" --
 				;;
 		esac
 	else
-		echo "$controller_log_file not found or empty"
+		echo "$controller_log not found or empty"
 	fi
 }
 
@@ -1208,7 +1221,7 @@ function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) 
 
 	# consts
 
-	local -r -i NAND_low_space_limit_in_mb=1
+	local -r -i NAND_low_space_limit_in_kb=100
 
 	# arrays
 
@@ -1217,28 +1230,33 @@ function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) 
 	# vars
 
 	local -i is_something_happened=$(( exitcode_OK_NOTHING_HAPPENED ))
-	local _ NAND_free_space_in_mb
+	local _ NAND_free_space_in_kb
 
 	# code
+
+	# root@antminer:/# df -k /config (T17)
+	# Filesystem           1K-blocks      Used Available Use% Mounted on
+	# ubi0_0                     572        40       468   8% /config
 
 	# root@antminer:/# df -m /config
 	# Filesystem           1M-blocks      Used Available Use% Mounted on
 	# /dev/mtdblock9              20         8        12  38% /config
 	# [0]                         [1]        [2]      [3] [4] [5]
-	readarray -t df_output_ARR < <( df -m /config )
-	read -r _ _ _ NAND_free_space_in_mb _ <<< "${df_output_ARR[-1]}" # parse the last line
 
-	if [[ "$NAND_free_space_in_mb" =~ $positive_integer_RE ]]; then
-		if (( NAND_free_space_in_mb < NAND_low_space_limit_in_mb )); then
+	readarray -t df_output_ARR < <( df -k /config )
+	read -r _ _ _ NAND_free_space_in_kb _ <<< "${df_output_ARR[-1]}" # parse the last line
+
+	if [[ "$NAND_free_space_in_kb" =~ $positive_integer_RE ]]; then
+		if (( NAND_free_space_in_kb < NAND_low_space_limit_in_kb )); then
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-			print_controller_log_entry "$event_type_for_log" "/config directory running out of space: $NAND_free_space_in_mb Mb"
+			print_controller_log_entry "$event_type_for_log" "/config directory running out of space: $NAND_free_space_in_kb Kb"
 			printf '%s\n' "${df_output_ARR[@]}" | tee >( message "$event_type_for_message" '/config directory running out of space. Click for technical details' --payload --silent )
 		else
 			: ok good to go
 		fi
 	else
 		is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
-		print_controller_log_entry "$event_type_for_log" "df bad output '$NAND_free_space_in_mb'"
+		print_controller_log_entry "$event_type_for_log" "df bad output '$NAND_free_space_in_kb'"
 	fi
 
 	return $(( is_something_happened ))
@@ -2099,7 +2117,6 @@ function do_cron_jobs_indefinitely {																(( script_DEBUG )) && debugc
 
 declare -r -i assign_tag_to_worker=1 # can be in config file
 declare -r -i log_lines_to_tail=200
-declare -r controller_log_file='/config/hive-controller.log'
 declare -r unique_delimiter="d${RANDOM}e${RANDOM}l${RANDOM}i${RANDOM}m"
 
 declare -r -i exitcode_OK_NOTHING_HAPPENED=0
