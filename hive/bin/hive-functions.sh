@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.51.5'
+declare -r hive_functions_lib_version='0.52.0'
 #                                        ^^ current number of public functions
 
 
@@ -408,6 +408,21 @@ function is_file_exist_and_contain {
 	# code
 
 	[[ -s "$file_name_to_check" ]] && grep -q "$ERE_string_to_contain" "$file_name_to_check"
+}
+
+function is_directory_exist_and_writable {
+	#
+	# Usage: is_directory_exist_and_writable 'directory_to_check'
+	#
+
+	# args
+
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r directory_to_check="${1-}"
+
+	# code
+
+	[[ -d "$directory_to_check" && -w "$directory_to_check" ]]
 }
 
 
