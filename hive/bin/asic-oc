@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.35'
+readonly script_version='0.6.36'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -694,8 +694,8 @@ function kill_autotune_9 {
 function generate_active_profile_9 {
 	echo '> Generating active profile for Series 9...'
 	# build a fresh config file for auto-tune
-	(( script_DEBUG )) && { echo "[DEBUG] incoming profile: [$incoming_profile]"; echo; }
-	printf '%s' "$incoming_profile" | replace_newlines_with_ampersands > "$active_profile_file_w_path"
+	(( script_DEBUG )) && { echo "[DEBUG] incoming profile as key=value: [$incoming_profile_as_key_value_pairs]"; echo; }
+	printf '%s' "$incoming_profile_as_key_value_pairs" | replace_newlines_with_ampersands > "$active_profile_file_w_path"
 	(( script_DEBUG )) && { echo "[DEBUG] generated file: [$( cat "$active_profile_file_w_path" )]"; echo; }
 }
 
@@ -782,6 +782,8 @@ function fix_autotune_bugs_9 {
 	local -r hiveon_config_file="$active_profile_directory/config.conf"
 
 	# code
+	# shellcheck disable=SC2154
+	# ...bc defined in the library
 	if is_file_exist_and_contain "$hiveon_config_file" "$empty_line_RE"; then
 		(( script_DEBUG )) && echo "  [DEBUG] $hiveon_config_file contains empty lines, deleting them"
 		sed -i "/$empty_line_RE/d" "$hiveon_config_file" # > /dev/null 2>&1
@@ -798,10 +800,10 @@ function fix_autotune_bugs_9 {
 function generate_active_profile_L3 {
 	echo '> Generating active profile for L3+/L3++...'
 	# build a fresh config file for auto-tune
-	(( script_DEBUG )) && { echo "[DEBUG] incoming profile: [$incoming_profile]"; echo; }
+	(( script_DEBUG )) && { echo "[DEBUG] incoming profile as key=value: [$incoming_profile_as_key_value_pairs]"; echo; }
 	{
-		printf '%s' "$incoming_profile"
-		if ! grep -Eq -e '^total_hw_rate_threshold=[0-9.]+$' <<< "$incoming_profile"; then
+		printf '%s' "$incoming_profile_as_key_value_pairs"
+		if ! grep -Eq -e '^total_hw_rate_threshold=[0-9.]+$' <<< "$incoming_profile_as_key_value_pairs"; then
 			# a kind of rude temporary fix for L3+ 1.02/1.03
 			printf '\n'
 			printf '%s\n'	'hw_per_minute_avg_threshold=20'
@@ -875,13 +877,13 @@ function generate_active_profile_17 {
 	echo '> Generating active profile for Series 17...'
 	# build a fresh config file for auto-tune
 	{
-		if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile"; then
+		if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile_as_key_value_pairs"; then
 			echo "tune_profile=$incoming_profile_id"
 		fi
 		echo 'tune_status=0'
 		echo 'tune_max_restarts=10'
 		echo 'tune_uptime=240'
-		echo "$incoming_profile"
+		echo "$incoming_profile_as_key_value_pairs"
 	} > "$active_profile_file_w_path"
 }
 
@@ -1088,7 +1090,7 @@ declare -r -i oc_action_APPLY_OC=4
 
 declare active_profile_filename active_profile_file_w_path active_profile_id active_profile_description
 declare -a profile_files_collection tune_files_collection
-declare incoming_profile_id incoming_profile_description incoming_profile
+declare incoming_profile_id incoming_profile_description incoming_profile_as_key_value_pairs
 declare message_text message_event_type
 declare -i oc_action
 declare -i have_to_tune_FLAG=0 have_to_restart_miner_FLAG=0 forced_apply_incoming_profile_FLAG=0 have_to_generate_active_profile_FLAG=0
@@ -1199,7 +1201,7 @@ case "$oc_action" in
 		# is it valid JSON?
 		if incoming_profile_id="$( get_profile_id_from_json "$1" )"; then
 			incoming_profile_description="$( get_description_for_profile "$incoming_profile_id" || echo "Profile #$incoming_profile_id" )"
-			incoming_profile="$( get_key_value_pairs_from_json "$1" )"
+			incoming_profile_as_key_value_pairs="$( get_key_value_pairs_from_json "$1" )"
 		else
 			print_script_usage
 			die "invalid JSON '$1'" 2
@@ -1212,7 +1214,7 @@ case "$oc_action" in
 			# does cached profile exist (and isn't empty)?
 			# ...yes, cached profile does exist
 			cached_profile="$( get_cached_profile "$incoming_profile_id" )"
-			load_profile_to_array "$incoming_profile" incoming_profile_as_hashtable || errcho 'incoming_profile_as_hashtable loading error'
+			load_profile_to_array "$incoming_profile_as_key_value_pairs" incoming_profile_as_hashtable || errcho 'incoming_profile_as_hashtable loading error'
 			load_profile_to_array "$cached_profile" cached_profile_as_hashtable || errcho 'cached_profile_as_hashtable loading error'
 			if is_cached_profile_equal_to_incoming; then
 				# does cached profile equal to incoming one?
