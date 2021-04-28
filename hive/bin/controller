@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.4.3'
+readonly script_version='2.4.4'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -97,7 +97,8 @@ function initialize_dictionaries {																	(( script_DEBUG )) && debugch
 	declare -r -A -g date_formats_dictionary=(
 		['list_by_incidence']='ISO_8601_old perl syslog BusyBox'
 
-		['ISO_8601_old'.RE]="^$F $T"		# 2020-01-18 05:08:13				(19 chars)
+		['ISO_8601_old'.RE]="^\[?$F $T\]?"	# 2020-01-18 05:08:13				(19 chars)
+											# [2020-01-18 05:08:13]				(21 chars)	note: a brand new timestamp format found in watchdog.log on L3+
 		['ISO_8601_old'.pattern]='F T'
 
 		['perl'.RE]="^$a $b $e $T $Y"		# Sun Jan  6 21:29:57 2020			(24 chars)
@@ -108,46 +109,46 @@ function initialize_dictionaries {																	(( script_DEBUG )) && debugch
 
 		['BusyBox'.RE]="^$a $b $e $T $Z $Y"	# Fri Apr  3 07:29:28 Europe 2020	(31 char)
 		['BusyBox'.pattern]='a b e T Z Y'
-	)										# in use in:	split_log_line_to_date_and_message
+	)										# in use in:	split_log_line_to_date_and_message()
 
 	declare -r -A -g translate_month_name_to_number_dictionary=(
 		['Jan']=1 ['Feb']=2 ['Mar']=3 ['Apr']=4  ['May']=5 ['Jun']=6
 		['Jul']=7 ['Aug']=8 ['Sep']=9 ['Oct']=10 ['Nov']=11 ['Dec']=12
 		['unknown']=0
-	)										# in use in:	split_log_line_to_date_and_message
+	)										# in use in:	split_log_line_to_date_and_message()
 
 	# global var hashtables
 
 	# shellcheck disable=SC2034
-	declare -A -g file_attribute			# in use in:	get_new_lines_from_log
+	declare -A -g file_attribute			# in use in:	get_new_lines_from_log()
 
-	declare -A -g checkup_counters			# in use in:	is_checkup_counter_set
-											#				get_checkup_counter
-											#				set_checkup_counter
-											#				increment_checkup_counter
-											#				reset_checkup_counter
-											#				list_checkup_counters
+	declare -A -g checkup_counters			# in use in:	is_checkup_counter_set()
+											#				get_checkup_counter()
+											#				set_checkup_counter()
+											#				increment_checkup_counter()
+											#				reset_checkup_counter()
+											#				list_checkup_counters()
 											#
-											#				print_checkup_summary_report
+											#				print_checkup_summary_report()
 }
 
 
 #
 # all about hashtables
 #
-# generate_hash_key
-# is_hash_key_set
-# get_hash_value
-# set_hash_value
+# generate_hash_key()
+# is_hash_key_set()
+# get_hash_value()
+# set_hash_value()
 #
 # TODO refactor underlying functions to be a more uniform?
 #
-# is_checkup_counter_set
-# get_checkup_counter
-# set_checkup_counter
-# increment_checkup_counter
-# reset_checkup_counter
-# list_checkup_counters
+# is_checkup_counter_set()
+# get_checkup_counter()
+# set_checkup_counter()
+# increment_checkup_counter()
+# reset_checkup_counter()
+# list_checkup_counters()
 #
 
 function generate_hash_key {																		(( script_DEBUG )) && debugcho "$@"
@@ -393,12 +394,12 @@ function list_checkup_counters {																	(( script_DEBUG )) && debugcho
 #
 # logs processing:
 #
-# split_log_line_to_date_and_message
-# filter_lines_send_messages
-# get_new_lines_from_log
-# print_last_lines_from_own_log
-# print_controller_log_entry
-# shrink_system_logs
+# split_log_line_to_date_and_message()
+# filter_lines_send_messages()
+# get_new_lines_from_log()
+# print_last_lines_from_own_log()
+# print_controller_log_entry()
+# shrink_system_logs()
 #
 
 function split_log_line_to_date_and_message {														(( script_DEBUG )) && debugcho "$@"
@@ -431,6 +432,9 @@ function split_log_line_to_date_and_message {														(( script_DEBUG )) &&
 			[[ -z "${F-}" && -z "${m-}" ]] && printf -v m '%02u' "${translate_month_name_to_number_dictionary[${b-unknown}]}"
 			[[ -z "${F-}" && -z "${Y-}" ]] && printf -v Y '%(%Y)T' -1
 			[[ -z "${F-}" ]] && F="$Y-$m-$d"
+			# remove any square brackets
+			F="${F//[][]}"
+			T="${F//[][]}"
 			# shellcheck disable=SC2034
 			printf -v _log_date_by_ref '%-10.10s %-8.8s' "$F" "$T"
 			# shellcheck disable=SC2034
@@ -1163,20 +1167,20 @@ function sync_time_via_hive_server { # not used atm
 #
 # routine functions executed by cron
 #
-# checkup:is_it_the_past
-# checkup:is_NAND_has_enough_free_space
-# checkup:is_RAM_full
-# checkup:is_miner_config_in_sync_with_FS
-# checkup:is_custom_fw_config_in_sync
-# checkup:is_build_updated
-# checkup:is_virus_found
-# checkup:is_there_JFFS2_error
-# checkup:is_NAND_in_RO_mode
-# checkup:is_overclock_profile_exist
-# checkup:are_logs_updated
-# execute:cache_hive_ip
-# execute:agent_screen_dontattach
-# print_checkup_summary_report
+# checkup:is_it_the_past()
+# checkup:is_NAND_has_enough_free_space()
+# checkup:is_RAM_full()
+# checkup:is_miner_config_in_sync_with_FS()
+# checkup:is_custom_fw_config_in_sync()
+# checkup:is_build_updated()
+# checkup:is_virus_found()
+# checkup:is_there_JFFS2_error()
+# checkup:is_NAND_in_RO_mode()
+# checkup:is_overclock_profile_exist()
+# checkup:are_logs_updated()
+# execute:cache_hive_ip()
+# execute:agent_screen_dontattach()
+# print_checkup_summary_report()
 #
 
 function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
@@ -1949,9 +1953,9 @@ function print_checkup_summary_report {																(( script_DEBUG )) && deb
 #
 # cron
 #
-# populate_array_with_actual_cron_jobs
-# wait_for_next_minute
-# do_cron_jobs_indefinitely
+# populate_array_with_actual_cron_jobs()
+# wait_for_next_minute()
+# do_cron_jobs_indefinitely()
 #
 
 function populate_array_with_actual_cron_jobs {														(( script_DEBUG )) && debugcho "$@"
