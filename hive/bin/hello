@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.5.0'
+readonly script_version='0.5.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1019,7 +1019,7 @@ received_config_section="$( jq --raw-output '.result.config' <<< "$server_respon
 
 if is_JSON_string_not_empty_or_null "$received_config_section"; then
 	if are_variable_and_file_identical 'received_config_section' "$RIG_CONF"; then
-		echo_info 'Received rig configuration is identical to a current (write skipped)'
+		echo_info 'Received rig configuration is identical to current (write skipped)'
 	else
 		if save_variable_to_file 'received_config_section' "$RIG_CONF"; then
 			echo_ok 'Received config saved'
@@ -1049,7 +1049,7 @@ received_wallet_section="$( jq --raw-output '.result.wallet' <<< "$server_respon
 
 if is_JSON_string_not_empty_or_null "$received_wallet_section"; then
 	if are_variable_and_file_identical 'received_wallet_section' "$WALLET_CONF"; then
-		echo_info 'Received wallet configuration is identical to a current (write skipped)'
+		echo_info 'Received wallet configuration is identical to current (write skipped)'
 	else
 		if save_variable_to_file 'received_wallet_section' "$WALLET_CONF"; then
 			echo_ok 'Received wallet configuration saved'
@@ -1067,7 +1067,7 @@ received_asic_oc_section="$( jq --raw-output '.result.asic_oc' <<< "$server_resp
 
 if is_JSON_string_not_empty_or_null "$received_asic_oc_section"; then
 	if are_variable_and_file_identical 'received_asic_oc_section' "$ASIC_OC_CONF"; then
-		echo_info 'Received asic_oc configuration is identical to a current (write skipped)'
+		echo_info 'Received asic_oc configuration is identical to current (write skipped)'
 	else
 		if save_variable_to_file 'received_asic_oc_section' "$ASIC_OC_CONF"; then
 			echo_ok 'Received asic_oc configuration saved'
@@ -1085,7 +1085,7 @@ received_asic_section="$( jq --raw-output '.result.asic' <<< "$server_response_j
 
 if is_JSON_string_not_empty_or_null "$received_asic_section"; then
 	if are_variable_and_file_identical 'received_asic_section' "$ASIC_CONF"; then
-		echo_info 'Received asic configuration is identical to a current (write skipped)'
+		echo_info 'Received asic configuration is identical to current (write skipped)'
 	else
 		if save_variable_to_file 'received_asic_section' "$ASIC_CONF"; then
 			echo_ok 'Received asic configuration saved'
