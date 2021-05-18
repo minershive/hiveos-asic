@@ -6,13 +6,13 @@
 # Distributed under Business Source License 1.1
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.7.0 (80%)
+# Linted by shellcheck 0.7.0 (99%)
 #
 
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.4.5'
+readonly script_version='0.5.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -746,37 +746,131 @@ function get_system_boot_time_in_seconds {
 	awk '/btime/{print $2}' /proc/stat
 }
 
+function flip_boolean_flag { # !!! NOT USED ATM
+	#
+	# Usage: flip_boolean_flag 'boolean_flag_to_flip_by_ref'
+	#
 
-# consts
+	# args
+	local -r -n boolean_flag_to_flip_by_ref="$1"
 
+	# code
+	case "$boolean_flag_to_flip_by_ref" in
+		'0'|'1')
+			(( 1 - boolean_flag_to_flip_by_ref ))
+			return 0
+			;;
+		*)
+			return 1
+			;;
+	esac
+}
+
+function are_variable_and_file_identical {
+	#
+	# Usage: are_variable_and_file_identical 'variable_to_compare_by_ref' 'filename_to_compare'
+	#
+
+	# args
+	local -r -n variable_to_compare_by_ref="$1"
+	local -r filename_to_compare="$2"
+
+	# flags
+	local -i is_file_not_empty=0 is_file_empty=0
+	local -i is_variable_not_empty=0 is_variable_empty=0
+
+	# code
+	[[ -f "$filename_to_compare"		]]								|| return 1
+	[[ -s "$filename_to_compare"		]]	&&	is_file_not_empty=1		|| is_file_empty=1
+	[[ -n "$variable_to_compare_by_ref" ]]	&&	is_variable_not_empty=1	|| is_variable_empty=1
+
+	if (( is_file_empty && is_variable_empty )); then
+		# identical!
+		return 0
+	fi
+
+	if (( is_file_not_empty && is_variable_not_empty )); then
+		diff <( echo "$variable_to_compare_by_ref" ) "$filename_to_compare" > /dev/null 2>&1
+	fi
+}
+
+function save_variable_to_file {
+	#
+	# Usage: save_variable_to_file 'variable_to_save_by_ref' 'filename_to_save'
+	#
+
+	# args
+	local -r -n variable_to_save_by_ref="$1"
+	local -r filename_to_save="$2"
+
+	# consts
+	local -r new_suffix='new'
+	local -r previous_suffix='previous'
+
+	# flags
+	local -i is_variable_saved_FLAG=0
+
+	# code
+	until (( is_variable_saved_FLAG )); do
+		# NOTE: neat trick -- chained multiple checks without multiple IFs, false loop actually
+
+		if [[ -s "$filename_to_save" ]]; then
+			# file is exist and not empty, so there are some runarounds:
+			# write a config to the new file (test the media writeability)
+			echo "$variable_to_save_by_ref" > "${filename_to_save}.${new_suffix}"	|| break
+
+			# the file has been written ok, proceed to the filenames' swap
+			mv "$filename_to_save" "${filename_to_save}.${previous_suffix}"			|| break
+			mv "${filename_to_save}.${new_suffix}" "$filename_to_save"				|| break
+		else
+			# file isn't exist or empty, do write directly
+			echo "$variable_to_save_by_ref" > "$filename_to_save"					|| break
+		fi
+
+		# set ok flag then leave the loop
+		is_variable_saved_FLAG=1
+		break
+	done
+
+	(( is_variable_saved_FLAG ))
+}
+
+
+# global consts
+
+# paths
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r WALLET_CONF='/hive-config/wallet.conf'
+declare -r ASIC_CONF='/hive-config/asic.conf'
+declare -r ASIC_OC_CONF='/hive-config/asic_oc.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
+# misc
 declare -r FARM_HASH_valid_RE='^[[:xdigit:]]{40}$'
 declare -r -i platform=2 # 1=GPU Rig, 2=ASIC, 3=ASIC Hub
 
 
-# flags
+# global flags
 
 declare -i arg_boot_FLAG=0				# send boot flag with hello message
 declare -i arg_restartminer_FLAG=0		# will need to restart miner after
 
 
-# vars
+# global vars
 
 declare arg_worker_name=''
 declare mb_manufacturer mb_product
 declare server_request_json server_response_json
+declare received_config_section received_wallet_section received_asic_section received_asic_oc_section
 
 
-# exports
+# global exports
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
 [[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 
-# sources
+# global sources
 
 [[ -f "$RIG_CONF" ]] && ! grep -Eq '^FARM_HASH=.+$' "$RIG_CONF" && source colors # duct tape: turn the colors off for cgi-bin script
 
@@ -896,13 +990,13 @@ if [[ -n "${FARM_HASH-}" ]]; then
 fi
 
 
-# send the hello packet
-# mind the VarByRef function's parameters
-send_hello_packet "$HIVE_HOST_URL" 'server_request_json' 'server_response_json' ||
+# send the hello packet (mind the VarByRef function's parameters)
+if ! send_hello_packet "$HIVE_HOST_URL" 'server_request_json' 'server_response_json'; then
 	die "Error connecting to $HIVE_HOST_URL. No attempts left, exiting..." #404 is not a bad exit code
+fi
 
 
-# and then check json received
+# and then check received JSON
 if server_error="$( jq --raw-output '.error' <<< "$server_response_json" 2> /dev/null )"; then
 	if is_JSON_string_not_empty_or_null "$server_error"; then
 		die "Server responded with error '$( jq --raw-output '.error.message' <<< "$server_response_json" )'" 1
@@ -912,7 +1006,7 @@ else
 fi
 
 
-# TODO save and apply asic/asic_oc config
+# TODO save (DONE!) and apply asic/asic_oc config
 #
 # issue: duplicate code
 #
@@ -920,19 +1014,27 @@ fi
 # that can execute requests from agent aaaand.. hello!
 
 
-# Save config and check it ================================================================
-received_config="$( jq --raw-output '.result.config' <<< "$server_response_json" )"
-if is_JSON_string_empty_or_null "$received_config"; then
-	die 'No "config" field in server response, exiting...' 1
+# check 'config' section and then save it
+received_config_section="$( jq --raw-output '.result.config' <<< "$server_response_json" )"	|| die 'Error while parsing "config" section from the server response, exiting...' 1
+
+if is_JSON_string_not_empty_or_null "$received_config_section"; then
+	if are_variable_and_file_identical 'received_config_section' "$RIG_CONF"; then
+		echo_info 'Received rig configuration is identical to a current (write skipped)'
+	else
+		if save_variable_to_file 'received_config_section' "$RIG_CONF"; then
+			echo_ok 'Received config saved'
+			# re-read rig.conf
+			source "$RIG_CONF"
+		else
+			echo_error 'Received config NOT saved (write error)'
+		fi
+	fi
+else
+	die 'No "config" section found in the server response that does not have any sense. Exiting...' 1
 fi
-# shellcheck disable=SC2015
-echo "$received_config" > "$RIG_CONF" && echo_ok 'Received config saved' || echo_error 'Received config NOT saved (write error)'
-# re-read rig.conf
-source "$RIG_CONF"
-#hostname-check
 
 
-# Timezone ================================================================
+# set timezone
 if [[ -n "${TIMEZONE-}" ]]; then
 	if hash 'timedatectl' 2> /dev/null; then
 		timedatectl set-timezone "$TIMEZONE"
@@ -942,11 +1044,57 @@ if [[ -n "${TIMEZONE-}" ]]; then
 fi
 
 
-# Wallet config ================================================================
-received_wallet="$( jq --raw-output '.result.wallet' <<< "$server_response_json" )"
-if is_JSON_string_not_empty_or_null "$received_wallet"; then
-	# shellcheck disable=SC2015
-	echo "$received_wallet" > "$WALLET_CONF" && echo_ok 'Received wallet saved' || echo_error 'Received wallet NOT saved'
+# check 'wallet' section and then save it
+received_wallet_section="$( jq --raw-output '.result.wallet' <<< "$server_response_json" )"	|| die 'Error while parsing "wallet" section from the server response, exiting...' 1
+
+if is_JSON_string_not_empty_or_null "$received_wallet_section"; then
+	if are_variable_and_file_identical 'received_wallet_section' "$WALLET_CONF"; then
+		echo_info 'Received wallet configuration is identical to a current (write skipped)'
+	else
+		if save_variable_to_file 'received_wallet_section' "$WALLET_CONF"; then
+			echo_ok 'Received wallet configuration saved'
+		else
+			echo_error 'Received wallet configuration NOT saved (write error)'
+		fi
+	fi
+else
+	echo_warning '"wallet" section is empty or not found (write skipped)'
+fi
+
+
+# check 'asic_oc' section and then save it
+received_asic_oc_section="$( jq --raw-output '.result.asic_oc' <<< "$server_response_json" )"	|| die 'Error while parsing "asic_oc" section from the server response, exiting...' 1
+
+if is_JSON_string_not_empty_or_null "$received_asic_oc_section"; then
+	if are_variable_and_file_identical 'received_asic_oc_section' "$ASIC_OC_CONF"; then
+		echo_info 'Received asic_oc configuration is identical to a current (write skipped)'
+	else
+		if save_variable_to_file 'received_asic_oc_section' "$ASIC_OC_CONF"; then
+			echo_ok 'Received asic_oc configuration saved'
+		else
+			echo_error 'Received asic_oc configuration NOT saved (write error)'
+		fi
+	fi
+else
+	echo_warning '"asic_oc" section is empty or not found'
+fi
+
+
+# check 'asic' section and then save it
+received_asic_section="$( jq --raw-output '.result.asic' <<< "$server_response_json" )"	|| die 'Error while parsing "asic" section from the server response, exiting...' 1
+
+if is_JSON_string_not_empty_or_null "$received_asic_section"; then
+	if are_variable_and_file_identical 'received_asic_section' "$ASIC_CONF"; then
+		echo_info 'Received asic configuration is identical to a current (write skipped)'
+	else
+		if save_variable_to_file 'received_asic_section' "$ASIC_CONF"; then
+			echo_ok 'Received asic configuration saved'
+		else
+			echo_error 'Received asic configuration NOT saved (write error)'
+		fi
+	fi
+else
+	echo_info '"asic" section is empty or not found (write skipped)'
 fi
 
 
@@ -957,7 +1105,7 @@ if (( arg_restartminer_FLAG )); then
 	/hive/bin/miner restart
 fi
 
-echo_ok 'All is done'
+echo_ok 'Finished'
 touch "$HELLO_OK_file"
 
 # flush buffers if any files changed
