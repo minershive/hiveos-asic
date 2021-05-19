@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.5.1'
+readonly script_version='0.5.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -337,14 +337,13 @@ function get_hostname_from_url {
 	local -r url_as_string="$1"
 
 	# vars
-	local -a url_as_array
-	local IFS
+	local url
 
 	# code
-	IFS='/'
-	url_as_array=( $url_as_string )
-	echo "${url_as_array[2]}" # http://a.b.c/
-	#                                ^^     ^
+	IFS='/' read -r _ _ url <<< "$url_as_string"
+	# http://a.b.c/
+	#      ^^     ^
+	echo "$url"
 }
 
 function wait_for_network {
@@ -488,26 +487,28 @@ function get_uid {
 	# excerpt from GPU hello, for the reference:
 	#uid=$(echo ${system_uuid}-${cpu_id}-${first_mac} | tr '[:upper:]' '[:lower:]' | sha1sum | awk '{print $1}')
 
-	# arrays
-	local -a _uid
-
 	# vars
-	local eth0_mac digest_program
+	local eth0_mac uid_provisional digest_binary digest_binary_output uid_hash
 
 	# code
 	eth0_mac="$( < /sys/class/net/eth0/address )"
-	_uid="${mb_product}-${eth0_mac}"
-	_uid="${_uid//:}" # trim all ':'
-	_uid="${_uid,,}" # tolower()
-	for digest_program in sha1sum md5sum; do
-		if hash "$digest_program" 2> /dev/null; then
-			_uid=( $( "$digest_program" <<< "$_uid" ) )
+	uid_provisional="${mb_product}-${eth0_mac}"
+	uid_provisional="${uid_provisional//:}" # trim all ':'
+	uid_provisional="${uid_provisional,,}" # tolower()
+
+	for digest_binary in sha1sum md5sum; do
+		if hash "$digest_binary" 2> /dev/null; then
+			digest_binary_output="$( "$digest_binary" <<< "$uid_provisional" )"
+			read -r uid_hash _ <<< "$digest_binary_output"
 			break
 		fi
 	done
-	# shellcheck disable=SC2128
-	# "Expanding an array without an index only gives the first element." -- yes, sure, let's use this useful side effect
-	echo "$_uid"
+
+	if [[ -n "$uid_hash" ]]; then
+		echo "$uid_hash"
+	else
+		echo 'ffffffffffffffffffffffffffffffffffffffff' # in case sha1sum/md5sum aren't available
+	fi
 }
 
 function get_hive_client_version {
@@ -661,7 +662,11 @@ function serve_custom_fw_model_cache {
 }
 
 function send_hello_packet {
+	#
+	# Usage: send_hello_packet 'server_URL' 'server_request_by_ref' 'server_response_by_ref'
+	#
 	# try to send the hello packet (10 times max, every next pause will be longer and longer)
+	#
 
 	# args
 	local -r server_URL="$1"
@@ -776,21 +781,22 @@ function are_variable_and_file_identical {
 	local -r filename_to_compare="$2"
 
 	# flags
-	local -i is_file_not_empty=0 is_file_empty=0
-	local -i is_variable_not_empty=0 is_variable_empty=0
+	local -i is_file_empty_FLAG is_variable_empty_FLAG
 
 	# code
-	[[ -f "$filename_to_compare"		]]								|| return 1
-	[[ -s "$filename_to_compare"		]]	&&	is_file_not_empty=1		|| is_file_empty=1
-	[[ -n "$variable_to_compare_by_ref" ]]	&&	is_variable_not_empty=1	|| is_variable_empty=1
+	[[ -f "$filename_to_compare"		]] || return 1 # file not found, compare failed
+	[[ -s "$filename_to_compare"		]]; is_file_empty_FLAG=$? # translate bash exit code to C-boolean
+	[[ -n "$variable_to_compare_by_ref" ]]; is_variable_empty_FLAG=$? # translate bash exit code to C-boolean
 
-	if (( is_file_empty && is_variable_empty )); then
-		# identical!
+	if (( is_file_empty_FLAG && is_variable_empty_FLAG )); then
+		# both are empty, therefore -- identical!
 		return 0
-	fi
-
-	if (( is_file_not_empty && is_variable_not_empty )); then
+	elif (( ! is_file_empty_FLAG && ! is_variable_empty_FLAG )); then
+		# both aren't empty, let's diff 'em
 		diff <( echo "$variable_to_compare_by_ref" ) "$filename_to_compare" > /dev/null 2>&1
+	else
+		# one is empty and another is not -- not identical indeed
+		return 1
 	fi
 }
 
@@ -804,23 +810,25 @@ function save_variable_to_file {
 	local -r filename_to_save="$2"
 
 	# consts
-	local -r new_suffix='new'
-	local -r previous_suffix='previous'
+	local -r new_suffix='new' previous_suffix='previous'
 
 	# flags
 	local -i is_variable_saved_FLAG=0
 
 	# code
 	until (( is_variable_saved_FLAG )); do
-		# NOTE: neat trick -- chained multiple checks without multiple IFs, false loop actually
+		# NOTE: neat trick -- chained multiple checks without multiple IFs
+		# pretty normal exceptions but in the bash
 
 		if [[ -s "$filename_to_save" ]]; then
 			# file is exist and not empty, so there are some runarounds:
-			# write a config to the new file (test the media writeability)
+			# 1. write a config to the new file (test the media writeability)
 			echo "$variable_to_save_by_ref" > "${filename_to_save}.${new_suffix}"	|| break
 
-			# the file has been written ok, proceed to the filenames' swap
+			# 2. file has been written ok, proceed to the filenames' swap
+			# 2.1. current to previous
 			mv "$filename_to_save" "${filename_to_save}.${previous_suffix}"			|| break
+			# 2.2. new to current
 			mv "${filename_to_save}.${new_suffix}" "$filename_to_save"				|| break
 		else
 			# file isn't exist or empty, do write directly
@@ -832,7 +840,89 @@ function save_variable_to_file {
 		break
 	done
 
-	(( is_variable_saved_FLAG ))
+	(( is_variable_saved_FLAG )) # translate a C-boolean to bash exit code
+}
+
+function process_json_sections {
+	#
+	# Usage: process_json_sections 'server_response_json_by_ref'
+	#
+
+	# TODO save (DONE!) and apply asic/asic_oc config
+	#
+	# issue: duplicate code
+	#
+	# solution: we could decouple command-processing module from the agent and make it a separate entity
+	# that can execute requests from agent aaaand.. hello!
+
+	# args
+	local -r -n server_response_json_by_ref="$1"
+
+	# dicts
+	local -A sections_DICT=(
+		['sections_list']='config wallet asic_oc asic'
+
+		['config.description']='Worker configuration'
+		['config.json_key']='.result.config'
+		['config.file']="$RIG_CONF"
+		['config.reload_after_save']=1
+		['config.is_mandatory']=1
+
+		['wallet.description']='Wallet'
+		['wallet.json_key']='.result.wallet'
+		['wallet.file']="$WALLET_CONF"
+		['wallet.reload_after_save']=0
+		['wallet.is_mandatory']=0
+
+		['asic_oc.description']='OC profile'
+		['asic_oc.json_key']='.result.asic_oc'
+		['asic_oc.file']="$ASIC_OC_CONF"
+		['asic_oc.reload_after_save']=0
+		['asic_oc.is_mandatory']=0
+
+		['asic.description']='Firmware configuration'
+		['asic.json_key']='.result.asic'
+		['asic.file']="$ASIC_CONF"
+		['asic.reload_after_save']=0
+		['asic.is_mandatory']=0
+	)
+
+	# vars
+	local this_section		this_section_description		this_section_json_key		this_section_json_value
+	local this_section_file	this_section_reload_after_save	this_section_is_mandatory
+
+	# code
+	for this_section in ${sections_DICT['sections_list']}; do
+		this_section_description="${sections_DICT["$this_section.description"]}"
+		this_section_json_key="${sections_DICT["$this_section.json_key"]}"
+		this_section_file="${sections_DICT["$this_section.file"]}"
+		this_section_reload_after_save="${sections_DICT["$this_section.reload_after_save"]}"
+		this_section_is_mandatory="${sections_DICT[$this_section.is_mandatory]}"
+
+		this_section_json_value="$( jq --raw-output "$this_section_json_key" <<< "$server_response_json_by_ref" )" ||
+			die "Error while parsing '$this_section_description' from the server response, exiting..." 1
+
+		if is_JSON_string_not_empty_or_null "$this_section_json_value"; then
+			if are_variable_and_file_identical 'this_section_json_value' "$this_section_file"; then
+				echo_info "Nothing new in '$this_section_description', saving to file skipped"
+			else
+				if save_variable_to_file 'this_section_json_value' "$this_section_file"; then
+					echo_ok "'$this_section_description' updated and saved to $this_section_file"
+					if (( this_section_reload_after_save )); then
+						source "$this_section_file" && echo_ok "'$this_section_description' reloaded"
+					fi
+				else
+					echo_error "'$this_section_description' NOT saved (write error)"
+				fi
+			fi
+		else
+			if (( this_section_is_mandatory )); then
+				die "No '$this_section_description' found in the server response that does not have any sense. Exiting..." 1
+			else
+				echo_warning "'$this_section_description' is empty or not found, saving to file skipped"
+			fi
+		fi
+	done
 }
 
 
@@ -842,7 +932,7 @@ function save_variable_to_file {
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r WALLET_CONF='/hive-config/wallet.conf'
-declare -r ASIC_CONF='/hive-config/asic.conf'
+declare -r ASIC_CONF='/hive-config/hiveon.conf'
 declare -r ASIC_OC_CONF='/hive-config/asic_oc.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
 # misc
@@ -861,7 +951,6 @@ declare -i arg_restartminer_FLAG=0		# will need to restart miner after
 declare arg_worker_name=''
 declare mb_manufacturer mb_product
 declare server_request_json server_response_json
-declare received_config_section received_wallet_section received_asic_section received_asic_oc_section
 
 
 # global exports
@@ -872,7 +961,7 @@ declare received_config_section received_wallet_section received_asic_section re
 
 # global sources
 
-[[ -f "$RIG_CONF" ]] && ! grep -Eq '^FARM_HASH=.+$' "$RIG_CONF" && source colors # duct tape: turn the colors off for cgi-bin script
+[[ -f "$RIG_CONF" ]] && ! grep -Eq '^FARM_HASH=.+$' "$RIG_CONF" && source /hive/bin/colors # duct tape: turn the colors off for cgi-bin script
 
 
 # main
@@ -890,7 +979,7 @@ source "$RIG_CONF"
 [[ ( -n "${RIG_ID-}" && -n "${RIG_PASSWD-}" ) || -z "${RIG_ID-}" ]]	|| die "RIG_PASSWD is not defined in $RIG_CONF, exiting..." 1
 [[ -n "${HIVE_HOST_URL-}" ]]										|| die "HIVE_HOST_URL is not defined in $RIG_CONF, exiting..." 1
 
-source asic-model
+source /hive/bin/asic-model
 [[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add if not exist
 
 
@@ -1002,36 +1091,12 @@ if server_error="$( jq --raw-output '.error' <<< "$server_response_json" 2> /dev
 		die "Server responded with error '$( jq --raw-output '.error.message' <<< "$server_response_json" )'" 1
 	fi
 else
-	die 'Error while parsing server response as a JSON, exiting...' 1
+	die 'Error while parsing server response as JSON, exiting...' 1
 fi
 
 
-# TODO save (DONE!) and apply asic/asic_oc config
-#
-# issue: duplicate code
-#
-# solution: we could decouple command-processing module from the agent and make it a separate entity
-# that can execute requests from agent aaaand.. hello!
-
-
-# check 'config' section and then save it
-received_config_section="$( jq --raw-output '.result.config' <<< "$server_response_json" )"	|| die 'Error while parsing "config" section from the server response, exiting...' 1
-
-if is_JSON_string_not_empty_or_null "$received_config_section"; then
-	if are_variable_and_file_identical 'received_config_section' "$RIG_CONF"; then
-		echo_info 'Received rig configuration is identical to current (write skipped)'
-	else
-		if save_variable_to_file 'received_config_section' "$RIG_CONF"; then
-			echo_ok 'Received config saved'
-			# re-read rig.conf
-			source "$RIG_CONF"
-		else
-			echo_error 'Received config NOT saved (write error)'
-		fi
-	fi
-else
-	die 'No "config" section found in the server response that does not have any sense. Exiting...' 1
-fi
+# proceed with configuration sections and save it to corresponding files, if needed
+process_json_sections 'server_response_json'
 
 
 # set timezone
@@ -1041,60 +1106,6 @@ if [[ -n "${TIMEZONE-}" ]]; then
 	else
 		export TZ="$TIMEZONE"
 	fi
-fi
-
-
-# check 'wallet' section and then save it
-received_wallet_section="$( jq --raw-output '.result.wallet' <<< "$server_response_json" )"	|| die 'Error while parsing "wallet" section from the server response, exiting...' 1
-
-if is_JSON_string_not_empty_or_null "$received_wallet_section"; then
-	if are_variable_and_file_identical 'received_wallet_section' "$WALLET_CONF"; then
-		echo_info 'Received wallet configuration is identical to current (write skipped)'
-	else
-		if save_variable_to_file 'received_wallet_section' "$WALLET_CONF"; then
-			echo_ok 'Received wallet configuration saved'
-		else
-			echo_error 'Received wallet configuration NOT saved (write error)'
-		fi
-	fi
-else
-	echo_warning '"wallet" section is empty or not found (write skipped)'
-fi
-
-
-# check 'asic_oc' section and then save it
-received_asic_oc_section="$( jq --raw-output '.result.asic_oc' <<< "$server_response_json" )"	|| die 'Error while parsing "asic_oc" section from the server response, exiting...' 1
-
-if is_JSON_string_not_empty_or_null "$received_asic_oc_section"; then
-	if are_variable_and_file_identical 'received_asic_oc_section' "$ASIC_OC_CONF"; then
-		echo_info 'Received asic_oc configuration is identical to current (write skipped)'
-	else
-		if save_variable_to_file 'received_asic_oc_section' "$ASIC_OC_CONF"; then
-			echo_ok 'Received asic_oc configuration saved'
-		else
-			echo_error 'Received asic_oc configuration NOT saved (write error)'
-		fi
-	fi
-else
-	echo_warning '"asic_oc" section is empty or not found'
-fi
-
-
-# check 'asic' section and then save it
-received_asic_section="$( jq --raw-output '.result.asic' <<< "$server_response_json" )"	|| die 'Error while parsing "asic" section from the server response, exiting...' 1
-
-if is_JSON_string_not_empty_or_null "$received_asic_section"; then
-	if are_variable_and_file_identical 'received_asic_section' "$ASIC_CONF"; then
-		echo_info 'Received asic configuration is identical to current (write skipped)'
-	else
-		if save_variable_to_file 'received_asic_section' "$ASIC_CONF"; then
-			echo_ok 'Received asic configuration saved'
-		else
-			echo_error 'Received asic configuration NOT saved (write error)'
-		fi
-	fi
-else
-	echo_info '"asic" section is empty or not found (write skipped)'
 fi
 
 
