@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.53.0'
+declare -r hive_functions_lib_version='0.54.1'
 #                                        ^^ current number of public functions
 
 
@@ -21,6 +21,11 @@ declare -r hive_functions_lib_version='0.53.0'
 
 #
 # functions: SCRIPT INFRASTRUCTURE, LOGGING
+#
+#	print_script_version
+#	errcho
+#	debugcho
+#	log_line
 #
 
 function print_script_version {
@@ -116,6 +121,9 @@ function log_line {
 # we need to audit externally--does the script work as intended or not (like the system returns exitcode "file not found")
 # [[ $( script_to_audit ) != 'I AM FINE' ]] && echo "Something wrong with $script_to_check"
 #
+#	print_i_am_doing_fine_then_exit
+#	is_script_exist_and_doing_fine
+#
 
 function print_i_am_doing_fine_then_exit {
 	#
@@ -147,6 +155,21 @@ function is_script_exist_and_doing_fine {
 
 #
 # functions: CONDITIONALS
+#
+#	iif
+#	iif_pipe
+#	is_program_in_the_PATH
+#	is_program_running
+#	is_program_not_running
+#	is_function_exist
+#	is_first_floating_number_bigger_than_second
+#	is_first_version_equal_to_second
+#	is_integer
+#	is_JSON_string_empty_or_null
+#	is_JSON_string_not_empty_or_null
+#	is_file_exist_but_empty
+#	is_file_exist_and_contain
+#	is_directory_exist_and_writable
 #
 
 function iif {
@@ -432,6 +455,12 @@ function is_directory_exist_and_writable {
 #
 # functions: MATH
 #
+#	calculate_percent_from_number
+#	set_bits_by_mask
+#	scientific_to_integer
+#	humanize
+#	khs_to_human_friendly_hashrate
+#
 
 function calculate_percent_from_number {
 	#
@@ -564,6 +593,12 @@ function khs_to_human_friendly_hashrate {
 
 #
 # functions: FILES
+#
+#	get_file_last_modified_time_in_seconds
+#	get_file_size_in_bytes
+#	read_variable_from_file
+#	read_variable_from_file_unsafe
+#	set_variable_in_file
 #
 
 function get_file_last_modified_time_in_seconds {
@@ -733,6 +768,15 @@ function set_variable_in_file {
 
 #
 # functions: DATE, TIME
+#
+#	get_system_boot_time_in_seconds
+#	get_current_system_time_in_seconds
+#	set_variable_to_current_system_time_in_seconds
+#	seconds2dhms
+#	format_date_in_seconds
+#	get_system_uptime_in_seconds
+#	get_system_uptime_in_milliseconds
+#	snore
 #
 
 function get_system_boot_time_in_seconds {
@@ -933,6 +977,12 @@ function snore {
 #
 # functions: NETWORK
 #
+#	is_interface_up
+#	is_tcp_port_listening
+#	get_ip_address
+#	get_ip_postfix_address
+#	get_mac_address
+#
 
 function is_interface_up {
 	#
@@ -1017,6 +1067,29 @@ function get_ip_address {
 
 # shellcheck disable=SC2120
 # bc $1 can be empty
+function get_ip_postfix_address {
+	#
+	# Usage: get_ip_postfix_address ['interface']
+	#
+	# it does mimic a BTC Tools' "IP postfix" -- '192.168.12.13' becomes '12x13'
+
+	# args
+
+	(( $# == 0 || $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r interface_DEFAULT='eth0'
+	local -r interface="${1-$interface_DEFAULT}"
+
+	# vars
+
+	local -i octet_C=0 octet_D=0
+
+	# code
+
+	LANG=C ifconfig "$interface" | grep 'inet addr:' | { IFS=' :.' read -r _ _ _ _ octet_C octet_D _; echo "${octet_C}x${octet_D}"; }
+}
+
+# shellcheck disable=SC2120
+# bc $1 can be empty
 function get_mac_address {
 	#
 	# Usage: get_mac_address ['interface']
@@ -1037,6 +1110,14 @@ function get_mac_address {
 
 #
 # functions: TEXT, STRINGS
+#
+#	strip_ansi
+#	get_substring_position_in_string
+#	rematch
+#	get_all_matches
+#	get_all_matches_unique
+#	expand_hive_templates
+#	expand_hive_templates_in_variable_by_ref
 #
 
 function strip_ansi {
@@ -1194,7 +1275,7 @@ function expand_hive_templates_in_variable_by_ref {
 	# in a given string variable, expand all Hive templates:
 	#
 	#	sw/fw versions: %BUILD% %FW%
-	#	network:		%HOSTNAME% %IP% %MAC%
+	#	network:		%HOSTNAME% %IP% %IP_POSTFIX% %MAC%
 	#	OC profile:		%PROFILE%
 	#	RIG_CONF:		%URL% %WORKER_NAME% %WORKER_NAME_RAW%
 	#	WALLET_CONF:	%EMAIL% %EWAL% %DWAL% %ZWAL%
@@ -1299,6 +1380,12 @@ function expand_hive_templates_in_variable_by_ref {
 				this_template_substitution="$( get_ip_address )"
 			;;
 
+			'IP_POSTFIX' )
+				# shellcheck disable=SC2119
+				# bc 'no arguments' does mean default interface
+				this_template_substitution="$( get_ip_postfix_address )"
+			;;
+
 			'MAC' )
 				# shellcheck disable=SC2119
 				# bc 'no arguments' does mean default interface
@@ -1356,6 +1443,9 @@ function expand_hive_templates_in_variable_by_ref {
 #
 # functions: PROCESSES
 #
+#	pgrep_count
+#	pgrep_quiet
+#
 
 function pgrep_count {
 	#
@@ -1412,6 +1502,8 @@ function pgrep_quiet {
 #
 # functions: SCREEN
 #
+#	is_screen_session_exist
+#
 
 function is_screen_session_exist {
 	#
@@ -1438,6 +1530,8 @@ function is_screen_session_exist {
 
 #
 # functions: OTHER
+#
+#	set_variable_to_terminal_width
 #
 
 function set_variable_to_terminal_width {
