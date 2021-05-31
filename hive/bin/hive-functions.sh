@@ -6,12 +6,12 @@
 # Distributed under Business Source License 1.1
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0 (80%)
 #
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.52.0'
+declare -r hive_functions_lib_version='0.53.0'
 #                                        ^^ current number of public functions
 
 
@@ -290,6 +290,8 @@ function is_first_floating_number_bigger_than_second {
 function is_first_version_equal_to_second {
 	#
 	# Usage: is_first_version_equal_to_second 'first_version' 'second_version'
+	#
+	# Returns: exitcode_IS_EQUAL | exitcode_LESS_THAN | exitcode_GREATER_THAN
 	#
 
 	# args
@@ -953,6 +955,48 @@ function is_interface_up {
 	fi
 }
 
+function is_tcp_port_listening {
+	#
+	# Usage: is_tcp_port_listening 'host' 'port'
+	#
+	# Exit codes:
+	#
+	# exitcode_PORT_IS_OPENED
+	# exitcode_PORT_IS_CLOSED
+	# exitcode_ERROR_HOST_NOT_FOUND
+	# exitcode_ERROR_SOMETHING_WEIRD
+
+	# args
+
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r host_to_check="${1-}"
+	local -r port_to_check="${2-}"
+
+	# vars
+
+	local -i nc_exitcode
+
+	# code
+
+	(
+		exec 2> /dev/null # silence the "Terminated" message in this sub-shell if the timeout watchdog has been activated
+		/hive/bin/timeout -t 1 nc "$host_to_check" "$port_to_check" < /dev/null
+	)
+
+	# exit code:
+	# 0		port is opened
+	# 1		host not found, connection error
+	# 143	port is closed
+	nc_exitcode=$?
+
+	case "$nc_exitcode" in
+		0	)	return $(( exitcode_PORT_IS_OPENED ))			;;
+		1	)	return $(( exitcode_ERROR_HOST_NOT_FOUND ))		;;
+		143	)	return $(( exitcode_PORT_IS_CLOSED ))			;;
+		*	)	return $(( exitcode_ERROR_SOMETHING_WEIRD ))	;;
+	esac
+}
+
 # shellcheck disable=SC2120
 # bc $1 can be empty
 function get_ip_address {
@@ -1179,9 +1223,6 @@ function expand_hive_templates_in_variable_by_ref {
 	local -r hard_sanitize_blacklisted_chars_RE='[^[:alnum:]]'
 	local -r hard_sanitize_replacement_char='x'
 
-	local -r safe_char='x'
-	local -r blacklisted_chars_RE='[^[:alnum:]_]'
-
 	# super local consts haha
 
 	local -r __RIG_CONF_default='/hive-config/rig.conf'
@@ -1334,8 +1375,8 @@ function pgrep_count {
 
 	# code
 
-	printf -v marker '%(%s)T-%s-%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
-#	self="${$}[[:space:]].+${FUNCNAME}" # TODO figure out what's best
+	printf -v marker '%(%s)T-%s-%u%u' -1 "${FUNCNAME[0]}" "${RANDOM}" "${RANDOM}"
+#	self="${$}[[:space:]].+${FUNCNAME[0]}" # TODO figure out what's best
 	self="(${$}|${BASHPID})[[:space:]].+$0"
 
 	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evc -e "$marker" -e "$self" --
@@ -1359,8 +1400,8 @@ function pgrep_quiet {
 
 	# code
 
-	printf -v marker '%(%s)T:%s:%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
-	self="${$}[[:space:]].+${FUNCNAME}"
+	printf -v marker '%(%s)T:%s:%u%u' -1 "${FUNCNAME[0]}" "${RANDOM}" "${RANDOM}"
+	self="${$}[[:space:]].+${FUNCNAME[0]}"
 #	self="(${$}|${BASHPID})[[:space:]].+$0" # TODO figure out what's best
 
 	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evq -e "$marker" -e "$self" --
@@ -1453,7 +1494,7 @@ function __list_functions {
 	local -a all_functions_ARR=() private_functions_ARR=() public_functions_ARR=()
 	local -i public_functions_count
 	local -i terminal_width max_name_length
-	local -i columns_count max_columns this_column
+	local -i columns_count this_column
 	local -i rows_count this_row
 
 	# code
@@ -1523,17 +1564,26 @@ declare -r __audit_ok_string='I AM DOING FINE'
 # shellcheck disable=SC2034
 {
 	# enum exit codes
+
+	# common codes
 	declare -r -i exitcode_OK=0
 	declare -r -i exitcode_NOT_OK=1
 	declare -r -i exitcode_ERROR_NOT_FOUND=1
 	declare -r -i exitcode_ERROR_IN_ARGUMENTS=127
 	declare -r -i exitcode_ERROR_SOMETHING_WEIRD=255
 
+	# is_first_version_equal_to_second()
 	declare -r -i exitcode_IS_EQUAL=0
 	declare -r -i exitcode_GREATER_THAN=1
 	declare -r -i exitcode_LESS_THAN=2
 
+	# is_tcp_port_listening()
+	declare -r -i exitcode_PORT_IS_OPENED=0
+	declare -r -i exitcode_PORT_IS_CLOSED=1
+	declare -r -i exitcode_ERROR_HOST_NOT_FOUND=3
+
 	# regular expressions
+
 	declare -r positive_integer_RE='^[[:digit:]]+$'
 	declare -r empty_line_RE='^[[:space:]]*$'
 }
@@ -1558,6 +1608,7 @@ if ! ( return 0 2>/dev/null ); then # not sourced
 				exit $? # do an explicit passing of the exit code
 			else
 				errcho "function '$1' is not defined"
+				exit $(( exitcode_ERROR_SOMETHING_WEIRD ))
 			fi
 			;;
 	esac
