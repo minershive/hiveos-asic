@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.37'
+readonly script_version='0.6.38'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -841,10 +841,18 @@ function tune_L3 {
 	done
 
 	echo '> 1st phase started...'
-	nohup /usr/bin/auto-tune-chains > "$autotune_debug_log" 2>&1	|| tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
+	if ! nohup /usr/bin/auto-tune-chains > "$autotune_debug_log" 2>&1; then
+		echo '  [ERROR] auto-tune-chains failed'
+		tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
+	fi
+
 	snore 1
+
 	echo '> 2nd phase started...'
-	nohup /usr/bin/auto-tune >> "$autotune_debug_log" 2>&1			|| tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
+	if ! nohup /usr/bin/auto-tune >> "$autotune_debug_log" 2>&1; then
+		echo '  [ERROR] auto-tune failed'
+		tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
+	fi
 
 	if (( script_DEBUG )); then
 		if [[ ! -f "$active_profile_directory/config.conf" ]]; then
@@ -870,7 +878,11 @@ function tune_L3 {
 		(( script_DEBUG )) && echo "  [DEBUG] $autotune_log is empty or not found"
 	fi
 
-	echo '> Auto-tune finished'
+	if (( tune_result_exitcode == exitcode_OK )); then
+		echo '> Auto-tune finished'
+	else
+		echo '> Auto-tune FAILED'
+	fi
 }
 
 # Antminer Series 17
