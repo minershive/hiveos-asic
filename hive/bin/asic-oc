@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.36'
+readonly script_version='0.6.37'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -731,9 +731,11 @@ function tune_9 {
 
 	echo '> 1st phase started...'
 	if (( is_lighttpd_not_running_as_root_FLAG )); then
-		nohup su - "$lighttpd_owner" -c '/usr/bin/auto-tune' > "$autotune_debug_log" 2>&1
+		#																		not tested  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+		nohup su - "$lighttpd_owner" -c '/usr/bin/auto-tune' > "$autotune_debug_log" 2>&1 # || tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
 	else
-		nohup /usr/bin/auto-tune > "$autotune_debug_log" 2>&1
+		#											not tested  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+		nohup /usr/bin/auto-tune > "$autotune_debug_log" 2>&1 # || tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
 	fi
 	echo '> 1st phase finished'
 
@@ -839,10 +841,10 @@ function tune_L3 {
 	done
 
 	echo '> 1st phase started...'
-	nohup /usr/bin/auto-tune-chains > "$autotune_debug_log" 2>&1
+	nohup /usr/bin/auto-tune-chains > "$autotune_debug_log" 2>&1	|| tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
 	snore 1
 	echo '> 2nd phase started...'
-	nohup /usr/bin/auto-tune >> "$autotune_debug_log" 2>&1
+	nohup /usr/bin/auto-tune >> "$autotune_debug_log" 2>&1			|| tune_result_exitcode=exitcode_ERROR_SOMETHING_WEIRD
 
 	if (( script_DEBUG )); then
 		if [[ ! -f "$active_profile_directory/config.conf" ]]; then
@@ -1053,9 +1055,9 @@ function print_all_variables_in_file { # NOT USED ATM, should one carry it over 
 
 # sources
 
-source colors || echo 'ERROR: /hive/bin/colors not found'
-source asic-model || die '/hive/bin/asic-model not found'
-source /hive/bin/hive-functions.sh || die '/hive/bin/hive-functions.sh not found'
+source /hive/bin/colors				|| echo 'ERROR: /hive/bin/colors not found'
+source /hive/bin/asic-model			|| die '/hive/bin/asic-model not found'
+source /hive/bin/hive-functions.sh	|| die '/hive/bin/hive-functions.sh not found'
 
 
 # consts
@@ -1095,6 +1097,7 @@ declare message_text message_event_type
 declare -i oc_action
 declare -i have_to_tune_FLAG=0 have_to_restart_miner_FLAG=0 forced_apply_incoming_profile_FLAG=0 have_to_generate_active_profile_FLAG=0
 declare -i tune_start_time tune_finish_time
+declare -i tune_result_exitcode=exitcode_OK # a global end-to-end exitcode (see the last line of the script) -- used in tune_L3() only (at this moment)
 declare -A incoming_profile_as_hashtable cached_profile_as_hashtable # keys_hashtable
 
 declare -i is_lighttpd_not_running_as_root_FLAG=0
@@ -1423,4 +1426,4 @@ fi
 set_variable_to_current_system_time_in_seconds 'tune_finish_time'
 printf '<h3>\nTotal running time %s</h3>' "$( seconds2dhms $(( tune_finish_time - tune_start_time )) )"
 
-exit $(( exitcode_OK ))
+exit $(( tune_result_exitcode ))
