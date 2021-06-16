@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.1'
+readonly script_version='0.2.2'
 readonly script_basename="${0##*/}"
 
 
@@ -44,40 +44,21 @@ function echo_x {
 	fi
 }
 
-function is_program_running {
+function is_process_not_running { # cloned from the hive-functions.sh library
 	#
-	# Usage: is_program_running 'program_name'
-	#
-
-	# args
-	(( $# == 1 )) || return 1
-	local -r program_name="${1-}"
-
-	# code
-	if hash pidof 2>/dev/null; then
-		pidof "$program_name" > /dev/null
-	else
-		# shellcheck disable=SC2009
-		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
-		# ...bc we don't have pgrep
-	fi
-}
-
-function is_program_not_running {
-	#
-	# Usage: is_program_not_running 'program_name'
+	# Usage: is_process_not_running 'process_name'
 	#
 
 	# args
 	(( $# == 1 )) || return 1
-	local -r program_name="${1-}"
+	local -r process_name="${1-}"
 
 	# code
 	! if hash pidof 2>/dev/null; then
-		pidof "$program_name" > /dev/null
+		pidof "$process_name" > /dev/null
 	else
 		# shellcheck disable=SC2009
-		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
+		ps | grep -q "[${process_name:0:1}]${process_name:1}" # neat trick with '[p]attern'
 		# ...bc we don't have pgrep
 	fi
 }
@@ -230,7 +211,7 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 	echo_x action 'Applying crontab'
 	[[ ! -d /var/spool/cron/crontabs ]] && ln -s /tmp /var/spool/cron/crontabs
 	crontab /hive/etc/crontab.root
-	is_program_not_running 'crond' && /usr/sbin/crond
+	is_process_not_running 'crond' && /usr/sbin/crond
 	#hosts patch
 	touch /tmp/hosts
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/hive/share/S9/lib
