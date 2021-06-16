@@ -11,12 +11,28 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.54.1'
+declare -r hive_functions_lib_version='0.55.0'
 #                                        ^^ current number of public functions
 
 
 # !!! bash strict mode, no unbound variables
 #set -o nounset # !!! this is a library, so we don't want to break the other's scripts
+
+
+#
+# all functions are divided by the next categories:
+#	SCRIPT INFRASTRUCTURE, LOGGING
+#	AUDIT
+#	CONDITIONALS
+#	MATH
+#	FILES
+#	DATE, TIME
+#	NETWORK
+#	TEXT, STRINGS
+#	PROCESSES
+#	SCREEN
+#	OTHER
+#
 
 
 #
@@ -159,8 +175,8 @@ function is_script_exist_and_doing_fine {
 #	iif
 #	iif_pipe
 #	is_program_in_the_PATH
-#	is_program_running
-#	is_program_not_running
+#	is_process_running
+#	is_process_not_running
 #	is_function_exist
 #	is_first_floating_number_bigger_than_second
 #	is_first_version_equal_to_second
@@ -231,40 +247,40 @@ function is_program_in_the_PATH {
 	hash "$__program_name" 2> /dev/null
 }
 
-function is_program_running {
+function is_process_running {
 	#
-	# Usage: is_program_running 'program_name'
+	# Usage: is_process_running 'process_name'
 	#
 
 	# args
 
 	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r program_name="${1-}"
+	local -r process_name="${1-}"
 
 	# code
 
 	if is_program_in_the_PATH 'pidof'; then
-		pidof "$program_name" > /dev/null
+		pidof "$process_name" > /dev/null
 	else
 		# shellcheck disable=SC2009
-		ps | grep -q "[${program_name:0:1}]${program_name:1}" # neat trick with '[p]attern'
+		ps | grep -q "[${process_name:0:1}]${process_name:1}" # neat trick with '[p]attern'
 		# ...bc we don't have pgrep
 	fi
 }
 
-function is_program_not_running {
+function is_process_not_running {
 	#
-	# Usage: is_program_not_running 'program_name'
+	# Usage: is_process_not_running 'process_name'
 	#
 
 	# args
 
 	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local -r program_name="${1-}"
+	local -r process_name="${1-}"
 
 	# code
 
-	! is_program_running "$program_name"
+	! is_process_running "$process_name"
 }
 
 function is_function_exist {
@@ -1445,6 +1461,7 @@ function expand_hive_templates_in_variable_by_ref {
 #
 #	pgrep_count
 #	pgrep_quiet
+#	get_process_owner
 #
 
 function pgrep_count {
@@ -1495,6 +1512,25 @@ function pgrep_quiet {
 #	self="(${$}|${BASHPID})[[:space:]].+$0" # TODO figure out what's best
 
 	ps w | tail -n +2 | grep -E -e "$pattern" -e "$marker" -- | grep -Evq -e "$marker" -e "$self" --
+}
+
+function get_process_owner {
+	#
+	# Usage: get_process_owner 'process_name'
+	#
+
+	# args and asserts
+
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r process_name="$1"
+
+	# code
+	if is_process_running "$process_name"; then
+		ps | awk "/$process_name/ && !/awk/ {print \$2}"
+		# TODO: could be improved like 'PID=pidof; stat --owner /proc/PID' (pseudo-code)
+	else
+		return $(( exitcode_ERROR_NOT_FOUND ))
+	fi
 }
 
 

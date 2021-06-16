@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.6.38'
+readonly script_version='0.6.39'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
@@ -679,7 +679,7 @@ function kill_autotune_9 {
 	(( script_DEBUG )) && echo '> [DEBUG] Stopping auto-tune tools...'
 	for this_process in 'auto-tune' 'tune-yellow' 'auto-chip-tune' 'auto-tune-chains'; do
 		kill_counter=0
-		while is_program_running "$this_process"; do
+		while is_process_running "$this_process"; do
 			if (( ++kill_counter > 10 )); then
 				(( script_DEBUG )) && echo "  [DEBUG] $this_process is still alive after $kill_counter tries!"
 				break
@@ -700,19 +700,26 @@ function generate_active_profile_9 {
 }
 
 function restart_miner_9 {
+	# consts
+	local -r restart_miner_FILE="$active_profile_directory/restart"
+	local -r restart_miner_command='ok'
+
 	# code
 	kill_autotune_9
 	echo '> Restarting miner...'
-	# shellcheck disable=SC2076
-	if [[ "$ASIC_MODEL" =~ 'Antminer L3' ]]; then
-	# ...bc we need a literal match
+
+	if [[ "$ASIC_MODEL" == 'Antminer L3'* ]]; then
 		killall -9 cgminer
+		return
+	fi
+
+	if ! echo "$restart_miner_command" > "$restart_miner_FILE"; then
+		echo "  [ERROR] couldn't create $restart_miner_FILE"
 	else
 		if (( is_lighttpd_not_running_as_root_FLAG )); then
-			# create file as lighttpd owner
-			su - "$lighttpd_owner" -c "echo 'ok' > $active_profile_directory/restart" > /dev/null 2>&1
-		else
-			echo 'ok' > "$active_profile_directory/restart"
+			if ! chown "$lighttpd_owner:$lighttpd_owner" "$restart_miner_FILE" > /dev/null 2>&1; then
+				echo "  [ERROR] couldn't chown $restart_miner_FILE as '$lighttpd_owner'"
+			fi
 		fi
 	fi
 }
@@ -969,11 +976,7 @@ function tune_17_new {
 
 function get_lighttpd_owner {
 	# code
-	if is_program_running 'lighttpd'; then
-		ps | awk '/lighttpd/ && !/awk/ {print $2}'
-	else
-		return $(( exitcode_ERROR_NOT_FOUND ))
-	fi
+	get_process_owner 'lighttpd'
 }
 
 function is_lighttpd_not_running_as_root {
@@ -1338,7 +1341,10 @@ elif [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02
 	fix_autotune_bugs_9
 
 	if (( have_to_restart_miner_FLAG )); then
-		restart_miner_9
+		if [[ "$ASIC_CUSTOM_FW_VERSION" != '1.03' ]]; then
+			# in 1.03 we don't have to kill the miner
+			restart_miner_9
+		fi
 	fi
 
 	if (( have_to_tune_FLAG )); then

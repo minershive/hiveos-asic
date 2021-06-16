@@ -13,7 +13,7 @@
 # shellcheck disable=SC2034,SC1091
 {
 	readonly script_mission='Client for ASICs: Miner controller'
-	readonly script_version='1.3.8'
+	readonly script_version='1.3.9'
 	readonly script_basename="${0##*/}"
 	#
 	source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
@@ -184,6 +184,11 @@ function miner_stop {
 	if [[ -f /sbin/watchdog_restart.pl ]]; then
 		# S9/T9 Hiveon
 		echo 'ok' > /tmp/norespawn
+		if lighttpd_owner="$( get_process_owner 'lighttpd' )" && [[ "$lighttpd_owner" != 'root' ]]; then
+			if ! chown "$lighttpd_owner:$lighttpd_owner" /tmp/norespawn > /dev/null 2>&1; then
+				echo_x error "Couldn't chown /tmp/norespawn as '$lighttpd_owner'"
+			fi
+		fi
 	elif [[ -f /www/pages/cgi-bin/stop_miner.cgi ]]; then
 		# S17/T17 Hiveon
 		sh /www/pages/cgi-bin/stop_miner.cgi
