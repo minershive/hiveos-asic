@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.7.0'
+readonly script_version='0.7.1'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
@@ -1183,7 +1183,7 @@ case "$oc_action" in
 	"$oc_action_FACTORY")
 		echo '<h3>Setting profile to factory defaults</h3>'
 		if [[ -s "$active_profile_file_w_path" ]]; then
-			message_text="$active_profile_description is OFF. Now running with sub-optimal factory settings"
+			message_text="Profile $active_profile_description is OFF. Now running with sub-optimal factory settings"
 			#
 			have_to_restart_miner_FLAG=1
 		else
@@ -1194,6 +1194,7 @@ case "$oc_action" in
 		echo "$message_text"
 		deactivate_active_profile_files |
 			tee >( message 'warning' "$message_text" --payload > /dev/null )
+		rm "$active_hiveon_config_file" # !!! might be a controversial issue, but for now -- let it be
 		#
 		have_to_generate_active_profile_FLAG=0
 		have_to_tune_FLAG=0
