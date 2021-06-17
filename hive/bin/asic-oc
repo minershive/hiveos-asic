@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.7.1'
+readonly script_version='0.7.2'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
@@ -1381,10 +1381,7 @@ elif [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02
 	fix_autotune_bugs_9
 
 	if (( have_to_restart_miner_FLAG )); then
-		if [[ "$ASIC_CUSTOM_FW_VERSION" != '1.03' ]]; then
-			# in 1.03 we don't have to kill the miner
-			restart_miner_9
-		fi
+		restart_miner_9
 	fi
 
 	if (( have_to_tune_FLAG )); then
