@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Your First Run'
 readonly script_purpose='Checks if rig.conf config exists, asks for url/rig_id/pass if no config found'
-readonly script_version='0.1.9'
+readonly script_version='0.1.10'
 readonly script_basename="${0##*/}"
 
 
@@ -44,8 +44,12 @@ function urldecode {
 	# args
 	local -r url_to_decode="${1//+/ }"
 
+	# vars
+	local hex_decoded_url
+
 	# code
-	printf '%b\n' "${url_to_decode//%/\\x}"
+	hex_decoded_url="${url_to_decode//x3Ax2Fx2F/://}" # a little dirty fix for '://' hex encoding
+	printf '%b\n' "${hex_decoded_url//%/\\x}"
 }
 
 
