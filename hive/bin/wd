@@ -2,18 +2,69 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.3.3'
+readonly script_version='0.3.4'
 readonly script_basename="${0##*/}"
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # functions
+
+function assert_wd_parameters {
+	#
+	# exhaustively check and sanitize WD_ENABLED, WD_MINER and WD_REBOOT vars -- better safe than sorry
+	#
+
+	# code
+	if [[ ! -v WD_ENABLED ]]; then
+		log_line error 'Hashrate Watchdog disabled: WD_ENABLED variable is absent'
+		(( WD_ENABLED = 0 ))
+	elif [[ -z "$WD_ENABLED" ]]; then
+		log_line error 'Hashrate Watchdog disabled: WD_ENABLED variable is empty'
+		(( WD_ENABLED = 0 ))
+	elif (( WD_ENABLED == 0 )); then
+		log_line warning 'Hashrate Watchdog disabled'
+	elif (( WD_ENABLED == 1 )); then
+		log_line ok 'Hashrate Watchdog enabled'
+	else
+		log_line error "Hashrate Watchdog disabled: WD_ENABLED variable magically set to '$WD_ENABLED'"
+		(( WD_ENABLED = 0 ))
+	fi
+
+	if (( ! WD_ENABLED )); then
+		log_line warning 'Nothing to bark at, exiting'
+		exit 0
+	fi
+
+	if [[ ! -v WD_MINER && ! -v WD_REBOOT ]]; then
+		message warning 'Restart and reboot timers are absent. Hashrate Watchdog disabled. Please configure properly' --silent --payload < "$RIG_CONF"
+		log_line error 'WD_MINER and WD_REBOOT timers are absent. Hashrate Watchdog disabled, exiting'
+		exit 1
+	fi
+
+	if [[ -z "$WD_MINER" && -z "$WD_REBOOT" ]]; then
+		message warning 'Restart and reboot timers are empty. Hashrate Watchdog disabled. Please configure properly' --silent --payload < "$RIG_CONF"
+		log_line error 'WD_MINER and WD_REBOOT timers are empty. Hashrate Watchdog disabled, exiting'
+		exit 1
+	fi
+
+	# forcibly set to 0 if vars aren't set or are empty
+	: "${WD_REBOOT:=0}"
+	: "${WD_MINER:=0}"
+
+	if (( ( ! WD_MINER ) && ( ! WD_REBOOT ) )); then
+		message warning 'Restart and reboot timers both set to 0 (zero) minutes. Hashrate Watchdog disabled. Please configure properly' --silent --payload < "$RIG_CONF"
+		log_line error 'WD_MINER and WD_REBOOT timers both set to 0 (zero) minutes. Hashrate Watchdog disabled, exiting'
+		exit 1
+	fi
+}
 
 function load_configuration {
 	# vars
@@ -26,27 +77,13 @@ function load_configuration {
 			if (( last_RIG_CONF_date == 0 )); then
 				log_line info "Loading & processing $RIG_CONF..."
 			else
-				log_line info "$RIG_CONF have changed since last check. Reloading & processing..."
+				log_line info "$RIG_CONF have been changed since the last check. Reloading & processing..."
 			fi
 
 			(( last_RIG_CONF_date = current_RIG_CONF_date )) # update a date
+
 			source "$RIG_CONF"
-
-			# set to 0 if empty or not defined
-			: "${WD_ENABLED:=0}"
-			: "${WD_REBOOT:=0}"
-			: "${WD_MINER:=0}"
-
-			if (( ! WD_ENABLED )); then
-				log_line warning 'Watchdog not enabled, exiting'
-				exit 0
-			fi
-
-			if (( ( ! WD_MINER ) && ( ! WD_REBOOT ) )); then
-				message warning 'Restart and reboot timers both set to 0 (zero) minutes. Hahsrate Watchdog disabled. Please configure properly' --silent
-				log_line warning 'Restart and reboot timers both set to 0 (zero) minutes. Watchdog not enabled, exiting'
-				exit 1
-			fi
+			assert_wd_parameters
 
 			minhash="$( jq --raw-output ".\"$MINER\"" <<< "$WD_MINHASHES" )"
 			if is_JSON_string_empty_or_null "$minhash"; then
@@ -90,7 +127,7 @@ function get_max_of_three_numbers {
 	fi
 }
 
-function loop {
+function kick_the_dog {
 	# consts
 	local -r -i seconds_in_24h=$(( 60 * 60 * 24 ))
 
@@ -179,12 +216,12 @@ declare -r sleep_time=20 # seconds to sleep over iteration
 declare -r OK_MESSAGE_REDUCE=$(( 1 * 60 / sleep_time )) # e.g. only every 12th message will be displayed to reduce log
 declare -r RIG_CONF='/hive-config/rig.conf'
 declare -r khs_FILE='/run/hive/khs'
-declare -r arr_FILE='/run/hive/arr' # accepted/rejected ratio file, reserved for future development
+#declare -r arr_FILE='/run/hive/arr' # accepted/rejected ratio file, reserved for future development
 
 
 # vars
 
-declare -i ok_count=0 miner_restart_count lastgood_khs lastgood_arr last_RIG_CONF_date
+declare -i ok_count=0 miner_restart_count lastgood_khs last_RIG_CONF_date
 declare minhash
 
 
@@ -200,19 +237,19 @@ set_lastgood
 
 case "$1" in
 	'run'|'start')
-		log_line ok "$script_mission, version $script_version started"
+		log_line info "$script_mission, version $script_version started"
 
 		load_configuration
 
 		while true; do
-			loop
+			kick_the_dog
 			snore "$sleep_time"
 		done
 	;;
 
 	'stop')
 		# TODO get rid of 'stop' made out of shit and sticks -- refactor to stop on SIGUSR1 or SIGSTOP
-		printf -v marker '%(%s)T-%s-%u%u' -1 "$FUNCNAME" "${RANDOM}" "${RANDOM}"
+		printf -v marker '%(%s)T-%s-%u%u' -1 "${FUNCNAME[0]}" "${RANDOM}" "${RANDOM}"
 		self="(${$}|${BASHPID})[[:space:]].+$0"
 		if ps w | grep -F -e "$0" -e "$marker" | grep -Ev -e "$marker" -e "$self" | awk '{print $1}' | xargs kill > /dev/null 2>&1; then
 			log_line warning "$script_mission, version $script_version stopped"
