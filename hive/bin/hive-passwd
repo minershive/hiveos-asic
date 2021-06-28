@@ -2,16 +2,16 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 # Linted by shellcheck 0.3.7
 #
 
 
 readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
-readonly script_version='0.2.5'
+readonly script_version='0.2.6'
 readonly script_basename="${0##*/}"
 
 
@@ -239,7 +239,12 @@ function set_antminer_web_password {
 
 	# create new lighttpd-htdigest.user file
 	if echo "$new_password_digest_string" > "$lighttpd_password_file"; then
-		echo "${GREEN-}OK${NOCOLOR-}"
+		if [[ -f /etc/init.d/lighttpd && -x /etc/init.d/lighttpd ]]; then
+			echo "${GREEN-}OK${NOCOLOR-}, let's restart the web server"
+			/etc/init.d/lighttpd force-reload
+		else
+			echo "${GREEN-}OK${NOCOLOR-}"
+		fi
 		return 0
 	else
 		echo "${BRED-}FAILED${NOCOLOR-} (something bad happened)"
@@ -304,8 +309,8 @@ function parse_arguments {
 
 # global sources
 
-[ -s /hive/bin/colors ] && source /hive/bin/colors
-source asic-model || echo 'ERROR: /hive/bin/asic-model not found'
+source /hive/bin/asic-model || echo 'ERROR: /hive/bin/asic-model not found'
+[[ -s /hive/bin/colors ]] && source /hive/bin/colors
 
 
 # global consts
