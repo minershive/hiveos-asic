@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.1.0'
+readonly script_version='1.1.1-debug'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
@@ -22,7 +22,7 @@ source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh
 
 
 # !!! bash strict mode, no unbound variables
-set -o nounset
+#set -o nounset # commented out for production bc still not tested thoroughly
 
 
 # functions
@@ -234,43 +234,52 @@ function agent_log {
 	# code
 	if ! is_screen_session_exist 'agent'; then
 		# is the agent session alive? if not -- start it
-		agent_start --quiet-ok
-		snore 1 # wait a few seconds to accumulate some data for log
+		agent_start
+		snore 2 # wait a few seconds to accumulate some data for log
 		(( function_exitcode = exitcode_OK_NOT_RUNNING_STARTED ))
 	else
 		(( function_exitcode = exitcode_OK_RUNNING ))
 	fi
 
 	# try to write to the log
-	if ! touch "$agent_log" 2> /dev/null; then
-		errcho "cannot write log to $agent_log (/tmp is read-only?)"
+	if ! touch "$agent_log_FILE" 2> /dev/null; then
+		errcho "cannot write log to $agent_log_FILE (/tmp is read-only?)"
 		return $(( exitcode_ERROR_SOMETHING_WRONG ))
+	else
+		echo '[DEBUG] log file created'
 	fi
 
 	# try to produce the log
-	if ! screen -S 'agent' -p 0 -X hardcopy -h "$agent_log"; then # > /dev/null 2>&1; then
+	if ! screen -S 'agent' -p 0 -X hardcopy -h "$agent_log_FILE"; then # > /dev/null 2>&1; then
 		errcho 'screen error (session not found?)'
 		return $(( exitcode_ERROR_SOMETHING_WRONG ))
+	else
+		echo '[DEBUG] hardcopy produced'
 	fi
 
 	# does the log exist?
-	if [[ ! -f "$agent_log" ]]; then
+	if [[ ! -f "$agent_log_FILE" ]]; then
 		errcho "screen didn't produce no log"
 		return $(( exitcode_ERROR_SOMETHING_WRONG ))
+	else
+		echo '[DEBUG] log file does exist'
 	fi
 
 	# isn't it empty? the screen can be a bit slow sometimes
-	until [[ -s "$agent_log" ]]; do
+	until [[ -s "$agent_log_FILE" ]]; do
 		if (( ++retries_counter >= empty_log_retries )); then
 			errcho "screen has been produced an empty log in $empty_log_retries retries"
-			rm "$agent_log"
+			rm "$agent_log_FILE"
 			return $(( exitcode_ERROR_SOMETHING_WRONG ))
 		fi
+		echo '[DEBUG] log file is still empty...'
 		snore 0.1 # it's pretty enough
 	done
 
-	sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log" )" # remove all leading and trailing blank lines (https://unix.stackexchange.com/questions/552188)
-	rm "$agent_log"
+	echo "[DEBUG] there are $( sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log_FILE" )" | wc -l ) non-empty lines in the log"
+
+	sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log_FILE" )" # remove all leading and trailing blank lines (https://unix.stackexchange.com/questions/552188)
+	rm "$agent_log_FILE"
 
 	return $(( function_exitcode ))
 }
@@ -278,7 +287,7 @@ function agent_log {
 
 # global consts
 
-declare -r agent_log="/tmp/agent.log"
+declare -r agent_log_FILE='/tmp/agent-hardcopy.log'
 
 
 # global enums
