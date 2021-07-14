@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.6.1'
+readonly script_version='0.6.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -337,8 +337,8 @@ fi
 HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
 
 # let's try to connect
-declare -r -i curl_initial_connect_timeout=3
-declare -r -i max_connection_attempts=15
+declare -r -i curl_initial_connect_timeout=5
+declare -r -i max_connection_attempts=30
 declare -i attempts_counter curl_connect_timeout curl_max_time
 declare attempts_message='' api_server_response_description=''
 
