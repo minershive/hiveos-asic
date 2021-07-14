@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.1.2-debug'
+readonly script_version='1.1.3-debug'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
@@ -230,8 +230,20 @@ function agent_log {
 	# vars
 	local -i retries_counter=0
 	local -i function_exitcode
+	local -i is_root_FLAG
 
 	# code
+	if [[ "$( whoami )" == 'root' ]]; then
+		is_root_FLAG=1
+	else
+		is_root_FLAG=0
+	fi
+
+	if (( ! is_root_FLAG )); then
+		errcho "not a root: cannot request a log from the rooted screen"
+		return $(( exitcode_ERROR_SOMETHING_WRONG ))
+	fi
+
 	if ! is_screen_session_exist 'agent'; then
 		# is the agent session alive? if not -- start it
 		agent_start
@@ -249,7 +261,7 @@ function agent_log {
 		echo '[DEBUG] log file created'
 	fi
 
-	# set unattached terminal width
+	# set window width -- need this in the case where this terminal hasn't been attached ever
 	if ! screen -S 'agent' -p 0 -X width 300; then # > /dev/null 2>&1; then
 		errcho 'screen error (session not found?)'
 		return $(( exitcode_ERROR_SOMETHING_WRONG ))
