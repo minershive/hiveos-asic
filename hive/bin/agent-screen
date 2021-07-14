@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.1.3-debug'
+readonly script_version='1.1.4-debug'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
@@ -193,6 +193,12 @@ function screen_stop_session {
 
 # functions: agent
 
+function is_root {
+	# ??? move to the library
+
+	[[ "$( whoami )" == 'root' ]]
+}
+
 function agent_start {
 	# args
 	local -r message_mode="${1-}"
@@ -230,20 +236,8 @@ function agent_log {
 	# vars
 	local -i retries_counter=0
 	local -i function_exitcode
-	local -i is_root_FLAG
 
 	# code
-	if [[ "$( whoami )" == 'root' ]]; then
-		is_root_FLAG=1
-	else
-		is_root_FLAG=0
-	fi
-
-	if (( ! is_root_FLAG )); then
-		errcho "not a root: cannot request a log from the rooted screen"
-		return $(( exitcode_ERROR_SOMETHING_WRONG ))
-	fi
-
 	if ! is_screen_session_exist 'agent'; then
 		# is the agent session alive? if not -- start it
 		agent_start
@@ -336,6 +330,11 @@ trap -- 'errcho "SIGTERM received, ignoring..."' SIGTERM
 
 
 # main()
+
+if ! is_root; then
+	errcho 'Not a root. Please acquire a root access first'
+	exit $(( exitcode_ERROR_SOMETHING_WRONG ))
+fi
 
 is_screen_session_exist 'agent'; (( script_exitcode = $? ))
 
