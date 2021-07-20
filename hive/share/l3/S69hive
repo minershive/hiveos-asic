@@ -1,5 +1,4 @@
 #!/bin/sh
-# shellcheck shell=dash
 
 
 #
@@ -8,6 +7,8 @@
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 # Linted by shellcheck 0.7.0
+# shellcheck shell=dash
+#
 
 
 readonly script_mission='Client for ASICs: L3 Boot & Deploy'
