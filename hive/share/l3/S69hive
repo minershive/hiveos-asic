@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: L3 Boot & Deploy'
-readonly script_version='0.1.3'
+readonly script_version='0.1.4'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
@@ -349,7 +349,7 @@ download_and_deploy_client_l3 () {
 
 			# try to download
 			echo_action "Downloading Client package from $this_url"
-			if curl --silent --fail --show-error --location --insecure "$this_url/asic/client/latest.tar.gz" --output /tmp/latest_new.tar.gz; then
+			if curl --silent --fail --show-error --location --insecure "$this_url/asic/client/latest.tar.gz" --output /tmp/latest_just_downloaded.tar.gz; then
 				echo_info 'Downloaded OK'
 			else
 				echo_error 'Download FAILED'
@@ -357,7 +357,7 @@ download_and_deploy_client_l3 () {
 			fi
 
 			echo_action 'Checking a Client package integrity'
-			if gunzip -tvf /tmp/latest_new.tar.gz > /dev/null 2>&1; then
+			if gunzip -tvf /tmp/latest_just_downloaded.tar.gz > /dev/null 2>&1; then
 				# all is good, proceed further
 				echo_info 'Integrity checked OK'
 				break
@@ -369,9 +369,8 @@ download_and_deploy_client_l3 () {
 
 		# 1.3 copy to a persistent storage
 		echo_action 'Copying a downloaded package to the persistent storage'
-		cp -rf /tmp/latest_new.tar.gz /config/latest.tar.gz; ok_or_die 'Copied OK' 'Copying FAILED'
-
-		[ -e /tmp/latest_new.tar.gz ] && rm -rf /tmp/latest_new.tar.gz
+		cp -rf /tmp/latest_just_downloaded.tar.gz /config/latest.tar.gz; ok_or_die 'Copied OK' 'Copying FAILED'
+		[ -e /tmp/latest_just_downloaded.tar.gz ] && rm -rf /tmp/latest_just_downloaded.tar.gz
 		sync
 	fi
 
@@ -403,6 +402,9 @@ readonly own_log_FILE='/tmp/.S69hive.log' # hide the log, so shell won't include
 readonly S69_ok_flag_FILE='/tmp/.hive-S69-ok'
 readonly S69_reenter_flag_FILE='/tmp/.hive-S69-reenter'
 readonly end_of_package_FILE='/config/hive/hive/share/zzz/EOF'
+#
+readonly current_S69_FILE='/etc/rcS.d/S69hive'
+readonly updated_S69_FILE='/config/hive/hive/share/l3/S69hive'
 
 
 # global flags
@@ -421,11 +423,12 @@ set_all_outputs_to_log # [ ! -t 1 ] check doesn't work, hmm
 echo_action "$script_mission $script_version started"
 
 # check for a newer version of this very script
-if [ -s /config/hive/hive/share/l3/S69hive ] && ! cmp -s /etc/rcS.d/S69hive /config/hive/hive/share/l3/S69hive; then
-	echo_action '/etc/rcS.d/S69hive is outdated, updating'
+if [ -x "$updated_S69_FILE" ] && ! cmp -s "$updated_S69_FILE" "$current_S69_FILE"; then
+	echo_action "$current_S69_FILE is outdated, replacing with $updated_S69_FILE"
 	touch "$S69_reenter_flag_FILE"
-	cp -rf /config/hive/hive/share/l3/S69hive /etc/rcS.d/S69hive
-	( /config/hive/hive/share/l3/S69hive "$@" & )
+	cp -rf "$updated_S69_FILE" "$current_S69_FILE"
+	restore_all_outputs_to_default
+	( "$updated_S69_FILE" "$@" & )
 	exit 0
 fi
 
