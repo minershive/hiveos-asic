@@ -2,16 +2,17 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0
+# shellcheck shell=ash
 #
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.17.4'
+readonly script_version='0.17.5'
 readonly script_basename="${0##*/}"
 
 
@@ -284,12 +285,9 @@ die () {
 #
 
 is_curl_available () {
+	# shellcheck disable=SC2230
+	# bc we don't have command -v in some embedded shells (surprise!)
 	which curl > /dev/null
-
-#	case "$ASIC_MODEL" in
-#		'Zig Z1' | 'Zig Z1+')	false	;; # 'Toddminer C1' removed
-#		*)						true	;;
-#	esac
 }
 
 download_from_URL_to_file () {
@@ -477,7 +475,7 @@ goto_temp_dir () {
 
 	existing_temp_dir="$( df -h | grep -F '/tmp' | awk '{print $NF}' )" # find an existing temp dir
 	[ -n "$existing_temp_dir" ] && temp_dir="$existing_temp_dir"
-	cd "$temp_dir"
+	cd "$temp_dir" || die "cannot change directory to $temp_dir, exiting"
 }
 
 remove_needless_files () {
@@ -556,10 +554,12 @@ wait_for_file () { # OBSOLETE, NOT USED ANYMORE
 		else
 			waiting_time=$(( timeout_in_seconds - countdown ))
 			message="We have to wait ${countdown}s for '${file_to_wait}'... "
-			if [ $(( waiting_time % print_message_every )) -eq 0 -a ! -t 1 ]; then
-				echo_action "$message" # print every 30s -- if file not found yet and no terminal connected
-			elif [ $(( waiting_time % 5 )) -eq 0 -a -t 1 ]; then
-				echo -e -n "\r${GRAY}${script_basename}>${NOCOLOR} ${message}..." # print every step on the same line -- if file not found yet and terminal connected
+			if [ $(( waiting_time % print_message_every )) -eq 0 ] && [ ! -t 1 ]; then
+				# print every 30s -- if file not found yet and no terminal connected
+				echo_action "$message"
+			elif [ $(( waiting_time % 5 )) -eq 0 ] && [ -t 1 ]; then
+				# print every step on the same line -- if file not found yet and terminal connected
+				echo -e -n "\r${GRAY}${script_basename}>${NOCOLOR} ${message}..."
 			fi
 			: $(( countdown -= 1 ))
 			sleep "$sleep_interval_in_seconds"
@@ -729,12 +729,13 @@ install_antminer_bmminer () {
 	cp -rf /hive/share/S9/S69hive /etc/rcS.d/
 	cp -rf /hive/share/S9/.profile /home/root/
 
-	/hive/bin/hive
+	echo_action 'Booting The Client'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
 
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 }
 
 install_antminer_cgminer () {
@@ -762,8 +763,9 @@ install_antminer_cgminer () {
 	fi
 
 	if grep -Fq '### HIVE AUTORUN ###' /config/network.conf || grep -Fq 'ln -s /config/hive/hive/ /hive' /config/network.conf || [ -n "$HIVEON_VERSION" ]; then
-		echo_info '/config/network.conf skipped'
+		echo_info 'Hiveon firmware found, /config/network.conf tampering skipped'
 	else
+		echo_info 'No Hiveon firmware found, injecting autorun into /config/network.conf'
 		cat >> /config/network.conf <<-FILEEOF
 
 			### HIVE AUTORUN ###
@@ -771,7 +773,9 @@ install_antminer_cgminer () {
 		FILEEOF
 	fi
 	cp -rf /hive/bin/hive_autorun /config/hive_autorun
-	/hive/bin/hive
+
+	echo_action 'Booting The Client'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
 
 	#on cgminer's antminer no cron daemon, run tasks in background
 # legacy cron imitation
@@ -782,7 +786,7 @@ install_antminer_cgminer () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 }
 
 install_antminer_Z9_cgminer () {
@@ -828,7 +832,9 @@ install_antminer_Z9_cgminer () {
 		FILEEOF
 	fi
 	cp -rf /hive/bin/hive_autorun /config/hive_autorun
-	/hive/bin/hive
+
+	echo_action 'Booting The Client'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
 
 	#on cgminer's antminer no cron daemon, run tasks in background
 # legacy cron imitation
@@ -839,7 +845,7 @@ install_antminer_Z9_cgminer () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 }
 
 install_innosilicon () {
@@ -891,7 +897,7 @@ install_innosilicon () {
 	nohup sync && sleep 600 && mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs / &
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 	systemctl start hive.service
 }
 
@@ -944,7 +950,7 @@ install_dragonMint () {
 	nohup sync && sleep 600 && mount -o remount,ro,relatime -t ubifs ubi0:rootfs / &
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 	systemctl start hive.service
 }
 
@@ -1008,9 +1014,11 @@ install_innosilicon_innominer () {
 	sleep 5
 	mount -o remount,ro,relatime -t jffs2 /dev/root /
 
-	/hive/bin/hive
+	echo_action 'Booting The Client'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
+
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 }
 
 install_zig () {
@@ -1036,12 +1044,13 @@ install_zig () {
 	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
-	/hive/bin/hive
+	echo_action 'Booting The Client'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
 
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 }
 
 install_todd () {
@@ -1066,12 +1075,13 @@ install_todd () {
 	esac
 	export LD_LIBRARY_PATH=/hive/lib
 
-	/hive/bin/hive
+	echo_action 'Booting The Client'
+	/hive/bin/hive > /tmp/client-boot.log 2>&1
 
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	bash -c "/hive/bin/firstrun $FARM_HASH"
+	/hive/bin/firstrun $FARM_HASH
 }
 
 install_antminer_bmminer_ro () {
@@ -1118,13 +1128,13 @@ install_antminer_bmminer_ro () {
 	#/etc/rcS.d/S69hive
 	# actually we don't need S69hive, let's boot Client directly:
 
-	echo_action 'Booting The Client'
-
 	if [ -n "$FARM_HASH" ]; then
 		# FARM_HASH could be defined externaly or by command-line option
-		/hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
+		/hive/bin/firstrun $FARM_HASH
 		remove_needless_files "${FARM_HASH_file:-SAFE}"
 	fi
+
+	echo_action 'Booting The Client'
 	/hive/bin/hive > /tmp/client-boot.log 2>&1
 }
 
@@ -1516,16 +1526,14 @@ exit_if_no_repository_available () {
 
 delayed_agent_screen_restart () {
 	echo_action 'Deploying delayed agent restart'
-	nohup sh -x -c '
-		trap -- "echo SIGEXIT received" EXIT
-		trap -- "echo SIGINT received" INT
-		trap -- "echo SIGHUP received" HUP
-		echo "> Sleeping 5s..."
-		sleep 5
-		agent-screen restart
-		echo "Done"' > /dev/null 2>&1 &
 
-	# delete a file created by legacy selfupgrade
+	(
+		trap -- '' INT HUP # allow a child to inherit disabled signals
+		sleep 5
+		/hive/bin/agent-screen restart &
+	) < /dev/null > /dev/null 2>&1
+
+	# delete a file created by a legacy selfupgrade
 	remove_needless_files '/tmp/selfupgrade-agent-screen-restart.log'
 }
 
@@ -1636,12 +1644,6 @@ remove_needless_files \
 	"${NVRAM_path:-SAFE}/nohup.out" # gosh, never be too careful
 
 execute_install_routine
-
-# ??? @Pasha_49 do we still need this?
-#Don't restart it...
-#echo -e '> Saying hello to server again'
-#hello restartminer
-
 remove_needless_files "${temp_dir:-SAFE}/hiveos-asic-*"
 delayed_agent_screen_restart
 
