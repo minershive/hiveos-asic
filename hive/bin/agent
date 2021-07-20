@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.8'
+readonly script_version='0.8.9'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1671,7 +1671,12 @@ function sleep_with_progress_bar {
 }
 
 
-# consts
+# global traps
+
+trap -- 'errcho "SIGHUP received, ignoring..."' SIGHUP
+
+
+# global consts
 
 # paths to conf files
 declare -r RIG_CONF='/hive-config/rig.conf'
@@ -1692,7 +1697,7 @@ declare -r -i miner_API_port=4028
 declare -r -i push_interval_DEFAULT=10
 
 
-# vars
+# global vars
 
 declare MINER='asicminer'
 declare total_khs system_status stats
@@ -1709,7 +1714,7 @@ declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_UR
 declare -i saved_RIG_CONF_last_updated_time=0 saved_WALLET_CONF_last_updated_time=0
 
 
-# flags
+# global flags
 
 declare -i https_disabled_message_sent_FLAG=0 skip_the_sleep_FLAG=0
 
