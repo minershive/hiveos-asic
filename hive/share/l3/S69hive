@@ -12,12 +12,12 @@
 
 
 readonly script_mission='Client for ASICs: L3 Boot & Deploy'
-readonly script_version='0.1.2-debug'
+readonly script_version='0.1.3'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
 
-# functions BEGIN
+# functions
 
 print_script_version () {
 	echo "${script_mission}, version ${script_version}"
@@ -84,6 +84,21 @@ restore_all_outputs_to_default () {
 	# restore stdout and stderr, see set_all_outputs_to_log()
 	echo_debug 'stdout/stderr redirection reset to default'
 	exec 1>&3 2>&4
+}
+
+get_full_client_version () {
+	# vars
+	local client_release_version
+	local client_release_version_FILE='/hive/etc/VERSION'
+	local client_build_version
+	local client_build_version_FILE='/hive/etc/build'
+
+	# code
+	[ -s "$client_release_version_FILE"	] && client_release_version="$( cat "$client_release_version_FILE" )"
+	[ -s "$client_build_version_FILE"	] && client_build_version="$( cat "$client_build_version_FILE" )"
+
+	# code
+	echo "${client_release_version:-undefined}-${client_build_version:-undefined}"
 }
 
 get_random_number_between () {
@@ -445,7 +460,7 @@ prepare_to_boot_client_l3
 echo_action 'Checking FARM_HASH'
 farmhash_processing
 
-echo_action 'Booting'
+echo_action "Booting $( get_full_client_version )"
 #restore_all_outputs_to_default
 touch "$S69_ok_flag_FILE" # set OK flag file
 
