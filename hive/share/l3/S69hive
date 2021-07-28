@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: L3 Boot & Deploy'
-readonly script_version='0.1.4'
+readonly script_version='0.1.5'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
@@ -232,6 +232,16 @@ clean_up_files () {
 	done
 }
 
+is_client_installed () {
+	#
+	# a huge cut-cornering to check the client is in the place
+	# actually it's a temporary (an inline joke for the fellow IT archaeologists) stub
+	# the right way to do that is one and only 'md5sum -c FILE'
+	#
+	[ -s "$end_of_package_FILE" ]
+}
+
+
 farmhash_processing () {
 	# $FARM_HASH can be defined externally
 	# TODO should we move this functionality to hello? bc we don't have a sufficiently good context before /hive/bin/hive -- like no failover DNSes
@@ -261,10 +271,6 @@ prepare_to_boot_client_l3 () {
 }
 
 download_and_deploy_client_l3 () {
-	# consts
-	local download_server_url_default='http://download.hiveos.farm'
-	local download_server_url_failover='http://download2.hiveos.farm'
-
 	# vars
 	local download_server_url_from_special_file
 	local url_collection url_collection_size url_collection_iterator
@@ -275,7 +281,7 @@ download_and_deploy_client_l3 () {
 	cd /tmp || die 'Cannot cd to /tmp'
 
 	# 1. download a tarball, if: argument is set OR /config/latest.tar.gz not exists OR exists but failed to extract
-	if [ "$1" = '--force-download' ] || ! gunzip -tvf /config/latest.tar.gz >/dev/null 2>&1; then
+	if [ "$1" = '--force-download' ] || ! gunzip -tvf "$persistent_package_FILE" > /dev/null 2>&1; then
 
 		# 1.1 assemble the collection of URLs
 
@@ -349,7 +355,7 @@ download_and_deploy_client_l3 () {
 
 			# try to download
 			echo_action "Downloading Client package from $this_url"
-			if curl --silent --fail --show-error --location --insecure "$this_url/asic/client/latest.tar.gz" --output /tmp/latest_just_downloaded.tar.gz; then
+			if curl --silent --fail --show-error --location --insecure "${this_url}${package_url_path}" --output "$just_downloaded_package_FILE"; then
 				echo_info 'Downloaded OK'
 			else
 				echo_error 'Download FAILED'
@@ -357,7 +363,7 @@ download_and_deploy_client_l3 () {
 			fi
 
 			echo_action 'Checking a Client package integrity'
-			if gunzip -tvf /tmp/latest_just_downloaded.tar.gz > /dev/null 2>&1; then
+			if gunzip -tvf "$just_downloaded_package_FILE" > /dev/null 2>&1; then
 				# all is good, proceed further
 				echo_info 'Integrity checked OK'
 				break
@@ -369,15 +375,15 @@ download_and_deploy_client_l3 () {
 
 		# 1.3 copy to a persistent storage
 		echo_action 'Copying a downloaded package to the persistent storage'
-		cp -rf /tmp/latest_just_downloaded.tar.gz /config/latest.tar.gz; ok_or_die 'Copied OK' 'Copying FAILED'
-		[ -e /tmp/latest_just_downloaded.tar.gz ] && rm -rf /tmp/latest_just_downloaded.tar.gz
+		cp -rf "$just_downloaded_package_FILE" "$persistent_package_FILE"; ok_or_die 'Copied OK' 'Copying FAILED'
+		[ -e "$just_downloaded_package_FILE" ] && rm -rf "$just_downloaded_package_FILE" # usually we don't have much space in /tmp
 		sync
 	fi
 
 	# 2. extract
 	echo_action 'Extracting Client files from the package to the temporary directory'
 	[ ! -d /config/hive ] && mkdir -p /config/hive/hive-config
-	tar -xzv -f /config/latest.tar.gz > /dev/null; ok_or_die 'Extracted OK' 'Extracting FAILED'
+	tar -xzv -f "$persistent_package_FILE" > /dev/null; ok_or_die 'Extracted OK' 'Extracting FAILED'
 
 	[ -L /hive ] && rm /hive
 
@@ -387,13 +393,15 @@ download_and_deploy_client_l3 () {
 	echo_action 'Deleting temporary files'
 	rm -rf /tmp/hiveos-asic*
 
+	sync
 	sleep 2 # settling the dust
 }
 
 
 # global traps
 
-trap -- '' HUP INT # any child process will inherit only disabled traps (enabled ones will be reset to default)
+trap -- '' HUP INT	# any child process will inherit only disabled traps (enabled ones will be reset to default)
+					# ash/dash-specific, doesn't apply to bash
 
 
 # global consts
@@ -405,6 +413,13 @@ readonly end_of_package_FILE='/config/hive/hive/share/zzz/EOF'
 #
 readonly current_S69_FILE='/etc/rcS.d/S69hive'
 readonly updated_S69_FILE='/config/hive/hive/share/l3/S69hive'
+#
+readonly persistent_package_FILE='/config/latest.tar.gz'
+readonly just_downloaded_package_FILE='/tmp/latest_just_downloaded.tar.gz'
+#
+readonly download_server_url_default='http://download.hiveos.farm'
+readonly download_server_url_failover='http://download2.hiveos.farm'
+readonly package_url_path='/asic/client/latest.tar.gz'
 
 
 # global flags
@@ -427,8 +442,11 @@ if [ -x "$updated_S69_FILE" ] && ! cmp -s "$updated_S69_FILE" "$current_S69_FILE
 	echo_action "$current_S69_FILE is outdated, replacing with $updated_S69_FILE"
 	touch "$S69_reenter_flag_FILE"
 	cp -rf "$updated_S69_FILE" "$current_S69_FILE"
+
 	restore_all_outputs_to_default
-	( "$updated_S69_FILE" "$@" & )
+	set_all_outputs_to_log # switch to the append mode
+	( "$updated_S69_FILE" "$@" & ) # double-fork a newer version
+
 	exit 0
 fi
 
@@ -447,7 +465,7 @@ if [ "$executed_by_rc_FLAG" -eq 1 ]; then
 	echo_info "Started by rc (cmdline: $pretty_formatted_cmdline), output logged to $own_log_FILE"
 fi
 
-if [ ! -s "$end_of_package_FILE" ]; then
+if ! is_client_installed; then
 	echo_action 'Installed Client has not been found, checking the package'
 	download_and_deploy_client_l3
 elif [ "$force_download_FLAG" -eq 1 ]; then
