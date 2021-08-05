@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.2'
+readonly script_version='0.2.3'
 readonly script_basename="${0##*/}"
 
 
@@ -330,8 +330,9 @@ nohup /hive/bin/controller >> "$controller_log" 2>&1 & disown # disown is esp. f
 #miner start
 
 
-echo_x action 'Starting averager'
-averager restart
+# averager service is turned out temporarily, as of August 2021
+#echo_x action 'Starting averager'
+#averager restart
 
 
 echo_x action 'Generating miner config'

@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.9'
+readonly script_version='0.8.10'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1128,7 +1128,7 @@ function fetch_stats_and_push_them_to_server {
 	cpuavg="$( get_loadavg_as_json_array )"
 	df="$( get_diskfree_as_string )"
 	last_cmd_id="$( get_saved_last_cmd_id )"
-	avg_khs="$( get_avg_khs_as_json )"
+#	avg_khs="$( get_avg_khs_as_json )" # averager service is turned out temporarily, as of August 2021
 
 	# construct a request
 	request="$(
