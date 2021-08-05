@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.3'
+readonly script_version='0.2.4'
 readonly script_basename="${0##*/}"
 
 
@@ -331,6 +331,7 @@ nohup /hive/bin/controller >> "$controller_log" 2>&1 & disown # disown is esp. f
 
 
 # averager service is turned out temporarily, as of August 2021
+averager stop
 #echo_x action 'Starting averager'
 #averager restart
 
