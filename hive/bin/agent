@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.10'
+readonly script_version='0.8.11'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1593,7 +1593,7 @@ function do_command {
 				wd start &
 
 				message ok 'Rig config changed' --id="$cmd_id" --silent
-				#[[ $? -eq 0 ]] && message ok 'Wallet changed, miner restarted' --id=$cmd_id || message warn "Error restarting miner" --id=$cmd_id
+				#[[ $? -eq 0 ]] && message ok 'Wallet changed, miner restarted' --id=$cmd_id || message warning "Error restarting miner" --id=$cmd_id
 				sync
 			else
 				message error 'No rig "config" given' --id="$cmd_id" --silent
@@ -1612,7 +1612,7 @@ function do_command {
 				if (( $? == 0 )); then
 					message ok 'Wallet changed, miner restarted' --id="$cmd_id" --silent
 				else
-					message warn 'Error restarting miner' --id="$cmd_id" --silent
+					message warning 'Error restarting miner' --id="$cmd_id" --silent
 				fi
 			else
 				message error 'No "wallet" config given' --id="$cmd_id" --silent
@@ -1630,7 +1630,7 @@ function do_command {
 				if (( $? == 0 )); then
 					message ok 'ASIC config changed, miner restarted' --id="$cmd_id" --silent
 				else
-					message warn 'Error restarting miner' --id="$cmd_id" --silent
+					message warning 'Error restarting miner' --id="$cmd_id" --silent
 				fi
 			else
 				message error 'No "asic" config given' --id="$cmd_id" --silent
@@ -1639,6 +1639,11 @@ function do_command {
 
 
 		*)
+			if [[ -n "$body" ]]; then
+				message warning "Unknown command '$command' received" --payload --id="$cmd_id" --silent < <( jq '.' <<< "$body" )
+			else
+				message warning "Unknown command '$command' received" --id="$cmd_id" --silent
+			fi
 			log_line error "Unknown command received: '$command'"
 		;;
 
