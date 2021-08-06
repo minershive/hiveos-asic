@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.6.2'
+readonly script_version='0.6.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -52,7 +52,7 @@ function print_script_usage {
 	echo -e '  Supported templates in the text:'
 	echo
 	echo -e "    %BUILD%, %FW%, %HOSTNAME%, %IP%, %MAC%, %PROFILE%, %URL%, %WORKER_NAME%, %WORKER_NAME_RAW%"
-	echo -e "    Also you can append a suffix _SAFE or _SAFEST to the templae to sanitize an expanded template content, f.e. %MAC_SAFE%"
+	echo -e "    Also you can append a suffix _SAFE or _SAFEST to the template to sanitize an expanded template content, f.e. %MAC_SAFE%"
 	echo
 }
 
