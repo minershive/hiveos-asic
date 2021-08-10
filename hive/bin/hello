@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Say hello to the server'
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.5.2'
+readonly script_version='0.6.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -283,7 +283,7 @@ function get_ip_as_string {
 	local ip_address
 
 	# code
-	if [[ "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
+	if [[ "$ASIC_MODEL" == 'Toddminer C1'* || "$ASIC_MODEL" == 'Avalon'* ]]; then
 		ip_address="$( ifconfig eth0 | grep 'inet ' | awk '{ print $2 }' )"
 	else
 		# legacy method
@@ -478,6 +478,9 @@ function get_asic_json {
 		'Toddminer C1 PRO'		)
 			asic_json="$( /home/sm/miner/build/cpuminer -V | head -n 1 | awk '{ print $4}' |
 							jq_raw_input_then_slurp -						'{"firmware": .[0], "model": "Toddminer C1 PRO", "logic_version": .[0]}'		)";;
+		'Avalon'*				)
+			asic_json="$( hostname |
+							 jq_raw_input_then_slurp -						'{"firmware": .[0], "model": "Avalon AV8-0", "logic_version": "Avalon AV8-0"}'	)";;
 	esac
 
 	echo "$asic_json"
