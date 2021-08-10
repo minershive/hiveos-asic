@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.5.0'
+library_version='1.4.3'
 library_basename="${0##*/}"
 
 
@@ -93,12 +93,6 @@ assign_ASIC_MANUFACTURER_and_ASIC_MODEL_constants () {
 			ASIC_MODEL="$ASIC_MODEL PRO"
 		fi
 	fi
-
-	# Avalon
-	if [ -d /home/pi ]; then
-		ASIC_MANUFACTURER='Canaan'
-		ASIC_MODEL='Avalon AV8-0'
-	fi
 }
 
 assign_ASIC_CUSTOM_FW_constants () {
@@ -109,7 +103,7 @@ assign_ASIC_CUSTOM_FW_constants () {
 
 	# consts
 	local ASIC_CUSTOM_FW_BRAND_default='Hiveon'
-
+	
 	# global vars, defaults
 	ASIC_CUSTOM_FW_VERSION=''								# default: '', no custom fw
 	ASIC_CUSTOM_FW_VERSION_RAW=''							# default: '', no custom fw
@@ -473,14 +467,6 @@ function assign_model_specific_constants {
 			ASIC_CHAIN_COUNT=4
 		;;
 
-		'Avalon'* )
-			ASIC_ALGO='sha256'
-			ASIC_MINER_NAME='cgminer'
-			ASIC_MINER_CONFIG_FILE='/config/cgminer.conf.hive'
-			ASIC_CHAIN_HASHRATE_UNITS='mhs'
-			ASIC_CHAIN_COUNT=4
-		;;
-
 		'Toddminer C1'* )
 			ASIC_ALGO='eaglesong'
 			ASIC_MINER_NAME='cpuminer'
@@ -535,7 +521,7 @@ if ! ( return 0 2>/dev/null ); then
 	# shellcheck disable=SC2034
 	script_basename="$library_basename"
 
-	source /hive/bin/colors
+	source colors
 
 	#function print_script_version {
 		echo -e "${YELLOW-}${script_mission}, version ${script_version}${NOCOLOR-}"
