@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.4'
+readonly script_version='0.2.5'
 readonly script_basename="${0##*/}"
 
 
@@ -253,7 +253,8 @@ fi
 
 # [TEST] enable MTU autodetect
 echo_x action 'Enabling Path MTU Discovery'
-echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing
+echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing # man 7 tcp: 1 Disabled by default, enabled when an ICMP black hole detected
+echo '1024' > /proc/sys/net/ipv4/tcp_base_mss # bumps the starting MSS used in discovery from a miserable default of 512 bytes to an RFC4821 suggested 1,024 (c) Cloudflare blog
 
 
 # [TEST] disable avahi-daemon
