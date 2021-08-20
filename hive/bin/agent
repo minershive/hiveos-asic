@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.11'
+readonly script_version='0.8.12'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1072,6 +1072,7 @@ function fetch_stats_and_push_them_to_server {
 	local PUSH_INTERVAL custom_interval_message
 	local cpuavg df last_cmd_id avg_khs
 	local -i current_RIG_CONF_last_updated_time=0 current_WALLET_CONF_last_updated_time=0
+	local comm_quality_percentage_pseudo_float
 
 	# code
 	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
@@ -1113,8 +1114,12 @@ function fetch_stats_and_push_them_to_server {
 	[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
 
 	# let's send stats even if no FS applied
-	[[ -z "$MINER" || "$MINER" == 'claymore' ]] && MINER='asicminer'
-	[[ -z "$META" ]] && META='{"asicminer":{"coin":"N/A"}}'
+	if [[ -z "$MINER" || "$MINER" == 'claymore' ]]; then
+		MINER='asicminer'
+	fi
+	if [[ -z "$META" ]]; then
+		META='{"asicminer":{"coin":"N/A"}}'
+	fi
 
 	log_line info "${custom_interval_message}Collecting stats from ${WHITE}${MINER}${NOCOLOR} API..."
 
@@ -1212,10 +1217,18 @@ function fetch_stats_and_push_them_to_server {
 	local -i curl_connect_timeout=5 curl_max_time=7 # a somewhat shorter timeouts for the first attempt
 	local -i attempts_counter=1
 	for this_URL in "${HIVE_URL_collection[@]}"; do
+		(( push_total_counter++ ))
 		if [[ "$HIVE_URL" != *'hiveos.farm'* && "$this_URL" == *'hiveos.farm'* ]]; then
 			log_line warning "Whitelabel HIVE_HOST_URL detected, sending stats to ${this_URL} skipped..."
 			break
 		fi
+
+		# calculate and show upstream communication quality
+		if (( push_bad_counter > 0 )); then
+			comm_quality_percentage_pseudo_float="$( calculate_comm_quality "$push_bad_counter" "$push_total_counter" )"
+			log_line debug "Upstream communication quality ${comm_quality_percentage_pseudo_float}% ($push_bad_counter unsuccessful out of $push_total_counter)"
+		fi
+
 		if (( attempts_counter == 1 )); then
 			log_line info "Sending stats (${#request} bytes) to ${this_URL}..."
 		else
@@ -1237,6 +1250,7 @@ function fetch_stats_and_push_them_to_server {
 		time_wasted_sending_stats_in_s="$( get_time_difference_in_s $(( time_start_sending_stats )) )"
 
 		if (( curl_exitcode )); then
+			(( push_bad_counter++ ))
 			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
 			# shellcheck disable=SC2005
 			echo "$( < "$latest_curl_log" )"
@@ -1338,6 +1352,7 @@ function fetch_stats_and_push_them_to_server {
 }
 
 function backslash {
+	# NOT USED ATM
 	local var="${1//\\/\\\\}"
 	var="${var//\"/\\\"}"
 	var="${var//\`/\\\`}"
@@ -1675,6 +1690,49 @@ function sleep_with_progress_bar {
 	printf '\r%*s\n' "$seconds_to_sleep" # clear the line and then \n
 }
 
+function div_x1000 {
+	#
+	# a simple integer division with round (https://stackoverflow.com/a/59414940/12559612), 1000x precision
+	#
+	# Usage: div 'item' 'total' -> result * 1000
+	#
+
+	# args
+	local -r -i item="${1-}"
+	local -r -i total="${2-}"
+
+	# consts
+	local -r -i item_x1000=$(( item * 1000 ))
+	local -r -i total_x1000=$(( total * 1000 ))
+
+	# code
+	echo $(( 2 * item_x1000 / total_x1000 - item_x1000 / total_x1000 ))
+}
+
+function calculate_quality {
+	#
+	# calculate a quality in percent from 'bad' and 'total' counters
+	# result in fake decimal-points: nn.nn
+	#
+	# Usage: calculate_quality 'bad_counter' 'total_counter'
+	#
+
+	# args
+	local -r -i bad_counter="${1-}"
+	local -r -i total_counter="${2-}"
+
+	# vars
+	local -i bad_percentage_x1000 quality_percentage_x1000
+	local quality_percentage_fake_decimal
+
+	# code
+	bad_percentage_x1000="$( div_x1000 $(( 100 * bad_counter )) "$total_counter" )"
+	(( quality_percentage_x1000 = 100000 - bad_percentage_x1000 ))
+	quality_percentage_fake_decimal="$( milliseconds_to_seconds "$quality_percentage_x1000" )"
+
+	echo "$quality_percentage_fake_decimal"
+}
+
 
 # global traps
 
@@ -1708,6 +1766,7 @@ declare MINER='asicminer'
 declare total_khs system_status stats
 declare -i INTERVAL=push_interval_DEFAULT
 declare -i time_wasted_general time_remaining_general
+declare -i push_total_counter=0 push_bad_counter=0
 declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
 	[2]='http://api.hiveos.farm'
 	[3]='http://paris.hiveos.farm'

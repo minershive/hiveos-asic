@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.17.5'
+readonly script_version='0.18.0'
 readonly script_basename="${0##*/}"
 
 
@@ -685,6 +685,10 @@ execute_install_routine () {
 
 		'Blackminer F1'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_cgminer'		;;
 
+		# Avalon
+
+		'Avalon'*)				echo "$ASIC_MODEL"			;	do_install_for 'avalon'					;;
+
 		# unknown
 
 		*)
@@ -735,7 +739,7 @@ install_antminer_bmminer () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 }
 
 install_antminer_cgminer () {
@@ -786,7 +790,7 @@ install_antminer_cgminer () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 }
 
 install_antminer_Z9_cgminer () {
@@ -845,7 +849,7 @@ install_antminer_Z9_cgminer () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 }
 
 install_innosilicon () {
@@ -897,7 +901,7 @@ install_innosilicon () {
 	nohup sync && sleep 600 && mount -o remount,ro,relatime,ubi=0,vol=0 -t ubifs ubi0:rootfs / &
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 	systemctl start hive.service
 }
 
@@ -950,10 +954,9 @@ install_dragonMint () {
 	nohup sync && sleep 600 && mount -o remount,ro,relatime -t ubifs ubi0:rootfs / &
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 	systemctl start hive.service
 }
-
 
 install_innosilicon_innominer () {
 	#
@@ -1018,7 +1021,7 @@ install_innosilicon_innominer () {
 	/hive/bin/hive > /tmp/client-boot.log 2>&1
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 }
 
 install_zig () {
@@ -1050,7 +1053,7 @@ install_zig () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 }
 
 install_todd () {
@@ -1081,7 +1084,7 @@ install_todd () {
 	sleep 2
 
 	# FARM_HASH could be defined externaly or by command-line option
-	/hive/bin/firstrun $FARM_HASH
+	/hive/bin/firstrun "$FARM_HASH"
 }
 
 install_antminer_bmminer_ro () {
@@ -1128,14 +1131,65 @@ install_antminer_bmminer_ro () {
 	#/etc/rcS.d/S69hive
 	# actually we don't need S69hive, let's boot Client directly:
 
+	echo_action 'Booting The Client'
+
 	if [ -n "$FARM_HASH" ]; then
 		# FARM_HASH could be defined externaly or by command-line option
-		/hive/bin/firstrun $FARM_HASH
+		/hive/bin/firstrun "$FARM_HASH"
 		remove_needless_files "${FARM_HASH_file:-SAFE}"
 	fi
-
-	echo_action 'Booting The Client'
 	/hive/bin/hive > /tmp/client-boot.log 2>&1
+}
+
+install_avalon () {
+	#
+	#
+	#
+
+	[ ! -d /config/hive ]	&& mkdir -p /config/hive
+	[ ! -d /hive ]			&& mkdir /hive
+
+	### untar was right here
+
+	echo_action 'Copying'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive-config" /config/hive/						|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/bin" /config/hive/							|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/etc" /config/hive/							|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/sbin" /hive/									|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/lib" /hive/									|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh		|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/avalon/"* /etc/systemd/system/	|| die 'Copy error'
+
+	sleep 2
+
+	case "$PATH" in
+		*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
+		*)							export PATH="$PATH:/hive/bin:/hive/sbin"	;;
+	esac
+	export LD_LIBRARY_PATH=/hive/lib
+
+	[ ! -L /hive/bin ]		&& [ ! -e /hive/bin ]		&& ln -s /config/hive/bin /hive/bin
+	[ ! -L /hive/etc ]		&& [ ! -e /hive/etc ]		&& ln -s /config/hive/etc /hive/etc
+	[ ! -L /hive-config ]	&& [ ! -e /hive-config ]	&& ln -s /config/hive/hive-config/ /hive-config
+
+	apt update
+	apt install -y curl screen jq
+
+	#systemd autorun and cron
+	systemctl daemon-reload
+	systemctl is-enabled hive.service > /dev/null
+	[ $? -eq 1 ] && systemctl enable hive.service
+	systemctl start hive.service
+	systemctl is-enabled hive-agent-screen.timer > /dev/null
+	[ $? -eq 1 ] && systemctl enable hive-agent-screen.timer
+	systemctl start hive-agent-screen.timer
+#	systemctl is-enabled hive-cache-ip.timer > /dev/null
+#	[ $? -eq 1 ] && systemctl enable hive-cache-ip.timer
+#	systemctl start hive-cache-ip.timer
+
+	# FARM_HASH could be defined externaly or by command-line option
+	/hive/bin/firstrun "$FARM_HASH"
+	systemctl start hive.service
 }
 
 
@@ -1204,6 +1258,12 @@ set_ASIC_MANUFACTURER_and_ASIC_MODEL_variables () {
 		if /home/sm/miner/build/cpuminer -V | head -1 | grep -Fq 'pro'; then
 			ASIC_MODEL="$ASIC_MODEL PRO"
 		fi
+	fi
+
+	# Canaan Avalon
+	if [ -d /home/pi ]; then
+		ASIC_MANUFACTURER='Canaan'
+		ASIC_MODEL='Avalon AV8-0'
 	fi
 }
 
