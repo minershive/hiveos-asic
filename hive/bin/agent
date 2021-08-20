@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.13'
+readonly script_version='0.8.14'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1065,6 +1065,9 @@ function get_avg_khs_as_json {
 }
 
 function fetch_stats_and_push_them_to_server {
+	# arrays
+	local -a latest_curl_log_as_array=()
+
 	# vars
 	local -i curl_exitcode
 	local -i time_start_collecting_stats time_start_sending_stats
@@ -1249,12 +1252,19 @@ function fetch_stats_and_push_them_to_server {
 		curl_exitcode=$?
 		time_wasted_sending_stats_in_s="$( get_time_difference_in_s $(( time_start_sending_stats )) )"
 
-		if (( curl_exitcode )); then
+		if (( curl_exitcode > 0 )); then
 			(( push_bad_counter++ ))
 			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
-			# shellcheck disable=SC2005
-			echo "$( < "$latest_curl_log" )"
-			# bc it's a pure bash cat emulation
+
+			if [[ -s "$latest_curl_log" ]]; then
+				# pretty-print the log with indentation
+				readarray -t latest_curl_log_as_array < "$latest_curl_log"
+				printf '%b' "${DGRAY-}"
+				#       yyyy-mm-dd
+				printf '           %s\n' "${latest_curl_log_as_array[@]}"
+				printf '%b' "${NOCOLOR-}"
+			fi
+
 			sleep_with_progress_bar 1
 		else
 			break
