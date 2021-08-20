@@ -1,0 +1,9 @@
+[Unit]
+Description=Execute restart-cgminer-cron every day
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Unit=restart-cgminer-cron.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Execute restart-asic-cron every day
+
+[Timer]
+OnCalendar=*-*-* 10:00:00
+Unit=restart-asic-cron.service
+
+[Install]
+WantedBy=multi-user.target

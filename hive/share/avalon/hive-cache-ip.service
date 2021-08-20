@@ -1,0 +1,11 @@
+[Unit]
+Description=hive-cache-ip
+Requires=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/hive/bin/cache-hive-ip
+Environment="LD_LIBRARY_PATH=/hive/lib"
+
+[Install]
+WantedBy=multi-user.target

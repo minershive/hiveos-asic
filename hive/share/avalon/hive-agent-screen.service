@@ -1,0 +1,12 @@
+[Unit]
+Description=agent-screen
+Requires=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/hive/bin/agent-screen dontattach
+Environment="LD_LIBRARY_PATH=/hive/lib"
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
