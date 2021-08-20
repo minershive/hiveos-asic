@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.14'
+readonly script_version='0.8.15'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1265,7 +1265,7 @@ function fetch_stats_and_push_them_to_server {
 				printf '%b' "${NOCOLOR-}"
 			fi
 
-			sleep_with_progress_bar 1
+			sleep_with_progress_bar "$INTERVAL" # try to be nice from the perspective of a router's conntrack engine
 		else
 			break
 		fi
@@ -1511,7 +1511,7 @@ function do_command {
 			fi
 			export asic_oc="$( jq --raw-output '.asic_oc' <<< "$body" )"
 			[[ -f /config/use-new-asic-oc ]] && mv /config/use-new-asic-oc /hive-config/use-new-asic-oc # adjusting legacy location to an actual one
-			# !!!                      a secret feature vvvvvvvvvvvvvvvvvvvvvvvvvvvv
+			# !!!                            ->                                                                      ->                                                    a secret feature vvvvvvvvvvvvvvvvvvvvvvvvvvvv
 			if [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02' || "$ASIC_CUSTOM_FW_VERSION" == '1.03' ) ]] || (( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )) || [[ -f /hive-config/use-new-asic-oc ]]; then
 				asic_oc_cmd='asic-oc'
 			else
