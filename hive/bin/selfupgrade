@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.18.0'
+readonly script_version='0.18.1'
 readonly script_basename="${0##*/}"
 
 
@@ -1158,7 +1158,7 @@ install_avalon () {
 	cp -rf "hiveos-asic-${release_version_to_install}/hive/sbin" /hive/									|| die 'Copy error'
 	cp -rf "hiveos-asic-${release_version_to_install}/hive/lib" /hive/									|| die 'Copy error'
 	cp -rf "hiveos-asic-${release_version_to_install}/home/root/.profile" /etc/profile.d/hive.sh		|| die 'Copy error'
-	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/avalon/"* /etc/systemd/system/	|| die 'Copy error'
+	cp -rf "hiveos-asic-${release_version_to_install}/hive/share/avalon/"* /etc/systemd/system/			|| die 'Copy error'
 
 	sleep 2
 
