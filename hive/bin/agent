@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.9.1'
+readonly script_version='0.9.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1402,7 +1402,7 @@ function do_command {
 	local -r command_log="/tmp/${script_basename}-${command// /-}.log"
 
 	# vars
-	local cmd_id version exec shutdown_fuse_file exectimeout asic_oc firmware_url
+	local cmd_id client_version exec shutdown_fuse_file exec_timeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
 	local -i curl_exitcode time_limit
 	# shellcheck disable=SC2034
@@ -1425,6 +1425,16 @@ function do_command {
 
 	log_line ok "'$command' received in ${WHITE}${time_wasted_sending_stats_in_s}s"
 
+	# consult a blacklist
+	if [[ "$ASIC_MODEL" == 'Avalon'* ]]; then
+		forbidden_commands_RE='^(asic|exec|firmware-upgrade)$'
+		if [[ "$command" =~ $forbidden_commands_RE ]]; then
+			log_line warning "'$command' is forbidden for this firmware"
+			message warning "Command '$command' is forbidden for this firmware" --id="$cmd_id" --silent
+			return
+		fi
+	fi
+			
 	case "$command" in
 		'OK')
 			# do nothing
@@ -1439,10 +1449,10 @@ function do_command {
 		;;
 
 		'upgrade')
-			version="$( jq --raw-output '.version' <<< "$body" )"
-			is_JSON_string_empty_or_null "$version" && version=
+			client_version="$( jq --raw-output '.version' <<< "$body" )"
+			is_JSON_string_empty_or_null "$client_version" && client_version=''
 			screen -dm -S selfupgrade bash -c '
-				selfupgrade '"$version"' 2>&1 | tee '"$command_log"'
+				selfupgrade '"$client_version"' 2>&1 | tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Client update successful" --payload --id='"$cmd_id"' --silent < '"$command_log"'
 				else
@@ -1491,23 +1501,23 @@ function do_command {
 
 			# !!! a secret spell: if the command to exec prefixed with ':;', then no time limit enabled
 			if [[ "${exec:0:2}" == ':;' ]]; then
-				exectimeout='nohup bash -c' # no time limit at all
+				exec_timeout='nohup bash -c' # no time limit at all
 			else
 				(( time_limit = 60 * 60 * 3 )) # 3 hrs tops
 				# shellcheck disable=SC2076
 				if [[ "$ASIC_MODEL" == 'Zig Z1' || "$ASIC_MODEL" == 'Zig Z1+' || "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
 					# use Debian /usr/bin/timeout
-					exectimeout="nohup timeout $time_limit bash -c"
+					exec_timeout="nohup timeout $time_limit bash -c"
 				else
 					# use a BusyBox one
-					exectimeout="nohup timeout -t $time_limit bash -c"
+					exec_timeout="nohup timeout -t $time_limit bash -c"
 				fi
 			fi
 
 			#
 			# do we need an intermediate file? here's a file-less approach with pipe:
 			#
-			#$exectimeout '
+			#$exec_timeout '
 			#	( '"$exec"' ) 2>&1 | if (( $? == 0 )); then
 			#		message info "'"$( backslash "$exec" )"'" --payload --id='"$cmd_id"'
 			#	else
@@ -1518,7 +1528,7 @@ function do_command {
 			local agent_exec_log="/tmp/agent-exec-$cmd_id.log"
 			#local exec_backslashed="$( backslash "$exec" )" # don't need it anymore
 
-			$exectimeout '# {agent-exec}
+			$exec_timeout '# {agent-exec}
 				( '"$exec"' ) > "$1" 2>&1
 				exec_exitcode=$?
 				if (( exec_exitcode == 0 )); then
