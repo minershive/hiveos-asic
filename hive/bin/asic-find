@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: LED Blinker'
-readonly script_version='0.1.2'
+readonly script_version='0.1.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -147,7 +147,7 @@ function blink_LED_for {
 
 function send_stop_signal {
 	echo -n "> Sending 'stop' signal to all active $script_basename... "
-	if killall -USR1 "$script_basename" 2> /dev/null; then
+	if killall -q -USR1 "$script_basename"; then
 		echo "${GREEN-}OK${NOCOLOR-}"
 	else
 		echo "${BRED-}ERROR${NOCOLOR-} ($script_basename process not found)"

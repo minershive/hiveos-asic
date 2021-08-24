@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.5'
+readonly script_version='0.2.6'
 readonly script_basename="${0##*/}"
 
 
@@ -86,7 +86,7 @@ function kill_all {
 
 	# code
 	if hash killall 2>/dev/null; then
-		killall "$process_name_to_kill" > /dev/null 2>&1
+		killall -q "$process_name_to_kill"
 	else
 		# not all systems have killall
 		process_name_to_kill_sanitized="[${process_name_to_kill::1}]${process_name_to_kill:1}" # enclose the first char in square [b]rackets

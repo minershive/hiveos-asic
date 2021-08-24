@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer overclock profiles management'
-readonly script_version='0.7.3'
+readonly script_version='0.7.4'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-1}" # use value from env if exists
 
@@ -777,7 +777,7 @@ function kill_autotune_9 {
 				break
 			fi
 			(( script_DEBUG )) && echo "  [DEBUG] killing $this_process, attempt #$kill_counter"
-			killall "$this_process" > /dev/null 2>&1
+			killall -q "$this_process"
 			snore 0.5
 		done
 	done
