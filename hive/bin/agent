@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.16'
+readonly script_version='0.8.17'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1511,16 +1511,30 @@ function do_command {
 			if is_screen_session_exist "$command"; then
 				screen_session_terminate "$command"
 				log_line warning "Command '$command' already running. Terminated."
-				snore 1
+				snore 5
 			fi
 			export asic_oc="$( jq --raw-output '.asic_oc' <<< "$body" )"
 			[[ -f /config/use-new-asic-oc ]] && mv /config/use-new-asic-oc /hive-config/use-new-asic-oc # adjusting legacy location to an actual one
-			# !!!                            ->                                                                      ->                                                    a secret feature vvvvvvvvvvvvvvvvvvvvvvvvvvvv
-			if [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02' || "$ASIC_CUSTOM_FW_VERSION" == '1.03' ) ]] || (( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )) || [[ -f /hive-config/use-new-asic-oc ]]; then
+
+			# choose the right script
+			local -i use_new_asic_oc_FLAG=0 # default to old
+			if [[ -f /hive-config/use-new-asic-oc ]]; then
+				#    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ here comes a secret feature
+				use_new_asic_oc_FLAG=1
+			elif [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02' || "$ASIC_CUSTOM_FW_VERSION" == '1.03' ) ]]; then
+				use_new_asic_oc_FLAG=1
+			elif [[ "$ASIC_MODEL" == 'Avalon'* ]]; then
+				use_new_asic_oc_FLAG=1
+			elif (( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )); then
+				use_new_asic_oc_FLAG=1
+			fi
+
+			if (( use_new_asic_oc_FLAG )); then
 				asic_oc_cmd='asic-oc'
 			else
-				asic_oc_cmd='asic_oc'
+				asic_oc_cmd='asic_oc' # almost deprecated old script
 			fi
+
 			screen -dm -S "$command" bash -c '
 				echo "Auto-tune parameters:"
 				echo
