@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.9.0'
+readonly script_version='0.9.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -447,7 +447,7 @@ function cache_cmd {
 	#     vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv -- 1. a usual case when the cache is stale
 	if (( ( ( $last_time + cache_ttl_in_s ) < current_time ) || ( $last_time > current_time ) )); then
 		#                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ -- 2. an edge case when the last time is from the future, magically
-		#   ^ fix an unknown bash issue: variable with a reference to a single array element inside an ((arithmetic context))
+		#     ^ fix an unknown bash issue: variable with a reference to a single array element inside an ((arithmetic context))
 
 		# refresh the cache
 		cached_response="$( "$@" )"
@@ -564,7 +564,7 @@ function fetch_miner_stats {
 			process_pools || return
 
 			uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
-			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end ]'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
 			temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
 			chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [ .[].value | split("-") | max | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
 			board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
@@ -653,15 +653,15 @@ function fetch_miner_stats {
 			process_pools || return
 
 			uptime="$(			jq --raw-output		'.[1].Elapsed'																																	<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
-			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )			| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )			| to_entries | [ .[].value | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
 			temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
 			board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
 			fan_percent="$(		jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
 													'.[1] | with_entries( select(.key | test("fan\\d+")) )					| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'			<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
 			fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )					| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
-			freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("frequency\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
+			freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("frequency\\d+")) )			| to_entries | [ .[].value | if . != "" then tonumber else "" end ] '	<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
 			chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
-			power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+			power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )			| to_entries | [ .[].value + 0.5 | floor ]'								<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
 			chain_acs="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
 			chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("^([a-z]+_)?voltage\\d+$")) )	| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" ) #' highlighting fix
 			#                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^ L3+ Hiveon has 'voltageN' keys, not 'chain_voltageN'
@@ -670,16 +670,19 @@ function fetch_miner_stats {
 												'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'									<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
 
 			[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
-			miner_count="$( jq '. | length' <<< "$chain_acn" )"
-			if [[ "$( jq --raw-output length <<< "$freq" )" -ne "$miner_count" ]]; then
+
+			# ??? optimize: readarray -t a < <( jq --raw-output '.[] | length' <<< '{"acn":[0,0,0],"freq":[1,1,1,1]}' ); printf '[%s]\n' "${a[@]}"
+			freq_count="$( jq --raw-output length <<< "$freq" )"
+			miner_count="$( jq --raw-output length <<< "$chain_acn" )"
+			if (( freq_count == miner_count )); then
+				freq_new="$freq"
+			else
 				freq_new='[]'
-				freq="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("frequency")) )				| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( "freq#$?" )
-				freq_num="$( jq --raw-output '.[0]' <<< "$freq" )" || error_vars+=( "freq_num#$?" )
+				freq="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("frequency")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
+				freq_num="$(	jq --raw-output '.[0]' <<< "$freq" )" || error_vars+=( "freq_num#$?" )
 				for (( c = 1;  c <= miner_count; c++ )); do
 					freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num | tonumber]' <<< "$freq_new" )" || error_vars+=( "freq_new#$?" )
 				done
-			else
-				freq_new="$freq"
 			fi
 
 			stats="$( jq --null-input --compact-output																					\
