@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.55.0'
+declare -r hive_functions_lib_version='0.55.1'
 #                                        ^^ current number of public functions
 
 
@@ -529,29 +529,32 @@ function scientific_to_integer {
 
 function humanize {
 	#
-	# Usage: humanize 'big_integer_number' ['name_of_unit']
+	# Usage: humanize 'big_integer_number' [['name_of_unit' ['separator']]
 	#
-	# '1100000000000' 'h/s' -> '1.1 Th/s'
+	# '1100000000000' 'h/s' ' ' -> '1.1 Th/s'
 
 	# args
 
-	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	big_integer_number=${1:-0}
-	name_of_unit=${2:-}
+	(( $# >= 1 && $# <= 3 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -i big_integer_number_raw="${1:-0}"
+	local -r name_of_unit="${2:-}"
+	local -r separator="${3:-}"
 
 	# vars
 
 	local period_and_two_digits='' sign=''
 	local -i remainder_rounded_to_two_digits
 	local -i magnitude_index=0 # 0  1    2    3    4    5    6   7     8
-	local magnitude_char=(		'' 'k'  'M'  'G'  'T'  'P'  'E' 'Y'   'Z' )
-	#								kilo Mega Giga Tera Peta Exa Yotta Zetta
+	local magnitude_char=(		'' 'k'  'M'  'G'  'T'  'P'  'E' 'Z'   'Y' )
+	#								kilo Mega Giga Tera Peta Exa Zetta Yotta
 
 	# code
 
-	# check for negative
-	if (( big_integer_number < 0 )); then
-		(( big_integer_number = -big_integer_number )) # strip off the sign
+	if (( big_integer_number_raw >= 0 )); then
+		(( big_integer_number = big_integer_number_raw ))
+	else
+		# invert the negative, set the sign
+		(( big_integer_number = -big_integer_number_raw )) # strip off the sign
 		sign='-'
 	fi
 
@@ -572,7 +575,7 @@ function humanize {
 		(( big_integer_number /= 1000, magnitude_index++ ))
 	done
 
-	echo "${sign}${big_integer_number}${period_and_two_digits} ${magnitude_char[${magnitude_index}]}${name_of_unit}"
+	echo "${sign}${big_integer_number}${period_and_two_digits}${separator}${magnitude_char[${magnitude_index}]}${name_of_unit}"
 }
 
 function khs_to_human_friendly_hashrate {
@@ -596,12 +599,12 @@ function khs_to_human_friendly_hashrate {
 	elif [[ "$hashrate_in_khs" != *[Ee]* ]]; then
 		# a number without exponent
 		hs_integer="$( scientific_to_integer "${hashrate_in_khs}e3" )" # multiply by 1000 right there and then
-		humanize "$hs_integer" 'H/s'
+		humanize "$hs_integer" 'H/s' ' '
 	else
 		# a number with exponent, process with care
 		khs_integer="$( scientific_to_integer "$hashrate_in_khs" )"
 		(( hs_integer = khs_integer * 1000 ))
-		humanize "$hs_integer" 'H/s'
+		humanize "$hs_integer" 'H/s' ' '
 	fi
 }
 
