@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.18.1'
+readonly script_version='0.18.2'
 readonly script_basename="${0##*/}"
 
 
@@ -1588,10 +1588,12 @@ delayed_agent_screen_restart () {
 	echo_action 'Deploying delayed agent restart'
 
 	(
-		trap -- '' INT HUP # allow a child to inherit disabled signals
-		sleep 5
-		/hive/bin/agent-screen restart &
-	) < /dev/null > /dev/null 2>&1
+		{
+			trap -- '' INT HUP # allow a child to inherit disabled signals
+			sleep 5
+			/hive/bin/agent-screen restart
+		} < /dev/null > /tmp/selfupgrade-agent-restart.log 2>&1 & # double fork: init (PID 1) should inherit this process
+	)
 
 	# delete a file created by a legacy selfupgrade
 	remove_needless_files '/tmp/selfupgrade-agent-screen-restart.log'
