@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.10.0'
+readonly script_version='0.10.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -564,7 +564,7 @@ function fetch_miner_stats {
 			process_pools || return
 
 			uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
-			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end ]'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else 0 end ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
 			temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
 			chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [ .[].value | split("-") | max | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
 			board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
@@ -601,8 +601,11 @@ function fetch_miner_stats {
 			ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
 													'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'										<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
 
-			[[ "$chain_voltage" == '[]'	]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
-			[[ "$power" != '{}'			]] && power="$( cache_cmd ant-functions.sh 'hiveon_power' "$power" "$chain_acn" )"
+			if (( IS_ASIC_CUSTOM_FW )); then
+				[[ "$chain_voltage" == '[]'	]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
+				[[ "$power" != '{}'			]] && power="$( cache_cmd ant-functions.sh 'hiveon_power' "$power" "$chain_acn" )"
+			fi
+
 			[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
 			[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
 
@@ -647,12 +650,12 @@ function fetch_miner_stats {
 			local -A -r jq_batch_request_hashtable=(
 				['hashrate_raw']='		.[1] | ."GHS 5s"				| tonumber'
 				['uptime']='			.[1] | .Elapsed'
-				['hs']='				.[1] | with_entries(select(.key | test("chain_rate\\d+")))				| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'
+				['hs']='				.[1] | with_entries(select(.key | test("chain_rate\\d+")))				| to_entries | [ .[].value | if . != "" then tonumber else 0 end  ]'
 				['temp']='				.[1] | with_entries(select(.key | test("temp2_\\d+")))					| to_entries | [ .[].value ]'
 				['board_temp']='		.[1] | with_entries(select(.key | test("temp\\d+$")))					| to_entries | [ .[].value ]'
 				['fan_percent']='		.[1] | with_entries(select(.key | test("fan\\d+")))						| to_entries | [ .[].value / $max_fan_rpm * 100 + 0.5 | floor ]'
 				['fan_rpm']='			.[1] | with_entries(select(.key | test("fan\\d+")))						| to_entries | [ .[].value ]'
-				['freq']='				.[1] | with_entries(select(.key | test("frequency\\d+")))				| to_entries | [ .[].value | if . != "" then tonumber else "" end ]'
+				['freq']='				.[1] | with_entries(select(.key | test("frequency\\d+")))				| to_entries | [ .[].value | if . != "" then tonumber else 0 end ]'
 				['chain_acn']='			.[1] | with_entries(select(.key | test("chain_acn\\d+")))				| to_entries | [ .[].value ]'
 				['chain_acs']='			.[1] | with_entries(select(.key | test("chain_acs\\d+")))				| to_entries | [ .[].value ]'
 				['chain_voltage']='		.[1] | with_entries(select(.key | test("^([a-z]+_)?voltage\\d+$")))		| to_entries | [ .[].value ]'
@@ -691,7 +694,9 @@ function fetch_miner_stats {
 			ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
 												'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'									<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
 
-			[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
+			if (( IS_ASIC_CUSTOM_FW )); then
+				[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
+			fi
 
 			if (( freq_count == miner_count )); then
 				freq_new="$freq"
@@ -1464,7 +1469,6 @@ function do_command {
 		'reboot')
 			message ok 'Rebooting' --id="$cmd_id" --silent
 			log_line ok 'Rebooting'
-			#nohup bash -c 'sreboot' > "$command_log" 2>&1 &
 			/sbin/reboot
 		;;
 
@@ -1623,9 +1627,9 @@ function do_command {
 			config="$( jq --raw-output '.config' <<< "$body" )"
 			justwrite="$( jq --raw-output '.justwrite' <<< "$body" )" #don't restart miner, just write config, maybe WD settings will be updated
 			if is_JSON_string_not_empty_or_null "$config"; then
-				#scan for password change
+				#scan for a password change
 				while read -r line; do
-					if [[ "$line" =~ ^RIG_PASSWD=\"(.*)\" ]]; then
+					if [[ "$line" =~ ^RIG_PASSWD=\"(.+)\" ]]; then
 						NEW_PASSWD="${BASH_REMATCH[1]}"
 						break
 					fi
@@ -1635,7 +1639,7 @@ function do_command {
 				if [[ "$RIG_PASSWD" != "$NEW_PASSWD" ]]; then
 					log_line warning "Old password: $RIG_PASSWD, new password: $NEW_PASSWD"
 
-					message warning 'New password received, please wait for the green message...' --id="$cmd_id" --silent
+					message warning 'New password received, please wait...' --id="$cmd_id" --silent
 					request="$( jq --null-input --compact-output \
 						--arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 						'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}'
@@ -1649,12 +1653,11 @@ function do_command {
 
 					curl_exitcode=$?
 					if (( curl_exitcode != 0 )); then
-						message error 'Error notifying hive about "password_change_received"' --id="$cmd_id" --silent
+						message error 'Error notifying the server about "password_change_received"' --id="$cmd_id" --silent
 						return "$curl_exitcode" #better exit because password will not be changed
 					fi
 
-					error="$( jq --raw-output '.error' <<< "$response" )"
-					if is_JSON_string_not_empty_or_null "$error"; then
+					if error="$( jq --raw-output '.error' <<< "$response" )" || is_JSON_string_not_empty_or_null "$error"; then
 						log_line error "Server error: $( jq --raw-output '.error.message' <<< "$response" )"
 						return 1
 					fi
@@ -1668,16 +1671,19 @@ function do_command {
 				source "$RIG_CONF"
 
 				# Save wallet if given -----------------------------------------------
-				wallet="$( jq --raw-output '.wallet' <<< "$body" )"
-				is_JSON_string_not_empty_or_null "$wallet" && echo "$wallet" > "$WALLET_CONF"
-
-				# Overclocking if given in config --------------------------------------
-#				oc_if_changed
+				if wallet="$( jq --raw-output '.wallet' <<< "$body" )" && is_JSON_string_not_empty_or_null "$wallet"; then
+					echo "$wallet" > "$WALLET_CONF" && sync
+				fi
 
 				# Final actions ---------------------------------------------------------
-				if [[ "$justwrite" != 1 ]]; then
-					#hostname-check
-					/hive/bin/miner restart
+				if (( "${justwrite:-0}" == 1 )); then
+					message ok 'Rig config changed' --id="$cmd_id" --silent
+				else
+					if /hive/bin/miner restart; then
+						message ok 'Rig config changed, miner restarted' --id="$cmd_id" --silent
+					else
+						message warning 'Rig config changed, but miner restarted with error' --id="$cmd_id" --silent
+					fi
 					echo
 				fi
 
@@ -1687,28 +1693,21 @@ function do_command {
 					snore 5
 				fi
 				wd start &
-
-				message ok 'Rig config changed' --id="$cmd_id" --silent
-				#[[ $? -eq 0 ]] && message ok 'Wallet changed, miner restarted' --id=$cmd_id || message warning "Error restarting miner" --id=$cmd_id
-				sync
 			else
 				message error 'No rig "config" given' --id="$cmd_id" --silent
 			fi
 		;;
 
 		'wallet')
-			wallet="$( jq --raw-output '.wallet' <<< "$body" )"
-			if is_JSON_string_not_empty_or_null "$wallet"; then
+			if wallet="$( jq --raw-output '.wallet' <<< "$body" )" && is_JSON_string_not_empty_or_null "$wallet"; then
 				echo "$wallet" > "$WALLET_CONF" && sync
-
-				justwrite=
-#				oc_if_changed
 
 				if /hive/bin/miner restart; then
 					message ok 'Wallet changed, miner restarted' --id="$cmd_id" --silent
 				else
-					message warning 'Error restarting miner' --id="$cmd_id" --silent
+					message warning 'Wallet changed, but miner restarted with error' --id="$cmd_id" --silent
 				fi
+				echo
 			else
 				message error 'No "wallet" config given' --id="$cmd_id" --silent
 			fi
