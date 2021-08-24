@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: agent-screen helper'
-readonly script_version='1.1.5'
+readonly script_version='1.1.6'
 readonly script_basename="${0##*/}"
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 #
@@ -41,16 +41,8 @@ function screen_attach_to_session {
 
 	# code
 	if is_screen_session_exist "$session_name"; then
-		#
-		# why we've been setting TERM in such a fashion? screen has an argument for that:
-		#
-		# -T term       Use term as $TERM for windows, rather than "screen".
-		#
-		if (( script_DEBUG )); then
-			TERM='vt102' screen -x -S "$session_name"
-		else
-			TERM='vt102' screen -x -S "$session_name" > /dev/null
-		fi
+		#TERM='vt102' screen -x -S "$session_name" # why so complex?
+		screen -x -S "$session_name"
 	else
 		errcho "'$session_name' hasn't been started. Weird..."
 	fi
@@ -83,11 +75,7 @@ function screen_start_session {
 
 	retries_counter=1
 	until is_screen_session_exist "$session_name"; do
-		if (( script_DEBUG )); then
-			screen -dm -S "$session_name" -h "$scrollback_buffer_lines" "$cmd" $args
-		else
-			screen -dm -S "$session_name" -h "$scrollback_buffer_lines" "$cmd" $args > /dev/null
-		fi
+		screen -dm -S "$session_name" -h "$scrollback_buffer_lines" "$cmd" $args
 
 		if (( retries_counter > 1 )); then
 			snore 1 # sometimes gnu screen is slow
@@ -136,6 +124,7 @@ function screen_stop_session {
 	local -r session_name="${1-}"
 
 	# consts
+	local -r ctrl_c_keystroke=$'\cc'
 	local -r -i retries_limit=100
 
 	# vars
@@ -145,10 +134,12 @@ function screen_stop_session {
 	# code
 	retries_counter=1
 	while is_screen_session_exist "$session_name"; do
-		if (( script_DEBUG )); then
-			screen -S "$session_name" -X quit
-		else
-			screen -S "$session_name" -X quit > /dev/null
+		# send SIGTERM to the process
+		screen -S "$session_name" -p 0 -X stuff "$ctrl_c_keystroke"
+		snore 0.2
+		# are you still alive?
+		if is_screen_session_exist "$session_name"; then
+			screen -S "$session_name" -p 0 -X quit # doesn't work when a process in this session DO handle SIGHUP itself
 		fi
 
 		if (( retries_counter > 1 )); then
@@ -166,7 +157,7 @@ function screen_stop_session {
 				printf 'Waiting for %s screen session to stop, attempt #%d... \n' "$session_name" "$retries_counter"
 			fi
 			#rm -rf /var/run/screens/*."$session_name"
-			screen -wipe # > /dev/null # for debugging purposes
+			screen -wipe # > /dev/null # let's debug
 		fi
 
 		if (( retries_counter >= retries_limit )); then
