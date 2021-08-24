@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.10.1'
+readonly script_version='0.10.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1653,11 +1653,13 @@ function do_command {
 
 					curl_exitcode=$?
 					if (( curl_exitcode != 0 )); then
+						log_line error 'Error notifying the server about "password_change_received"'
 						message error 'Error notifying the server about "password_change_received"' --id="$cmd_id" --silent
 						return "$curl_exitcode" #better exit because password will not be changed
 					fi
 
-					if error="$( jq --raw-output '.error' <<< "$response" )" || is_JSON_string_not_empty_or_null "$error"; then
+					error="$( jq --raw-output '.error' <<< "$response" )"
+					if is_JSON_string_not_empty_or_null "$error"; then
 						log_line error "Server error: $( jq --raw-output '.error.message' <<< "$response" )"
 						return 1
 					fi
