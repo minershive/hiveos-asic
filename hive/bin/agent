@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.8.17'
+readonly script_version='0.9.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -404,11 +404,11 @@ function cache_cmd {
 
 	# debug
 	if (( script_DEBUG )); then
-		local -r -i function_DEBUG=1
+		local -r -i this_function_DEBUG=1
 	else
-		local -r -i function_DEBUG=0 # set to '1' if you'd fancy to debug this function only
+		local -r -i this_function_DEBUG=0 # set to '1' if you'd fancy to debug this function only
 	fi
-	(( function_DEBUG )) && local -i time_start_caching_in_ms="$( get_system_uptime_in_milliseconds )" # start the timing with millisecond resolution
+	(( this_function_DEBUG )) && local -i time_start_caching_in_ms="$( get_system_uptime_in_milliseconds )" # start the timing with millisecond resolution
 
 	# consts
 	local -r -i cache_ttl_in_s=50
@@ -456,7 +456,7 @@ function cache_cmd {
 		is_cold_FLAG=1
 	fi
 
-	if (( function_DEBUG )); then
+	if (( this_function_DEBUG )); then
 		# do timing, averaging, profiling and stuff
 		time_wasted_caching_in_ms="$(( $( get_system_uptime_in_milliseconds ) - time_start_caching_in_ms ))"
 
@@ -509,7 +509,7 @@ function fetch_miner_stats {
 	local miner_name="$1"
 
 	# vars
-	local stats_raw STATS
+	local stats_raw stats_dev_raw STATS
 	local uptime hashrate_raw
 	local POOLS active_pool_id
 	local hs temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_acn chain_acs chain_voltage hw_errors power asicboost ar
@@ -519,6 +519,8 @@ function fetch_miner_stats {
 
 	# traps
 	function sanitize_total_khs {
+		# show vars with errors, if any
+		(( ${#error_vars[@]} )) && log_line debug "Missing API keys: ${error_vars[*]}"
 		is_JSON_string_empty_or_null "$total_khs" && total_khs=0
 	}
 	trap 'sanitize_total_khs' RETURN
@@ -540,81 +542,85 @@ function fetch_miner_stats {
 		'Antminer T17'*					|\
 		'Antminer X17'*)
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n' | sed 's/}{/},{/' | jq '.'
-			stats_raw="$( get_stats_raw )"
-			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				system_status="$( ant-functions.sh 'hiveon_status' 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-			else
-				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API answer (like S9): '}{' -> '},{'
-
-				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				if [[ -z "$ASIC_TOTAL_HASHRATE_UNITS" ]]; then
-					reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-				else
-					reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_TOTAL_HASHRATE_UNITS" 'total_khs'
-				fi
-
-				system_status="$( ant-functions.sh 'hiveon_status' "$STATS" )"
-
-				process_pools || return
-
-				uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" )"
-				hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
-				temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
-				chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [ .[].value | split("-") | max | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
-				board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
-				fan_percent="$(		jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
-														'.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [ .[].value / $max_fan_rpm * 100 + 0.5 | floor ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
-				fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
-				freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
-				freq_new="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("freq\\d+")) )			| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq_new#$?" )
-				chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
-
-				if [[ -s /hive-config/use-smart-acs ]]; then
-					# experimental traffic reduction algo
-					case "$( < /hive-config/use-smart-acs )" in
-						'ok')	log_line warning 'smart-acs traffic reduction: OK mode'
-								chain_acs="$(
-									jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value | if test("^[ o]+$") then "ok" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
-								;;
-						'full')	log_line warning 'smart-acs traffic reduction: FULL mode'
-								chain_acs="$(
-									jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value | if test("^[ o]+$") then "" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'		<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
-								;;
-					esac
-				else
-					chain_acs="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
-				fi
-
-				chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_voltage\\d+")) )| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" )
-				hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
-#				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
-				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | from_entries'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
-				asicboost="$(		jq					'.[1] | with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "asicboost#$?" )
-				ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
-														'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'										<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
-
-				[[ "$chain_voltage" == '[]'	]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
-				[[ "$power" != '{}'			]] && power="$( cache_cmd ant-functions.sh 'hiveon_power' "$power" "$chain_acn" )"
-				[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
-				[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
-
-				stats="$( jq --null-input --compact-output																		\
-					--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
-					--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
-					--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"	\
-					--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq:-null}"			\
-					--argjson	'chain_voltage'	"${chain_voltage:-null}"		--argjson	'acn'		"${chain_acn:-null}"	\
-					--argjson	'power'			"${power:-null}"				--argjson	'hw_errors'	"${hw_errors:-null}"	\
-					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
-					--argjson	'ar'			"${ar:-null}"					--argjson	'asicboost'	"${asicboost:-null}"	\
-																																\
-					'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$chain_voltage,$acn,$power,$hw_errors,$status,$uptime,$ar,$asicboost}' \
-																																\
-					2> /dev/null
-				)" || error_vars+=( "stats#$?" )
-				(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+				return
 			fi
+
+			# fix broken API answer (like S9): '}{' -> '},{'                      vvvvvvvvvvv
+			STATS="$( jq --compact-output '.STATS'				<<< "${stats_raw//\}\{/\},\{}" 2> /dev/null )"	|| error_vars+=( "STATS#$?" )
+			hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"'	<<< "$STATS" 2> /dev/null )"					|| error_vars+=( "hashrate_raw#$?" )
+
+			# choose what units will be used
+			if [[ -n "$ASIC_TOTAL_HASHRATE_UNITS" ]]; then
+				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_TOTAL_HASHRATE_UNITS" 'total_khs'
+			else
+				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+			fi
+
+			system_status="$( ant-functions.sh 'hiveon_status' "$STATS" )"
+
+			process_pools || return
+
+			uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
+			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+			temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
+			chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [ .[].value | split("-") | max | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
+			board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
+			fan_percent="$(		jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
+													'.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [ .[].value / $max_fan_rpm * 100 + 0.5 | floor ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
+			fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )			| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
+			freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("freq_avg\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
+			freq_new="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("freq\\d+")) )			| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq_new#$?" )
+			chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
+
+# experimental traffic reduction algo
+#			# TODO move to init section like [[ -s /hive-config/use-smart-acs ]] && use_smart_acs_FLAG=1
+#			if [[ -s /hive-config/use-smart-acs ]]; then
+#				case "$( < /hive-config/use-smart-acs )" in
+#					'ok')	log_line warning 'smart-acs traffic reduction: OK mode'
+#							chain_acs="$(
+#								jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value | if test("^[ o]+$") then "ok" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+#							;;
+#					'full')	log_line warning 'smart-acs traffic reduction: FULL mode'
+#							chain_acs="$(
+#								jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value | if test("^[ o]+$") then "" else . end ] | if (unique_by(.=="") | length) == 1 then [] else . end'		<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+#							;;
+#				esac
+#			else
+#				chain_acs="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+#			fi
+
+			chain_acs="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+			chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("chain_voltage\\d+")) )| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" )
+			hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
+#			power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+			power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )	| to_entries | from_entries'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+			asicboost="$(		jq					'.[1] | with_entries( select(.key | test("chain_power$")) )		| to_entries | .[].value | test("AB") | if . == true then 1 else 0 end'					<<< "$STATS" 2> /dev/null )" || error_vars+=( "asicboost#$?" )
+			ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
+													'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'										<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
+
+			[[ "$chain_voltage" == '[]'	]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
+			[[ "$power" != '{}'			]] && power="$( cache_cmd ant-functions.sh 'hiveon_power' "$power" "$chain_acn" )"
+			[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
+			[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
+
+			stats="$( jq --null-input --compact-output																		\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
+				--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"	\
+				--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq:-null}"			\
+				--argjson	'chain_voltage'	"${chain_voltage:-null}"		--argjson	'acn'		"${chain_acn:-null}"	\
+				--argjson	'power'			"${power:-null}"				--argjson	'hw_errors'	"${hw_errors:-null}"	\
+				--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+				--argjson	'ar'			"${ar:-null}"					--argjson	'asicboost'	"${asicboost:-null}"	\
+																															\
+				'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$chain_voltage,$acn,$power,$hw_errors,$status,$uptime,$ar,$asicboost}' \
+																															\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		'Antminer A3'										|\
@@ -625,112 +631,110 @@ function fetch_miner_stats {
 		'Antminer Z9'*										|\
 		'Antminer Z11'*)
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
-			stats_raw="$( get_stats_raw )"
-			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				system_status="$( ant-functions.sh 'hiveon_status' 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-			else
-				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API: '}{' -> '},{'
-
-				#if [[ -z $algo || $algo == 'null' ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				if [[ -z "$ASIC_TOTAL_HASHRATE_UNITS" ]]; then
-					reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-				else
-					reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_TOTAL_HASHRATE_UNITS" 'total_khs'
-				fi
-
-				system_status="$( ant-functions.sh 'hiveon_status' "$STATS" )"
-
-				process_pools || return
-
-				uptime="$(			jq --raw-output		'.[1].Elapsed'																																	<<< "$STATS" )"
-				hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )			| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
-				temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
-				board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
-				fan_percent="$(		jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
-														'.[1] | with_entries( select(.key | test("fan\\d+")) )					| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'			<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
-				fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )					| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
-				freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("frequency\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
-				chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
-				power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
-				chain_acs="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
-				chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("^([a-z]+_)?voltage\\d+$")) )	| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" ) #' highlighting fix
-				#                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^ L3+ Hiveon has 'voltageN' keys, not 'chain_voltageN'
-				hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
-				ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
-													'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'									<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
-
-				[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
-				miner_count="$( jq '. | length' <<< "$chain_acn" )"
-				if [[ "$( jq --raw-output length <<< "$freq" )" -ne "$miner_count" ]]; then
-					freq_new='[]'
-					freq="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("frequency")) )				| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( "freq#$?" )
-					freq_num="$( jq --raw-output '.[0]' <<< "$freq" )" || error_vars+=( "freq_num#$?" )
-					for (( c = 1;  c <= miner_count; c++ )); do
-						freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num | tonumber]' <<< "$freq_new" )" || error_vars+=( "freq_new#$?" )
-					done
-				else
-					freq_new="$freq"
-				fi
-
-				stats="$( jq --null-input --compact-output																					\
-					--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"						\
-					--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"						\
-					--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"				\
-					--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq_new:-null}"					\
-					--argjson	'chain_voltage'	"${chain_voltage:-null}"		--argjson	'acn'		"${chain_acn:-null}"				\
-					--argjson	'power'			"${power:-null}"				--argjson	'hw_errors'	"${hw_errors:-null}"				\
-					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"					\
-					--argjson	'ar'			"${ar:-null}"																				\
-																																			\
-					'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$chain_voltage,$acn,$power,$hw_errors,$status,$uptime,$ar}'	\
-																																			\
-					2> /dev/null
-				)" || error_vars+=( "stats#$?" )
-				(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+				return
 			fi
+
+			# fix broken API answer (like S9): '}{' -> '},{'                      vvvvvvvvvvv
+			STATS="$( jq --compact-output '.STATS'				<<< "${stats_raw//\}\{/\},\{}" 2> /dev/null )"	|| error_vars+=( "STATS#$?" )
+			hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"'	<<< "$STATS" 2> /dev/null )"					|| error_vars+=( "hashrate_raw#$?" )
+
+			# choose what units will be used
+			if [[ -n "$ASIC_TOTAL_HASHRATE_UNITS" ]]; then
+				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_TOTAL_HASHRATE_UNITS" 'total_khs'
+			else
+				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+			fi
+
+			system_status="$( ant-functions.sh 'hiveon_status' "$STATS" )"
+
+			process_pools || return
+
+			uptime="$(			jq --raw-output		'.[1].Elapsed'																																	<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
+			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )			| to_entries | [ .[].value | if . != "" then tonumber else "" end  ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+			temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
+			board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
+			fan_percent="$(		jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
+													'.[1] | with_entries( select(.key | test("fan\\d+")) )					| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'			<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_percent#$?" )
+			fan_rpm="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("fan\\d+")) )					| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "fan_rpm#$?" )
+			freq="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("frequency\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "freq#$?" )
+			chain_acn="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acn\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acn#$?" )
+			power="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_power\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "power#$?" )
+			chain_acs="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_acs\\d+")) )			| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_acs#$?" )
+			chain_voltage="$(	jq --compact-output	'.[1] | with_entries( select(.key | test("^([a-z]+_)?voltage\\d+$")) )	| to_entries | [ .[].value ]'											<<< "$STATS" 2> /dev/null )" || error_vars+=( "chain_voltage#$?" ) #' highlighting fix
+			#                                                                                 ^^^^^^^^^^^^^^^^^^^^^^^ L3+ Hiveon has 'voltageN' keys, not 'chain_voltageN'
+			hw_errors="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("chain_hw\\d+")) )				| to_entries | [.[].value]'												<<< "$STATS" 2> /dev/null )" || error_vars+=( "hw_errors#$?" )
+			ar="$(				jq --compact-output --argjson pool "$active_pool_id" \
+												'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'									<<< "$POOLS" 2> /dev/null )" || error_vars+=( "ar#$?" )
+
+			[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
+			miner_count="$( jq '. | length' <<< "$chain_acn" )"
+			if [[ "$( jq --raw-output length <<< "$freq" )" -ne "$miner_count" ]]; then
+				freq_new='[]'
+				freq="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("frequency")) )				| to_entries | [.[].value]'												<<< "$STATS" )" || error_vars+=( "freq#$?" )
+				freq_num="$( jq --raw-output '.[0]' <<< "$freq" )" || error_vars+=( "freq_num#$?" )
+				for (( c = 1;  c <= miner_count; c++ )); do
+					freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num | tonumber]' <<< "$freq_new" )" || error_vars+=( "freq_new#$?" )
+				done
+			else
+				freq_new="$freq"
+			fi
+
+			stats="$( jq --null-input --compact-output																					\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"						\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"						\
+				--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"				\
+				--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq_new:-null}"					\
+				--argjson	'chain_voltage'	"${chain_voltage:-null}"		--argjson	'acn'		"${chain_acn:-null}"				\
+				--argjson	'power'			"${power:-null}"				--argjson	'hw_errors'	"${hw_errors:-null}"				\
+				--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"					\
+				--argjson	'ar'			"${ar:-null}"																				\
+																																		\
+				'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$chain_voltage,$acn,$power,$hw_errors,$status,$uptime,$ar}'	\
+																																		\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		'Zig Z1+'	|\
 		'Zig Z1')
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
-			stats_raw="$( get_stats_raw )"
-			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-			else
-				STATS="$( jq --compact-output '.STATS' <<< "$stats_raw" )"
-
-				hashrate_raw="$( jq --raw-output '.[0]."MHS 30S"' <<< "$STATS" )"
-				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-
-				uptime="$(		jq --raw-output		'.[0].Elapsed'																																												<<< "$STATS" )"
-				hs="$(			jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | ."MHS 30S"]'															<<< "$STATS" )" || error_vars+=( "hs#$?" )
-				temp="$(		jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | ."Temperature"]'														<<< "$STATS" )" || error_vars+=( "temp#$?" )
-				fan_percent="$(	jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
-													'.[0]						| with_entries( select(.key | test("Fan In|Fan Out") ) )	| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'										<<< "$STATS" )" || error_vars+=( "fan_percent#$?" )
-				fan_rpm="$(		jq --compact-output	'.[0]						| with_entries( select(.key | test("Fan In|Fan Out") ) )	| to_entries | [.[].value ]'																		<<< "$STATS" )" || error_vars+=( "fan_rpm#$?" )
-				freq="$(		jq --compact-output	'.[0].Frequency as $freq	| .[0] | with_entries( select(.key | test("CH\\d+") ) )		| to_entries | [.[].value | $freq ]'																<<< "$STATS" )" || error_vars+=( "freq#$?" )
-				chain_acn="$(	jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | .status | length ]'														<<< "$STATS" )" || error_vars+=( "chain_acn#$?" )
-				chain_acs="$(	jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | .status | [.[].accept | if . > 0 then "o" else "x" end ] | join("") ]'	<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
-#				hw_errors="$(	jq --compact-output	'.[1]						| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																			<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
-
-				stats="$( jq --null-input --compact-output																		\
-					--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
-					--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
-					--argjson	'fan'			"${fan_percent:-null}"			--argjson	'fan_rpm'	"${fan_rpm:-null}"		\
-					--argjson	'freq'			"${freq:-null}"					--argjson	'acn'		"${chain_acn:-null}"	\
-					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
-																																\
-					'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}'								\
-																																\
-					2> /dev/null
-				)" || error_vars+=( "stats#$?" )
-				(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+				return
 			fi
+
+			# fix broken API answer (like S9): '}{' -> '},{'                      vvvvvvvvvvv
+			STATS="$( jq --compact-output '.STATS'				<<< "${stats_raw//\}\{/\},\{}" 2> /dev/null )"	|| error_vars+=( "STATS#$?" )
+			hashrate_raw="$( jq --raw-output '.[0]."MHS 30S"'	<<< "$STATS" 2> /dev/null )"					|| error_vars+=( "hashrate_raw#$?" )
+			reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+
+			uptime="$(		jq --raw-output		'.[0].Elapsed'																																												<<< "$STATS" )" || error_vars+=( "uptime#$?" )
+			hs="$(			jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | ."MHS 30S"]'															<<< "$STATS" )" || error_vars+=( "hs#$?" )
+			temp="$(		jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | ."Temperature"]'														<<< "$STATS" )" || error_vars+=( "temp#$?" )
+			fan_percent="$(	jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
+												'.[0]						| with_entries( select(.key | test("Fan In|Fan Out") ) )	| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'										<<< "$STATS" )" || error_vars+=( "fan_percent#$?" )
+			fan_rpm="$(		jq --compact-output	'.[0]						| with_entries( select(.key | test("Fan In|Fan Out") ) )	| to_entries | [.[].value ]'																		<<< "$STATS" )" || error_vars+=( "fan_rpm#$?" )
+			freq="$(		jq --compact-output	'.[0].Frequency as $freq	| .[0] | with_entries( select(.key | test("CH\\d+") ) )		| to_entries | [.[].value | $freq ]'																<<< "$STATS" )" || error_vars+=( "freq#$?" )
+			chain_acn="$(	jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | .status | length ]'														<<< "$STATS" )" || error_vars+=( "chain_acn#$?" )
+			chain_acs="$(	jq --compact-output	'.[0]						| with_entries( select(.key | test("CH\\d+") ) )			| to_entries | [.[].value | .status | [.[].accept | if . > 0 then "o" else "x" end ] | join("") ]'	<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
+#			hw_errors="$(	jq --compact-output	'.[1]						| with_entries( select(.key | test("chain_hw\\d+")) )		| to_entries | [.[].value]'																			<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
+
+			stats="$( jq --null-input --compact-output																		\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
+				--argjson	'fan'			"${fan_percent:-null}"			--argjson	'fan_rpm'	"${fan_rpm:-null}"		\
+				--argjson	'freq'			"${freq:-null}"					--argjson	'acn'		"${chain_acn:-null}"	\
+				--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																															\
+				'{$algo, $hs, $hs_units, $temp, $fan, $fan_rpm, $freq, $acn, $status, $uptime}'								\
+																															\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		'b29+.g19'						|\
@@ -745,79 +749,68 @@ function fetch_miner_stats {
 		't1.g19'						|\
 		't3.soc'|'t3+.soc'|'t3h+.soc')
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
-			stats_raw="$( get_stats_raw )"
-			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-			else
-				#stats_raw="$( sed 's/}{/\},{/' <<< "$stats_raw" )"
-				STATS="$( jq --compact-output '.STATS' <<< "$stats_raw" )"
-
-				#if [[ -z $algo || $algo == 'null' ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				hashrate_raw="$( jq --raw-output '.[-1] | .[] | add' < /tmp/stats.json )"
-				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-
-				uptime="$(		jq --raw-output		'.[0].Elapsed'																											<<< "$STATS"		)"
-				hs="$(			jq --raw-output		'[.[-1] | .[] | .[]]'																									< /tmp/stats.json	)" || error_vars+=( "hs#$?" )
-				temp="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("^Temp$")) )			| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "temp#$?" )
-				fan_percent="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("^Fan duty$")) )		| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "fan_percent#$?" )
-				freq="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("^PLL")) )				| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "freq#$?" )
-				chain_acn="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num chips")) )		| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "chain_acn#$?" )
-				chain_acs="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "chain_acs#$?" )
-				hw_errors="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("HW errors")) )		| to_entries | [.[].value] | add | select(.!=null)]'	<<< "$STATS"		)" || error_vars+=( "hw_errors#$?" )
-
-				stats="$( jq --null-input --compact-output																		\
-					--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
-					--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
-					--argjson	'fan'			"${fan_percent:-null}"			--argjson	'freq'		"${freq:-null}"			\
-					--argjson	'acn'			"${chain_acn:-null}"			--argjson	'hw_errors'	"${hw_errors:-null}"	\
-					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
-																																\
-					'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}'							\
-																																\
-					2> /dev/null
-				)" || error_vars+=( "stats#$?" )
-				(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+				return
 			fi
+
+			STATS="$( jq --compact-output '.STATS' <<< "$stats_raw" )"
+			hashrate_raw="$( jq --raw-output '.[-1] | .[] | add' < /tmp/stats.json )"
+			reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+
+			uptime="$(		jq --raw-output		'.[0].Elapsed'																											<<< "$STATS"		)"
+			hs="$(			jq --raw-output		'[.[-1] | .[] | .[]]'																									< /tmp/stats.json	)" || error_vars+=( "hs#$?" )
+			temp="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("^Temp$")) )			| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "temp#$?" )
+			fan_percent="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("^Fan duty$")) )		| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "fan_percent#$?" )
+			freq="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("^PLL")) )				| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "freq#$?" )
+			chain_acn="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num chips")) )		| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "chain_acn#$?" )
+			chain_acs="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'								<<< "$STATS"		)" || error_vars+=( "chain_acs#$?" )
+			hw_errors="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("HW errors")) )		| to_entries | [.[].value] | add | select(.!=null)]'	<<< "$STATS"		)" || error_vars+=( "hw_errors#$?" )
+
+			stats="$( jq --null-input --compact-output																		\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
+				--argjson	'fan'			"${fan_percent:-null}"			--argjson	'freq'		"${freq:-null}"			\
+				--argjson	'acn'			"${chain_acn:-null}"			--argjson	'hw_errors'	"${hw_errors:-null}"	\
+				--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																															\
+				'{$algo, $hs, $hs_units, $temp, $fan, $freq, $acn, $hw_errors, $status, $uptime}'							\
+																															\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		'T4.G19')
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
-			stats_raw="$( send_request_to_miner_api '{"command":"devs"}' )"
-			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+			if ! stats_raw="$( send_request_to_miner_api '{"command":"devs"}' )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-			else
-				STATS="$( jq --compact-output '.DEVS' <<< "$stats_raw" )"
-
-				#if [[ -z $algo || $algo == 'null' ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				hashrate_raw="$( jq --raw-output '[.[]["MHS av"]] | add' <<< "$STATS" )"
-				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-
-				uptime="$(		jq --raw-output		'.[0]["Device Elapsed"]'																	<<< "$STATS" )"
-				hs="$(			jq --compact-output	'[.[] | with_entries( select(.key | test("MHS 5s")) )			| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "hs#$?" )
-				temp="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("TempAVG")) )			| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "temp#$?" )
-				freq="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("CORE")) )				| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "freq#$?" )
-				chain_acn="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("DUTY")) )				| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "chain_acn#$?" )
-#				chain_acs="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
-				hw_errors="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Hardware Errors")) )	| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
-
-				stats="$( jq --null-input --compact-output																		\
-					--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
-					--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
-					--argjson	'freq'			"${freq:-null}"					--argjson	'acn'		"${chain_acn:-null}"	\
-					--argjson	'hw_errors'		"${hw_errors:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
-																																\
-					'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}'											\
-																																\
-					2> /dev/null
-				)" || error_vars+=( "stats#$?" )
-				(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+				return
 			fi
+
+			STATS="$( jq --compact-output '.DEVS' <<< "$stats_raw" )"
+			hashrate_raw="$( jq --raw-output '[.[]["MHS av"]] | add' <<< "$STATS" )"
+			reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+
+			uptime="$(		jq --raw-output		'.[0]["Device Elapsed"]'																	<<< "$STATS" )"
+			hs="$(			jq --compact-output	'[.[] | with_entries( select(.key | test("MHS 5s")) )			| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "hs#$?" )
+			temp="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("TempAVG")) )			| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "temp#$?" )
+			freq="$(		jq --compact-output	'[.[] | with_entries( select(.key | test("CORE")) )				| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "freq#$?" )
+			chain_acn="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("DUTY")) )				| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "chain_acn#$?" )
+#			chain_acs="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Num active chips")) )	| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
+			hw_errors="$(	jq --compact-output	'[.[] | with_entries( select(.key | test("Hardware Errors")) )	| to_entries | .[].value]'	<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
+
+			stats="$( jq --null-input --compact-output																		\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
+				--argjson	'freq'			"${freq:-null}"					--argjson	'acn'		"${chain_acn:-null}"	\
+				--argjson	'hw_errors'		"${hw_errors:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																															\
+				'{$algo, $hs, $hs_units, $temp, $freq, $acn, $hw_errors, $uptime}'											\
+																															\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		'Toddminer C1'*)
@@ -832,74 +825,105 @@ function fetch_miner_stats {
 
 		'Blackminer F1'*)
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
-			stats_raw="$( get_stats_raw )"
-			if [[ $? -ne 0 || -z "$stats_raw" ]]; then
+			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-			else
-				STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API: '}{' -> '},{'
-
-				local COIN="$( jq --raw-output '."coin-type"' < /config/cgminer.conf )"
-				POWER=(50)
-				[[ -e /hive/share/blackminer/blackminer.json ]] && BBDATA="$( jq --exit-status '.' < /hive/share/blackminer/blackminer.json )"
-				if (( $? == 0 )); then
-					ASIC_ALGO="$( jq --raw-output --arg coin "$COIN" '.[$coin].algo' <<< "$BBDATA" )" || error_vars+=( "ASIC_ALGO#$?" )
-					POWER="$( jq --raw-output --arg coin "$COIN" '.[$coin].power' <<< "$BBDATA" )" || error_vars+=( "POWER#$?" )
-				fi
-
-				##echo $ASIC_ALGO $POWER
-				#if [[ -z $algo || $algo == 'null' ]]; then
-				#	algo=`echo '{"command":"coin"}' | nc localhost 4028 | jq '.COIN."Hash Method"'`
-				#fi
-
-				hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
-				reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-
-				process_pools || return
-
-				uptime="$(		jq --raw-output		'.[1].Elapsed'																													<<< "$STATS" )"
-				hs="$(			jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hs#$?" )
-#				temp="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
-				temp="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
-				board_temp="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "board_temp#$?" )
-				fan_percent="$(	jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
-													'.[1]	| with_entries( select(.key | test("fan\\d+")) )		| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'	<<< "$STATS" )" || error_vars+=( "fan_percent#$?" )
-				fan_rpm="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("fan\\d+")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "fan_rpm#$?" )
-				freq="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("frequency\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "freq#$?" )
-				miner_count="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("miner_count")) )	| to_entries | .[].value'										<<< "$STATS" )" || error_vars+=( "miner_count#$?" )
-				chain_acn="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_acn\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "chain_acn#$?" )
-				chain_acs="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
-				hw_errors="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
-				ar="$(			jq --compact-output --argjson pool "$active_pool_id" \
-									'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$POOLS" )" || error_vars+=( "ar#$?" )
-
-				if [[ "$( jq --raw-output length <<< "$freq" )" -ne "$miner_count" ]]; then
-					freq_new='[]'
-					freq="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("frequency")) )		| to_entries | [.[].value]'										<<< "$STATS" )"
-					freq_num="$( jq --raw-output '.[0]' <<< "$freq" )"
-					for (( c=1; c<=miner_count; c++ )); do
-						freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num | tonumber]' <<< "$freq_new" )"
-					done
-				else
-					freq_new="$freq"
-				fi
-
-				power="$( jq --slurp --compact-output '.' <<< "$POWER" )"
-
-				stats="$( jq --null-input --compact-output																		\
-					--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
-					--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
-					--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"	\
-					--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq_new:-null}"		\
-					--argjson	'acn'			"${chain_acn:-null}"			--argjson	'power'		"${power:-null}"		\
-					--argjson	'ar'			"${ar:-null}"					--argjson	'hw_errors'	"${hw_errors:-null}"	\
-					--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
-																																\
-					'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$acn,$power,$ar,$hw_errors,$status,$uptime}'	\
-																																\
-					2> /dev/null
-				)" || error_vars+=( "stats#$?" )
-				(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+				return
 			fi
+
+			STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" )" # fix broken API: '}{' -> '},{'
+
+			local COIN="$( jq --raw-output '."coin-type"' < /config/cgminer.conf )"
+			POWER=( '50' )
+			if [[ -e /hive/share/blackminer/blackminer.json ]] && BBDATA="$( jq --exit-status '.' < /hive/share/blackminer/blackminer.json )"; then
+					ASIC_ALGO="$( jq --raw-output --arg coin "$COIN" '.[$coin].algo' <<< "$BBDATA" )"	|| error_vars+=( "ASIC_ALGO#$?" )
+					POWER="$( jq --raw-output --arg coin "$COIN" '.[$coin].power' <<< "$BBDATA" )"		|| error_vars+=( "POWER#$?" )
+			fi
+
+			hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
+			reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+			process_pools || return
+
+			uptime="$(		jq --raw-output		'.[1].Elapsed'																													<<< "$STATS" )" || error_vars+=( "uptime#$?" )
+			hs="$(			jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hs#$?" )
+#			temp="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
+			temp="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "temp#$?" )
+			board_temp="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "board_temp#$?" )
+			fan_percent="$(	jq --compact-output --argjson max_fan_rpm "$ASIC_MAX_FAN_RPM" \
+												'.[1]	| with_entries( select(.key | test("fan\\d+")) )		| to_entries | [.[].value / $max_fan_rpm * 100 + 0.5 | floor ]'	<<< "$STATS" )" || error_vars+=( "fan_percent#$?" )
+			fan_rpm="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("fan\\d+")) )		| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "fan_rpm#$?" )
+			freq="$(		jq --compact-output	'.[1]	| with_entries( select(.key | test("frequency\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "freq#$?" )
+			miner_count="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("miner_count")) )	| to_entries | .[].value'										<<< "$STATS" )" || error_vars+=( "miner_count#$?" )
+			chain_acn="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_acn\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "chain_acn#$?" )
+			chain_acs="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_acs\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "chain_acs#$?" )
+			hw_errors="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_hw\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hw_errors#$?" )
+			ar="$(			jq --compact-output --argjson pool "$active_pool_id" \
+								'.[$pool] | with_entries( select(.key | test("^Accepted","^Rejected","Get Failures")) ) | to_entries | [.[].value]'	<<< "$POOLS" )" || error_vars+=( "ar#$?" )
+
+			if [[ "$( jq --raw-output length <<< "$freq" )" -ne "$miner_count" ]]; then
+				freq_new='[]'
+				freq="$(	jq --compact-output	'.[1]	| with_entries( select(.key | test("frequency")) )		| to_entries | [.[].value]'										<<< "$STATS" )"
+				freq_num="$( jq --raw-output '.[0]' <<< "$freq" )"
+				for (( c=1; c<=miner_count; c++ )); do
+					freq_new="$( jq --raw-output --arg freq_num "$freq_num" '[.[], $freq_num | tonumber]' <<< "$freq_new" )"
+				done
+			else
+				freq_new="$freq"
+			fi
+
+			power="$( jq --slurp --compact-output '.' <<< "$POWER" )"
+
+			stats="$( jq --null-input --compact-output																		\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
+				--argjson	'board_temp'	"${board_temp:-null}"			--argjson	'fan'		"${fan_percent:-null}"	\
+				--argjson	'fan_rpm'		"${fan_rpm:-null}"				--argjson	'freq'		"${freq_new:-null}"		\
+				--argjson	'acn'			"${chain_acn:-null}"			--argjson	'power'		"${power:-null}"		\
+				--argjson	'ar'			"${ar:-null}"					--argjson	'hw_errors'	"${hw_errors:-null}"	\
+				--argjson	'status'		"${chain_acs:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																															\
+				'{$algo,$hs,$hs_units,$temp,$board_temp,$fan,$fan_rpm,$freq,$acn,$power,$ar,$hw_errors,$status,$uptime}'	\
+																															\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+		;;
+
+		'Avalon'*)
+			if ! stats_raw="$( /hive/bin/avalon_api 'status' )" || [[ -z "$stats_raw" ]]; then
+				log_line warning "Failed to get 'status' from Avalon API"
+				return
+			fi
+
+			if ! stats_dev_raw="$( /hive/bin/avalon_api 'stats' )" || [[ -z "$stats_dev_raw" ]]; then
+				log_line warning "Failed to get 'stats' from Avalon API"
+			fi
+
+			STATS="$(			jq --compact-output '.summary'	<<< "$stats_raw" )"		|| error_vars+=( "STATS#$?" )
+#			STATS_DEV="$(		jq --compact-output '.stats'	<<< "$stats_dev_raw" )"	|| error_vars+=( "STATS_DEV#$?" )
+			STATS_DEV="$(		jq --compact-output				<<< "$stats_dev_raw" )"	|| error_vars+=( "STATS_DEV#$?" )
+
+			hashrate_raw="$(	jq --raw-output '[.["MHS av"]] | add' <<< "$STATS" )"	|| error_vars+=( "hashrate_raw#$?" )
+			reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
+
+			uptime="$(			jq --raw-output		'.["Elapsed"]'																						<<< "$STATS" )"		|| error_vars+=( "uptime#$?" )
+			hs="$(				jq --compact-output	'[. | with_entries( select(.key | test("MHS 5s")) )						| to_entries | .[].value]'	<<< "$STATS" )"		|| error_vars+=( "hs#$?" )
+			temp="$(			jq --compact-output	'[.stats["0"] | with_entries( select(.key | test("AUC Temperature")) )	| to_entries | .[].value]'	<<< "$STATS_DEV" )"	|| error_vars+=( "temp#$?" )
+			freq="$(			jq --compact-output	'[.[][][]."Freq" | with_entries( select(.key | test("CORE")) )			| to_entries | .[].value]'	<<< "$STATS_DEV" )"	|| error_vars+=( "freq#$?" )
+#			chain_acn="$(		jq --compact-output	'[. | with_entries( select(.key | test("DUTY")) )						| to_entries | .[].value]'	<<< "$STATS" )"		|| error_vars+=( "chain_acn#$?" )
+#			chain_acs="$(		jq --compact-output	'[. | with_entries( select(.key | test("Num active chips")) )			| to_entries | .[].value]'	<<< "$STATS" )"		|| error_vars+=( "chain_acs#$?" )
+			hw_errors="$(		jq --compact-output	'[. | with_entries( select(.key | test("Hardware Errors")) )			| to_entries | .[].value]'	<<< "$STATS" )"		|| error_vars+=( "hw_errors#$?" )
+
+			stats="$( jq --null-input --compact-output																		\
+				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
+				--arg		'hs_units'		"$ASIC_CHAIN_HASHRATE_UNITS"	--argjson	'temp'		"${temp:-null}"			\
+				--argjson	'freq'			"${freq:-null}"																	\
+				--argjson	'hw_errors'		"${hw_errors:-null}"			--argjson	'uptime'	"${uptime:-null}"		\
+																															\
+				'{$algo, $hs, $hs_units, $temp, $freq, $hw_errors, $uptime}'												\
+																															\
+				2> /dev/null
+			)" || error_vars+=( "stats#$?" )
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		*)
@@ -907,9 +931,6 @@ function fetch_miner_stats {
 			MINER='unknown'
 		;;
 	esac
-
-	# show vars with errors, if any
-	(( ${#error_vars[@]} )) && log_line debug "Missing keys: ${error_vars[*]}"
 }
 
 function get_loadavg_as_json_array {
@@ -1288,8 +1309,7 @@ function fetch_stats_and_push_them_to_server {
 	# errors processing
 	local error
 	#
-	error="$( jq --raw-output '.error' <<< "$response" )"
-	if (( $? )); then
+	if ! error="$( jq --raw-output '.error' <<< "$response" )"; then
 		log_line error "Invalid response received in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}:\n$response"
 		return 1
 	fi
@@ -1651,8 +1671,7 @@ function do_command {
 				justwrite=
 #				oc_if_changed
 
-				/hive/bin/miner restart
-				if (( $? == 0 )); then
+				if /hive/bin/miner restart; then
 					message ok 'Wallet changed, miner restarted' --id="$cmd_id" --silent
 				else
 					message warning 'Error restarting miner' --id="$cmd_id" --silent
@@ -1669,8 +1688,7 @@ function do_command {
 				grep -v '^_' <<< "$hiveon_config" > "$ASIC_CONF"
 				grep '^_' <<< "$hiveon_config" > "$HIVEON_CONF_VOLT"
 				sync
-				/hive/bin/miner restart
-				if (( $? == 0 )); then
+				if /hive/bin/miner restart; then
 					message ok 'ASIC config changed, miner restarted' --id="$cmd_id" --silent
 				else
 					message warning 'Error restarting miner' --id="$cmd_id" --silent
