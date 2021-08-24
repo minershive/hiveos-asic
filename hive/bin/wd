@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Hashrate Watchdog'
-readonly script_version='0.3.4'
+readonly script_version='0.3.5'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -77,7 +77,7 @@ function load_configuration {
 			if (( last_RIG_CONF_date == 0 )); then
 				log_line info "Loading & processing $RIG_CONF..."
 			else
-				log_line info "$RIG_CONF have been changed since the last check. Reloading & processing..."
+				log_line info "$RIG_CONF has been changed since the last check. Reloading & processing..."
 			fi
 
 			(( last_RIG_CONF_date = current_RIG_CONF_date )) # update a date
