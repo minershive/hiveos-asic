@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.10.2'
+readonly script_version='0.10.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -433,7 +433,7 @@ function cache_cmd {
 	local -i is_cold_FLAG=0
 
 	# vars
-	local -i current_time time_wasted_caching_in_ms cache_efficiency=0
+	local -i current_time time_wasted_caching_in_ms cache_efficiency
 	local debug_message tip=''
 
 	# code
@@ -484,12 +484,15 @@ function cache_cmd {
 			fi
 		fi
 
-		# shellcheck disable=SC2004
-		# bc $/${} is necessary while the variable been referenced to an array's single element
-		(( $avg_hot_time && $avg_cold_time )) && (( cache_efficiency = ( $avg_cold_time - $avg_hot_time ) * 100 / $avg_hot_time ))
-		(( cache_efficiency <= 100 )) && tip='(caching is not recommended)'
+		# these vars aren't -i(nteger), so good old [[ ]] testing is way more appropriate than (( ))
+		if (( ${avg_hot_time:-0} && ${avg_cold_time:-0} )); then
+			# shellcheck disable=SC2004
+			# bc $/${} is necessary while the variable been referenced to an array's single element
+			(( cache_efficiency = ( $avg_cold_time - $avg_hot_time ) * 100 / $avg_hot_time ))
+			(( cache_efficiency <= 100 )) && tip='(caching is not recommended)'
+		fi
 
-		log_line debug "$debug_message, avg hot/cold time ${avg_hot_time:--}ms/${avg_cold_time:--}ms, efficiency ${cache_efficiency}% $tip" 1>&2
+		log_line debug "$debug_message, avg hot/cold time ${avg_hot_time:--}ms/${avg_cold_time:--}ms, efficiency ${cache_efficiency:--}% $tip" 1>&2
 	fi
 
 	# shellcheck disable=SC2034
