@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.20'
+declare -r ant_functions_lib_version='0.1.21'
 
 
 # !!! bash strict mode, no unbound variables
@@ -319,23 +319,24 @@ function hiveon_power {
 	local -r acn="${2-}"
 
 	# vars
-	local -a power_mask
+	local -a power_mask=( 'left blank' ) # due to 1-based indexing
 	local -i this_chain
 	local this_chain_power IFS
 
 	# code
-	power_mask=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$acn" ) )
+	readarray -t -O 1 power_mask < <( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$acn" )
+#	power_mask=( $( jq '. | to_entries | .[].value | if . > 0 then 1 else 0 end' <<< "$acn" ) )
 
-	for (( this_chain=0; this_chain < ${#power_mask[@]}; this_chain++ )); do
+	for (( this_chain = 1; this_chain <= ${#power_mask[@]}; this_chain++ )); do
 		if (( power_mask[this_chain] )); then
-			this_chain_power="$( jq ".chain_power$(( this_chain + 1 ))" <<< "$power" )" #"#
-			[[ "$this_chain_power" == 'null' ]] && this_chain_power=0
+			this_chain_power="$( jq ".chain_power${this_chain} + 0.5 | floor" <<< "$power" )" #"#
+			[[ "$this_chain_power" == 'null' || -z "$this_chain_power" ]] && this_chain_power=0
 			power_mask[this_chain]="$this_chain_power"
 		fi
 	done
 
 	IFS=','
-	echo "[${power_mask[*]}]"
+	echo "[${power_mask[*]:1}]"
 }
 
 
