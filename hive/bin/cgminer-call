@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.3.4'
+readonly script_version='0.4.0'
 readonly script_basename="${0##*/}"
 
 
@@ -81,7 +81,7 @@ function parse_url {
 	[[ -n "$port" ]] && cgminer_port="$port" || cgminer_port="$cgminer_port_DEFAULT"
 }
 
-function make_tarball {
+function make_and_send_tarball {
 	# args
 	local -r firmware_vendor="$1"
 	local -r firmware_model="$2"
@@ -94,8 +94,8 @@ function make_tarball {
 	local relative_path_for_tar tarball_name_raw tarball_name_sanitized
 
 	# code
-	tarball_name_raw="${base_DIR}/cgminer-api-data-${firmware_vendor}-${firmware_model}-${firmware_version}.tar.gz"
-	tarball_name_sanitized="${tarball_name_raw//[:@ \/\\]/-}" # anything else to replace?
+	tarball_name_raw="${base_DIR:?}/cgminer-api-data-${firmware_vendor}-${firmware_model}-${firmware_version}.tar.gz"
+	tarball_name_sanitized="${tarball_name_raw//[:@ ]/-}" # anything else to replace?
 	relative_path_for_tar="${firmware_vendor}/${firmware_model}/${firmware_version}/"
 
 	echo_action "Preparing archive $tarball_name_sanitized"
@@ -151,7 +151,7 @@ declare -r api_collection_filename='full-api-collection.json'
 
 declare cgminer_host
 declare  -i cgminer_port
-declare -i total_request_counter=0 successful_request_counter=0
+declare -i total_request_counter=0 answered_request_counter=0 command_supported_request_counter=0
 declare this_command this_command_cmd this_command_log_raw_FILE this_command_log_sanitized_FILE
 declare api_collection_FILE
 
@@ -165,7 +165,7 @@ if ! parse_url "${1-}" || [[ "${1-}" == '--help' || "${1-}" == '-h' ]]; then
 	exit 1
 fi
 
-mkdir -p "$raw_DIR" "$sanitize_DIR"
+mkdir -p -- "$raw_DIR" "$sanitize_DIR"
 
 echo_action "Polling cgminer API at ${cgminer_host}:${cgminer_port}"
 
@@ -175,22 +175,35 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 	this_command_log_raw_FILE="${raw_DIR}/${this_command}.json"
 	this_command_log_sanitized_FILE="${sanitize_DIR}/${this_command}.json"
 
-	echo_action "Sending cgminer API command '$this_command'"
+	echo_action "Sending command '$this_command'"
 
 	if timeout nc "$cgminer_host" "$cgminer_port" <<< "$this_command_cmd" > "$this_command_log_raw_FILE" 2> /dev/null; then
 		(( total_request_counter++ ))
 
 		if [[ -s "$this_command_log_raw_FILE" ]]; then # we have received something
-			(( successful_request_counter++ ))
-			echo_ok "Received and saved to $this_command_log_raw_FILE"
+			(( answered_request_counter++ ))
 			if hash jq && ! jq_error="$( jq --exit-status 'empty' "$this_command_log_raw_FILE" 2>&1 )" && [[ -n "$jq_error" ]]; then
 				# sanity check
 				echo_warning "Invalid JSON in $this_command_log_raw_FILE ($jq_error)"
 			fi
-			tr -d '\0\n' < "$this_command_log_raw_FILE" | sed 's/}{/},{/' | jq '.' > "$this_command_log_sanitized_FILE"
+
+			# sanitizing
+			tr -d '\0\n' < "$this_command_log_raw_FILE" | sed 's/}{/},{/' | jq --compact-output '.' > "$this_command_log_sanitized_FILE"
+
+			# checking for invalid command
+			if cgminer_status_msg="$( jq --raw-output '.STATUS[].Msg' "$this_command_log_sanitized_FILE" 2> /dev/null )"; then
+				if [[ "$cgminer_status_msg" == 'Invalid command' ]]; then
+					echo_warning "Answer is 'Command not supported'"
+					rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those
+				else
+					(( command_supported_request_counter++ ))
+					echo_ok "Saved to $this_command_log_raw_FILE"
+				fi
+			fi
+
 		elif [[ -f "$this_command_log_raw_FILE" ]]; then # empty file = empty answer
 			echo_error 'Nothing received'
-			rm "$this_command_log_raw_FILE"
+			rm -- "$this_command_log_raw_FILE"
 		fi
 
 	else
@@ -199,8 +212,8 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 
 done
 
-if (( successful_request_counter )); then
-	echo_info "Done. API answers: ${successful_request_counter} good out of ${total_request_counter}"
+if (( command_supported_request_counter )); then
+	echo_info "Done. $command_supported_request_counter supported commands, ${answered_request_counter} answered, ${total_request_counter} total"
 
 	if hash jq; then
 		api_collection_FILE="${base_DIR}/${api_collection_filename}"
@@ -245,15 +258,15 @@ if (( successful_request_counter )); then
 			mkdir -p "${target_DIR:?}"
 
 			# move relevant files
-			mv "${api_collection_FILE:?}" "${target_DIR:?}/"
-			mv "${raw_DIR:?}/"* "${target_DIR:?}/"
+			mv -- "${api_collection_FILE:?}" "${target_DIR:?}/"
+			mv -- "${raw_DIR:?}/"* "${target_DIR:?}/"
 
 			echo_ok "Data saved to $target_DIR"
 
-			make_tarball "$firmware_vendor" "$firmware_model" "$firmware_version"
+			make_and_send_tarball "$firmware_vendor" "$firmware_model" "$firmware_version"
 
 			# cleanup
-			rm -r "${sanitize_DIR:?}/" "${raw_DIR:?}/"
+			rm -r -- "${sanitize_DIR:?}/" "${raw_DIR:?}/"
 		else
 			echo_error 'Something goes wrong'
 		fi
@@ -263,6 +276,6 @@ if (( successful_request_counter )); then
 	fi
 else
 	# cleanup
-	rm -r "${sanitize_DIR:?}/" "${raw_DIR:?}/"
+	rm -r -- "${sanitize_DIR:?}/" "${raw_DIR:?}/"
 	echo_warning 'Totally failed, exiting'
 fi
