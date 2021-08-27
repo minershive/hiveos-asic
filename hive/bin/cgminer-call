@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.4.0'
+readonly script_version='0.4.1'
 readonly script_basename="${0##*/}"
 
 
@@ -182,6 +182,7 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 
 		if [[ -s "$this_command_log_raw_FILE" ]]; then # we have received something
 			(( answered_request_counter++ ))
+			echo >> "$this_command_log_raw_FILE" # add newline (actually it's for Gitlab to ease the file preview)
 			if hash jq && ! jq_error="$( jq --exit-status 'empty' "$this_command_log_raw_FILE" 2>&1 )" && [[ -n "$jq_error" ]]; then
 				# sanity check
 				echo_warning "Invalid JSON in $this_command_log_raw_FILE ($jq_error)"
@@ -194,7 +195,7 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 			if cgminer_status_msg="$( jq --raw-output '.STATUS[].Msg' "$this_command_log_sanitized_FILE" 2> /dev/null )"; then
 				if [[ "$cgminer_status_msg" == 'Invalid command' ]]; then
 					echo_warning "Answer is 'Command not supported'"
-					rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those
+					rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those anymore
 				else
 					(( command_supported_request_counter++ ))
 					echo_ok "Saved to $this_command_log_raw_FILE"
