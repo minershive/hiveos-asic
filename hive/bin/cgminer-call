@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.4.4'
+readonly script_version='0.4.5'
 readonly script_basename="${0##*/}"
 
 
@@ -200,7 +200,7 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 			if cgminer_status_msg="$( jq --raw-output '.STATUS[].Msg' "$this_command_log_sanitized_FILE" 2> /dev/null )"; then
 				case "$cgminer_status_msg" in
 					'Invalid command' | 'invalid cmd') # the former is Antminer's, the latter is Whatsminer's
-						echo_info "Answer is '$cgminer_status_msg', saving skipped"
+						echo_warning "Answer is '$cgminer_status_msg', saving skipped"
 						rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those anymore
 					;;
 					*)
