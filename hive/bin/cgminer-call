@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.4.1'
+readonly script_version='0.4.2'
 readonly script_basename="${0##*/}"
 
 
@@ -193,13 +193,18 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 
 			# checking for invalid command
 			if cgminer_status_msg="$( jq --raw-output '.STATUS[].Msg' "$this_command_log_sanitized_FILE" 2> /dev/null )"; then
-				if [[ "$cgminer_status_msg" == 'Invalid command' ]]; then
-					echo_warning "Answer is 'Command not supported'"
-					rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those anymore
-				else
-					(( command_supported_request_counter++ ))
-					echo_ok "Saved to $this_command_log_raw_FILE"
-				fi
+				echo_info "Answer is '$cgminer_status_msg'"
+				case "$cgminer_status_msg" in
+					'Invalid command' | 'invalid cmd') # the former is Antminer's, the latter is Whatsminer's
+						rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those anymore
+					;;
+					*)
+						(( command_supported_request_counter++ ))
+						echo_ok "Saved to $this_command_log_raw_FILE"
+					;;
+				esac
+			else
+				echo_warning "No 'STATUS.Msg' key in the answer. Is it a cgminer? Saved to $this_command_log_raw_FILE, please take a look"
 			fi
 
 		elif [[ -f "$this_command_log_raw_FILE" ]]; then # empty file = empty answer
