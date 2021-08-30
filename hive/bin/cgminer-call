@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.4.3'
+readonly script_version='0.4.4'
 readonly script_basename="${0##*/}"
 
 
@@ -184,8 +184,7 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 			(( answered_request_counter++ ))
 
 			if ! tail -c 1 "$this_command_log_raw_FILE" | read -r _; then
-				# a terminating newline doesn't exist
-				echo_info "No newline terminator at the end, appending..."
+				#echo_info "No newline terminator at the end, appending..."
 				echo >> "$this_command_log_raw_FILE" # add a newline (actually it's for Gitlab to ease the file preview)
 			fi
 
