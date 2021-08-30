@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.4.5'
+readonly script_version='0.5.0'
 readonly script_basename="${0##*/}"
 
 
@@ -34,10 +34,11 @@ function print_script_version {
 } 1>&2
 
 function print_script_usage {
-	echo -e "Usage: ${CYAN-}$script_basename [host[:port]]${NOCOLOR-}"
+	echo -e "Usage: ${CYAN-}$script_basename [host[:port] [command]]${NOCOLOR-}"
 	echo
-	echo -e "    ${WHITE-}host${NOCOLOR-}  host name or IP address, default is $cgminer_host_DEFAULT"
-	echo -e "    ${WHITE-}port${NOCOLOR-}  port number, default is $cgminer_port_DEFAULT"
+	echo -e "    ${WHITE-}host${NOCOLOR-}     host name or IP address, default is $cgminer_host_DEFAULT"
+	echo -e "    ${WHITE-}port${NOCOLOR-}     port number, default is $cgminer_port_DEFAULT"
+	echo -e "    ${WHITE-}command${NOCOLOR-}  a cgminer command, default is to probe for all known"
 	echo
 	echo -e "All gathered information will be located at $base_DIR/"
 	echo
@@ -87,9 +88,6 @@ function make_and_send_tarball {
 	local -r firmware_model="$2"
 	local -r firmware_version="$3"
 
-	# consts
-	local -r message_script='/hive/bin/message'
-
 	# vars
 	local relative_path_for_tar tarball_name_raw tarball_name_sanitized
 
@@ -123,15 +121,16 @@ function make_and_send_tarball {
 
 # global dictionaries
 
-declare -r -a cgminer_commands_DICT=(
+declare -a cgminer_commands_DICT=(
 	'devs'
-	'miner_conf' # S19
-	'get_miner_conf'
 	'pools'
 	'stats'
 	'summary'
-	'system_info'
 	'version'
+	'miner_conf' # S19
+	'get_miner_conf' # S19
+	'set_miner_conf' # S19
+	'system_info'
 	)
 
 
@@ -145,6 +144,7 @@ declare -r base_DIR="/tmp/$script_basename"
 declare -r sanitize_DIR="${base_DIR}/sanitized-data"
 declare -r raw_DIR="${base_DIR}/raw-data"
 declare -r api_collection_filename='full-api-collection.json'
+declare -r message_script='/hive/bin/message'
 
 
 # global vars
@@ -152,6 +152,7 @@ declare -r api_collection_filename='full-api-collection.json'
 declare cgminer_host
 declare  -i cgminer_port
 declare -i total_request_counter=0 answered_request_counter=0 command_supported_request_counter=0
+declare -i is_probe_for_custom_command=0
 declare this_command this_command_cmd this_command_log_raw_FILE this_command_log_sanitized_FILE
 declare api_collection_FILE
 
@@ -160,9 +161,16 @@ declare api_collection_FILE
 
 print_script_version
 
+# parse first argument
 if ! parse_url "${1-}" || [[ "${1-}" == '--help' || "${1-}" == '-h' ]]; then
 	print_script_usage
 	exit 1
+fi
+
+# parse second argument
+if [[ -n "${2-}" ]]; then
+	cgminer_commands_DICT=( "$2" )
+	is_probe_for_custom_command=1
 fi
 
 mkdir -p -- "$raw_DIR" "$sanitize_DIR"
@@ -170,12 +178,15 @@ mkdir -p -- "$raw_DIR" "$sanitize_DIR"
 echo_action "Polling cgminer API at ${cgminer_host}:${cgminer_port}"
 
 for this_command in "${cgminer_commands_DICT[@]}"; do
-
 	this_command_cmd="{\"command\":\"$this_command\"}"
 	this_command_log_raw_FILE="${raw_DIR}/${this_command}.json"
 	this_command_log_sanitized_FILE="${sanitize_DIR}/${this_command}.json"
 
-	echo_action "Sending command '$this_command'"
+	if (( ! is_probe_for_custom_command )); then
+		echo_action "Probing for command '$this_command'"
+	else
+		echo_action "Probing for custom command '$this_command'"
+	fi
 
 	if timeout nc "$cgminer_host" "$cgminer_port" <<< "$this_command_cmd" > "$this_command_log_raw_FILE" 2> /dev/null; then
 		(( total_request_counter++ ))
@@ -191,6 +202,14 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 			if hash jq && ! jq_error="$( jq --exit-status 'empty' "$this_command_log_raw_FILE" 2>&1 )" && [[ -n "$jq_error" ]]; then
 				# sanity check
 				echo_warning "Invalid JSON in $this_command_log_raw_FILE ($jq_error)"
+			fi
+
+			if (( is_probe_for_custom_command )); then
+				echo_action 'Sending the answer to your Hive dashboard'
+				if "$message_script" file "$this_command_log_raw_FILE" --header="${this_command_log_raw_FILE##*/}.txt" --silent; then
+					echo_ok 'Sent OK'
+				fi
+				break
 			fi
 
 			# sanitizing
@@ -220,10 +239,12 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 	else
 		echo_error 'Connection failed'
 	fi
-
 done
 
-if (( command_supported_request_counter )); then
+
+if (( is_probe_for_custom_command )); then
+	echo_info 'Done'
+elif (( command_supported_request_counter )); then
 	echo_info "Done. $command_supported_request_counter supported commands, ${answered_request_counter} answered, ${total_request_counter} total"
 
 	if hash jq; then
@@ -275,9 +296,6 @@ if (( command_supported_request_counter )); then
 			echo_ok "Data saved to $target_DIR"
 
 			make_and_send_tarball "$firmware_vendor" "$firmware_model" "$firmware_version"
-
-			# cleanup
-			rm -r -- "${sanitize_DIR:?}/" "${raw_DIR:?}/"
 		else
 			echo_error 'Something goes wrong'
 		fi
@@ -286,7 +304,8 @@ if (( command_supported_request_counter )); then
 		echo_warning 'jq not found, cannot do a deep firmware inspection'
 	fi
 else
-	# cleanup
-	rm -r -- "${sanitize_DIR:?}/" "${raw_DIR:?}/"
 	echo_warning 'Totally failed, exiting'
 fi
+
+# cleanup
+rm -r -- "${sanitize_DIR:?}/" "${raw_DIR:?}/"
