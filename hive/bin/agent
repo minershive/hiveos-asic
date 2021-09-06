@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.11.1-pre'
+readonly script_version='0.11.2-pre'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1991,6 +1991,7 @@ declare -a API_HOST_URLs_bootstrap_collection=(
 	'http://paris.hiveos.farm'
 	'http://amster.hiveos.farm'
 	'http://ca1.hiveos.farm'
+	'http://api-ru-cf.hiveos.farm'
 	'http://ap.hiveos.farm'
 	'http://naw.hiveos.farm'
 	'http://api2msk.hiveos.farm'
