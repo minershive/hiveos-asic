@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.10.3'
+readonly script_version='0.11.0-pre'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -363,7 +363,7 @@ function process_pools {
 				if [[ "$active_pool_id" =~ $active_pool_id_RE ]]; then
 					: ok good to go
 				else
-					log_line error 'All user pools are not alive:'
+					log_line warning 'All user pools are not alive:'
 					jq --color-output --compact-output \
 						'.[] |
 							select( .Priority <= 3 ) |
@@ -1116,18 +1116,56 @@ function get_avg_khs_as_json {
 	fi
 }
 
+function pretty_print_api_hosts {
+	# args
+	local -r hosts_list="${1-}"
+	local -r -i list_index="${2-0}"
+
+	# flags
+	local -i is_iterator_before_list_index=1
+
+	# arrays
+	local -a hosts_list_ARR
+
+	# vars
+	local -i this_element
+	local hosts_list_sanitized this_host
+
+	# code
+	hosts_list_sanitized="${hosts_list//http:\/\/}" # cut 'http://'
+	hosts_list_sanitized="${hosts_list_sanitized//\.hiveos\.farm}" # cut '.hiveos.farm'
+
+	read -r -a hosts_list_ARR <<< "$hosts_list_sanitized"
+	for (( this_element = 0; this_element < ${#hosts_list_ARR[@]}; this_element++ )); do
+		this_host="${hosts_list_ARR[this_element]-ERR_UNDEFINED}"
+		if (( this_element == list_index )); then
+			hosts_list_ARR[this_element]="${DGRAY-}[${BGREEN-}${this_host}${DGRAY-}]${NOCOLOR-}"
+			is_iterator_before_list_index=0
+		elif (( is_iterator_before_list_index )); then
+			hosts_list_ARR[this_element]="${RED-}${this_host}${NOCOLOR-}"
+		else
+			hosts_list_ARR[this_element]="${DGRAY-}${this_host}${NOCOLOR-}"
+		fi
+	done
+	echo "${hosts_list_ARR[*]}"
+}
+
 function fetch_stats_and_push_them_to_server {
 	# arrays
 	local -a latest_curl_log_as_array=()
 
+	# flags
+	local -i is_server_push_went_ok_FLAG=0
+
 	# vars
 	local -i curl_exitcode
-	local -i time_start_collecting_stats time_start_sending_stats
+	local -i time_start_collecting_stats time_start_sending_stats the_now
 	local time_wasted_collecting_stats_in_s time_wasted_sending_stats_in_s
 	local PUSH_INTERVAL custom_interval_message
 	local cpuavg df last_cmd_id avg_khs
 	local -i current_RIG_CONF_last_updated_time=0 current_WALLET_CONF_last_updated_time=0
 	local comm_quality_percentage
+	local -i this_element this_element_counter=0
 
 	# code
 	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
@@ -1136,12 +1174,45 @@ function fetch_stats_and_push_them_to_server {
 	if [[ -s "$RIG_CONF" ]] && current_RIG_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$RIG_CONF" )"; then
 		if (( saved_RIG_CONF_last_updated_time == 0 || saved_RIG_CONF_last_updated_time != current_RIG_CONF_last_updated_time )) ; then
 			#                       first time ^^^^                             updated ^^
-			log_line action "Loading rig config $RIG_CONF"
+			if (( saved_RIG_CONF_last_updated_time == 0 )); then
+				log_line info "Loading rig config $RIG_CONF"
+			else
+				log_line warning "Rig config $RIG_CONF has been updated, re-loading"
+			fi
 			source "$RIG_CONF"
 			(( saved_RIG_CONF_last_updated_time = current_RIG_CONF_last_updated_time ))
+
+			# forcedly reset fall-back mode
+			is_fallback_connection_in_force_FLAG=0
+			API_HOST_URLs_working_collection_index=0
+
+			# parse API_HOST_URLs to API_HOST_URLs_working_collection
+			if [[ -n "${API_HOST_URLs-}" ]]; then
+				# parse a whole API_HOST_URLs string to the URLs collection array; sanitizing 'https' to 'http' at the same time
+				read -r -a API_HOST_URLs_working_collection <<< "${API_HOST_URLs//https:\/\//http:\/\/}"
+			else
+				# HIVE_HOST_URL is deprecated, but better safe than sorry; sanitizing 'https' to 'http' at the same time
+				API_HOST_URLs_working_collection[0]="${HIVE_HOST_URL//https:\/\//http:\/\/}"
+			fi
+			if (( can_has_bootstrap_servers_FLAG )); then
+				# append only unique hosts from API_HOST_URLs_bootstrap_collection
+				for (( this_element = 0; this_element < ${#API_HOST_URLs_bootstrap_collection[@]}; this_element++ )); do
+					if [[ ! " ${API_HOST_URLs_working_collection[*]} " =~ " ${API_HOST_URLs_bootstrap_collection[this_element]} " ]]; then
+						(( this_element_counter++ ))
+						API_HOST_URLs_working_collection+=( "${API_HOST_URLs_bootstrap_collection[this_element]}" )
+					fi
+				done
+				log_line debug "$this_element_counter bootstrap API servers added"
+			fi
+			API_HOST_URLs_working_collection_size="${#API_HOST_URLs_working_collection[@]}"
+			API_HOST_URL_main="${API_HOST_URLs_working_collection[0]}"
+			log_line debug "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
+
+			# export TZ
+			[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
 		fi
 	else
-		log_line error "Rig config $RIG_CONF not found, waiting..."
+		log_line warning "Rig config $RIG_CONF not found, waiting..."
 		return
 	fi
 
@@ -1149,12 +1220,16 @@ function fetch_stats_and_push_them_to_server {
 	if [[ -s "$WALLET_CONF" ]] && current_WALLET_CONF_last_updated_time="$( get_file_last_modified_time_in_seconds "$WALLET_CONF" )"; then
 		if (( saved_WALLET_CONF_last_updated_time == 0 || saved_WALLET_CONF_last_updated_time != current_WALLET_CONF_last_updated_time )); then
 			#                          first time ^^^^                                updated ^^
-			log_line action "Loading wallet config $WALLET_CONF"
+			if (( saved_WALLET_CONF_last_updated_time == 0 )); then
+				log_line info "Loading wallet config $WALLET_CONF"
+			else
+				log_line warning "Wallet config $WALLET_CONF has been updated, re-loading"
+			fi
 			source "$WALLET_CONF"
 			(( saved_WALLET_CONF_last_updated_time = current_WALLET_CONF_last_updated_time ))
 		fi
 	else
-		log_line warning "Wallet config $WALLET_CONF not found, trying to move on without it"
+		log_line warning "Wallet config $WALLET_CONF not found, trying to ignore"
 	fi
 
 	# if rig config contains PUSH_INTERVAL then change default to custom
@@ -1165,8 +1240,6 @@ function fetch_stats_and_push_them_to_server {
 		INTERVAL="$push_interval_DEFAULT"
 		custom_interval_message=''
 	fi
-
-	[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
 
 	# let's send stats even if no FS applied
 	if [[ -z "$MINER" || "$MINER" == 'claymore' ]]; then
@@ -1192,7 +1265,8 @@ function fetch_stats_and_push_them_to_server {
 
 	# construct a request
 	request="$(
-		jq --null-input --compact-output						\
+		jq														\
+			--null-input --compact-output						\
 			--argjson	rig_id			"${RIG_ID:-null}"		\
 			--arg		passwd			"$RIG_PASSWD"			\
 			--argjson	last_cmd_id		"${last_cmd_id:-null}"	\
@@ -1235,7 +1309,7 @@ function fetch_stats_and_push_them_to_server {
 				)' # remove: 1. empty objects; 2. empty arrays; 3. keys with null value
 	)"
 
-	# fall-back route (like in case of a broken jq or some)
+	# jq's fall-back (like in the case of the broken jq or like)
 	if [[ $? -ne 0 || -z "$request" ]]; then
 		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
 		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'total_khs' 'avg_khs' 'cpuavg'
@@ -1247,19 +1321,15 @@ function fetch_stats_and_push_them_to_server {
 	jq '.params.passwd=$cloaked_pass' --arg cloaked_pass "${RIG_PASSWD//?/*}" --compact-output <<< "$request"
 
 	if [[ -z "$RIG_ID" ]]; then
-		log_line warning "No RIG_ID, skipping sending stats"
+		log_line warning "No RIG_ID, sending stats skipped"
 		return
 	fi
 
-	HIVE_URL="$HIVE_HOST_URL"
-	HIVE_URL_collection[0]="$HIVE_URL" # 0th index is for an original HIVE_HOST_URL
-	HIVE_URL_collection[1]="$HIVE_URL" # 1st index is for an original HIVE_HOST_URL, second connection attempt
-
 	# !!! and now the duct tape
+	# !!! fix /hive/bin/message then ditch this under the bus
 	# protection measures -- we don't have https on the vast majority of ASICs
-	if [[ "$HIVE_URL" == 'https://'* ]]; then
-		log_line warning "API server $HIVE_URL is not supported, most likely"
-		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for an http form of https'ed HIVE_HOST_URL
+	if [[ "$HIVE_HOST_URL" == 'https://'* ]]; then
+		log_line warning "Secure connection to $HIVE_HOST_URL is not supported, most likely"
 		if (( ! https_disabled_message_sent_FLAG )); then
 			cp "$RIG_CONF" "${RIG_CONF}.original"
 			sed -i 's|HIVE_HOST_URL="https://|HIVE_HOST_URL="http://|' "$RIG_CONF"
@@ -1269,16 +1339,44 @@ function fetch_stats_and_push_them_to_server {
 		fi
 	fi
 
-	local -i curl_connect_timeout=5 curl_max_time=7 # a somewhat shorter timeouts for the first attempt
-	local -i attempts_counter=1
-	for this_URL in "${HIVE_URL_collection[@]}"; do
-		(( push_total_counter++ ))
-		if [[ "$HIVE_URL" != *'hiveos.farm'* && "$this_URL" == *'hiveos.farm'* ]]; then
-			log_line warning "Whitelabel HIVE_HOST_URL detected, sending stats to ${this_URL} skipped..."
-			break
+	until (( is_server_push_went_ok_FLAG )); do
+
+		if (( is_fallback_connection_in_force_FLAG )); then
+			# check for fall-back age
+			set_variable_to_current_system_time_in_seconds 'the_now'
+			((
+				seconds_passed_since_fallback_connection = the_now - time_start_fallback_connection,
+				seconds_left_till_switch_to_main = fallback_connection_duration_in_s_DEFAULT - seconds_passed_since_fallback_connection
+			))
+			if (( seconds_left_till_switch_to_main <= 0 )); then
+				# return to the main host
+				is_fallback_connection_in_force_FLAG=0
+				API_HOST_URLs_working_collection_index=0
+				log_line warning "It's time to switch back to the main API server"
+			fi
+		fi
+
+		# out of boundaries check
+		if (( API_HOST_URLs_working_collection_index >= API_HOST_URLs_working_collection_size )); then
+			if (( ! is_fallback_connection_in_force_FLAG )); then
+				API_HOST_URLs_working_collection_index=0 # use main api host
+			else
+				API_HOST_URLs_working_collection_index=1
+			fi
+		fi
+
+		# set working API host
+		API_HOST_URL_current="${API_HOST_URLs_working_collection[API_HOST_URLs_working_collection_index]%/}" # cut the trailing slash in host URL, if any (like as in rocketchain's local API server URL)
+
+		# whitelabel's workaround
+		if [[ "$API_HOST_URL_main" != *'hiveos.farm'* && "$API_HOST_URL_current" == *'hiveos.farm'* ]]; then
+			log_line warning "Whitelabel detected, sending stats to $API_HOST_URL_current skipped..."
+			(( API_HOST_URLs_working_collection_index++ )) # iterate to the next host
+			continue # start over
 		fi
 
 		# calculate and show upstream communication quality
+		(( push_total_counter++ ))
 		if (( push_bad_counter > 0 )); then
 			comm_quality_percentage="$( calculate_quality "$push_bad_counter" "$push_total_counter" )"
 			# and here comes some fancy optimization
@@ -1288,28 +1386,40 @@ function fetch_stats_and_push_them_to_server {
 			log_line warning "Upstream communication quality ${comm_quality_percentage}% ($push_bad_counter_humanized unsuccessful out of $push_total_counter_humanized)"
 		fi
 
-		if (( attempts_counter == 1 )); then
-			log_line info "Sending stats (${#request} bytes) to ${this_URL}..."
-		else
-			log_line warning "Re-sending stats (${#request} bytes) to ${this_URL} (attempt #$attempts_counter)..."
+		if (( is_fallback_connection_in_force_FLAG )); then
+			log_line warning "Fall-back API server is active, $( seconds2dhms "$seconds_left_till_switch_to_main" ) till returning to main"
+			log_line debug "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
 		fi
+
+		log_line info "Sending stats (${#request} bytes) to ${API_HOST_URL_current}..."
+
 		time_start_sending_stats="$( get_system_uptime_in_milliseconds )"
 		response="$(
-			curl \
-				--verbose --trace-time --insecure --location --data @- \
-				--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
-				--silent --fail \
-				--request POST "${this_URL}/worker/api?id_rig=$RIG_ID&method=stats" \
-				--header 'Content-Type: application/json' \
-				\
-			<<< "$request" \
-			2> "$latest_curl_log"
+			request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=stats"
+			curl												\
+																\
+				--insecure --location --data @- --silent		\
+																\
+				--header 'Content-Type: application/json'		\
+				--request POST "$request_endpoint"				\
+																\
+				--connect-timeout "$curl_connect_timeout"		\
+				--max-time "$curl_max_time"						\
+																\
+				--verbose										\
+				--trace-time									\
+				--fail											\
+																\
+			<<< "$request" 2> "$latest_curl_log"
 		)"
 		curl_exitcode=$?
 		time_wasted_sending_stats_in_s="$( get_time_difference_in_s $(( time_start_sending_stats )) )"
 
-		if (( curl_exitcode > 0 )); then
+		if (( curl_exitcode == 0 )); then
+			is_server_push_went_ok_FLAG=1
+		else
 			(( push_bad_counter++ ))
+
 			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
 
 			if [[ -s "$latest_curl_log" ]]; then
@@ -1321,21 +1431,24 @@ function fetch_stats_and_push_them_to_server {
 				printf '%b' "${NOCOLOR-}"
 			fi
 
-			sleep_with_progress_bar "$INTERVAL" # try to be nice from the perspective of a router's conntrack engine
-		else
-			break
-		fi
+			if (( API_HOST_URLs_working_collection_index == 0 )); then
+				set_variable_to_current_system_time_in_seconds 'time_start_fallback_connection'
+				is_fallback_connection_in_force_FLAG=1
+				log_line warning 'Main API server is not available, switching to the fall-back one'
+			else
+				log_line warning 'This fall-back API server is not available, switching to the next one'
+			fi
+			(( API_HOST_URLs_working_collection_index++ )) # iterate to the next host
 
-		(( curl_connect_timeout = 15, curl_max_time = 25 )) # much longer timeouts for all next attempts
-		(( attempts_counter++ ))
+			sleep_with_progress_bar $(( INTERVAL / 2 )) # a kind of brother's mercy to the network and local router
+		fi
 	done
 
-	if [[ $curl_exitcode -ne 0 || -z "$response" ]]; then
-		log_line error "No attempts left. Let's refresh the IP cache..."
-		/hive/bin/timeout -t 10 /hive/bin/cache-hive-ip
-		return "$curl_exitcode"
-	fi
-
+#	if [[ $curl_exitcode -ne 0 || -z "$response" ]]; then
+#		log_line error "No luck. Let's refresh the IP cache..."
+#		/hive/bin/timeout -t 10 /hive/bin/cache-hive-ip
+#		return "$curl_exitcode"
+#	fi
 
 	# errors processing
 	local error
@@ -1432,7 +1545,7 @@ function do_command {
 	# vars
 	local cmd_id client_version exec shutdown_fuse_file exec_timeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
-	local -i curl_exitcode time_limit
+	local -i curl_exitcode exec_time_limit
 	# shellcheck disable=SC2034
 	# bc it's used in a weird way (in the sinlge quoted commands group)
 	local -i exec_exitcode
@@ -1462,7 +1575,7 @@ function do_command {
 			return
 		fi
 	fi
-			
+
 	case "$command" in
 		'OK')
 			# do nothing
@@ -1479,7 +1592,7 @@ function do_command {
 			client_version="$( jq --raw-output '.version' <<< "$body" )"
 			is_JSON_string_empty_or_null "$client_version" && client_version=''
 			screen -dm -S selfupgrade bash -c '
-				selfupgrade '"$client_version"' 2>&1 | tee '"$command_log"'
+				selfupgrade '"$client_version"' |& tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Client update successful" --payload --id='"$cmd_id"' --silent < '"$command_log"'
 				else
@@ -1490,7 +1603,7 @@ function do_command {
 
 		'upgrade beta')
 			screen -dm -S selfupgrade bash -c '
-				selfupgrade master 2>&1 | tee '"$command_log"'
+				selfupgrade master |& tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Client update successful" --payload --id='"$cmd_id"' --silent < '"$command_log"'
 				else
@@ -1530,14 +1643,14 @@ function do_command {
 			if [[ "${exec:0:2}" == ':;' ]]; then
 				exec_timeout='nohup bash -c' # no time limit at all
 			else
-				(( time_limit = 60 * 60 * 3 )) # 3 hrs tops
+				(( exec_time_limit = 60 * 60 * 3 )) # 3 hrs tops
 				# shellcheck disable=SC2076
 				if [[ "$ASIC_MODEL" == 'Zig Z1' || "$ASIC_MODEL" == 'Zig Z1+' || "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
 					# use Debian /usr/bin/timeout
-					exec_timeout="nohup timeout $time_limit bash -c"
+					exec_timeout="nohup timeout $exec_time_limit bash -c"
 				else
 					# use a BusyBox one
-					exec_timeout="nohup timeout -t $time_limit bash -c"
+					exec_timeout="nohup timeout -t $exec_time_limit bash -c"
 				fi
 			fi
 
@@ -1545,26 +1658,26 @@ function do_command {
 			# do we need an intermediate file? here's a file-less approach with pipe:
 			#
 			#$exec_timeout '
-			#	( '"$exec"' ) 2>&1 | if (( $? == 0 )); then
+			#	( '"$exec"' ) |& if (( $? == 0 )); then
 			#		message info "'"$( backslash "$exec" )"'" --payload --id='"$cmd_id"'
 			#	else
 			#		message error "'"$( backslash "$exec" )"' (failed, exitcode=$?)" --payload --id='"$cmd_id"'
 			#	fi
-			#' > "$command_log" 2>&1 &
+			#' &> "$command_log" &
 
 			local agent_exec_log="/tmp/agent-exec-$cmd_id.log"
 			#local exec_backslashed="$( backslash "$exec" )" # don't need it anymore
 
 			$exec_timeout '# {agent-exec}
-				( '"$exec"' ) > "$1" 2>&1
+				( '"$exec"' ) &> "$1"
 				exec_exitcode=$?
 				if (( exec_exitcode == 0 )); then
 					message info "$0" --escape-templates --id="$2" --silent --payload < "$1"
 				else
 					message error "$0 (failed, exitcode=$exec_exitcode)" --escape-templates --id="$2" --silent --payload < "$1"
 				fi
-				rm "$1" > /dev/null 2>&1
-			' "$exec" "$agent_exec_log" "$cmd_id" > "$command_log" 2>&1 & disown
+				rm "$1"
+			' "$exec" "$agent_exec_log" "$cmd_id" &> "$command_log" & disown
 		;;
 
 		'asic_oc')
@@ -1600,7 +1713,7 @@ function do_command {
 				echo
 				jq "." <<< "$asic_oc"
 				echo
-				'"$asic_oc_cmd"' "$asic_oc" 2>&1 | tee '"$command_log"'
+				'"$asic_oc_cmd"' "$asic_oc" |& tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Auto-tune is finished. Click for details" --payload --id='"$cmd_id"' --silent < '"$command_log"'
 				else
@@ -1617,7 +1730,7 @@ function do_command {
 			fi
 			export firmware_url="$( jq --raw-output '.firmware_url' <<< "$body" )"
 			screen -dm -S "$command" bash -c '
-				firmware-upgrade "$firmware_url" 2>&1 | tee '"$command_log"'
+				firmware-upgrade "$firmware_url" |& tee '"$command_log"'
 				if (( PIPESTATUS[0] == 0 )); then
 					message ok "Firmware upgrade successful, rebooting..." --payload --id='"$cmd_id"' --silent < '"$command_log"'
 				else
@@ -1648,9 +1761,17 @@ function do_command {
 						'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}'
 					)"
 					response="$(
-						curl --insecure --location --data @- --connect-timeout 15 --max-time 25 --silent \
-						--request POST "${HIVE_URL}/worker/api?id_rig=$RIG_ID&method=password_change_received" \
-						--header "Content-Type: application/json" \
+						request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=password_change_received"
+						curl												\
+																			\
+							--insecure --location --data @- --silent		\
+																			\
+							--header 'Content-Type: application/json'		\
+							--request POST "$request_endpoint"				\
+																			\
+							--connect-timeout "$curl_connect_timeout"		\
+							--max-time "$curl_max_time"						\
+																			\
 						<<< "$request"
 					)"
 
@@ -1694,7 +1815,7 @@ function do_command {
 
 				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
 				if (( "${WD_ENABLED:-0}" )); then
-					nohup wd stop > /dev/null 2>&1
+					nohup wd stop &> /dev/null
 					snore 5
 				fi
 				wd start &
@@ -1838,11 +1959,33 @@ declare -r avg_khs_FILE='/run/hive/khs_avg' # Averages in JSON format
 declare -r arr_FILE='/run/hive/arr' # Accepted/Rejected ratio * 100
 declare -r last_cmd_id_FILE='/run/hive/last_cmd_id'
 declare -r confseq_FILE='/run/hive/confseq'
-
 declare -r latest_curl_log="/run/hive/${script_basename}-curl.log"  # looks like /tmp on a few models (at least on S9 hiveon) is on top of NAND -- let's wear it less
-declare -r miner_API_host='localhost'
+#
+declare -r miner_API_host='localhost' # TODO rename 'miner' to 'cgminer'
 declare -r -i miner_API_port=4028
+#
+declare -r -i fallback_connection_duration_in_m_DEFAULT=10
+declare -r -i fallback_connection_duration_in_s_DEFAULT=$(( fallback_connection_duration_in_m_DEFAULT * 60 ))
 declare -r -i push_interval_DEFAULT=10
+#
+declare -r -i curl_connect_timeout=15 curl_max_time=25
+
+
+# global arrays
+
+declare -a API_HOST_URLs_working_collection=()
+declare -a API_HOST_URLs_bootstrap_collection=(
+	# ??? should move it to /hive/etc/environment
+	'http://helsinki.hiveos.farm'
+	'http://msk.hiveos.farm'
+	'http://paris.hiveos.farm'
+	'http://amster.hiveos.farm'
+	'http://ca1.hiveos.farm'
+	'http://ap.hiveos.farm'
+	'http://naw.hiveos.farm'
+	'http://api2msk.hiveos.farm'
+	'http://api.hiveos.farm'
+)
 
 
 # global vars
@@ -1852,26 +1995,27 @@ declare total_khs system_status stats
 declare -i INTERVAL=push_interval_DEFAULT
 declare -i time_wasted_general time_remaining_general
 declare -i push_total_counter=0 push_bad_counter=0
-declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_URL from RIG_CONF
-	[2]='http://api.hiveos.farm'
-	[3]='http://paris.hiveos.farm'
-	[4]='http://amster.hiveos.farm'
-	[5]='http://helsinki.hiveos.farm'
-	[6]='http://msk.hiveos.farm'
-	[7]='http://ca1.hiveos.farm'
-)
+#
+declare -i time_start_fallback_connection=0 seconds_passed_since_fallback_connection=0 seconds_left_till_switch_to_main=0
+declare -i API_HOST_URLs_working_collection_index=0
+declare -i API_HOST_URLs_working_collection_size=0
+declare API_HOST_URL_current API_HOST_URL_main
+#
 declare -i saved_RIG_CONF_last_updated_time=0 saved_WALLET_CONF_last_updated_time=0
 
 
 # global flags
 
-declare -i https_disabled_message_sent_FLAG=0 skip_the_sleep_FLAG=0
+declare -i https_disabled_message_sent_FLAG=0
+declare -i skip_the_sleep_FLAG=0
+declare -i is_fallback_connection_in_force_FLAG=0
+declare -i can_has_bootstrap_servers_FLAG=1 # let's act willfully
 
 
 # sources
 
-[[ -t 1 ]] && source colors
-source asic-model
+[[ -t 1 ]] && source /hive/bin/colors
+source /hive/bin/asic-model
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
 
 
@@ -1895,7 +2039,7 @@ log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
 # (re)starting wd
 
 if (( "${WD_ENABLED:-0}" )); then
-	nohup wd stop > /dev/null 2>&1
+	nohup wd stop &> /dev/null
 	snore 5
 fi
 wd start &
