@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.6.3'
+readonly script_version='0.7.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -103,15 +103,15 @@ function is_api_server_response_ok {
 }
 
 
-# consts
+# global consts
 
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
 
+# global vars
 
-# vars
-
-declare HIVE_API_endpoint this_argument
+declare this_argument
 declare message_type message_header message_color
 declare id='' id_json payload='' payload_json
 declare api_server_request api_server_response
@@ -121,13 +121,13 @@ declare -i is_silent_FLAG=0 is_verbose_FLAG=0 is_templates_escaped_FLAG=0
 declare console_message=''
 
 
-# exports
+# global exports
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="${PATH}${PATH:+:}/hive/bin:/hive/sbin" # add only if not exist, also cover a rare case with an empty PATH
 [[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
 
 
-# sources
+# global sources
 
 source /hive/bin/colors
 
@@ -138,6 +138,8 @@ source /hive/bin/colors
 [[ -s "$RIG_CONF" ]] || { errcho "Config file $RIG_CONF empty or not found"; exit 1; }
 
 source "$RIG_CONF"
+
+[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load a relevant HIVE_HOST_URL variable
 
 # process first two arguments
 message_type="${1-}"
@@ -291,14 +293,19 @@ fi
 [[ -n "${RIG_ID:-}" ]]			|| { errcho 'RIG_ID not configured, cannot send a message to nowhere';			exit 1; }
 [[ -n "${RIG_PASSWD:-}" ]]		|| { errcho 'RIG_PASSWD not configured, cannot send a message to nowhere';		exit 1; }
 
+
+#
+# form a request packet
+#
+
 # shellcheck disable=SC2016
 api_server_request="$(
-	jq \
-		--null-input --compact-output \
-		--arg rig_id "$RIG_ID" \
-		--arg passwd "$RIG_PASSWD" \
-		--arg type "$message_type" \
-		--arg data "$message_header" \
+	jq														\
+		--null-input --compact-output						\
+		--arg rig_id	"$RIG_ID"							\
+		--arg passwd	"$RIG_PASSWD"						\
+		--arg type		"$message_type"						\
+		--arg data		"$message_header"					\
 		'{
 			"method": "message", "jsonrpc": "2.0", "id": 0,
 			"params": {$rig_id, $passwd, $type, $data}
@@ -326,40 +333,52 @@ elif [[ -n "$file_to_send" ]]; then
 else
 	console_message="Sending ${message_color}${message_type^^}${NOCOLOR} message '$message_header' with payload (${#payload} bytes)"
 fi
-console_message+=" to $HIVE_HOST_URL..."
 
 if (( is_verbose_FLAG )); then
 	echo -n 'Request: '
 	jq --color-output '.' <<< "$api_server_request"
 fi
 
-# send a message, should move to a separate function
-HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
+#
+# send a message
+# TODO should move to a separate function
+#
 
-# let's try to connect
 declare -r -i curl_initial_connect_timeout=5
 declare -r -i max_connection_attempts=30
 declare -i attempts_counter curl_connect_timeout curl_max_time
 declare attempts_message='' api_server_response_description=''
+declare HIVE_API_endpoint to_host
 
 for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attempts_counter++ )); do
+	[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
+	to_host=" to $HIVE_HOST_URL..."
+
+	HIVE_API_endpoint="${HIVE_HOST_URL%/}/worker/api" # cut the trailing slash in HIVE_HOST_URL, if any (like as in rocketchain's local API server URL)
+
 	((
 		curl_connect_timeout = curl_initial_connect_timeout + attempts_counter,
 		curl_max_time = curl_connect_timeout * 3
 	))
+
 	api_server_response="$(
-		curl \
-			--insecure --location --data @- --silent \
-			--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
-			--request POST "${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message" \
-			--header 'Content-Type: application/json' \
+		request_endpoint="${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message"
+		curl												\
+			--insecure --location --data @- --silent		\
+															\
+			--connect-timeout "$curl_connect_timeout"		\
+			--max-time "$curl_max_time"						\
+															\
+			--header 'Content-Type: application/json'		\
+			--request POST "$request_endpoint"				\
+															\
 		<<< "$api_server_request"
 	)"
 	curl_exitcode=$?
 	(( attempts_counter > 1 || curl_exitcode )) && attempts_message="[$attempts_counter/$max_connection_attempts] "
 	if (( curl_exitcode )); then
 		is_silent_FLAG=0
-		errcho "${attempts_message}$console_message ${BRED}FAIL ($curl_exitcode)${NOCOLOR}"
+		errcho "${attempts_message}${console_message}${to_host} ${BRED}FAIL ($curl_exitcode)${NOCOLOR}"
 		(( is_verbose_FLAG )) && errcho "$( human-curl-error "$curl_exitcode" )"
 		snore "$attempts_counter"
 	else
@@ -369,15 +388,15 @@ done
 
 # check and validate the answer
 if (( curl_exitcode )); then
-	errcho "${attempts_message}$console_message ${BRED}FAIL ($curl_exitcode)${NOCOLOR}"
+	errcho "${attempts_message}${console_message}${to_host} ${BRED}FAIL ($curl_exitcode)${NOCOLOR}"
 	(( is_verbose_FLAG )) && errcho "$( human-curl-error "$curl_exitcode" )"
 	script_exitcode="$curl_exitcode"
 else
 	if api_server_response_description="$( is_api_server_response_ok "$api_server_response" )"; then
-		(( ! is_silent_FLAG )) && echo_info "${attempts_message}$console_message ${BGREEN}SENT"
+		(( ! is_silent_FLAG )) && echo_info "${attempts_message}${console_message}${to_host} ${BGREEN}SENT"
 	else
 		script_exitcode=$?
-		errcho "${attempts_message}$console_message ${BRED}API SERVER ERROR${NOCOLOR}"
+		errcho "${attempts_message}${console_message}${to_host} ${BRED}API SERVER ERROR${NOCOLOR}"
 		if [[ -n "$api_server_response_description" ]]; then
 			if [[ -n "$api_server_response" ]]; then
 				errcho "$api_server_response_description (${RIG_ID}/${RIG_PASSWD}): $api_server_response"
