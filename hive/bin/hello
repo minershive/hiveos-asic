@@ -6,16 +6,20 @@
 # Distributed under Business Source License 1.1
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.7.0 (99%)
+# Linted by shellcheck 0.7.0 (100%)
 #
 
 
-readonly script_mission='Client for ASICs: Say hello to the server'
-readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.6.0'
-readonly script_basename="${0##*/}"
-#
-readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
+# shellcheck disable=SC2034
+# just because
+{
+	readonly script_mission='Client for ASICs: Say hello to the server'
+	readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
+	readonly script_version='0.6.1'
+	readonly script_basename="${0##*/}"
+	#
+	readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
+}
 
 
 # !!! bash strict mode, no unbound variables
@@ -912,6 +916,8 @@ function process_json_sections {
 				if save_variable_to_file 'this_section_json_value' "$this_section_file"; then
 					echo_ok "'$this_section_description' updated and saved to $this_section_file"
 					if (( this_section_reload_after_save )); then
+						# shellcheck disable=SC1090
+						# just because
 						source "$this_section_file" && echo_ok "'$this_section_description' reloaded"
 					fi
 				else
@@ -938,6 +944,7 @@ declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r ASIC_CONF='/hive-config/hiveon.conf'
 declare -r ASIC_OC_CONF='/hive-config/asic_oc.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
+declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
 # misc
 declare -r FARM_HASH_valid_RE='^[[:xdigit:]]{40}$'
 declare -r -i platform=2 # 1=GPU Rig, 2=ASIC, 3=ASIC Hub
@@ -964,6 +971,8 @@ declare server_request_json server_response_json
 
 # global sources
 
+# shellcheck disable=SC1091
+# just because
 [[ -f "$RIG_CONF" ]] && ! grep -Eq '^FARM_HASH=.+$' "$RIG_CONF" && source /hive/bin/colors # duct tape: turn the colors off for cgi-bin script
 
 
@@ -976,12 +985,23 @@ print_script_version
 mkdir -p /hive-config
 
 # asserts
+
 [[ -s "$RIG_CONF" ]]												|| die "Configuration file $RIG_CONF is empty or not found, exiting..." 1
+
+# shellcheck disable=SC1090
+# just because
 source "$RIG_CONF"
+
+# shellcheck disable=SC1090
+# just because
+[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
+
 [[ -n "${FARM_HASH-}" || -n "${RIG_ID-}" ]]							|| die "FARM_HASH or RIG_ID is not defined in $RIG_CONF, exiting..." 1
 [[ ( -n "${RIG_ID-}" && -n "${RIG_PASSWD-}" ) || -z "${RIG_ID-}" ]]	|| die "RIG_PASSWD is not defined in $RIG_CONF, exiting..." 1
 [[ -n "${HIVE_HOST_URL-}" ]]										|| die "HIVE_HOST_URL is not defined in $RIG_CONF, exiting..." 1
 
+# shellcheck disable=SC1091
+# just because
 source /hive/bin/asic-model
 [[ "$ASIC_MODEL" == 'Toddminer C1'* && ! "$PATH" =~ (^|:)/sbin ]] && export PATH="$PATH:/sbin:/usr/sbin" # add if not exist
 
@@ -1082,6 +1102,9 @@ if [[ -n "${FARM_HASH-}" ]]; then
 fi
 
 
+# shellcheck disable=SC1090
+# just because
+[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
 # send the hello packet (mind the VarByRef function's parameters)
 if ! send_hello_packet "$HIVE_HOST_URL" 'server_request_json' 'server_response_json'; then
 	die "Error connecting to $HIVE_HOST_URL. No attempts left, exiting..." #404 is not a bad exit code
