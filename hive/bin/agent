@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.11.0-pre'
+readonly script_version='0.11.1-pre'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1416,9 +1416,18 @@ function fetch_stats_and_push_them_to_server {
 		time_wasted_sending_stats_in_s="$( get_time_difference_in_s $(( time_start_sending_stats )) )"
 
 		if (( curl_exitcode == 0 )); then
+			if (( ! is_api_host_file_relevant )) || [[ ! -s "$API_HOST_FILE" ]]; then
+				# a one-time write if connection was successful (or the file does not exist)
+				if echo "HIVE_HOST_URL=\"$API_HOST_URL_current\"" > "$API_HOST_FILE"; then
+					is_api_host_file_relevant=1
+				fi
+			fi
 			is_server_push_went_ok_FLAG=1
 		else
-			(( push_bad_counter++ ))
+			((
+				push_bad_counter++,
+				is_api_host_file_relevant = 0
+			))
 
 			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
 
@@ -1954,6 +1963,7 @@ declare -r HIVEON_CONF='/hive-config/hiveon.conf'
 declare -r HIVEON_CONF_VOLT='/hive-config/hiveon.conf'
 declare -r ASIC_CONF='/config/config.conf'
 # path to runtime vars
+declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
 declare -r total_khs_FILE='/run/hive/khs'
 declare -r avg_khs_FILE='/run/hive/khs_avg' # Averages in JSON format
 declare -r arr_FILE='/run/hive/arr' # Accepted/Rejected ratio * 100
@@ -2009,6 +2019,7 @@ declare -i saved_RIG_CONF_last_updated_time=0 saved_WALLET_CONF_last_updated_tim
 declare -i https_disabled_message_sent_FLAG=0
 declare -i skip_the_sleep_FLAG=0
 declare -i is_fallback_connection_in_force_FLAG=0
+declare -i is_api_host_file_relevant=0
 declare -i can_has_bootstrap_servers_FLAG=1 # let's act willfully
 
 
