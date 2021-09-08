@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.6'
+readonly script_version='0.2.7'
 readonly script_basename="${0##*/}"
 
 
@@ -161,6 +161,8 @@ function get_datetime_from_server {
 
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
+declare -r client_run_DIR='/run/hive'
+declare -r client_tmp_DIR="${client_run_DIR}/tmp"
 
 
 # exports
@@ -181,10 +183,20 @@ source /hive/bin/asic-model
 [[ "$ASIC_MODEL" == 'Antminer D3 Blissz'* ]] && ln -s /usr/lib/libcurl-gnutls.so.4 /usr/lib/libcurl.so.5
 
 
-# main()
+# code
 
-# make directory in RAM
-mkdir -p /run/hive
+mkdir -p "$client_run_DIR"
+if ! mount | grep -q "$client_run_DIR type tmpfs"; then
+	echo_x action "Mounting $client_run_DIR to the RAM"
+	mount -t tmpfs none "$client_run_DIR"
+	mkdir -p "$client_tmp_DIR"
+else
+	echo_x info "$client_run_DIR already mounted to the RAM"
+fi
+# set one of these as a temp directory for Bash
+# because we've got helluva Here Strings ([n]<<<word) in our scripts
+# which, in turn, are done by temporary files under the hood
+export TMPDIR="$client_tmp_DIR"
 
 
 # wipe screens. for some reason there might be dead sockets after restart on tmpfs (!!!)
@@ -229,11 +241,11 @@ elif [[ $ASIC_MODEL == "Antminer S9" || $ASIC_MODEL =~ "Antminer T9+" || $ASIC_M
 		mv -f /hive-config /config/hive/
 		ln -s /config/hive/hive-config/ /hive-config
 	fi
-	#ramdisk
-	if ! mount | grep ramdisk > /dev/null; then
-		mkdir -p /mnt/ramdisk
-		mount -t tmpfs -o size=100m tmpfs /mnt/ramdisk
-	fi
+#	#ramdisk
+#	if ! mount | grep ramdisk > /dev/null; then
+#		mkdir -p /mnt/ramdisk
+#		mount -t tmpfs -o size=100m tmpfs /mnt/ramdisk
+#	fi
 elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_MODEL =~ "Antminer X17" ]]; then
 	#echo_x action 'Applying crontab'
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
