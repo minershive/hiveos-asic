@@ -11,7 +11,7 @@
 
 
 library_mission='Client for ASICs: Print ASIC model and set necessary constants' # also sourced from everywhere
-library_version='1.5.0'
+library_version='1.5.1'
 library_basename="${0##*/}"
 
 
@@ -143,17 +143,17 @@ assign_ASIC_CUSTOM_FW_constants () {
 		# let's parse it to a global variables
 		ASIC_CUSTOM_FW_VERSION_RAW="$( echo "$ASIC_CUSTOM_FW_description_file_content" | sed -n '3p' )" # f.e. 1.03@200818
 
-		# take a part before the first '@'   vvvv
+		# take a part before the first '@'                  vvvv
 		ASIC_CUSTOM_FW_VERSION="${ASIC_CUSTOM_FW_VERSION_RAW%%@*}"
-		# take a part after the last '@'          vvvv
+		# take a part after the last '@'                         vvvv
 		# shellcheck disable=SC2034
 		ASIC_CUSTOM_FW_VERSION_DATE="${ASIC_CUSTOM_FW_VERSION_RAW##*@}"
 
 		case "$ASIC_CUSTOM_FW_VERSION" in
 			*.* ) # is it look like a version?
-				# take a part before the first dot                      vvvv
+				# take a part before the first dot                                      vvvv
 				ASIC_CUSTOM_FW_VERSION_MAJOR="$( printf '%g\n' "${ASIC_CUSTOM_FW_VERSION%%.*}" 2> /dev/null )"
-				# take a part after the last dot                        vvvv
+				# take a part after the last dot                                        vvvv
 				ASIC_CUSTOM_FW_VERSION_MINOR="$( printf '%g\n' "${ASIC_CUSTOM_FW_VERSION##*.}" 2> /dev/null )"
 				#                                ^^ and then remove leading zeroes, if any
 			;;
@@ -167,6 +167,7 @@ assign_ASIC_CUSTOM_FW_constants () {
 	[ -z "$ASIC_CUSTOM_FW_BRAND" ] && ASIC_CUSTOM_FW_BRAND="$ASIC_CUSTOM_FW_BRAND_default" # an absent 4th line is equal to 'Hiveon', for backward compatibility
 
 	# stub for legacy Hiveon vars
+	# please do not use any of them
 	# shellcheck disable=SC2034
 	{
 		HIVEON_VER="$ASIC_CUSTOM_FW_VERSION" # deprecated earlier in favor of the more clear HIVEON_VERSION
