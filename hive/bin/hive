@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.8'
+readonly script_version='0.2.9'
 readonly script_basename="${0##*/}"
 
 
@@ -164,6 +164,7 @@ declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r client_run_DIR='/run/hive'
 declare -r client_tmp_DIR="${client_run_DIR}/tmp"
+declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
 
 
 # exports
