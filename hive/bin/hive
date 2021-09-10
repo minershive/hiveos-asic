@@ -103,7 +103,7 @@ function get_absolute_difference {
 function get_datetime_from_server {
 	# consts
 	local -r HIVE_HOST_URL_default='http://api.hiveos.farm'
-	local -r -i max_attempts=10
+	local -r -i max_attempts=3
 
 	# vars
 	local server_answer
