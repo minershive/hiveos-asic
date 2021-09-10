@@ -15,7 +15,7 @@
 {
 	readonly script_mission='Client for ASICs: Say hello to the server'
 	readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-	readonly script_version='0.6.1'
+	readonly script_version='0.7.0'
 	readonly script_basename="${0##*/}"
 	#
 	readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -682,7 +682,7 @@ function send_hello_packet {
 
 	# consts
 	local -r -i curl_initial_connect_timeout=5
-	local -r -i max_connection_attempts=10
+	local -r -i max_connection_attempts=3
 	local -r test_URL="$server_URL/worker/api?a=b"
 	local -r work_URL="$server_URL/worker/api?id_rig=${RIG_ID-}&method=hello"
 
@@ -1105,10 +1105,34 @@ fi
 # shellcheck disable=SC1090
 # just because
 [[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
+
+# temp fix
+declare this_api_server
+declare -i is_hello_sent_ok_FLAG=0
+declare -a API_HOST_URLs_bootstrap_collection=(
+	# ??? should move it to /hive/etc/environment
+	'http://helsinki.hiveos.farm'
+	'http://msk.hiveos.farm'
+	'http://paris.hiveos.farm'
+	'http://amster.hiveos.farm'
+	'http://ca1.hiveos.farm'
+	'http://api-ru-cf.hiveos.farm'
+	'http://ap.hiveos.farm'
+	'http://naw.hiveos.farm'
+	'http://api2msk.hiveos.farm'
+	'http://api.hiveos.farm'
+)
+
 # send the hello packet (mind the VarByRef function's parameters)
-if ! send_hello_packet "$HIVE_HOST_URL" 'server_request_json' 'server_response_json'; then
-	die "Error connecting to $HIVE_HOST_URL. No attempts left, exiting..." #404 is not a bad exit code
-fi
+for this_api_server in "$HIVE_HOST_URL" "${API_HOST_URLs_bootstrap_collection[@]}"; do
+	if send_hello_packet "$this_api_server" 'server_request_json' 'server_response_json'; then
+		is_hello_sent_ok_FLAG=1
+		break
+	fi
+done
+
+# assert
+(( is_hello_sent_ok_FLAG )) || die "Error connecting to $HIVE_HOST_URL and $this_api_server. No servers left, exiting..." #404 is not a bad exit code
 
 
 # and then check received JSON
