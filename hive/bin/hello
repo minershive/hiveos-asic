@@ -15,7 +15,7 @@
 {
 	readonly script_mission='Client for ASICs: Say hello to the server'
 	readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-	readonly script_version='0.7.2'
+	readonly script_version='0.7.3'
 	readonly script_basename="${0##*/}"
 	#
 	readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1130,7 +1130,7 @@ declare -a API_HOST_URLs_bootstrap_collection=(
 # send the hello packet (mind the VarByRef function's parameters)
 for this_api_server in "$HIVE_HOST_URL" "${API_HOST_URLs_bootstrap_collection[@]}"; do
 	if send_hello_packet "$this_api_server" 'server_request_json' 'server_response_json'; then
-		echo "HIVE_HOST_URL=\"$API_HOST_URL_current\"" > "$API_HOST_FILE"
+		echo "HIVE_HOST_URL=\"${this_api_server}\"" > "$API_HOST_FILE"
 		is_hello_sent_ok_FLAG=1
 		break
 	fi
