@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.11.2-pre'
+readonly script_version='0.12.0-pre'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -520,13 +520,12 @@ function fetch_miner_stats {
 	# arrays
 	local -a error_vars=() # must be empty
 
-	# traps
+	# functions
 	function sanitize_total_khs {
 		# show vars with errors, if any
 		(( ${#error_vars[@]} )) && log_line debug "Missing API keys: ${error_vars[*]}"
 		is_JSON_string_empty_or_null "$total_khs" && total_khs=0
 	}
-	trap 'sanitize_total_khs' RETURN
 
 	# code
 	total_khs=0	# reset the global var
@@ -548,7 +547,7 @@ function fetch_miner_stats {
 			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				system_status="$( ant-functions.sh 'hiveon_status' 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			# fix a broken API answer (like S9): '}{' -> '},{'                    vvvvvvvvvvv
@@ -564,7 +563,7 @@ function fetch_miner_stats {
 
 			system_status="$( ant-functions.sh 'hiveon_status' "$STATS" )"
 
-			process_pools || return
+			process_pools || { sanitize_total_khs; return; }
 
 			uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
 			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else 0 end ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
@@ -640,14 +639,14 @@ function fetch_miner_stats {
 			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				system_status="$( ant-functions.sh 'hiveon_status' 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			# fix a broken API answer (like S9): '}{' -> '},{'       vvvvvvvvvvv
 			STATS="$( jq --compact-output '.STATS' <<< "${stats_raw//\}\{/\},\{}" 2> /dev/null )" || error_vars+=( "STATS#$?" )
 
 			system_status="$( ant-functions.sh 'hiveon_status' "$STATS" )"
-			process_pools || return
+			process_pools || { sanitize_total_khs; return; }
 
 			# jq batch optimization for a weak CPUs like L3+, Z9 etc.
 			local -A -r jq_batch_request_hashtable=(
@@ -734,7 +733,7 @@ function fetch_miner_stats {
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
 			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			# fix a broken API answer (like S9): '}{' -> '},{'                    vvvvvvvvvvv
@@ -781,7 +780,7 @@ function fetch_miner_stats {
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
 			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			STATS="$( jq --compact-output '.STATS' <<< "$stats_raw" )"
@@ -815,7 +814,7 @@ function fetch_miner_stats {
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
 			if ! stats_raw="$( send_request_to_miner_api '{"command":"devs"}' )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			STATS="$( jq --compact-output '.DEVS' <<< "$stats_raw" )"
@@ -857,7 +856,7 @@ function fetch_miner_stats {
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
 			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			# fix a broken API answer (like S9): '}{' -> '},{'       vvvvvvvvvvv
@@ -872,7 +871,7 @@ function fetch_miner_stats {
 
 			hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"' <<< "$STATS" )" #14162.91 gh/s = 14 th/s
 			reduce_hashrate_to_khs "$hashrate_raw" "$ASIC_CHAIN_HASHRATE_UNITS" 'total_khs'
-			process_pools || return
+			process_pools || { sanitize_total_khs; return; }
 
 			uptime="$(		jq --raw-output		'.[1].Elapsed'																													<<< "$STATS" )" || error_vars+=( "uptime#$?" )
 			hs="$(			jq --compact-output	'.[1]	| with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [.[].value]'										<<< "$STATS" )" || error_vars+=( "hs#$?" )
@@ -922,7 +921,7 @@ function fetch_miner_stats {
 		'Avalon'*)
 			if ! stats_raw="$( /hive/bin/avalon_api 'status' )" || [[ -z "$stats_raw" ]]; then
 				log_line warning "Failed to get 'status' from Avalon API"
-				return
+				{ sanitize_total_khs; return; }
 			fi
 
 			if ! stats_dev_raw="$( /hive/bin/avalon_api 'stats' )" || [[ -z "$stats_dev_raw" ]]; then
@@ -962,6 +961,8 @@ function fetch_miner_stats {
 			MINER='unknown'
 		;;
 	esac
+
+	{ sanitize_total_khs; return; }
 }
 
 function get_loadavg_as_json_array {
@@ -1037,7 +1038,7 @@ function get_saved_last_cmd_id {
 
 function process_total_khs_and_arr {
 	#
-	# compute, display and write out 'arr' (Accepted/Rejected Ratio) and 'khs' files for watchdog and averager
+	# compute, display and write out 'arr' (Accepted/Rejected Ratio) and 'khs' files for Hashrate Watchdog and Averager
 	#
 
 	# vars
@@ -1083,10 +1084,10 @@ function process_total_khs_and_arr {
 
 	if (( total_khs_integer > 0 )); then
 		log_line info "$MINER hashrate ${WHITE}$( khs_to_human_friendly_hashrate "$total_khs" )${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
-		echo "$total_khs" > "$total_khs_FILE" # write actual total_khs to file (for watchdog and averager)
+		echo "$total_khs" > "$total_khs_FILE" # write actual total_khs to file (for Hashrate Watchdog and Averager)
 	else
 		log_line warning "$MINER hashrate ${WHITE}0 H/s${NOCOLOR}$arr_to_display, stats collected in ${WHITE}${time_wasted_collecting_stats_in_s}s"
-		echo '0' > "$total_khs_FILE" # write 0 khs to file (for watchdog and averager)
+		echo '0' > "$total_khs_FILE" # write 0 khs to file (for Hashrate Watchdog and Averager)
 	fi
 }
 
@@ -1151,11 +1152,11 @@ function pretty_print_api_hosts {
 }
 
 function fetch_stats_and_push_them_to_server {
-	# arrays
-	local -a latest_curl_log_as_array=()
-
 	# flags
 	local -i is_server_push_went_ok_FLAG=0
+
+	# arrays
+	local -a latest_curl_log_as_array=()
 
 	# vars
 	local -i curl_exitcode
@@ -1182,8 +1183,8 @@ function fetch_stats_and_push_them_to_server {
 			source "$RIG_CONF"
 			(( saved_RIG_CONF_last_updated_time = current_RIG_CONF_last_updated_time ))
 
-			# forcedly reset fall-back mode
-			is_fallback_connection_in_force_FLAG=0
+			# forcedly reset the failover mode
+			is_failover_connection_in_force_FLAG=0
 			API_HOST_URLs_working_collection_index=0
 
 			# parse API_HOST_URLs to API_HOST_URLs_working_collection
@@ -1194,7 +1195,7 @@ function fetch_stats_and_push_them_to_server {
 				# HIVE_HOST_URL is deprecated, but better safe than sorry; sanitizing 'https' to 'http' at the same time
 				API_HOST_URLs_working_collection[0]="${HIVE_HOST_URL//https:\/\//http:\/\/}"
 			fi
-			if (( can_has_bootstrap_servers_FLAG )); then
+			if (( can_haz_bootstrap_servers_FLAG )); then
 				# append only unique hosts from API_HOST_URLs_bootstrap_collection
 				for (( this_element = 0; this_element < ${#API_HOST_URLs_bootstrap_collection[@]}; this_element++ )); do
 					if [[ ! " ${API_HOST_URLs_working_collection[*]} " =~ " ${API_HOST_URLs_bootstrap_collection[this_element]} " ]]; then
@@ -1202,11 +1203,11 @@ function fetch_stats_and_push_them_to_server {
 						API_HOST_URLs_working_collection+=( "${API_HOST_URLs_bootstrap_collection[this_element]}" )
 					fi
 				done
-				log_line debug "$this_element_counter bootstrap API servers added"
+				log_line info "$this_element_counter bootstrap API servers added"
 			fi
 			API_HOST_URLs_working_collection_size="${#API_HOST_URLs_working_collection[@]}"
 			API_HOST_URL_main="${API_HOST_URLs_working_collection[0]}"
-			log_line debug "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
+			log_line info "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
 
 			# export TZ
 			[[ -n "$TIMEZONE" ]] && export TZ="$TIMEZONE"
@@ -1309,9 +1310,9 @@ function fetch_stats_and_push_them_to_server {
 				)' # remove: 1. empty objects; 2. empty arrays; 3. keys with null value
 	)"
 
-	# jq's fall-back (like in the case of the broken jq or like)
+	# jq's failover (like in the case of the broken jq or like)
 	if [[ $? -ne 0 || -z "$request" ]]; then
-		log_line error 'Something went wrong while constructing a JSON request. Fall back to a safe mode...'
+		log_line error 'Something went wrong while constructing a JSON request. Engaging a failback mode...'
 		debug_print_variable 'RIG_ID' 'last_cmd_id' 'META' 'stats' 'total_khs' 'avg_khs' 'cpuavg'
 		# good ol' bash string assembly
 		request="{\"method\":\"stats\",\"jsonrpc\":\"2.0\",\"id\":0,\"params\":{\"rig_id\":${RIG_ID},\"passwd\":\"${RIG_PASSWD}\",\"miner\":\"$MINER\",\"system_status\":\"$system_status\"}}"
@@ -1341,16 +1342,16 @@ function fetch_stats_and_push_them_to_server {
 
 	until (( is_server_push_went_ok_FLAG )); do
 
-		if (( is_fallback_connection_in_force_FLAG )); then
-			# check for fall-back age
+		if (( is_failover_connection_in_force_FLAG )); then
+			# check for a failover mode's age
 			set_variable_to_current_system_time_in_seconds 'the_now'
 			((
-				seconds_passed_since_fallback_connection = the_now - time_start_fallback_connection,
-				seconds_left_till_switch_to_main = fallback_connection_duration_in_s_DEFAULT - seconds_passed_since_fallback_connection
+				seconds_passed_since_failover_connection = the_now - time_start_failover_connection,
+				seconds_left_till_switch_to_main = failover_connection_duration_in_s_DEFAULT - seconds_passed_since_failover_connection
 			))
 			if (( seconds_left_till_switch_to_main <= 0 )); then
 				# return to the main host
-				is_fallback_connection_in_force_FLAG=0
+				is_failover_connection_in_force_FLAG=0
 				API_HOST_URLs_working_collection_index=0
 				log_line warning "It's time to switch back to the main API server"
 			fi
@@ -1358,7 +1359,7 @@ function fetch_stats_and_push_them_to_server {
 
 		# out of boundaries check
 		if (( API_HOST_URLs_working_collection_index >= API_HOST_URLs_working_collection_size )); then
-			if (( ! is_fallback_connection_in_force_FLAG )); then
+			if (( ! is_failover_connection_in_force_FLAG )); then
 				API_HOST_URLs_working_collection_index=0 # use main api host
 			else
 				API_HOST_URLs_working_collection_index=1
@@ -1386,9 +1387,9 @@ function fetch_stats_and_push_them_to_server {
 			log_line warning "Upstream communication quality ${comm_quality_percentage}% ($push_bad_counter_humanized unsuccessful out of $push_total_counter_humanized)"
 		fi
 
-		if (( is_fallback_connection_in_force_FLAG )); then
-			log_line warning "Fall-back API server is active, $( seconds2dhms "$seconds_left_till_switch_to_main" ) till returning to main"
-			log_line debug "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
+		if (( is_failover_connection_in_force_FLAG )); then
+			log_line warning "Failover API server is active, $( seconds2dhms "$seconds_left_till_switch_to_main" ) till returning to main"
+			log_line info "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
 		fi
 
 		log_line info "Sending stats (${#request} bytes) to ${API_HOST_URL_current}..."
@@ -1441,11 +1442,11 @@ function fetch_stats_and_push_them_to_server {
 			fi
 
 			if (( API_HOST_URLs_working_collection_index == 0 )); then
-				set_variable_to_current_system_time_in_seconds 'time_start_fallback_connection'
-				is_fallback_connection_in_force_FLAG=1
-				log_line warning 'Main API server is not available, switching to the fall-back one'
+				set_variable_to_current_system_time_in_seconds 'time_start_failover_connection'
+				is_failover_connection_in_force_FLAG=1
+				log_line warning 'Main API server is not available, switching to the failover one'
 			else
-				log_line warning 'This fall-back API server is not available, switching to the next one'
+				log_line warning 'This failover API server is not available, switching to the next one'
 			fi
 			(( API_HOST_URLs_working_collection_index++ )) # iterate to the next host
 
@@ -1536,15 +1537,6 @@ function fetch_stats_and_push_them_to_server {
 			do_command
 		done
 	fi
-}
-
-function backslash {
-	# NOT USED ATM
-	local var="${1//\\/\\\\}"
-	var="${var//\"/\\\"}"
-	var="${var//\`/\\\`}"
-	var="${var//\$/\\\$}"
-	echo "$var"
 }
 
 function do_command {
@@ -1822,7 +1814,7 @@ function do_command {
 					echo
 				fi
 
-				# Start Watchdog. It will exit if WD_ENABLED=0 ---------------------------
+				# Start Hashrate Watchdog. It will exit if WD_ENABLED=0 ---------------------------
 				if (( "${WD_ENABLED:-0}" )); then
 					nohup wd stop &> /dev/null
 					snore 5
@@ -1948,21 +1940,67 @@ function calculate_quality {
 	echo "$quality_percentage_fake_decimal"
 }
 
+function internal_watchdog {
+	# traps
+	#trap -- 'log_line debug "internal watchdog ${PPID}:${$}:${BASHPID} killed"' EXIT
+
+	# args
+	local -r -i timeout_in_s="${1-60}" # default is 1 minute
+
+	# vars
+	local ppid pid comm args
+
+	# code
+	log_line debug "internal watchdog ${PPID}:${$}:${BASHPID} starting now, timeout is ${timeout_in_s}s"
+	snore "$timeout_in_s"
+	log_line error "internal watchdog ${PPID}:${$}:${BASHPID} engadeg. BARK-BARK, time is out! Here's the process tree:"
+
+echo
+pstree -p "$PPID"
+echo
+
+	# check for hanging external commands
+	while read -r ppid pid comm args; do
+		if [[ "$ppid" == "$$" && "$pid" != "$BASHPID" ]]; then
+			# here's my uterine sibling, let's slaugher it
+			log_line debug "internal watchdog ${PPID}:${$}:${BASHPID}: '$args' (PPID $ppid, PID $pid) hanging, sending SIGTERM"
+			{
+				# be nice, post SIGTERM first
+				kill -s SIGTERM "$pid"
+				snore 1
+				if kill -0 "$pid"; then
+					log_line debug "internal watchdog ${PPID}:${$}:${BASHPID}: '$args' (PPID $ppid, PID $pid) is bulletproof, eh? okay, sending SIGKILL"
+					kill -s SIGKILL "$pid"
+				fi
+			} &
+		fi
+	done < <( ps -o ppid,pid,comm,args ) 2> /dev/null
+
+	snore 30
+	log_line error "internal watchdog ${PPID}:${$}:${BASHPID}: Why I still am alive? Sending SIGUSR1 to my parent, PID $$"
+	kill -s SIGUSR1 "$$"
+
+	log_line debug "internal watchdog ${PPID}:${$}:${BASHPID}: Really?! You should rarely see this message"
+}
+
 
 # global traps
 
-trap -- 'errcho "SIGHUP received, ignoring..."' SIGHUP
+trap -- 'log_line debug "SIGHUP received, ignoring..."' SIGHUP
+#trap -- 'log_line debug  "\n\nAborting...\n\n"; snore 5' EXIT # !!! never this goes to production ever
+trap -- 'log_line debug "SIGUSR1 received, executing an unconditional return()"; return' SIGUSR1
 
 
 # global consts
 
 # paths to conf files
+# TODO move to /hive/etc/environment
 declare -r RIG_CONF='/hive-config/rig.conf'
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r HIVEON_CONF='/hive-config/hiveon.conf'
 declare -r HIVEON_CONF_VOLT='/hive-config/hiveon.conf'
 declare -r ASIC_CONF='/config/config.conf'
-# path to runtime vars
+# paths to runtime vars
 declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
 declare -r total_khs_FILE='/run/hive/khs'
 declare -r avg_khs_FILE='/run/hive/khs_avg' # Averages in JSON format
@@ -1974,8 +2012,8 @@ declare -r latest_curl_log="/run/hive/${script_basename}-curl.log"  # looks like
 declare -r miner_API_host='localhost' # TODO rename 'miner' to 'cgminer'
 declare -r -i miner_API_port=4028
 #
-declare -r -i fallback_connection_duration_in_m_DEFAULT=10
-declare -r -i fallback_connection_duration_in_s_DEFAULT=$(( fallback_connection_duration_in_m_DEFAULT * 60 ))
+declare -r -i failover_connection_duration_in_m_DEFAULT=10
+declare -r -i failover_connection_duration_in_s_DEFAULT=$(( failover_connection_duration_in_m_DEFAULT * 60 ))
 declare -r -i push_interval_DEFAULT=10
 #
 declare -r -i curl_connect_timeout=15 curl_max_time=25
@@ -2007,7 +2045,7 @@ declare -i INTERVAL=push_interval_DEFAULT
 declare -i time_wasted_general time_remaining_general
 declare -i push_total_counter=0 push_bad_counter=0
 #
-declare -i time_start_fallback_connection=0 seconds_passed_since_fallback_connection=0 seconds_left_till_switch_to_main=0
+declare -i time_start_failover_connection=0 seconds_passed_since_failover_connection=0 seconds_left_till_switch_to_main=0
 declare -i API_HOST_URLs_working_collection_index=0
 declare -i API_HOST_URLs_working_collection_size=0
 declare API_HOST_URL_current API_HOST_URL_main
@@ -2019,9 +2057,9 @@ declare -i saved_RIG_CONF_last_updated_time=0 saved_WALLET_CONF_last_updated_tim
 
 declare -i https_disabled_message_sent_FLAG=0
 declare -i skip_the_sleep_FLAG=0
-declare -i is_fallback_connection_in_force_FLAG=0
+declare -i is_failover_connection_in_force_FLAG=0
 declare -i is_api_host_file_relevant=0
-declare -i can_has_bootstrap_servers_FLAG=1 # let's act willfully
+declare -i can_haz_bootstrap_servers_FLAG=1 # let's act willfully
 
 
 # sources
@@ -2048,6 +2086,7 @@ log_line ok "$script_mission, version $script_version started"
 log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
 	echo
 
+
 # (re)starting wd
 
 if (( "${WD_ENABLED:-0}" )); then
@@ -2056,13 +2095,27 @@ if (( "${WD_ENABLED:-0}" )); then
 fi
 wd start &
 
+
 # main loop
 
 while true; do
 	SECONDS=0
 	skip_the_sleep_FLAG=0
 
+	: | internal_watchdog $(( 60 * 5 )) & disown # start the local watchdog with 5m timeout
+	internal_watchdog_PID="$!"
 	fetch_stats_and_push_them_to_server
+
+#echo
+#jobs -l
+#echo
+#echo "main() PPID $PPID | PID $$ | BASHPID $BASHPID"
+#ps -o ppid,pid,comm,args | grep -E "($PPID|$$|$BASHPID)" | grep -vE '(grep -E|ps -o)'
+#echo
+#sleep 30 # to test watchdog
+
+#	log_line debug "killing watchdog #$internal_watchdog_PID"
+	kill "$internal_watchdog_PID" || log_line error "cannot kill watchdog #${internal_watchdog_PID}?"
 
 	if (( skip_the_sleep_FLAG )); then
 		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
@@ -2077,3 +2130,5 @@ while true; do
 		sleep_with_progress_bar "$INTERVAL"
 	fi
 done
+
+exit 1
