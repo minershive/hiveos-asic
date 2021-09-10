@@ -8,12 +8,25 @@
 #
 
 
+# version 0.0.1
+
+
+# paths
+#/hive-config
+#/run/hive
+#etc.
+
 # config files
 declare -g      RIG_CONF='/hive-config/rig.conf'
 declare -g   WALLET_CONF='/hive-config/wallet.conf'
 declare -g     ASIC_CONF='/hive-config/hiveon.conf'
 declare -g  ASIC_OC_CONF='/hive-config/asic_oc.conf'
 declare -g API_HOST_FILE='/run/hive/api_host_url' # address of last successful connect, an accessory file for the hive|hello|agent|message
+
+# log files
+#controller
+#agent
+#etc
 
 # flag files
 declare -g HELLO_OK_file='/tmp/.hive-hello-ok'
@@ -32,3 +45,7 @@ declare -g -a bootstrap_servers_urls_ARR=(
 	'http://api2msk.hiveos.farm'
 	'http://api.hiveos.farm'
 )
+
+# an opportunity to re-load any variables on the fly
+[[ -s /etc/environment				]] && source /etc/environment			# ...from the firmware
+[[ -s /config/client/environment	]] && source /config/client/environment	# ...from the NAND
