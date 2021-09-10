@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.7'
+readonly script_version='0.2.8'
 readonly script_basename="${0##*/}"
 
 
@@ -112,6 +112,7 @@ function get_datetime_from_server {
 
 	# code
 	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF"
+	[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
 
 	if [[ -z "${HIVE_HOST_URL-}" ]]; then
 		echo_x warning "HIVE_HOST_URL is empty, using default server $HIVE_HOST_URL_default"
@@ -185,6 +186,9 @@ source /hive/bin/asic-model
 
 # code
 
+uname -a
+
+
 mkdir -p "$client_run_DIR"
 if ! mount | grep -q "$client_run_DIR type tmpfs"; then
 	echo_x action "Mounting $client_run_DIR to the RAM"
@@ -201,17 +205,6 @@ export TMPDIR="$client_tmp_DIR"
 
 # wipe screens. for some reason there might be dead sockets after restart on tmpfs (!!!)
 screen -wipe > /dev/null
-
-
-uname -a
-# logo
-#echo -e "${BYELLOW-}
-# _______ _______ ___ ___ _______
-#|   |   |_     _|   |   |    ___|
-#|       |_|   |_|   |   |    ___|
-#|___|___|_______|\_____/|_______|
-#${NOCOLOR-}
-#"
 
 
 if [[ $ASIC_MODEL =~ "Antminer S15" || $ASIC_MODEL =~ "Antminer T15" || $ASIC_MODEL =~ "Antminer S9 SE" || $ASIC_MODEL =~ "Antminer S9k" ]]; then
@@ -305,7 +298,7 @@ if (( hello_exitcode )); then
 fi
 
 
-[[ -s $RIG_CONF ]] && source "$RIG_CONF" #will be needed to start WD later
+[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # should be reloaded after hello, will be needed to start WD later
 
 
 echo_x action 'Starting agent screen session'
