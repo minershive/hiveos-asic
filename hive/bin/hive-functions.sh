@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.55.1'
+declare -r hive_functions_lib_version='0.55.2'
 #                                        ^^ current number of public functions
 
 
@@ -1558,11 +1558,13 @@ function is_screen_session_exist {
 
 	# code
 
-	if (( script_DEBUG )); then
-		screen -S "$screen_session_name" -X select .
-	else
-		screen -S "$screen_session_name" -X select . > /dev/null # silent
-	fi
+	screen -list "$screen_session_name" | grep -Fq "$screen_session_name" # gnu screen's exit codes are ambiguous, it's better to just parse the output
+
+#	if (( script_DEBUG )); then
+#		screen -S "$screen_session_name" -X select .
+#	else
+#		screen -S "$screen_session_name" -X select . > /dev/null # silent
+#	fi
 }
 
 
