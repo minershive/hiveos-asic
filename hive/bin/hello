@@ -15,7 +15,7 @@
 {
 	readonly script_mission='Client for ASICs: Say hello to the server'
 	readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-	readonly script_version='0.7.1'
+	readonly script_version='0.7.2'
 	readonly script_basename="${0##*/}"
 	#
 	readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -895,16 +895,20 @@ function process_json_sections {
 	)
 
 	# vars
-	local this_section		this_section_description		this_section_json_key		this_section_json_value
-	local this_section_file	this_section_reload_after_save	this_section_is_mandatory
+	local -a sections_list_ARR
+	local this_section
+	local this_section_description	this_section_json_key			this_section_json_value
+	local this_section_file			this_section_reload_after_save	this_section_is_mandatory
 
 	# code
-	for this_section in ${sections_DICT['sections_list']}; do
-		this_section_description="${sections_DICT["$this_section.description"]}"
-		this_section_json_key="${sections_DICT["$this_section.json_key"]}"
-		this_section_file="${sections_DICT["$this_section.file"]}"
-		this_section_reload_after_save="${sections_DICT["$this_section.reload_after_save"]}"
-		this_section_is_mandatory="${sections_DICT[$this_section.is_mandatory]}"
+	IFS=' ' read -r -a sections_list_ARR <<< "${sections_DICT['sections_list']}"
+	# for each section...
+	for this_section in "${sections_list_ARR[@]}"; do
+		this_section_description="${sections_DICT[${this_section}.description]}"
+		this_section_json_key="${sections_DICT[${this_section}.json_key]}"
+		this_section_file="${sections_DICT[${this_section}.file]}"
+		this_section_reload_after_save="${sections_DICT[${this_section}.reload_after_save]}"
+		this_section_is_mandatory="${sections_DICT[${this_section}.is_mandatory]}"
 
 		this_section_json_value="$( jq --raw-output "$this_section_json_key" <<< "$server_response_json_by_ref" )" ||
 			die "Error while parsing '$this_section_description' from the server response, exiting..." 1
@@ -1126,7 +1130,7 @@ declare -a API_HOST_URLs_bootstrap_collection=(
 # send the hello packet (mind the VarByRef function's parameters)
 for this_api_server in "$HIVE_HOST_URL" "${API_HOST_URLs_bootstrap_collection[@]}"; do
 	if send_hello_packet "$this_api_server" 'server_request_json' 'server_response_json'; then
-		echo "$this_api_server" > "$API_HOST_FILE"
+		echo "HIVE_HOST_URL=\"$API_HOST_URL_current\"" > "$API_HOST_FILE"
 		is_hello_sent_ok_FLAG=1
 		break
 	fi
