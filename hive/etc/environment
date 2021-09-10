@@ -1,0 +1,34 @@
+#!/hive/sbin/bash
+
+
+#
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+#
+
+
+# config files
+declare -g      RIG_CONF='/hive-config/rig.conf'
+declare -g   WALLET_CONF='/hive-config/wallet.conf'
+declare -g     ASIC_CONF='/hive-config/hiveon.conf'
+declare -g  ASIC_OC_CONF='/hive-config/asic_oc.conf'
+declare -g API_HOST_FILE='/run/hive/api_host_url' # address of last successful connect, an accessory file for the hive|hello|agent|message
+
+# flag files
+declare -g HELLO_OK_file='/tmp/.hive-hello-ok'
+
+# bootstrap API servers
+declare -g -i can_haz_bootstrap_servers_FLAG=1 # let's act willfully
+declare -g -a bootstrap_servers_urls_ARR=(
+	'http://helsinki.hiveos.farm'
+	'http://msk.hiveos.farm'
+	'http://paris.hiveos.farm'
+	'http://amster.hiveos.farm'
+	'http://ca1.hiveos.farm'
+	'http://api-ru-cf.hiveos.farm'
+	'http://ap.hiveos.farm'
+	'http://naw.hiveos.farm'
+	'http://api2msk.hiveos.farm'
+	'http://api.hiveos.farm'
+)
