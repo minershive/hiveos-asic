@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.9'
+readonly script_version='0.2.10'
 readonly script_basename="${0##*/}"
 
 
@@ -192,13 +192,18 @@ uname -a
 
 mkdir -p "$client_run_DIR"
 if ! mount | grep -q "$client_run_DIR type tmpfs"; then
-	echo_x action "Mounting $client_run_DIR to the RAM"
+	# 1. not mounted with tmpfs
+	if [[ -d "$client_run_DIR" && "$( echo "${client_run_DIR}"/* )" != "${client_run_DIR}/*" ]]; then
+		# 2. does exist and has file(s)
+		echo_x action "Purging on-flash $client_run_DIR"
+		rm -rf "${client_run_DIR:-SAFE}"/* # the purpose is to purge old temp files which are located on physical storage
+	fi
 	mount -t tmpfs none "$client_run_DIR"
 	mkdir -p "$client_tmp_DIR"
 else
 	echo_x info "$client_run_DIR already mounted to the RAM"
 fi
-# set one of these as a temp directory for Bash
+# set one of these as a temp directory for bash
 # because we've got helluva Here Strings ([n]<<<word) in our scripts
 # which, in turn, are done by temporary files under the hood
 export TMPDIR="$client_tmp_DIR"
