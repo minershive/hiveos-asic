@@ -8,8 +8,12 @@
 #
 
 
-# version 0.0.1
+# version 0.0.2
 
+
+#
+# shared config files
+#
 
 # paths
 #/hive-config
@@ -21,15 +25,28 @@ declare -g      RIG_CONF='/hive-config/rig.conf'
 declare -g   WALLET_CONF='/hive-config/wallet.conf'
 declare -g     ASIC_CONF='/hive-config/hiveon.conf'
 declare -g  ASIC_OC_CONF='/hive-config/asic_oc.conf'
-declare -g API_HOST_FILE='/run/hive/api_host_url' # address of last successful connect, an accessory file for the hive|hello|agent|message
+
+#
+# inter-module communication
+#
+
+# address of the last successful connect, an accessory file for the hive|hello|agent|message
+declare -g   API_HOST_FILE_volatile='/run/client/last_successful_api_host_url'		# in tmpfs
+declare -g API_HOST_FILE_persistent='/config/client/last_successful_api_host_url'	# in NAND
+
+# current hashrate in khs (can be float or exponential); being updated every $INTERVAL seconds; no hashrate = 0
+declare -g khs_FILE='/run/hive/khs'
+# accepted/stale/rejected, reserved for future development
+#declare -g asr_FILE='/run/hive/asr'
+
+# flag files
+declare -g HELLO_OK_file='/tmp/.hive-hello-ok'
 
 # log files
 #controller
 #agent
 #etc
-
-# flag files
-declare -g HELLO_OK_file='/tmp/.hive-hello-ok'
+# default INTERVAL=10
 
 # bootstrap API servers
 declare -g -i can_haz_bootstrap_servers_FLAG=1 # let's act willfully
@@ -46,6 +63,6 @@ declare -g -a bootstrap_servers_urls_ARR=(
 	'http://api.hiveos.farm'
 )
 
-# an opportunity to re-load any variables on the fly
+# an opportunity to reload any variables listed above on the fly
 [[ -s /etc/environment				]] && source /etc/environment			# ...from the firmware
 [[ -s /config/client/environment	]] && source /config/client/environment	# ...from the NAND
