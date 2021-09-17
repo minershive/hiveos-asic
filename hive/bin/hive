@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.10'
+readonly script_version='0.2.11'
 readonly script_basename="${0##*/}"
 
 
@@ -198,6 +198,7 @@ if ! mount | grep -q "$client_run_DIR type tmpfs"; then
 		echo_x action "Purging on-flash $client_run_DIR"
 		rm -rf "${client_run_DIR:-SAFE}"/* # the purpose is to purge old temp files which are located on physical storage
 	fi
+	echo_x action "Mounting $client_run_DIR to the RAM"
 	mount -t tmpfs none "$client_run_DIR"
 	mkdir -p "$client_tmp_DIR"
 else
