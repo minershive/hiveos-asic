@@ -1,3 +1,5 @@
 .idea
 *~
 *.b
+avalon_a*
+build-tools/
