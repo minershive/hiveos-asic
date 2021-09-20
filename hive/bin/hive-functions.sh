@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.59.0'
+declare -r hive_functions_lib_version='0.59.1'
 #                                        ^^ current number of public functions
 
 
@@ -1589,13 +1589,27 @@ function populate_procfs_struct {
 
 	# vars
 
-	local -i pid ppid pgrp
+	local -i pid ppid pgrp pid_to_skip
 	local comm_raw comm_sanitized state cmdline
+
+	# flags
+
+	local -i is_first_line_FLAG=1 
 
 	# code
 
-	shopt -s extglob
+	shopt -s extglob # for cat /proc/+([0-9])/stat
 	while read -r pid comm_raw state ppid pgrp _; do
+		if (( is_first_line_FLAG )); then
+			# exclude a subshell 'done < <( cat /proc... )' pid from the list
+			pid_to_skip="$pid"
+			is_first_line_FLAG=0
+		fi
+
+		if (( pid == pid_to_skip )); then
+			continue
+		fi
+
 		procfs_struct_REF['pid_list']+="$pid "
 		comm_sanitized="${comm_raw:1:-1}" # remove first "(" and last ")"
 		procfs_struct_REF["$pid".comm]="$comm_sanitized"
@@ -1611,7 +1625,8 @@ function populate_procfs_struct {
 		fi
 
 		procfs_struct_REF["$pid".cmdline]="${cmdline:-$comm_sanitized}"
-	done < <( cat /proc/+([0-9])/stat 2> /dev/null )
+	done < <( echo "$BASHPID"; cat /proc/+([0-9])/stat 2> /dev/null )
+	# pid_to_skip    ^^^^^^^
 
 	[[ -n ${procfs_struct_REF['pid_list']-} ]] # return false if no pids found
 }
