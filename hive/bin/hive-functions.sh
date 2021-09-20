@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.55.2'
+declare -r hive_functions_lib_version='0.59.0'
 #                                        ^^ current number of public functions
 
 
@@ -30,6 +30,7 @@ declare -r hive_functions_lib_version='0.55.2'
 #	NETWORK
 #	TEXT, STRINGS
 #	PROCESSES
+#	PROCESSES/PROCFS
 #	SCREEN
 #	OTHER
 #
@@ -1462,9 +1463,9 @@ function expand_hive_templates_in_variable_by_ref {
 #
 # functions: PROCESSES
 #
-#	pgrep_count
-#	pgrep_quiet
-#	get_process_owner
+#	pgrep_count 'pattern'
+#	pgrep_quiet 'pattern'
+#	get_process_owner 'process_name'
 #
 
 function pgrep_count {
@@ -1474,7 +1475,7 @@ function pgrep_count {
 	# pgrep --count naive emulator
 	#
 
-	# args
+	# args and asserts
 
 	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
@@ -1499,7 +1500,7 @@ function pgrep_quiet {
 	# pgrep --quiet naive emulator
 	#
 
-	# args
+	# args and asserts
 
 	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
 	local -r pattern="$1"
@@ -1534,6 +1535,160 @@ function get_process_owner {
 	else
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	fi
+}
+
+
+
+#
+# functions: PROCESSES/PROCFS (procfs black magic starts here)
+#
+#	populate_procfs_struct 'procfs_struct_REF' ['is_cmdline_collecting_enabled_FLAG']
+#	get_pid_attribute 'pid_to_process' 'pid_attribute' 'procfs_struct_REF'
+#	get_pid_cmdline_from_procfs 'pid_to_process'
+#	get_children_pids_of 'pid_to_process' 'procfs_struct_REF'
+#
+
+# A working example:
+#
+#	declare -A procfs_STRUCT=()
+#	if populate_procfs_struct 'procfs_STRUCT' 0; then
+#		echo
+#		declare -p procfs_STRUCT
+#		echo
+#		for i in $( get_children_pids_of $$ 'procfs_STRUCT' ); do
+#			if cmdline="$( get_pid_cmdline_from_procfs "$i" )"; then
+#				echo "kill '$cmdline' ($i)"
+#			else
+#				echo "kill $i"
+#			fi
+#		done
+#	else
+#		echo 'Something wrong with /procfs'
+#	fi
+
+function populate_procfs_struct {
+	#
+	# Usage: populate_procfs_struct 'procfs_struct_REF' ['is_cmdline_collecting_enabled_FLAG']
+	#
+	# procfs_STRUCT should be declared *before* populate_procfs_struct():
+	#
+	# [pid_list]='NNN... '
+	# [NNN.comm]='comm'
+	# [NNN.state]='state'
+	# [NNN.ppid]='ppid'
+	# [NNN.pgrp]='pgrp'
+	# [NNN.children_list]='[pid]... '
+	# [NNN.cmdline]='cmdline'
+	#
+
+	# args and asserts
+
+	(( $# == 1 || $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r -n procfs_struct_REF="$1" # TODO check for declared/not declared
+	local -r -i is_cmdline_collecting_enabled_FLAG="${2:-0}"
+
+	# vars
+
+	local -i pid ppid pgrp
+	local comm_raw comm_sanitized state cmdline
+
+	# code
+
+	shopt -s extglob
+	while read -r pid comm_raw state ppid pgrp _; do
+		procfs_struct_REF['pid_list']+="$pid "
+		comm_sanitized="${comm_raw:1:-1}" # remove first "(" and last ")"
+		procfs_struct_REF["$pid".comm]="$comm_sanitized"
+		procfs_struct_REF["$pid".state]="$state"
+		procfs_struct_REF["$pid".ppid]="$ppid"
+		procfs_struct_REF["$pid".pgrp]="$pgrp"
+		procfs_struct_REF["$ppid".children_list]+="$pid "
+
+		if (( is_cmdline_collecting_enabled_FLAG )); then
+			# SLOOOW
+			cmdline="$( tr '\0' ' ' < "/proc/${pid}/cmdline" )" # replace null-bytes with whitespaces
+			cmdline="${cmdline% }" # remove the last whitespace
+		fi
+
+		procfs_struct_REF["$pid".cmdline]="${cmdline:-$comm_sanitized}"
+	done < <( cat /proc/+([0-9])/stat 2> /dev/null )
+
+	[[ -n ${procfs_struct_REF['pid_list']-} ]] # return false if no pids found
+}
+
+function get_pid_attribute {
+	#
+	# Usage: get_pid_attribute 'pid_to_process' 'pid_attribute' 'procfs_struct_REF'
+	#
+	# pid_attribute = comm | state | ppid | pgrp | children_list
+	#
+
+	# args and asserts
+
+	(( $# == 3 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r pid_to_process="$1"
+	local -r pid_attribute="$2"
+	local -r -n procfs_struct_REF="$3"
+
+	# code
+
+	echo "${procfs_struct_REF["${pid_to_process}.${pid_attribute}"]-}" #"
+}
+
+function get_pid_cmdline_from_procfs {
+	#
+	# Usage: get_pid_cmdline_from_procfs 'pid_to_process'
+	#
+
+	# args and asserts
+
+	(( $# == 1 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r pid_to_process="$1"
+
+	# vars
+
+	local path_to_cmdline cmdline_raw cmdline_sanitized
+
+	# code
+
+	path_to_cmdline="/proc/${pid_to_process}/cmdline"
+	if [[ -e "$path_to_cmdline" ]]; then
+		cmdline_raw="$( tr '\0' ' ' < "/proc/${pid_to_process}/cmdline" )" # replace null-bytes with whitespaces
+		cmdline_sanitized="${cmdline_raw% }" # and then remove the last whitespace
+		echo "$cmdline_sanitized"
+	else
+		return 1
+	fi
+}
+
+function get_children_pids_of {
+	#
+	# Usage: get_children_pids_of 'pid_to_process' 'procfs_struct_REF'
+	#
+
+	# args and asserts
+
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r pid_to_process="$1"
+	local -r -n procfs_struct_REF="$2"
+
+	# functions
+
+	function inspect_pid {
+		# args
+		local -r -i pid_to_inspect="$1"
+		# vars
+		local -i this_pid
+		# code
+		for this_pid in ${procfs_struct_REF["$pid_to_inspect".children_list]-}; do
+			echo "$this_pid"
+			inspect_pid "$this_pid"
+		done
+	}
+
+	# code
+
+	inspect_pid "$pid_to_process"
 }
 
 
