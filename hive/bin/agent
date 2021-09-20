@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.12.0-pre'
+readonly script_version='0.13.0-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1167,6 +1167,7 @@ function fetch_stats_and_push_them_to_server {
 	local -i current_RIG_CONF_last_updated_time=0 current_WALLET_CONF_last_updated_time=0
 	local comm_quality_percentage
 	local -i this_element this_element_counter=0
+	local request_endpoint
 
 	# code
 	is_program_in_the_PATH 'jq' || log_line error 'jq not found'
@@ -1326,6 +1327,8 @@ function fetch_stats_and_push_them_to_server {
 		return
 	fi
 
+log_line debug 'check https'
+
 	# !!! and now the duct tape
 	# !!! fix /hive/bin/message then ditch this under the bus
 	# protection measures -- we don't have https on the vast majority of ASICs
@@ -1342,7 +1345,10 @@ function fetch_stats_and_push_them_to_server {
 
 	until (( is_server_push_went_ok_FLAG )); do
 
+log_line debug 'push start'
+
 		if (( is_failover_connection_in_force_FLAG )); then
+log_line debug 'failover check'
 			# check for a failover mode's age
 			set_variable_to_current_system_time_in_seconds 'the_now'
 			((
@@ -1356,6 +1362,7 @@ function fetch_stats_and_push_them_to_server {
 				log_line warning "It's time to switch back to the main API server"
 			fi
 		fi
+log_line debug 'oob check'
 
 		# out of boundaries check
 		if (( API_HOST_URLs_working_collection_index >= API_HOST_URLs_working_collection_size )); then
@@ -1365,9 +1372,12 @@ function fetch_stats_and_push_them_to_server {
 				API_HOST_URLs_working_collection_index=1
 			fi
 		fi
+log_line debug 'api host check'
 
 		# set working API host
 		API_HOST_URL_current="${API_HOST_URLs_working_collection[API_HOST_URLs_working_collection_index]%/}" # cut the trailing slash in host URL, if any (like as in rocketchain's local API server URL)
+
+log_line debug 'whitelabel check'
 
 		# whitelabel's workaround
 		if [[ "$API_HOST_URL_main" != *'hiveos.farm'* && "$API_HOST_URL_current" == *'hiveos.farm'* ]]; then
@@ -1379,6 +1389,7 @@ function fetch_stats_and_push_them_to_server {
 		# calculate and show upstream communication quality
 		(( push_total_counter++ ))
 		if (( push_bad_counter > 0 )); then
+log_line debug 'comm_quality check'
 			comm_quality_percentage="$( calculate_quality "$push_bad_counter" "$push_total_counter" )"
 			# and here comes some fancy optimization
 			(( push_bad_counter < 1000 ))	&& push_bad_counter_humanized="$push_bad_counter"		|| push_bad_counter_humanized="$( humanize "$push_bad_counter" )"
@@ -1387,6 +1398,8 @@ function fetch_stats_and_push_them_to_server {
 			log_line warning "Upstream communication quality ${comm_quality_percentage}% ($push_bad_counter_humanized unsuccessful out of $push_total_counter_humanized)"
 		fi
 
+log_line debug 'is_failover_connection_in_force check'
+
 		if (( is_failover_connection_in_force_FLAG )); then
 			log_line warning "Failover API server is active, $( seconds2dhms "$seconds_left_till_switch_to_main" ) till returning to main"
 			log_line info "API servers: $( pretty_print_api_hosts "${API_HOST_URLs_working_collection[*]}" "$API_HOST_URLs_working_collection_index" )"
@@ -1394,9 +1407,9 @@ function fetch_stats_and_push_them_to_server {
 
 		log_line info "Sending stats (${#request} bytes) to ${API_HOST_URL_current}..."
 
+		request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=stats"
 		time_start_sending_stats="$( get_system_uptime_in_milliseconds )"
 		response="$(
-			request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=stats"
 			curl												\
 																\
 				--insecure --location --data @- --silent		\
@@ -1415,6 +1428,7 @@ function fetch_stats_and_push_them_to_server {
 		)"
 		curl_exitcode=$?
 		time_wasted_sending_stats_in_s="$( get_time_difference_in_s $(( time_start_sending_stats )) )"
+log_line debug 'curl exit'
 
 		if (( curl_exitcode == 0 )); then
 			if (( ! is_api_host_file_relevant )) || [[ ! -s "$API_HOST_FILE" ]]; then
@@ -1546,6 +1560,7 @@ function do_command {
 	# vars
 	local cmd_id client_version exec shutdown_fuse_file exec_timeout asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
+	local request_endpoint
 	local -i curl_exitcode exec_time_limit
 	# shellcheck disable=SC2034
 	# bc it's used in a weird way (in the sinlge quoted commands group)
@@ -1614,12 +1629,12 @@ function do_command {
 		;;
 
 		'exec')
-			exec="$( jq --raw-output '.exec' <<< "$body" )"
+			exec_command="$( jq --raw-output '.exec' <<< "$body" )"
 
 			# let's inform the user that the command is received
-			#message default "$exec (running, id: $cmd_id)" --id="$cmd_id" --verbose
+			#message default "$exec_command (running, id: $cmd_id)" --id="$cmd_id" --verbose
 
-			case "$exec" in
+			case "$exec_command" in
 				'hssh start')
 					unset TMUX # !!! duct tape
 				;;
@@ -1640,45 +1655,82 @@ function do_command {
 				;;
 			esac
 
-			# !!! a secret spell: if the command to exec prefixed with ':;', then no time limit enabled
-			if [[ "${exec:0:2}" == ':;' ]]; then
-				exec_timeout='nohup bash -c' # no time limit at all
+			local -i exec_time_limit=0
+			local timeout_app=''
+			local exec_screen_name="exec-${cmd_id}-screen"
+			local exec_log="/tmp/${exec_screen_name}.log"
+			local exec_accessory_script="/run/hive/${exec_screen_name}.sh"
+
+			if [[ "${exec_command:0:2}" == ':;' || "$exec_command" == 'hssh start' ]]; then
+				# !!! a secret spell: if the command to exec is prefixed with ':;', then no time limit will be imposed
+				# !!! also no timeout for HSSH
+				:
 			else
 				(( exec_time_limit = 60 * 60 * 3 )) # 3 hrs tops
 				# shellcheck disable=SC2076
 				if [[ "$ASIC_MODEL" == 'Zig Z1' || "$ASIC_MODEL" == 'Zig Z1+' || "$ASIC_MODEL" == 'Toddminer C1'* ]]; then
 					# use Debian /usr/bin/timeout
-					exec_timeout="nohup timeout $exec_time_limit bash -c"
+					timeout_app='timeout'
 				else
-					# use a BusyBox one
-					exec_timeout="nohup timeout -t $exec_time_limit bash -c"
+					# use a BusyBox one OR our own
+					timeout_app='timeout -t'
 				fi
 			fi
 
-			#
-			# do we need an intermediate file? here's a file-less approach with pipe:
-			#
-			#$exec_timeout '
-			#	( '"$exec"' ) |& if (( $? == 0 )); then
-			#		message info "'"$( backslash "$exec" )"'" --payload --id='"$cmd_id"'
-			#	else
-			#		message error "'"$( backslash "$exec" )"' (failed, exitcode=$?)" --payload --id='"$cmd_id"'
-			#	fi
-			#' &> "$command_log" &
+			# a new way thru the gnu screen
+			if touch "$exec_accessory_script" && touch "$exec_log"; then
+				# generate a temporary script
+				echo '#!/hive/sbin/bash
+					# args
+					declare -r exec_command="$1"
+					declare -r exec_log="$2"
+					declare -r cmd_id="$3"
+					declare -r timeout_app="$4"
+					declare -r exec_time_limit="$5"
 
-			local agent_exec_log="/tmp/agent-exec-$cmd_id.log"
-			#local exec_backslashed="$( backslash "$exec" )" # don't need it anymore
+					# vars
+					declare -i exec_exitcode
 
-			$exec_timeout '# {agent-exec}
-				( '"$exec"' ) &> "$1"
-				exec_exitcode=$?
-				if (( exec_exitcode == 0 )); then
-					message info "$0" --escape-templates --id="$2" --silent --payload < "$1"
+					# code
+					echo "# $exec_command"
+					echo
+					if (( exec_time_limit == 0 )); then
+						$exec_command 0<&- |& tee "$exec_log"
+					else
+						$timeout_app "$exec_time_limit" bash -c "$exec_command" 0<&- |& tee "$exec_log"
+					fi
+					exec_exitcode="${PIPESTATUS[0]}"
+					case "$exec_exitcode" in
+						0)		message info "$exec_command" --escape-templates --id="$cmd_id" --silent --payload < "$exec_log"													;;
+						127)	message error "$exec_command (command not found? exitcode $exec_exitcode)" --escape-templates --id="$cmd_id" --silent --payload < "$exec_log"	;;
+						*)		message error "$exec_command (failed, exitcode $exec_exitcode)" --escape-templates --id="$cmd_id" --silent --payload < "$exec_log"				;;
+					esac
+					rm "$0" "$exec_log"
+				' > "$exec_accessory_script"
+
+				# run this temporary script in a screen
+				chmod +x "$exec_accessory_script"
+				screen -dm -S "$exec_screen_name" "$exec_accessory_script" "$exec_command" "$exec_log" "$cmd_id" "$timeout_app" "$exec_time_limit"
+			else
+				# better be safe than sorry
+				# execute a command in a such way just in the case of a read-only fs or anything weird
+				# here's a file-less approach thru pipe:
+				if (( exec_time_limit == 0 )); then
+					exec_timeout='bash -c' # no time limit at all
 				else
-					message error "$0 (failed, exitcode=$exec_exitcode)" --escape-templates --id="$2" --silent --payload < "$1"
+					exec_timeout="$timeout_app $exec_time_limit bash -c"
 				fi
-				rm "$1"
-			' "$exec" "$agent_exec_log" "$cmd_id" &> "$command_log" & disown
+
+				$exec_timeout '
+					exec_output=$( '"$exec_command"' )
+					exec_exitcode="$?"
+					if (( exec_exitcode == 0 )); then
+						echo "$exec_output" | message info "$0" --escape-templates --id="$1" --silent --payload
+					else
+						echo "$exec_output" | message error "$0 (failed, exitcode $exec_exitcode)" --escape-templates --id="$1" --silent --payload
+					fi
+				' "$exec_command" "$cmd_id" & disown
+			fi
 		;;
 
 		'asic_oc')
@@ -1761,8 +1813,8 @@ function do_command {
 						--arg rig_id "$RIG_ID" --arg passwd "$RIG_PASSWD" \
 						'{ "method": "password_change_received", "params": {$rig_id, $passwd}, "jsonrpc": "2.0", "id": 0}'
 					)"
+					request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=password_change_received"
 					response="$(
-						request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=password_change_received"
 						curl												\
 																			\
 							--insecure --location --data @- --silent		\
@@ -1945,42 +1997,62 @@ function internal_watchdog {
 	#trap -- 'log_line debug "internal watchdog ${PPID}:${$}:${BASHPID} killed"' EXIT
 
 	# args
-	local -r -i timeout_in_s="${1-60}" # default is 1 minute
+	local -r -i timeout_in_s="${1-120}" # default is 2 minutes
 
 	# vars
+	local watchdog_id
 	local ppid pid comm args
 
-	# code
-	log_line debug "internal watchdog ${PPID}:${$}:${BASHPID} starting now, timeout is ${timeout_in_s}s"
-	snore "$timeout_in_s"
-	log_line error "internal watchdog ${PPID}:${$}:${BASHPID} engadeg. BARK-BARK, time is out! Here's the process tree:"
+	# cod
+	watchdog_id="${PPID}:${$}:${BASHPID}"
+	log_line debug "internal watchdog $watchdog_id starting now, timeout is ${timeout_in_s}s"
+	snore "$timeout_in_s" # a pause to let the parent terminate this watchdog instance calmly
 
-echo
-pstree -p "$PPID"
-echo
+	if (( is_pstree_supported_FLAG )); then
+		log_line error "internal watchdog $watchdog_id engadeg. BARK-BARK, time is out! Here's the process tree:"
+		echo
+		pstree -p "$PPID"
+		echo
+	else
+		log_line error "internal watchdog $watchdog_id engadeg. BARK-BARK, time is out!"
+	fi
 
 	# check for hanging external commands
-	while read -r ppid pid comm args; do
-		if [[ "$ppid" == "$$" && "$pid" != "$BASHPID" ]]; then
-			# here's my uterine sibling, let's slaugher it
-			log_line debug "internal watchdog ${PPID}:${$}:${BASHPID}: '$args' (PPID $ppid, PID $pid) hanging, sending SIGTERM"
-			{
-				# be nice, post SIGTERM first
-				kill -s SIGTERM "$pid"
-				snore 1
-				if kill -0 "$pid"; then
-					log_line debug "internal watchdog ${PPID}:${$}:${BASHPID}: '$args' (PPID $ppid, PID $pid) is bulletproof, eh? okay, sending SIGKILL"
-					kill -s SIGKILL "$pid"
-				fi
-			} &
-		fi
-	done < <( ps -o ppid,pid,comm,args ) 2> /dev/null
+	local -A procfs_STRUCT=()
+	local -i this_pid
+	local this_comm this_state this_ppid this_cmdline
+	if populate_procfs_struct 'procfs_STRUCT' 0; then
+		for this_pid in $( get_children_pids_of "$$" 'procfs_STRUCT' ); do
+			#                                    ^^ my proc group
+			#   ...and not me vvvvvvv
+			if (( this_pid != BASHPID )); then
+				# here's my sweet uterine sibling, let's slaugher it
+				{
+					this_ppid="$( get_pid_attribute "$this_pid" 'ppid' 'procfs_STRUCT' )"
+					this_comm="$( get_pid_attribute "$this_pid" 'comm' 'procfs_STRUCT' )"
+					this_state="$( get_pid_attribute "$this_pid" 'state' 'procfs_STRUCT' )"
+					this_cmdline="|$( get_pid_cmdline_from_procfs "$this_pid" )" || this_cmdline=''
+					log_line debug "internal watchdog $watchdog_id: ${this_comm}|${this_state}${this_cmdline} (PPID $this_ppid, PID $this_pid) hanging, sending SIGTERM"
+					if kill -0 "$this_pid" 2> /dev/null; then
+						# be nice, post SIGTERM first
+						kill -s SIGTERM "$this_pid"
+						snore 1
+						if kill -0 "$this_pid" 2> /dev/null; then
+							log_line debug "internal watchdog $watchdog_id: PID $this_pid is bulletproof, eh? okay, shooting SIGKILL"
+							kill -s SIGKILL "$this_pid"
+						fi
+					fi
+				} & # let's parallel it all
+			fi
+		done
+	else
+		log_line error 'Something wrong with /procfs'
+	fi
 
-	snore 30
-	log_line error "internal watchdog ${PPID}:${$}:${BASHPID}: Why I still am alive? Sending SIGUSR1 to my parent, PID $$"
+	snore "$timeout_in_s" # pause again to let the parent terminate this watchdog instance calmly
+	log_line error "internal watchdog $watchdog_id: Why I still am alive? Sending SIGUSR1 to my parent, PID $$"
 	kill -s SIGUSR1 "$$"
-
-	log_line debug "internal watchdog ${PPID}:${$}:${BASHPID}: Really?! You should rarely see this message"
+	log_line debug "internal watchdog $watchdog_id: Really?! Looks like some watchdog malfunction--you should never see this message"
 }
 
 
@@ -2060,6 +2132,7 @@ declare -i skip_the_sleep_FLAG=0
 declare -i is_failover_connection_in_force_FLAG=0
 declare -i is_api_host_file_relevant=0
 declare -i can_haz_bootstrap_servers_FLAG=1 # let's act willfully
+declare -i is_pstree_supported_FLAG=0
 
 
 # sources
@@ -2084,38 +2157,30 @@ fi
 
 log_line ok "$script_mission, version $script_version started"
 log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
-	echo
-
+echo
 
 # (re)starting wd
-
 if (( "${WD_ENABLED:-0}" )); then
 	nohup wd stop &> /dev/null
 	snore 5
 fi
 wd start &
 
+# set flags for the process management
+pstree -p "$$" &> /dev/null	&& is_pstree_supported_FLAG=1
 
-# main loop
-
+# main infinite loop
 while true; do
 	SECONDS=0
 	skip_the_sleep_FLAG=0
 
-	: | internal_watchdog $(( 60 * 5 )) & disown # start the local watchdog with 5m timeout
+	internal_watchdog 15 0<&- & disown # start the local watchdog with 2m timeout
 	internal_watchdog_PID="$!"
+
 	fetch_stats_and_push_them_to_server
 
-#echo
-#jobs -l
-#echo
-#echo "main() PPID $PPID | PID $$ | BASHPID $BASHPID"
-#ps -o ppid,pid,comm,args | grep -E "($PPID|$$|$BASHPID)" | grep -vE '(grep -E|ps -o)'
-#echo
-#sleep 30 # to test watchdog
-
 #	log_line debug "killing watchdog #$internal_watchdog_PID"
-	kill "$internal_watchdog_PID" || log_line error "cannot kill watchdog #${internal_watchdog_PID}?"
+	kill "$internal_watchdog_PID" || log_line debug "cannot kill watchdog #${internal_watchdog_PID}?"
 
 	if (( skip_the_sleep_FLAG )); then
 		# no interval to make the agent more responsive and instantly push last_cmd_id to the server
@@ -2131,4 +2196,4 @@ while true; do
 	fi
 done
 
-exit 1
+exit 1 # and quote the raven: "nevermore!"
