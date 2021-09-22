@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.13.1-debug'
+readonly script_version='0.13.2-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -2202,7 +2202,7 @@ if (( "${WD_ENABLED:-0}" )); then
 fi
 wd start &
 
-# set flags for the process management
+# set a flag for the process management
 pstree -p "$$" &> /dev/null	&& is_pstree_supported_FLAG=1
 
 # main infinite loop
@@ -2210,7 +2210,7 @@ while true; do
 	SECONDS=0
 	skip_the_sleep_FLAG=0
 
-	internal_watchdog 15 0<&- & disown # start the local watchdog with 2m timeout
+	internal_watchdog 60 0<&- & disown # start the local watchdog with 1m timeout
 	internal_watchdog_PID="$!"
 
 	fetch_stats_and_push_them_to_server
