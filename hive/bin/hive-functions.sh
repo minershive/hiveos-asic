@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.59.1'
+declare -r hive_functions_lib_version='0.59.2'
 #                                        ^^ current number of public functions
 
 
@@ -979,16 +979,17 @@ function snore {
 	# shellcheck disable=SC1083
 	# because 'man bash':
 	# Each redirection that may be preceded by a file descriptor number may instead be preceded by a word of the form {varname}.
-	[[ -n "${__snore_fd:-}" ]] || { exec {__snore_fd}<> <(:); } 2> /dev/null ||
-	{
-		# workaround for MacOS and similar systems
-		local fifo
-		fifo="$( mktemp -u )"
-		mkfifo -m 700 "$fifo"
-		# shellcheck disable=SC2093
-		exec {__snore_fd}<>"$fifo"
-		rm "$fifo"
-	}
+	[[ -n "${__snore_fd:-}" ]] ||
+		{ exec {__snore_fd}<> <(:); } 2> /dev/null ||
+			{
+				# workaround for MacOS and similar systems
+				local fifo
+				fifo="$( mktemp -u )"
+				mkfifo -m 700 "$fifo"
+				# shellcheck disable=SC2093
+				exec {__snore_fd}<>"$fifo"
+				rm "$fifo"
+			}
 	read -t "${__sleep_time}" -u "$__snore_fd" || :
 }
 
@@ -1105,7 +1106,7 @@ function get_ip_postfix_address {
 
 	# code
 
-	LANG=C ifconfig "$interface" | grep 'inet addr:' | { IFS=' :.' read -r _ _ _ _ octet_C octet_D _; echo "${octet_C}x${octet_D}"; }
+	LANG=C ifconfig "$interface" | grep 'inet addr:' | { IFS=' :.' read -t 10 -r _ _ _ _ octet_C octet_D _; echo "${octet_C}x${octet_D}"; }
 }
 
 # shellcheck disable=SC2120
@@ -1161,7 +1162,7 @@ function strip_ansi {
 	# code
 
 	shopt -s extglob
-	while IFS='' read -r line || [[ -n "$line" ]]; do
+	while IFS='' read -t 10 -r line || [[ -n "$line" ]]; do
 		printf '%s\n' "${line//$'\e'[\[(]*([0-9;])[@-n]/}"
 	done
 }
@@ -1418,7 +1419,7 @@ function expand_hive_templates_in_variable_by_ref {
 			;;
 
 			'URL' )
-				#IFS='/' read -r _ _ this_template_substitution <<< "$HIVE_HOST_URL" # extract a domain name
+				#IFS='/' read -t 10 -r _ _ this_template_substitution <<< "$HIVE_HOST_URL" # extract a domain name
 				# nope
 				# i think it should be FQDN
 				this_template_substitution="$( read_variable_from_file "$__RIG_CONF" 'HIVE_HOST_URL' )" ||
@@ -1599,7 +1600,7 @@ function populate_procfs_struct {
 	# code
 
 	shopt -s extglob # for cat /proc/+([0-9])/stat
-	while read -r pid comm_raw state ppid pgrp _; do
+	while read -t 10 -r pid comm_raw state ppid pgrp _; do
 		if (( is_first_line_FLAG )); then
 			# exclude a subshell 'done < <( cat /proc... )' pid from the list
 			pid_to_skip="$pid"
