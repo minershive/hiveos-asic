@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.13.0-debug'
+readonly script_version='0.13.1-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -83,6 +83,7 @@ function jq_batch_process {
 	local -r -n JSON_input="$JSON_input_by_ref"
 
 	# vars
+	local jq_batch_response_raw
 	local -A jq_batch_response_hashtable=()
 	local -a jq_batch_response_raw_array=()
 	local this_var this_value this_key
@@ -115,9 +116,9 @@ function jq_batch_process {
 	#
 	if is_JSON_string_not_empty_or_null "$JSON_input"; then
 		#echo "'$JSON_input'" && snore 1
-		mapfile -t jq_batch_response_raw_array < <( jq --compact-output --argjson 'max_fan_rpm' "$ASIC_MAX_FAN_RPM" "$jq_batch_script" <<< "$JSON_input" )
-		#                                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, might refactor to get rid of it?
-
+		jq_batch_response_raw="$( jq --compact-output --argjson 'max_fan_rpm' "$ASIC_MAX_FAN_RPM" "$jq_batch_script" <<< "$JSON_input" )"
+		#                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, might refactor to get rid of it?
+		mapfile -t jq_batch_response_raw_array <<< "$jq_batch_response_raw"
 		#printf "%s\n" "${jq_batch_response_raw_array[@]}"
 
 		for this_index in "${!jq_batch_response_raw_array[@]}"; do
@@ -299,6 +300,8 @@ function reduce_hashrate_to_khs {
 		)"
 	else
 		# all integer
+		# shellcheck disable=SC2034
+		# bc it's by ref
 		(( output_hashrate_in_khs_by_ref = input_hashrate_value * relationship_to_khs ))
 	fi
 }
@@ -412,7 +415,7 @@ function cache_cmd {
 
 	# consts
 	local -r -i cache_ttl_in_s=50
-	local -r cache_FILE='/run/hive/cmd_cache' # '/dev/shm/cmd_cache'
+	local -r cache_FILE='/run/hive/cmd_cache'
 	local hash; printf -v hash "%s<FD>" "${@:1:2}" # construct a hash from the first two elements in "$@", literalize fields delimiters
 	local -r       last_time_KEY="$hash:last_time"
 	local -r cached_response_KEY="$hash:cached_response"
@@ -421,6 +424,7 @@ function cache_cmd {
 	local -r  avg_hot_time_KEY="$hash:avg_hot_time"
 
 	# hashes
+	# shellcheck disable=SC1090
 	local -A cmd_cache_array; [[ -s "$cache_FILE" ]] && source "$cache_FILE"
 	# direct refs to array elements
 	local -n       last_time="cmd_cache_array['$last_time_KEY']"
@@ -636,6 +640,7 @@ function fetch_miner_stats {
 		'Antminer Z9'*										|\
 		'Antminer Z11'*)
 			# echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n'
+log_line debug 'get_stats_raw()'
 			if ! stats_raw="$( get_stats_raw )" || [[ -z "$stats_raw" ]]; then
 				system_status="$( ant-functions.sh 'hiveon_status' 'ERR_NO_STATS' )" # check for 'tuning' state
 				log_line warning "Failed to read $miner_name stats from $miner_API_host:$miner_API_port"
@@ -649,6 +654,8 @@ function fetch_miner_stats {
 			process_pools || { sanitize_total_khs; return; }
 
 			# jq batch optimization for a weak CPUs like L3+, Z9 etc.
+			# shellcheck disable=SC2034
+			# bc it's by ref
 			local -A -r jq_batch_request_hashtable=(
 				['hashrate_raw']='		.[1] | ."GHS 5s"				| tonumber'
 				['uptime']='			.[1] | .Elapsed'
@@ -668,6 +675,7 @@ function fetch_miner_stats {
 				['freq_count']='		.[1] | with_entries(select(.key | test("frequency\\d+")) ) | length'
 				['miner_count']='		.[1] | with_entries(select(.key | test("chain_acn\\d+")) ) | length'
 			)
+log_line debug 'jq_batch_process()'
 			jq_batch_process 'jq_batch_request_hashtable' 'STATS'
 
 #			hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"'	<<< "$STATS" 2> /dev/null )"					|| error_vars+=( "hashrate_raw#$?" )
@@ -700,6 +708,8 @@ function fetch_miner_stats {
 				[[ "$chain_voltage" == '[]' ]] && chain_voltage="$( cache_cmd ant-functions.sh 'hiveon_voltage' <<< "$chain_acn" )"
 			fi
 
+			# shellcheck disable=SC2154
+			# bc it's by ref
 			if (( freq_count == miner_count )); then
 				freq_new="$freq"
 			else
@@ -971,7 +981,7 @@ function get_loadavg_as_json_array {
 
 	# code
 	# /proc/loadavg: '1.24 1.25 1.34 3/251 5135'
-	read -r LA_1m LA_5m LA_15m _ < /proc/loadavg
+	read -t 10 -r LA_1m LA_5m LA_15m _ < /proc/loadavg
 	printf '[%0.1f,%0.1f,%0.1f]\n' "$LA_1m" "$LA_5m" "$LA_15m"
 }
 
@@ -1004,7 +1014,7 @@ function get_mem_as_json_array {
 	#MemFree:         5573512 kB
 	#MemAvailable:    5697504 kB
 	#Buffers:           51764 kB
-	while read -r meminfo_parameter_field meminfo_size_field _ || [[ -n "$meminfo_parameter_field" ]]; do
+	while read -t 10 -r meminfo_parameter_field meminfo_size_field _ || [[ -n "$meminfo_parameter_field" ]]; do
 		[[ "$meminfo_parameter_field" == 'MemTotal:' ]] && (( MemTotal = meminfo_size_field ))
 		[[ "$meminfo_parameter_field" == 'MemAvailable:' ]] && (( MemAvailable = meminfo_size_field ))
 		if (( MemTotal != -1 && MemAvailable != -1 )); then
@@ -1136,7 +1146,7 @@ function pretty_print_api_hosts {
 	hosts_list_sanitized="${hosts_list//http:\/\/}" # cut 'http://'
 	hosts_list_sanitized="${hosts_list_sanitized//\.hiveos\.farm}" # cut '.hiveos.farm'
 
-	read -r -a hosts_list_ARR <<< "$hosts_list_sanitized"
+	read -t 10 -r -a hosts_list_ARR <<< "$hosts_list_sanitized"
 	for (( this_element = 0; this_element < ${#hosts_list_ARR[@]}; this_element++ )); do
 		this_host="${hosts_list_ARR[this_element]-ERR_UNDEFINED}"
 		if (( this_element == list_index )); then
@@ -1181,6 +1191,7 @@ function fetch_stats_and_push_them_to_server {
 			else
 				log_line warning "Rig config $RIG_CONF has been updated, re-loading"
 			fi
+			# shellcheck disable=SC1090
 			source "$RIG_CONF"
 			(( saved_RIG_CONF_last_updated_time = current_RIG_CONF_last_updated_time ))
 
@@ -1191,7 +1202,7 @@ function fetch_stats_and_push_them_to_server {
 			# parse API_HOST_URLs to API_HOST_URLs_working_collection
 			if [[ -n "${API_HOST_URLs-}" ]]; then
 				# parse a whole API_HOST_URLs string to the URLs collection array; sanitizing 'https' to 'http' at the same time
-				read -r -a API_HOST_URLs_working_collection <<< "${API_HOST_URLs//https:\/\//http:\/\/}"
+				read -t 10 -r -a API_HOST_URLs_working_collection <<< "${API_HOST_URLs//https:\/\//http:\/\/}"
 			else
 				# HIVE_HOST_URL is deprecated, but better safe than sorry; sanitizing 'https' to 'http' at the same time
 				API_HOST_URLs_working_collection[0]="${HIVE_HOST_URL//https:\/\//http:\/\/}"
@@ -1227,6 +1238,7 @@ function fetch_stats_and_push_them_to_server {
 			else
 				log_line warning "Wallet config $WALLET_CONF has been updated, re-loading"
 			fi
+			# shellcheck disable=SC1090
 			source "$WALLET_CONF"
 			(( saved_WALLET_CONF_last_updated_time = current_WALLET_CONF_last_updated_time ))
 		fi
@@ -1256,6 +1268,8 @@ function fetch_stats_and_push_them_to_server {
 	time_start_collecting_stats="$( get_system_uptime_in_milliseconds )"
 	fetch_miner_stats "$MINER"
 	time_wasted_collecting_stats_in_s="$( get_time_difference_in_s $(( time_start_collecting_stats )) )"
+
+log_line debug 'process_total_khs_and_arr()'
 
 	process_total_khs_and_arr
 
@@ -1358,6 +1372,7 @@ log_line debug 'failover check'
 			if (( seconds_left_till_switch_to_main <= 0 )); then
 				# return to the main host
 				is_failover_connection_in_force_FLAG=0
+				is_api_host_file_relevant_FLAG=0
 				API_HOST_URLs_working_collection_index=0
 				log_line warning "It's time to switch back to the main API server"
 			fi
@@ -1431,18 +1446,16 @@ log_line debug 'is_failover_connection_in_force check'
 log_line debug 'curl exit'
 
 		if (( curl_exitcode == 0 )); then
-			if (( ! is_api_host_file_relevant )) || [[ ! -s "$API_HOST_FILE" ]]; then
-				# a one-time write if connection was successful (or the file does not exist)
+			is_server_push_went_ok_FLAG=1
+			# a one-time write if connection was successful (or the file does not exist)
+			if (( ! is_api_host_file_relevant_FLAG )) || [[ ! -s "$API_HOST_FILE" ]]; then
 				if echo "HIVE_HOST_URL=\"$API_HOST_URL_current\"" > "$API_HOST_FILE"; then
-					is_api_host_file_relevant=1
+					is_api_host_file_relevant_FLAG=1
 				fi
 			fi
-			is_server_push_went_ok_FLAG=1
 		else
-			((
-				push_bad_counter++,
-				is_api_host_file_relevant = 0
-			))
+			(( push_bad_counter++ ))
+			is_api_host_file_relevant_FLAG=0
 
 			log_line error "Error sending stats with exitcode $curl_exitcode in ${WHITE}${time_wasted_sending_stats_in_s}s${NOCOLOR}. Connection log:"
 
@@ -1558,13 +1571,10 @@ function do_command {
 	local -r command_log="/tmp/${script_basename}-${command// /-}.log"
 
 	# vars
-	local cmd_id client_version exec shutdown_fuse_file exec_timeout asic_oc firmware_url
+	local cmd_id client_version asic_oc firmware_url
 	local config justwrite line NEW_PASSWD request response error wallet
 	local request_endpoint
-	local -i curl_exitcode exec_time_limit
-	# shellcheck disable=SC2034
-	# bc it's used in a weird way (in the sinlge quoted commands group)
-	local -i exec_exitcode
+	local -i curl_exitcode
 	#local TMUX	# let's test it later
 
 	# code
@@ -1629,6 +1639,8 @@ function do_command {
 		;;
 
 		'exec')
+			local exec_command shutdown_fuse_file
+
 			exec_command="$( jq --raw-output '.exec' <<< "$body" )"
 
 			# let's inform the user that the command is received
@@ -1656,7 +1668,7 @@ function do_command {
 			esac
 
 			local -i exec_time_limit=0
-			local timeout_app=''
+			local exec_timeout timeout_app=''
 			local exec_screen_name="exec-${cmd_id}-screen"
 			local exec_log="/tmp/${exec_screen_name}.log"
 			local exec_accessory_script="/run/hive/${exec_screen_name}.sh"
@@ -1680,6 +1692,7 @@ function do_command {
 			# a new way thru the gnu screen
 			if touch "$exec_accessory_script" && touch "$exec_log"; then
 				# generate a temporary script
+				# shellcheck disable=SC2016
 				echo '#!/hive/sbin/bash
 					# args
 					declare -r exec_command="$1"
@@ -1721,6 +1734,7 @@ function do_command {
 					exec_timeout="$timeout_app $exec_time_limit bash -c"
 				fi
 
+				# shellcheck disable=SC2016
 				$exec_timeout '
 					exec_output=$( '"$exec_command"' )
 					exec_exitcode="$?"
@@ -1797,7 +1811,7 @@ function do_command {
 			justwrite="$( jq --raw-output '.justwrite' <<< "$body" )" #don't restart miner, just write config, maybe WD settings will be updated
 			if is_JSON_string_not_empty_or_null "$config"; then
 				#scan for a password change
-				while read -r line; do
+				while read -t 10 -r line; do
 					if [[ "$line" =~ ^RIG_PASSWD=\"(.+)\" ]]; then
 						NEW_PASSWD="${BASH_REMATCH[1]}"
 						break
@@ -1847,6 +1861,7 @@ function do_command {
 
 				# Write new config and load it ---------------------------------------
 				echo "$config" > "$RIG_CONF" && sync
+				# shellcheck disable=SC1090
 				source "$RIG_CONF"
 
 				# Save wallet if given -----------------------------------------------
@@ -2001,7 +2016,6 @@ function internal_watchdog {
 
 	# vars
 	local watchdog_id
-	local ppid pid comm args
 
 	# cod
 	watchdog_id="${PPID}:${$}:${BASHPID}"
@@ -2018,6 +2032,8 @@ function internal_watchdog {
 	fi
 
 	# check for hanging external commands
+	# shellcheck disable=SC2034
+	# bc it's by ref
 	local -A procfs_STRUCT=()
 	local -i this_pid
 	local this_comm this_state this_ppid this_cmdline
@@ -2031,15 +2047,27 @@ function internal_watchdog {
 					this_ppid="$( get_pid_attribute "$this_pid" 'ppid' 'procfs_STRUCT' )"
 					this_comm="$( get_pid_attribute "$this_pid" 'comm' 'procfs_STRUCT' )"
 					this_state="$( get_pid_attribute "$this_pid" 'state' 'procfs_STRUCT' )"
-					this_cmdline="|$( get_pid_cmdline_from_procfs "$this_pid" )" || this_cmdline=''
-					log_line debug "internal watchdog $watchdog_id: ${this_comm}|${this_state}${this_cmdline} (PPID $this_ppid, PID $this_pid) hanging, sending SIGTERM"
-					if kill -0 "$this_pid" 2> /dev/null; then
-						# be nice, post SIGTERM first
-						kill -s SIGTERM "$this_pid"
-						snore 1
+					this_cmdline="$( get_pid_cmdline_from_procfs "$this_pid" )"
+					if [[ "$this_state" != 'Z' ]]; then
+						# not a zombie
+						log_line debug "internal watchdog $watchdog_id: ${this_comm}[${this_state}]${this_cmdline} (PPID $this_ppid, PID $this_pid) hanging, sending SIGTERM"
 						if kill -0 "$this_pid" 2> /dev/null; then
-							log_line debug "internal watchdog $watchdog_id: PID $this_pid is bulletproof, eh? okay, shooting SIGKILL"
-							kill -s SIGKILL "$this_pid"
+							# be nice, post SIGTERM first
+							kill -s SIGTERM "$this_pid"
+							snore 1
+							if kill -0 "$this_pid" 2> /dev/null; then
+								log_line debug "internal watchdog $watchdog_id: PID $this_pid is bulletproof, eh? okay, shooting SIGKILL"
+								kill -s SIGKILL "$this_pid"
+							fi
+						fi
+					else
+						# a zombie!
+						log_line debug "internal watchdog $watchdog_id: ${this_comm}[${this_state}]${this_cmdline} (PPID $this_ppid, PID $this_pid) goes zombie, sending SIGCHLD to $this_ppid"
+						kill -s SIGCHLD "$this_ppid" # to the parent
+						snore 10 # wait for the parent to put the zombie to rest (and then to kill the watchdog)
+						if kill -0 "$this_pid" 2> /dev/null; then
+							log_line debug "internal watchdog $watchdog_id: PID $this_pid is bulletproof, eh? okay, let's kill the whole agent"
+							kill -s SIGKILL "$this_ppid"
 						fi
 					fi
 				} & # let's parallel it all
@@ -2052,7 +2080,12 @@ function internal_watchdog {
 	snore "$timeout_in_s" # pause again to let the parent terminate this watchdog instance calmly
 	log_line error "internal watchdog $watchdog_id: Why I still am alive? Sending SIGUSR1 to my parent, PID $$"
 	kill -s SIGUSR1 "$$"
-	log_line debug "internal watchdog $watchdog_id: Really?! Looks like some watchdog malfunction--you should never see this message"
+	log_line error "internal watchdog $watchdog_id: Why I still am alive? Sending SIGCHLD to my parent, PID $$"
+	kill -s SIGCHLD "$$"
+
+	log_line debug "internal watchdog $watchdog_id: Really?! Looks like some the agent's malfunction--you should never see this message"
+	jobs -l
+	top -b -n1 | grep -vE '[0-9] \['
 }
 
 
@@ -2130,16 +2163,19 @@ declare -i saved_RIG_CONF_last_updated_time=0 saved_WALLET_CONF_last_updated_tim
 declare -i https_disabled_message_sent_FLAG=0
 declare -i skip_the_sleep_FLAG=0
 declare -i is_failover_connection_in_force_FLAG=0
-declare -i is_api_host_file_relevant=0
+declare -i is_api_host_file_relevant_FLAG=0
 declare -i can_haz_bootstrap_servers_FLAG=1 # let's act willfully
 declare -i is_pstree_supported_FLAG=0
 
 
 # sources
 
-[[ -t 1 ]] && source /hive/bin/colors
-source /hive/bin/asic-model
-source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+# shellcheck disable=SC1091
+{
+	[[ -t 1 ]] && source /hive/bin/colors
+	source /hive/bin/asic-model
+	source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }
+}
 
 
 # main
