@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.59.2'
+declare -r hive_functions_lib_version='0.59.3'
 #                                        ^^ current number of public functions
 
 
@@ -662,7 +662,7 @@ function get_file_size_in_bytes {
 
 	# code
 
-	if [[ -f "$file_name" ]]; then
+	if [[ -e "$file_name" ]]; then
 		# try stat first
 		if ! stat -Lc %s "$file_name" 2> /dev/null; then
 			# no stat, parse ls output to array then:
