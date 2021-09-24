@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.21'
+declare -r ant_functions_lib_version='0.1.22'
 
 
 # !!! bash strict mode, no unbound variables
@@ -296,7 +296,7 @@ function hiveon_voltage {
 				voltage_mask_array=()
 			fi
 		else
-			errcho 'Voltage mask has no non-zero entries'
+			errcho "Voltage mask '$input_text' has no non-zero entries. Are there any hashboards?"
 			voltage_mask_array=()
 		fi
 	elif (( IS_ASIC_CUSTOM_FW )); then
