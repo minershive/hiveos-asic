@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.7.0'
+readonly script_version='0.7.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -228,8 +228,10 @@ done
 
 # send file
 if [[ -n "$file_to_send" ]]; then
-	# if file isn't empty or it's a named pipe -- for <() redirections like 'message file <( ./script )'
-	if [[ -s "$file_to_send" || -p "$file_to_send" ]]; then
+	# if a regular file isn't empty OR
+	# it's a named pipe -- for <() redirections like 'message file <( ./script )' OR
+	# it's a character device like /dev/fd/*
+	if [[ -s "$file_to_send" || -p "$file_to_send" || -c "$file_to_send" ]]; then
 		file_size="$( get_file_size_in_bytes "$file_to_send" )"
 		console_message="Sending $file_to_send (${file_size} bytes) to $file_send_method..."
 		case "$file_send_method" in
