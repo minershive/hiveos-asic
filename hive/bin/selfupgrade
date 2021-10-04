@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.18.2'
+readonly script_version='0.18.3'
 readonly script_basename="${0##*/}"
 
 
@@ -1615,9 +1615,9 @@ readonly persistent_package_filename='latest.tar.gz'
 # repos
 readonly default_download_server_URL='http://download.hiveos.farm'
 
-readonly github_repo_URL='http://github.com/minershive/hiveos-asic/archive/'
+readonly github_repo_URL='http://github.com/hiveon/hiveos-asic/archive/'
 readonly github_repo_description='(Github repo)'
-readonly github_repo_version_URL='https://raw.githubusercontent.com/minershive/hiveos-asic/master/hive/etc/'
+readonly github_repo_version_URL='https://raw.githubusercontent.com/hiveon/hiveos-asic/master/hive/etc/'
 
 readonly github_mirror_repo_path='/_asic/client/'
 readonly github_mirror_repo_description='(Github mirror repo)'
