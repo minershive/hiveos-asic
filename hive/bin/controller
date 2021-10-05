@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.4.7'
+readonly script_version='2.5.0'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -446,7 +446,7 @@ function split_log_line_to_date_and_message {														(( script_DEBUG )) &&
 
 function filter_lines_send_messages {																(( script_DEBUG )) && debugcho
 	#
-	# get lines from stdin, parse them and send a message, if necessary
+	# get lines from stdin -> deduplicate -> parse -> send a message, if necessary
 	#
 
 	# consts
@@ -457,19 +457,32 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 	# bc defined in the library
 	local -r valid_chain_number_RE="$positive_integer_RE"
 
+	# arrays
+
+	local -A lines_deduplicated_HASH=()
+
 	# vars
 
 	local log_line log_timestamp log_message_combined_with_log_name log_name event_type
 	local message_header message_tip
 	local parse_error_RE failed_chain='' failed_chip='' from_suspicious_IP=''
+	local log_line_raw IFS
 
 	# code
 
-	while read -r log_line; do
-		if [[ -z "${log_line-}" ]]; then
-			# skip empty log_lines
-			continue
+	# deduplicate the input first
+	#
+	# beware, it's very simply algo!
+	# therefore, similar log lines but with different timestamps have not been deduplicated
+	#
+	while IFS='' read -r log_line_raw || [[ -n "$log_line_raw" ]]; do
+		if [[ -n "${log_line_raw-}" ]]; then
+			lines_deduplicated_HASH["$log_line_raw"]=1 # anything is good, the value doesn't matter at all
 		fi
+	done
+
+	# and then forEach line...
+	for log_line in "${!lines_deduplicated_HASH[@]}"; do
 
 		split_log_line_to_date_and_message "$log_line" 'log_timestamp' 'log_message_combined_with_log_name' # !! last two vars passed by a reference, not by value
 
