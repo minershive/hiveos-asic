@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.11'
+readonly script_version='0.2.12'
 readonly script_basename="${0##*/}"
 
 
@@ -189,6 +189,7 @@ source /hive/bin/asic-model
 
 uname -a
 
+chmod u+s "$( which busybox.suid )" # for the diagnostic utility running as 1000:1000 from cgi-bin
 
 mkdir -p "$client_run_DIR"
 if ! mount | grep -q "$client_run_DIR type tmpfs"; then
