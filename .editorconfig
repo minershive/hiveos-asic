@@ -1,11 +1,1 @@
-﻿root = true
-
-[*]
-end_of_line = lf
-insert_final_newline = true
-indent_style = tab
-indent_size = 4
-trim_trailing_whitespace = true
-
-[*.md]
-trim_trailing_whitespace = false
+{"isFavorite":true,"items":[{"coin":"ETH","pool":"2miners","pool_geo":["EU","US","ASIA"],"pool_ssl":false,"pool_urls":["eth.2miners.com:2020","us-eth.2miners.com:2020","asia-eth.2miners.com:2020"],"wal_id":4088269,"dpool_ssl":false,"miner":"ethminer","miner_config":{"cuda":1,"pass":"x","port":"%URL_PORT%","opencl":1,"server":"stratum1+tcp://%URL_HOST%","template":"%WAL%.%WORKER_NAME%"}}]}
