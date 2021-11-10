@@ -1,0 +1,156 @@
+{
+  "0": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "5",
+    "tune_frequency": "400",
+    "tune_max_frequency": "425",
+    "tune_max_voltage": "1820",
+    "tune_power": "2050",
+    "tune_volt_step": "10",
+    "tune_voltage": "1820",
+    "voltage_increase": "20"
+  },
+  "1": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "5",
+    "tune_frequency": "425",
+    "tune_max_frequency": "450",
+    "tune_max_voltage": "1840",
+    "tune_power": "2350",
+    "tune_volt_step": "10",
+    "tune_voltage": "1840",
+    "voltage_increase": "20"
+  },
+  "10": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "650",
+    "tune_max_frequency": "675",
+    "tune_max_voltage": "2060",
+    "tune_power": "3850",
+    "tune_volt_step": "10",
+    "tune_voltage": "2060",
+    "voltage_increase": "20"
+  },
+  "11": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "675",
+    "tune_max_frequency": "700",
+    "tune_max_voltage": "2100",
+    "tune_power": "4250",
+    "tune_volt_step": "10",
+    "tune_voltage": "2100",
+    "voltage_increase": "10"
+  },
+  "12": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "700",
+    "tune_max_frequency": "725",
+    "tune_max_voltage": "2100",
+    "tune_power": "4350",
+    "tune_volt_step": "10",
+    "tune_voltage": "2100",
+    "voltage_increase": "10"
+  },
+  "13": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "725",
+    "tune_max_frequency": "730",
+    "tune_max_voltage": "2100",
+    "tune_power": "4400",
+    "tune_volt_step": "10",
+    "tune_voltage": "2100",
+    "voltage_increase": "0"
+  },
+  "2": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "5",
+    "tune_frequency": "450",
+    "tune_max_frequency": "475",
+    "tune_max_voltage": "1860",
+    "tune_power": "2450",
+    "tune_volt_step": "10",
+    "tune_voltage": "1860",
+    "voltage_increase": "20"
+  },
+  "3": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "5",
+    "tune_frequency": "475",
+    "tune_max_frequency": "500",
+    "tune_max_voltage": "1880",
+    "tune_power": "2590",
+    "tune_volt_step": "10",
+    "tune_voltage": "1880",
+    "voltage_increase": "20"
+  },
+  "4": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "5",
+    "tune_frequency": "500",
+    "tune_max_frequency": "525",
+    "tune_max_voltage": "1900",
+    "tune_power": "2650",
+    "tune_volt_step": "10",
+    "tune_voltage": "1900",
+    "voltage_increase": "20"
+  },
+  "5": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "525",
+    "tune_max_frequency": "550",
+    "tune_max_voltage": "1920",
+    "tune_power": "2790",
+    "tune_volt_step": "10",
+    "tune_voltage": "1920",
+    "voltage_increase": "20"
+  },
+  "6": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "550",
+    "tune_max_frequency": "575",
+    "tune_max_voltage": "1940",
+    "tune_power": "2870",
+    "tune_volt_step": "10",
+    "tune_voltage": "1940",
+    "voltage_increase": "20"
+  },
+  "7": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "575",
+    "tune_max_frequency": "600",
+    "tune_max_voltage": "1980",
+    "tune_power": "3250",
+    "tune_volt_step": "10",
+    "tune_voltage": "1980",
+    "voltage_increase": "20"
+  },
+  "8": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "600",
+    "tune_max_frequency": "625",
+    "tune_max_voltage": "2000",
+    "tune_power": "3500",
+    "tune_volt_step": "10",
+    "tune_voltage": "2000",
+    "voltage_increase": "20"
+  },
+  "9": {
+    "tune_bad_domains_threshold": "1",
+    "tune_freq_step": "10",
+    "tune_frequency": "625",
+    "tune_max_frequency": "650",
+    "tune_max_voltage": "2020",
+    "tune_power": "3680",
+    "tune_volt_step": "10",
+    "tune_voltage": "2020",
+    "voltage_increase": "20"
+  }
+}
