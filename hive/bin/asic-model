@@ -330,7 +330,7 @@ function assign_model_specific_constants {
 			ASIC_GPIO_PATH='direction'
 		;;
 
-		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17'* )
+		'Antminer S17'* | 'Antminer T17'* | 'Antminer X17'* | 'Antminer S19'* | 'Antminer T19'* )
 			ASIC_ALGO='sha256'
 			ASIC_MINER_NAME='cgminer'
 			ASIC_LOG_FILE='/var/log/log'

@@ -666,6 +666,21 @@ function generate_miner_configuration_to {
 			}'
 		;;
 
+		'Antminer S19'* | 'Antminer T19'* )
+			config_global='{
+				"api-listen" : true,
+				"api-network" : true,
+				"api-groups" : "A:stats:pools:devs:summary:version",
+				"api-allow" : "A:0/0,W:*",
+				"bitmain-fan-ctrl" : false,
+				"bitmain-fan-pwm" : "100",
+				"bitmain-work-mode" : "1",
+				"bitmain-use-vil" : true,
+				"bitmain-freq" : "525",
+				"bitmain-voltage" : "1300"
+			}'
+		;;
+
 		'Antminer S17+' )
 			config_global='{
 				"api-listen": true,

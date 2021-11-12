@@ -642,6 +642,8 @@ execute_install_routine () {
 		'Antminer S9'*)			echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
 		'Antminer S10'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
 		'Antminer S17'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer S19'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
+		'Antminer T19'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;
 		'Antminer T9+'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
 		'Antminer T9'*)			echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer'		;;
 		'Antminer T17'*)		echo "$ASIC_MODEL"			;	do_install_for 'antminer_bmminer_ro'	;;

@@ -176,6 +176,8 @@ function set_hosts_file {
 		'Antminer T17'*			|\
 		'Antminer S17'*			|\
 		'Antminer X17'*			|\
+		'Antminer S19'*			|\
+		'Antminer T19'*			|\
 		'Antminer T9+'*			|\
 		'Antminer T9'*			|\
 		'Antminer S10'*			|\

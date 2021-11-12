@@ -702,28 +702,28 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 						message_header='Auto-tune found a low hashrate chip, fixing'
 					;;
 
-					'Chain '*'found '*'domains')									# ST17
+					'Chain '*'found '*'domains')									# ST17 / ST19?
 						# example: 'Chain 1: found 1 bad domains'
 						event_type='info'
 						message_header='Auto-tune found a low hashrate domain, fixing'
 					;;
 
-					*'domains fixed'*)												# ST17
+					*'domains fixed'*)												# ST17 / ST19?
 						# example: 'Red domains fixed, restart'
 						event_type='ok'
 						message_header='Auto-tune fixed a low hashrate domain, miner restarted'
 					;;
 
-					'Activating profile '*)											# ST17
+					'Activating profile '*)											# ST17 / ST19?
 						# example: 'Activating profile 11'
 						event_type='skip'
 					;;
 
-					'Re-run cgminer to check temerature sensor type again!')		# ST17
+					'Re-run cgminer to check temerature sensor type again!')		# ST17 / ST19?
 						event_type='skip'
 					;;
 
-					'Possible manufacturing defects detected'*)						# ST17 Hiveon 2.00
+					'Possible manufacturing defects detected'*)						# ST17 Hiveon 2.00  / ST19?
 						# example: 'Possible manufacturing defects detected - enable safe mode to save chips and boards from overheating'
 						if [[ -s /config/stop-mining ]]; then
 							failed_chain="$( < /config/stop-mining )"
@@ -1389,6 +1389,7 @@ function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) &
 
 	local -r HIVEON_CONF='/hive-config/hiveon.conf'
 	local -r ASIC_CONF='/config/config.conf'
+	local -r is_series_19_RE='Antminer [ST]19'
 
 	# vars
 
@@ -1401,6 +1402,9 @@ function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) &
 	# shellcheck disable=SC2154
 	# bc defined in the asic-model
 	(( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
+	if [[ "$ASIC_MODEL" =~ $is_series_19_RE ]]; then
+		return $(( exitcode_OK_NOTHING_HAPPENED ))
+	fi
 
 	# problem:
 	# 1. we aren't able to send config if RIG_ID isn't set
@@ -1755,6 +1759,7 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 
 	local -r oc_profile_file='/config/profile.txt'
 	local -r is_series_17_RE='Antminer [STX]17'
+	local -r is_series_19_RE='Antminer [ST]19'
 
 	# vars
 
@@ -1768,7 +1773,7 @@ function checkup:is_overclock_profile_exist {														(( script_DEBUG )) &&
 	(( IS_ASIC_CUSTOM_FW )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# ok, check the Series' number
-	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
+	if [[ "$ASIC_MODEL" =~ $is_series_17_RE || "$ASIC_MODEL" =~ $is_series_19_RE ]]; then
 		if [[ ! -s "$oc_profile_file" ]]; then
 			if (( $( get_checkup_counter "${FUNCNAME[0]}" 'oc_profile_not_found' ) == 0 )); then
 				# one time action
@@ -1827,6 +1832,7 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 	# consts
 
 	local -r is_series_17_RE='Antminer [STX]17'
+	local -r is_series_19_RE='Antminer [ST]19'
 
 	# vars
 
@@ -1846,7 +1852,7 @@ function checkup:is_miner_niceness_ok {																(( script_DEBUG )) && deb
 	(( IS_ASIC_CUSTOM_FW )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
 
 	# ok, check the Series' number
-	if [[ "$ASIC_MODEL" =~ $is_series_17_RE ]]; then
+	if [[ "$ASIC_MODEL" =~ $is_series_17_RE || "$ASIC_MODEL" =~ $is_series_19_RE ]]; then
 		for this_pid in $( pidof bmminer cgminer ); do
 			if read -r -a proc_stat_parsed_ARR < "/proc/$this_pid/stat"; then
 				this_pid_niceness="${proc_stat_parsed_ARR[18]}"
@@ -1866,13 +1872,13 @@ function checkup:are_logs_updated {																	(( script_DEBUG )) && debugc
 	# consts
 
 	local -r -a logs_to_check=(
-		'/config/watchdog.log'			# Hiveon 9/15/17
-		'/nvdata/miner_status.log'		# Hiveon 15/17
+		'/config/watchdog.log'			# Hiveon 9/15/17/19
+		'/nvdata/miner_status.log'		# Hiveon 15/17/19
 		'/tmp/auto-tune'				# Hiveon 9
 		'/tmp/freq'						# Hiveon 9 (awfully organized log without any timestamps)
-		'/tmp/fault.log'				# Hiveon 15/17
-		'/tmp/tune_log.txt'				# Hiveon 15/17
-		'/var/log/log'					# Hiveon 15/17
+		'/tmp/fault.log'				# Hiveon 15/17/19
+		'/tmp/tune_log.txt'				# Hiveon 15/17/19
+		'/var/log/log'					# Hiveon 15/17/19
 		'/var/log/messages'				# all Antminers ???
 		'/www/logs/lighttpd.error.log'	# all Antminers ???
 	)

@@ -543,6 +543,8 @@ function fetch_miner_stats {
 		'Antminer S11'					|\
 		'Antminer S15'					|\
 		'Antminer S17'*					|\
+		'Antminer S19'*					|\
+		'Antminer T19'*					|\
 		'Antminer T9+'*|'Antminer T9'*	|\
 		'Antminer T15'					|\
 		'Antminer T17'*					|\
@@ -1766,6 +1768,8 @@ function do_command {
 			elif [[ "$ASIC_MODEL" == 'Avalon'* ]]; then
 				use_new_asic_oc_FLAG=1
 			elif (( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )); then
+				use_new_asic_oc_FLAG=1
+			elif [[ "$ASIC_MODEL" == 'Antminer S19'* || "$ASIC_MODEL" == 'Antminer T19'* ]]; then
 				use_new_asic_oc_FLAG=1
 			fi
 

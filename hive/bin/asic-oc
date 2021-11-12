@@ -160,6 +160,11 @@ function is_series_17 {
 	[[ "$ASIC_MODEL" == 'Antminer S17'* || "$ASIC_MODEL" == 'Antminer T17'* ]]
 }
 
+function is_series_19 {
+	# code
+	[[ "$ASIC_MODEL" == 'Antminer S19'* || "$ASIC_MODEL" == 'Antminer T19'* ]]
+}
+
 function is_profile_cached {
 	# args
 	(( $# == 1 )) || return 1
@@ -181,7 +186,7 @@ function is_profile_cached {
 function get_active_profile_id {
 	# code
 	if [[ -s "$active_profile_file_w_path" ]]; then
-		if is_series_17; then
+		if is_series_17 || is_series_19; then
 			read_variable_from_file "$active_profile_file_w_path" 'tune_profile'
 		else
 			read_variable_from_file <( replace_ampersands_with_newlines < "$active_profile_file_w_path" ) 'profile'
@@ -238,6 +243,8 @@ function get_cached_profile_filename {
 	# code
 	if is_series_17; then
 		echo "${cached_profiles_directory}/${profile_id}/$ant17_profile_filename"
+	elif is_series_19; then
+		echo "${cached_profiles_directory}/${profile_id}/$ant19_profile_filename"
 	else
 		echo "${cached_profiles_directory}/${profile_id}/$ant9_profile_filename"
 	fi
@@ -276,7 +283,7 @@ function get_cached_profile {
 	# code
 	cached_profile_filename="$( get_cached_profile_filename "$profile_id" )"
 	if [[ -s "$cached_profile_filename" ]]; then
-		if is_series_17; then
+		if is_series_17 || is_series_19; then
 			cat "$cached_profile_filename"
 		else
 			replace_ampersands_with_newlines < "$cached_profile_filename"
@@ -383,6 +390,10 @@ function set_model_dependent_variables {
 		active_profile_filename="$ant17_profile_filename"
 		tune_files_collection=( "${ant17_tune_files_collection[@]}" )
 		profile_files_collection=( "${ant17_profile_files_collection[@]}" )
+	elif is_series_19; then
+		active_profile_filename="$ant19_profile_filename"
+		tune_files_collection=( "${ant19_tune_files_collection[@]}" )
+		profile_files_collection=( "${ant19_profile_files_collection[@]}" )
 	else
 		active_profile_filename="$ant9_profile_filename"
 		tune_files_collection=( "${ant9_tune_files_collection[@]}" )
@@ -953,10 +964,24 @@ function tune_L3 {
 	fi
 }
 
-# Antminer Series 17
+# Antminer Series 17/19
 
 function generate_active_profile_17 {
 	echo '> Generating active profile for Series 17...'
+	# build a fresh config file for auto-tune
+	{
+		if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile_as_key_value_pairs"; then
+			echo "tune_profile=$incoming_profile_id"
+		fi
+		echo 'tune_status=0'
+		echo 'tune_max_restarts=10'
+		echo 'tune_uptime=240'
+		echo "$incoming_profile_as_key_value_pairs"
+	} > "$active_profile_file_w_path"
+}
+
+function generate_active_profile_19 { #TODO set tune_status, tune_max_restarts, tune_uptime via Hive dashboard?
+	echo '> Generating active profile for Series 19...'
 	# build a fresh config file for auto-tune
 	{
 		if ! grep -Eq -e '^tune_profile=[0-9]+$' <<< "$incoming_profile_as_key_value_pairs"; then
@@ -992,6 +1017,13 @@ function restart_miner_17 {
 		;;
 	esac
 }
+
+function restart_miner_19 {
+	# code
+	echo '> Restarting miner...'
+	echo '1' > /tmp/reopen
+}
+
 
 function tune_17_old {
 	# vars
@@ -1148,6 +1180,10 @@ declare -r ant17_profile_filename="profile.txt"
 declare -r -a ant17_tune_files_collection=( 'manual_freqs.txt' "$hiveon_config_file" )
 declare -r -a ant17_profile_files_collection=( "$ant17_profile_filename" "${ant17_tune_files_collection[@]}" )
 
+declare -r ant19_profile_filename="profile.txt"
+declare -r -a ant19_tune_files_collection=( 'manual_freqs.txt' "$hiveon_config_file" )
+declare -r -a ant19_profile_files_collection=( "$ant19_profile_filename" "${ant19_tune_files_collection[@]}" )
+
 declare -r ant9_profile_filename="autoTune.conf"
 declare -r -a ant9_tune_files_collection=( 'manual_freqs.txt' 'yellow-step' "$hiveon_config_file" )
 declare -r -a ant9_profile_files_collection=( "$ant9_profile_filename" "${ant9_tune_files_collection[@]}" )
@@ -1233,7 +1269,7 @@ case "$oc_action" in
 		if [[ -s "$active_profile_file_w_path" ]]; then
 			message_text="Re-tuning $active_profile_description from scratch"
 			message_event_type='info'
-			is_series_17 &&
+			is_series_17 || is_series_19 &&
 				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_NOT_YET"
 			#
 			have_to_restart_miner_FLAG=1
@@ -1258,7 +1294,7 @@ case "$oc_action" in
 		if [[ -s "$active_profile_file_w_path" ]]; then
 			message_text="Fine-tuning for $active_profile_description is started"
 			message_event_type='ok'
-			is_series_17 &&
+			is_series_17 || is_series_19 &&
 				set_variable_in_file "$active_profile_file_w_path" 'tune_status' "$tune_status_TUNING"
 			#
 			have_to_restart_miner_FLAG=1
@@ -1438,6 +1474,20 @@ elif [[ "$ASIC_MODEL" == 'Antminer S17'* || "$ASIC_MODEL" == 'Antminer T17'* ]];
 
 	if (( have_to_restart_miner_FLAG )); then
 		restart_miner_17
+	fi
+
+	if (( have_to_tune_FLAG )); then
+		tune_17_new
+	fi
+
+elif [[ "$ASIC_MODEL" == 'Antminer S19'* || "$ASIC_MODEL" == 'Antminer T19'* ]]; then
+
+	if (( have_to_generate_active_profile_FLAG )); then
+		generate_active_profile_19
+	fi
+
+	if (( have_to_restart_miner_FLAG )); then
+		restart_miner_19
 	fi
 
 	if (( have_to_tune_FLAG )); then
