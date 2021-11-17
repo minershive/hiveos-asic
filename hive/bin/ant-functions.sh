@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.22'
+declare -r ant_functions_lib_version='0.1.23'
 
 
 # !!! bash strict mode, no unbound variables
@@ -459,8 +459,8 @@ function send_custom_fw_config_to_server {
 	done
 
 	if (( ! curl_exitcode )) && [[ -z "$response_message" || "$response_message" == 'null' ]]; then
-		echo "Firmware config sent to server"
-		message info 'Firmware config sent to server' --silent
+		echo 'Firmware configuration has been synchronized'
+		message info 'Firmware configuration has been synchronized' --silent
 	fi
 }
 
