@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.13'
+readonly script_version='0.2.14'
 readonly script_basename="${0##*/}"
 
 

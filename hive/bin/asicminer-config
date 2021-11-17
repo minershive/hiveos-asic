@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: Miner config generator'
-readonly script_version='0.4.6'
+readonly script_version='0.4.7'
 readonly script_basename="${0##*/}"
 #
 source /hive/bin/hive-functions.sh || { echo 'ERROR: /hive/bin/hive-functions.sh not found'; exit 1; }

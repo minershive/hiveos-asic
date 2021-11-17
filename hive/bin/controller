@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.5.0'
+readonly script_version='2.5.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists

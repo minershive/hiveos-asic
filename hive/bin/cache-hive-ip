@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Cache the API server address'
 readonly script_mission_description='Resolve API Server hostname and write it to /etc/hosts'
-readonly script_version='0.3.5'
+readonly script_version='0.3.6'
 readonly script_basename="${0##*/}"
 
 
