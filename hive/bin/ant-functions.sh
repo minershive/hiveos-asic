@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.23'
+declare -r ant_functions_lib_version='0.1.24'
 
 
 # !!! bash strict mode, no unbound variables
@@ -121,6 +121,16 @@ function __list_functions {
 
 
 #ant functions
+
+function is_series_17 {
+	# code
+	[[ "$ASIC_MODEL" == 'Antminer S17'* || "$ASIC_MODEL" == 'Antminer T17'* ]]
+}
+
+function is_series_19 {
+	# code
+	[[ "$ASIC_MODEL" == 'Antminer S19'* || "$ASIC_MODEL" == 'Antminer T19'* ]]
+}
 
 function is_custom_fw_signed {
 
@@ -337,6 +347,45 @@ function hiveon_power {
 
 	IFS=','
 	echo "[${power_mask[*]:1}]"
+}
+
+
+function generate_volt_conf {
+	#
+	# Usage: generate_volt_conf 'bitmain-freq1= \nbitmain-freq2= \nbitmain-freq3= ...'
+	#
+
+	(( $# > 1 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r input_text="${1:-$( < /dev/stdin )}" # get from arg or stdin
+
+	# vars
+	local -i chipsNum
+	local -i chain chip freq volt ind=1
+	local -a generate_voltage_array=( '' ) # due to 1-based indexing
+	local model19
+
+	# code
+	volt=$( grep -o '_volt=[0-9a-z]*' <<< "$input_text" )
+	freq=$( grep -o '_freq=[0-9a-z]*' <<< "$input_text" )
+	volt="${volt##*=}"
+	freq="${freq##*=}"
+
+	if is_series_17; then
+		chipsNum=$( cat /www/pages/rate.html | grep -Eo 'var chipsNum = [0-9]+' | grep -Eo '[0-9]+' )
+	elif is_series_19; then
+		model19=$( cat /www/pages/js/models.js | grep "^var model.*" | cut -d"'" -f2 )
+		chipsNum=$( cat /www/pages/js/models.js | grep -A 2 "$model19" | grep -Eo '(chipsNum: )[0-9]+' | grep -Eo '[0-9]+' ) #'
+	fi
+
+	generate_voltage_array[0]="$volt"
+	for (( chain=1; chain <= 3; chain++ )); do
+		for (( chip=1; chip <= chipsNum; chip++ )); do
+			generate_voltage_array[ind]="${chain}:${chip}:${freq}"
+			(( ind++ ))
+		done
+	done
+
+	printf '%s\n' "${generate_voltage_array[@]}"
 }
 
 

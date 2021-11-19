@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.13.4-debug'
+readonly script_version='0.13.5-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1916,7 +1916,8 @@ function do_command {
 			if is_JSON_string_not_empty_or_null "$hiveon_config"; then
 				grep -v '^_' <<< "$hiveon_config" > "$HIVEON_CONF"
 				grep -v '^_' <<< "$hiveon_config" > "$ASIC_CONF"
-				grep '^_' <<< "$hiveon_config" > "$HIVEON_CONF_VOLT"
+				volt_conf="$( ant-functions.sh 'generate_volt_conf' <<< "$hiveon_config" )"
+				[[ -n "$volt_conf" ]] && echo "$volt_conf" > "$HIVEON_CONF_VOLT"
 				sync
 				if /hive/bin/miner restart; then
 					message ok 'ASIC config changed, miner restarted' --id="$cmd_id" --silent
@@ -2107,7 +2108,7 @@ trap -- 'log_line debug "SIGUSR1 received, executing an unconditional return()";
 declare -r RIG_CONF='/hive-config/rig.conf'
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r HIVEON_CONF='/hive-config/hiveon.conf'
-declare -r HIVEON_CONF_VOLT='/hive-config/hiveon.conf'
+declare -r HIVEON_CONF_VOLT='/config/manual_freqs.txt'
 declare -r ASIC_CONF='/config/config.conf'
 # paths to runtime vars
 declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
