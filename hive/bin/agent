@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.13.5-debug'
+readonly script_version='0.13.6-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1929,12 +1929,21 @@ function do_command {
 			fi
 		;;
 
+		'')
+			# a kinda trap for the backend glitches
+			if [[ -n "$response" ]]; then
+				message warning "Empty command received from server" --payload --id="$cmd_id" --silent < <( jq '.' <<< "$response" )
+			else
+				message warning "Empty response received from server" --id="$cmd_id" --silent
+			fi
+			log_line error "Empty command received"
+		;;
 
 		*)
 			if [[ -n "$body" ]]; then
-				message warning "Unknown command '$command' received" --payload --id="$cmd_id" --silent < <( jq '.' <<< "$body" )
+				message warning "Unknown command '$command' received from server" --payload --id="$cmd_id" --silent < <( jq '.' <<< "$body" )
 			else
-				message warning "Unknown command '$command' received" --id="$cmd_id" --silent
+				message warning "Unknown command '$command' received from server" --id="$cmd_id" --silent
 			fi
 			log_line error "Unknown command received: '$command'"
 		;;
