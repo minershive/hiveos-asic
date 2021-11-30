@@ -1,6 +1,8 @@
 # Hive OS Client for ASICs
 Simple yet powerful monitoring agent.
 
+**Are you looking for a simple (and pretty fast) way to connect your miners to Hiveon? Please visit [ASIC Hub](https://hiveos.farm/asichub/) page first**
+
 &nbsp;
 
 ## Table of contents
