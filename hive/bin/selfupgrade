@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.18.4'
+readonly script_version='0.18.5'
 readonly script_basename="${0##*/}"
 
 
@@ -696,10 +696,10 @@ execute_install_routine () {
 		*)
 			echo "'$ASIC_MODEL'"
 			echo
-			echo 'Model not supported'
+			echo 'Model is not supported'
 			echo
 			echo 'Please contact us: https://t.me/hiveonasic_en'
-			echo '                   https://t.me/hiveonasic'
+			echo '                   https://t.me/hiveonasic_ru'
 			echo '                   bee@hiveos.farm'
 			echo
 			die '' "$exitcode_NOT_OK"
