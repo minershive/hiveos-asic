@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.13.7-debug'
+readonly script_version='0.14.0-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1758,25 +1758,26 @@ function do_command {
 			export asic_oc="$( jq --raw-output '.asic_oc' <<< "$body" )"
 			[[ -f /config/use-new-asic-oc ]] && mv /config/use-new-asic-oc /hive-config/use-new-asic-oc # adjusting legacy location to an actual one
 
-			# choose the right script
+			# choose the right OC script
 			local -i use_new_asic_oc_FLAG=0 # default to old
-			if [[ -f /hive-config/use-new-asic-oc ]]; then
-				#    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ here comes a secret feature
-				use_new_asic_oc_FLAG=1
-			elif [[ "$ASIC_MODEL" == 'Antminer L3+'* ]] && (( (ASIC_CUSTOM_FW_VERSION_MAJOR == 1 && ASIC_CUSTOM_FW_VERSION_MINOR >= 2) || ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )); then
+			if [[ "$ASIC_MODEL" == 'Antminer L3+'* || "$ASIC_MODEL" == 'Antminer S9'* || "$ASIC_MODEL" == 'Antminer T9+'* || "$ASIC_MODEL" == 'Antminer S10'* ]] && is_version "$ASIC_CUSTOM_FW_VERSION" '>=' '1.02'; then
 				use_new_asic_oc_FLAG=1
 			elif [[ "$ASIC_MODEL" == 'Avalon'* ]]; then
 				use_new_asic_oc_FLAG=1
-			elif (( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )); then
+			elif is_version "$ASIC_CUSTOM_FW_VERSION" '>=' '2.0'; then
+				# that means Series 17 version range atm
 				use_new_asic_oc_FLAG=1
 			elif [[ "$ASIC_MODEL" == 'Antminer S19'* || "$ASIC_MODEL" == 'Antminer T19'* ]]; then
+				use_new_asic_oc_FLAG=1
+			elif [[ -f /hive-config/use-new-asic-oc ]]; then
+				#      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ here comes a secret feature: forced new OC script for any model
 				use_new_asic_oc_FLAG=1
 			fi
 
 			if (( use_new_asic_oc_FLAG )); then
 				asic_oc_cmd='asic-oc'
 			else
-				asic_oc_cmd='asic_oc' # almost deprecated old script
+				asic_oc_cmd='asic_oc' # almost deprecated script, left for compatibility with legacy FW
 			fi
 
 			screen -dm -S "$command" bash -c '
