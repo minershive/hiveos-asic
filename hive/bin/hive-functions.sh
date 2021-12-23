@@ -11,7 +11,7 @@
 
 
 declare -r hive_functions_lib_mission='Client for ASICs: Oh my handy little functions'
-declare -r hive_functions_lib_version='0.59.3'
+declare -r hive_functions_lib_version='0.60.0'
 #                                        ^^ current number of public functions
 
 
@@ -175,18 +175,24 @@ function is_script_exist_and_doing_fine {
 #
 #	iif
 #	iif_pipe
+#
 #	is_program_in_the_PATH
 #	is_process_running
 #	is_process_not_running
 #	is_function_exist
+#
 #	is_first_floating_number_bigger_than_second
-#	is_first_version_equal_to_second
 #	is_integer
+#
 #	is_JSON_string_empty_or_null
 #	is_JSON_string_not_empty_or_null
+#
 #	is_file_exist_but_empty
 #	is_file_exist_and_contain
 #	is_directory_exist_and_writable
+#
+#	is_first_version_equal_to_second
+#	is_version
 #
 
 function iif {
@@ -327,48 +333,6 @@ function is_first_floating_number_bigger_than_second {
 	fi
 }
 
-function is_first_version_equal_to_second {
-	#
-	# Usage: is_first_version_equal_to_second 'first_version' 'second_version'
-	#
-	# Returns: exitcode_IS_EQUAL | exitcode_LESS_THAN | exitcode_GREATER_THAN
-	#
-
-	# args
-
-	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
-	local first_version="${1-}"
-	local second_version="${2-}"
-
-	# vars
-
-	local IFS='.-'
-	local -i idx
-	local -a first_version_array second_version_array
-
-	# code
-
-	if [[ "$first_version" != "$second_version" ]]; then
-		first_version="${first_version//[[:alpha:]]/}"
-		second_version="${second_version//[[:alpha:]]/}"
-
-		first_version_array=( $first_version )
-		second_version_array=( $second_version )
-
-		# fill empty fields in first_version_array with zeros
-		for (( idx=${#first_version_array[@]}; idx < ${#second_version_array[@]}; idx++ )); do
-			first_version_array[idx]=0
-		done
-		for (( idx=0; idx < ${#first_version_array[@]}; idx++ )); do
-			# you don't need double quotes here but we need to fix a syntax highlighting issue
-			(( "10#${first_version_array[idx]}" > "10#${second_version_array[idx]-0}" )) && return $(( exitcode_GREATER_THAN ))
-			(( "10#${first_version_array[idx]}" < "10#${second_version_array[idx]-0}" )) && return $(( exitcode_LESS_THAN ))
-		done
-	fi
-
-	return $(( exitcode_IS_EQUAL ))
-}
-
 function is_integer {
 	#
 	# Usage: is_integer 'string_to_check'
@@ -465,6 +429,94 @@ function is_directory_exist_and_writable {
 	# code
 
 	[[ -d "$directory_to_check" && -w "$directory_to_check" ]]
+}
+
+function is_first_version_equal_to_second {
+	#
+	# Compare versions (SemVer scheme and similar)
+	# Delimiters between Major.Minor.Patch can be "." and "-"
+	# Any letters (eg. "a", "b", "rc") do not taken into account
+	#
+	# Usage: is_first_version_equal_to_second 'first_version' 'second_version'
+	#
+	# Returns: exitcode_IS_EQUAL | exitcode_LESS_THAN | exitcode_GREATER_THAN
+	#
+
+	# args
+
+	(( $# == 2 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local first_version="${1-}"
+	local second_version="${2-}"
+
+	# vars
+
+	local IFS='.-'
+	local -i idx
+	local -a first_version_array second_version_array
+
+	# code
+
+	if [[ "$first_version" != "$second_version" ]]; then
+		first_version="${first_version//[[:alpha:]]/}"
+		second_version="${second_version//[[:alpha:]]/}"
+
+		# a soemwhat rude split by IFS
+		first_version_array=( $first_version )
+		second_version_array=( $second_version )
+
+		# fill empty fields in first_version_array[] with zeros
+		for (( idx = ${#first_version_array[@]}; idx < ${#second_version_array[@]}; idx++ )); do
+			first_version_array[idx]=0
+		done
+		for (( idx = 0; idx < ${#first_version_array[@]}; idx++ )); do
+			# you don't need double quotes here but we need to fix a syntax highlighting issue
+			(( "10#${first_version_array[idx]}" > "10#${second_version_array[idx]-0}" )) && return $(( exitcode_GREATER_THAN ))
+			(( "10#${first_version_array[idx]}" < "10#${second_version_array[idx]-0}" )) && return $(( exitcode_LESS_THAN ))
+		done
+	fi
+
+	return $(( exitcode_IS_EQUAL ))
+}
+
+function is_version {
+	#
+	# A handy wrapper for is_first_version_equal_to_second()
+	#
+	# Usage: is_version 'first_version' 'compare_operator' 'second_version'
+	#
+	# Compare operators are standard: == != < <= >= >, and also shell-like synonyms: ne eq gt lt ge le
+	#
+	# Returns: exitcode_OK | exitcode_NOT_OK
+	#
+
+	# args
+
+	(( $# == 3 )) || { errcho "invalid number of arguments: $#"; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local first_version="${1-}"
+	local compare_operator="${2-}"
+	local second_version="${3-}"
+
+	# vars
+	local -i compare_exitcode
+
+	# code
+
+	is_first_version_equal_to_second "$first_version" "$second_version"; (( compare_exitcode = $? ))
+
+	case "$compare_operator" in
+		'!=' | 'ne'	)	((	compare_exitcode != exitcode_IS_EQUAL													))	;;
+		'==' | 'eq'	)	((	compare_exitcode == exitcode_IS_EQUAL													))	;;
+		'>'  | 'gt'	)	((	compare_exitcode == exitcode_GREATER_THAN												))	;;
+		'<'  | 'lt'	)	((	compare_exitcode == exitcode_LESS_THAN													))	;;
+		'>=' | 'ge'	)	((	compare_exitcode == exitcode_GREATER_THAN	||	compare_exitcode == exitcode_IS_EQUAL	))	;;
+		'<=' | 'le'	)	((	compare_exitcode == exitcode_LESS_THAN		||	compare_exitcode == exitcode_IS_EQUAL	))	;;
+		*			)
+			errcho "bad compare operator '$compare_operator'"
+			return $(( exitcode_ERROR_IN_ARGUMENTS ))
+		;;
+	esac
+
+	# an invisible return (man bash: the exit status of a function is the exit status of the last command executed in the body)
 }
 
 
