@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.13.6-debug'
+readonly script_version='0.13.7-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1763,7 +1763,7 @@ function do_command {
 			if [[ -f /hive-config/use-new-asic-oc ]]; then
 				#    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ here comes a secret feature
 				use_new_asic_oc_FLAG=1
-			elif [[ "$ASIC_MODEL" == 'Antminer L3+'* && ( "$ASIC_CUSTOM_FW_VERSION" == '1.02' || "$ASIC_CUSTOM_FW_VERSION" == '1.03' ) ]]; then
+			elif [[ "$ASIC_MODEL" == 'Antminer L3+'* ]] && (( (ASIC_CUSTOM_FW_VERSION_MAJOR == 1 && ASIC_CUSTOM_FW_VERSION_MINOR >= 2) || ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )); then
 				use_new_asic_oc_FLAG=1
 			elif [[ "$ASIC_MODEL" == 'Avalon'* ]]; then
 				use_new_asic_oc_FLAG=1
