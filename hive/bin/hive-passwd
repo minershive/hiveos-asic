@@ -6,12 +6,12 @@
 # Distributed under Business Source License 1.1
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0
 #
 
 
 readonly script_mission='Client for ASICs: Password management for ssh and Antminer web interface'
-readonly script_version='0.2.6'
+readonly script_version='0.3.0'
 readonly script_basename="${0##*/}"
 
 
@@ -52,9 +52,12 @@ function md5 {
 
 	# code
 
-	md5_output="$( printf '%s' "${string}" | md5sum )"
+	md5_output="$( printf '%s' "$string" | md5sum )" # the string without a newline
 	echo "${md5_output::32}"
 }
+
+
+# WORKER password
 
 function get_worker_password {
 	#
@@ -70,9 +73,12 @@ function get_worker_password {
 	if [[ -s "$RIG_CONF" ]] && source "$RIG_CONF" && [[ -n "${RIG_PASSWD-}" ]]; then
 		echo "$RIG_PASSWD"
 	else
-		false
+		return 1
 	fi
 }
+
+
+# SSH password
 
 function show_ssh_passwords { # NOT USED -- we don't have a proper sha512 generator in the standard ASIC tooling
 	#
@@ -81,6 +87,7 @@ function show_ssh_passwords { # NOT USED -- we don't have a proper sha512 genera
 
 	# consts
 
+	# shellcheck disable=SC2016
 	local -r -A password_dictionary=(
 #		['root']='root:$6$K/vQNJUn$ikrUf5YdPElcX5Sp2AUOrOfLVtLdMBp/zYFy1GCQpeOmS2ZcJQ8i5g3XKmf3rigb1sL.9dUxlfXqMdc/j.TBa1:18071:0:99999:7:::'
 #		['root']='root:$6$M7IgIrZ5$QEt4GXhREGRYod4x0tYqZRHgLSYk9MBF6wjgTcfJu1Z9z9rOW7VeZPwfYOwlwGpsj.lkBg5hwSviVAk46qWIu0:18387:0:99999:7:::'
@@ -108,6 +115,7 @@ function show_ssh_passwords { # NOT USED -- we don't have a proper sha512 genera
 		for this_password in "${!password_dictionary[@]}"; do
 			shadow_string="${password_dictionary[$this_password]}"
 			if grep -Fqse "$shadow_string" -- "$this_file"; then
+				# shellcheck disable=SC2059
 				printf "$printf_template" "ssh password in $this_file"
 				echo "${BRED}${this_password}${GRAY-} (pretty common, all viruses know it)${NOCOLOR-}"
 				default_password_found_FLAG=1
@@ -127,11 +135,13 @@ function show_ssh_password {
 
 	# consts
 
+	# shellcheck disable=SC2016
 	local -r root_admin='root:$6$saaYvC9T$PqLC9JWHDZsWYmpB0b0Zf.34b1m5/r9U6A8PPig2qzxAyUN78pyI/vi7OZrCA0T2y1fT5UNFtPiBYuCyBTA610:15975:0:99999:7:::'
 
 	# code
 
 	if grep -Fqse "$root_admin" -- /etc/shadow; then
+		# shellcheck disable=SC2059
 		printf "$printf_template" "ssh password"
 		echo "${BRED}admin${GRAY-} (default, all viruses know it)${NOCOLOR-}"
 	fi
@@ -164,6 +174,9 @@ function set_ssh_password {
 	fi
 }
 
+
+# WEB password
+
 function show_antminer_web_password {
 	#
 	# Usage: show_antminer_web_password
@@ -180,14 +193,31 @@ function show_antminer_web_password {
 	# vars
 
 	local -i default_password_found_FLAG=0
+	local this_lighttpd_password_FILE="$lighttpd_password_custom_FILE" # there are two lighttpd htdigest files: factory (in /etc) and custom (in /config)
 	local this_password htdigest_string
 
 	# code
 
+	if [[ -s "$lighttpd_password_custom_FILE" ]]; then
+		# do nothing special -- it's a default state
+		:
+	elif [[ -s "$lighttpd_password_factory_FILE" ]]; then
+		# use factory file
+		echo "${GRAY-}Using ${this_lighttpd_password_FILE}${NOCOLOR-}"
+		this_lighttpd_password_FILE="$lighttpd_password_factory_FILE"
+	else
+		# oh no
+		echo "${RED-}ERROR:${NOCOLOR-} both lighttpd htdigest files are not found"
+		echo "Please run ${CYAN-}$script_basename your_password --web${NOCOLOR-} first"
+		return 1
+	fi
+
+	# shellcheck disable=SC2059
 	printf "$printf_template" 'Antminer web password'
+
 	for this_password in "${!password_dictionary[@]}"; do
 		htdigest_string="${password_dictionary[$this_password]}"
-		if grep -Fqse "$htdigest_string" -- "$lighttpd_password_file"; then
+		if grep -Fqse "$htdigest_string" -- "$this_lighttpd_password_FILE"; then
 			echo "${BRED}${this_password}${GRAY-} (default, all viruses know it)${NOCOLOR-}"
 			default_password_found_FLAG=1
 		fi
@@ -222,24 +252,22 @@ function set_antminer_web_password {
 
 	echo -n "Setting Antminer web password to '${WHITE-}${new_password}${NOCOLOR-}'... "
 
-	if [[ ! -s "$lighttpd_password_file" ]]; then
-		echo "${BRED-}FAILED${NOCOLOR-} ($lighttpd_password_file not found or empty)"
-		echo
-		return 1
-	fi
-
 	new_password_HA1="$( md5 "${username_value}:${realm_value}:${new_password}" )"
 	new_password_digest_string="${username_value}:${realm_value}:${new_password_HA1}"
 
-	# compare current password with the new
-	if diff "$lighttpd_password_file" <( echo "$new_password_digest_string" ) > /dev/null; then
-		echo "${BYELLOW-}SKIPPED${NOCOLOR-} (new password is the same as the current one)"
-		return 2
+	if [[ -s "$lighttpd_password_custom_FILE" ]]; then
+		# compare the current password with the new
+		if diff "$lighttpd_password_custom_FILE" <( echo "$new_password_digest_string" ) > /dev/null; then
+			echo "${BYELLOW-}SKIPPED${NOCOLOR-} (new password is the same as the current one)"
+			return 2
+		fi
+	else
+		echo "${BYELLOW-}$lighttpd_password_custom_FILE not found or empty${NOCOLOR-} "
 	fi
 
 	# create new lighttpd-htdigest.user file
-	if echo "$new_password_digest_string" > "$lighttpd_password_file"; then
-		if [[ -f /etc/init.d/lighttpd && -x /etc/init.d/lighttpd ]]; then
+	if echo "$new_password_digest_string" > "$lighttpd_password_custom_FILE"; then
+		if [[ -f '/etc/init.d/lighttpd' && -x '/etc/init.d/lighttpd' ]]; then
 			echo "${GREEN-}OK${NOCOLOR-}, let's restart the web server"
 			/etc/init.d/lighttpd force-reload
 		else
@@ -315,7 +343,8 @@ source /hive/bin/asic-model || echo 'ERROR: /hive/bin/asic-model not found'
 
 # global consts
 
-declare -r lighttpd_password_file='/config/lighttpd-htdigest.user'
+declare -r lighttpd_password_factory_FILE='/etc/lighttpd-htdigest.user'
+declare -r lighttpd_password_custom_FILE='/config/lighttpd-htdigest.user'
 declare -r printf_template='%21.21s: '
 
 
