@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.0-debug'
+readonly script_version='0.14.1-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1644,11 +1644,12 @@ function do_command {
 			local exec_command shutdown_fuse_file
 
 			exec_command="$( jq --raw-output '.exec' <<< "$body" )"
+			printf -v exec_command_flattened '%b' "$exec_command"
 
 			# let's inform the user that the command is received
 			#message default "$exec_command (running, id: $cmd_id)" --id="$cmd_id" --verbose
 
-			case "$exec_command" in
+			case "$exec_command_flattened" in
 				'hssh start')
 					unset TMUX # !!! duct tape
 				;;
@@ -1666,6 +1667,12 @@ function do_command {
 						message ok 'ASIC powered off' --id="$cmd_id" --silent
 						snore 5 # wait 5s until the message has been sent
 					fi
+				;;
+				*'chmod '* | *'curl '* | *'wget '* | *'sh '* | *'| bash'* | *'| sh'* | *'source '* | *'dropbear'*)
+					# TMP F-words blocklist
+					log_line warning "A potentially malicious command '$command' received, let's do nothing"
+					message error "$exec_command (failed, exitcode 256)" --escape-templates --id="$cmd_id" --silent
+					return
 				;;
 			esac
 
