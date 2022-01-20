@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.1-debug'
+readonly script_version='0.14.2-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1568,6 +1568,82 @@ log_line debug 'curl exit'
 	fi
 }
 
+function decloak_string {
+	#
+	# a way to render all this escape-golfing to a plain text
+	#
+
+	# args
+	local -r string_to_decloak="${1-}"
+
+	# vars
+	local string_with_blanks_deduplicated string_unescaped
+
+	# asserts
+	[[ -n "$string_to_decloak" ]] || return 0 # empty is ok
+
+	# code
+	printf -v string_unescaped '%b' "$string_to_decloak"  # 1. render ESCapes
+	string_with_blanks_deduplicated="${string_unescaped//+([[:blank:]])/ }" # 2. compress blanks
+	echo "$string_with_blanks_deduplicated"
+}
+
+shopt -s extglob # this is needed for the bash parser to properly parse a code block (function is also a code block) that contains any extglob syntax
+function is_allowed_cmd {
+	# args
+	local cmd_to_test="${1-}"
+
+	# vars
+	local reason_message='undefined' cmd_to_test_decloaked
+
+	# flags
+	local -i reason_index=1
+
+	# asserts
+	[[ -n "$cmd_to_test" ]] || return 0 # empty is ok
+
+	# code
+	shopt -s extglob
+
+	cmd_to_test_decloaked="$( decloak_string "$cmd_to_test" )"
+	case "$cmd_to_test_decloaked" in
+		!(*.)'sh '*)
+			reason_index=1
+			reason_message='Illegal execution of shell'
+		;;
+
+		*'|'?( )?(ba|da|a)'sh'*)
+			reason_index=2
+			reason_message='Illegal pipe to shell'
+		;;
+
+		*'chmod'* | *'curl'* | *'wget'* | *'source'* | *'dropbear'* | *'perl'* | *'nc '*)
+			reason_index=3
+			reason_message='Illegal command'
+		;;
+
+		*'$'*)
+			reason_index=4
+			reason_message='Illegal $VAR use'
+		;;
+
+		'')
+			reason_index=0
+			reason_message='Ok (empty)'
+		;;
+
+		*)
+			reason_index=0
+			reason_message='Ok'
+		;;
+	esac
+	shopt -u extglob
+
+	echo "$reason_message"
+	return $(( reason_index ))
+}
+shopt -u extglob # turn it off, as in the default state
+
 function do_command {
 	# consts
 	local -r command_log="/tmp/${script_basename}-${command// /-}.log"
@@ -1644,14 +1720,13 @@ function do_command {
 			local exec_command shutdown_fuse_file
 
 			exec_command="$( jq --raw-output '.exec' <<< "$body" )"
-			printf -v exec_command_flattened '%b' "$exec_command"
 
 			# let's inform the user that the command is received
 			#message default "$exec_command (running, id: $cmd_id)" --id="$cmd_id" --verbose
 
-			case "$exec_command_flattened" in
+			case "$exec_command" in
 				'hssh start')
-					unset TMUX # !!! duct tape
+					unset TMUX # !!! a duct tape for HSSH to start
 				;;
 				'sreboot shutdown')
 					shutdown_fuse_file="/tmp/${script_basename}-shutdown-fuse.lock"
@@ -1668,11 +1743,14 @@ function do_command {
 						snore 5 # wait 5s until the message has been sent
 					fi
 				;;
-				*'chmod '* | *'curl '* | *'wget '* | *'sh '* | *'| bash'* | *'| sh'* | *'source '* | *'dropbear'*)
+				*)
 					# TMP F-words blocklist
-					log_line warning "A potentially malicious command '$command' received, let's do nothing"
-					message error "$exec_command (failed, exitcode 256)" --escape-templates --id="$cmd_id" --silent
-					return
+					test_message="$( is_allowed_cmd "$exec_command" )"; test_code=$?
+					if (( test_code > 0 )); then
+						log_line warning "$test_message. A potentially malicious command received, let's do nothing"
+						message error "$exec_command (failed, exitcode $(( 255 + test_code )))" --escape-templates --id="$cmd_id" --silent
+						return
+					fi
 				;;
 			esac
 
