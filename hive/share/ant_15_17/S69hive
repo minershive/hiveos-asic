@@ -7,13 +7,12 @@
 # License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
 # Linted by shellcheck 0.7.0
+# shellcheck shell=dash
 #
 
 
-# shellcheck disable=SC2039
-# bc there's no classic POSIX sh but the ash/dash variant
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.1.4'
+readonly script_version='1.2.0'
 readonly script_basename="${0##*/}"
 
 
@@ -43,12 +42,10 @@ get_random_number_between () {
 	#
 
 	# args
-
 	local min_value="$1"
 	local max_value="$2"
 
 	# code
-
 	awk -v min="$min_value" -v max="$max_value" 'BEGIN{ srand(); print int( min+rand() * (max-min+1) ) }'
 }
 
@@ -58,11 +55,9 @@ parse_arguments () {
 	#
 
 	# vars
-
 	local this_ARG
 
 	# code
-
 	for this_ARG in "$@"; do
 		case "$this_ARG" in
 			'-f'|'--force-download')
@@ -97,22 +92,76 @@ parse_arguments () {
 	fi
 }
 
+is_tmp_available () {
+	#
+	# check for /tmp avaiability
+	#
+
+	# code
+	if [ -d /tmp ] && [ -w /tmp ]; then
+		return 0
+	fi
+
+	return 1
+}
+
+is_NVRAM_available () {
+	#
+	# check for availability of the two possible NVRAM mount points
+	#
+
+	# code
+	if [ -d "$NVRAM_path_default" ] && [ -w "$NVRAM_path_default" ]; then
+		# stock fw and Hiveon
+		return 0
+	fi
+
+	if [ -d "$NVRAM_path_quirk" ] && [ -w "$NVRAM_path_quirk" ]; then
+		# He-Who-Must-Not-Be-Named fw
+		return 0
+	fi
+
+	return 1
+}
+
+wait_for () {
+	#
+	# A simple wrapper that loops a function until this function does return true
+	#
+	# Usage: wait_for function_to_check extended_message
+	#
+
+	# args
+	local function_to_check="$1"
+	local extended_message="$2"
+
+	# consts
+	local pause_time=2
+
+	# asserts
+	[ -n "$function_to_check" ] || return 1
+	[ -n "$extended_message" ] || return 1
+
+	# code
+	until "$function_to_check"; do
+		echo_info "Waiting ${pause_time}s for $extended_message..."
+		sleep "$pause_time"
+	done
+}
+
 download_from_URL_to_file () {
 	#
 	# Usage: download_from_URL_to_file 'file_url' 'output_file'
 	#
 
 	# args
-
 	local file_url="$1"
 	local output_file="$2"
 
 	# vars
-
 	local curl_output=''
 
 	# code
-
 	echo_action "Downloading package from $file_url to $output_file"
 	if ! curl_output="$( curl --insecure --location --fail --silent --show-error --output "$output_file" "$file_url" 2>&1 )"; then
 		echo_warning "$curl_output"
@@ -130,11 +179,9 @@ check_gz_integrity () {
 	#
 
 	# args
-
 	local gz_to_check="$1"
 
 	# code
-
 	echo_action "Checking $gz_to_check integrity"
 
 	if [ ! -s "$gz_to_check" ]; then
@@ -157,24 +204,20 @@ fetch_package_at_any_cost () {
 	#
 
 	# args
-
 	local URL="$1"
 	local output_file="$2"
 
 	# consts
-
 	local retries_limit=15 # max.time from 10m to 60m
 	local temporary_file="${output_file}.S69download"
 
 	# vars
-
 	local retries_counter=0
 	local snooze_counter=0
 	local base_snooze_time=0
 	local snooze_time=0
 
 	# code
-
 	base_snooze_time="$( get_random_number_between 5 30 )"
 	echo_action "Wait for random ${base_snooze_time}s (make it easier for a bulk update)"
 	sleep "$base_snooze_time"
@@ -187,7 +230,8 @@ fetch_package_at_any_cost () {
 			[ -f "$temporary_file" ] && rm "$temporary_file"
 			return 1
 		fi
-		# shellcheck disable=SC2039
+		# shellcheck disable=SC2169
+		# bc our dash-mutant shell does support those exprs, yay
 		: $(( retries_counter++ ))
 		snooze_time=$(( base_snooze_time * retries_counter )) # every attempt will be later and later
 		: $(( snooze_counter += snooze_time ))
@@ -215,7 +259,6 @@ set_default_download_server_URL () {
 	#
 
 	# consts
-
 	local      whitelabel_HIVE_HOST_URL_file_in_FW='/etc/hive-url'				# prio 4
 	local   whitelabel_HIVE_HOST_URL_file_in_NVRAM='/config/hive-url'			# prio 3
 	#local                      HIVE_HOST_URL_file='/config/HIVE_HOST_URL'		# prio 2 # already declared as a gobal readonly, !!! should refactor later
@@ -229,11 +272,9 @@ set_default_download_server_URL () {
 	" # the order is important: sorted by prio, from low to high (??? cannot remember why isn't backwards)
 
 	# vars
-
 	local whitelabel_download_server_URL_file
 
 	# code
-
 	[ "$dev_build_FLAG" -eq 1 ] && return
 
 	# 1. try whitelabel file
@@ -268,13 +309,10 @@ set_NVRAM_path () {
 	#
 
 	# consts
-
 	local package_at_default_path="${NVRAM_path_default}/${persistent_package_filename}"
 	local package_at_quirk_path="${NVRAM_path_quirk}/${persistent_package_filename}"
 
 	# code
-
-	# shellcheck disable=SC2039
 	if [ -s "$package_at_default_path" ] && [ -s "$package_at_quirk_path" ] && [ "$package_at_quirk_path" -nt "$package_at_default_path" ]; then
 		# quirk is newer, use quirk
 		NVRAM_path="$NVRAM_path_quirk" # duct tape for dear Vitya
@@ -289,17 +327,14 @@ deploy_client () {
 	#
 
 	# vars
-
 	local full_package_URL='' tar_output='' this_URL
 	local persistent_package_filename_w_path="${NVRAM_path}/${persistent_package_filename}"
 
 	# flags
-
 	local is_package_inplace_ok_FLAG=0 # the package already exists and its integrity is ok, 1/[0]
 	local is_package_fetched_ok_FLAG=0 # the package was downloaded ok, 1/[0]
 
 	# code
-
 	echo_action 'The Client deployment launched in the background'
 
 	if [ -f "$persistent_package_filename_w_path" ]; then
@@ -376,6 +411,7 @@ boot_client () {
 	# Usage: boot_client &
 	#
 
+	# code
 	echo_action 'The Client boot sequence launched in the background'
 
 	# $FARM_HASH can be defined externally
@@ -392,7 +428,6 @@ boot_client () {
 
 
 # global consts
-
 readonly NVRAM_path_default='/nvdata'
 readonly NVRAM_path_quirk='/opt'
 readonly persistent_package_filename='latest.tar.gz'
@@ -411,14 +446,12 @@ readonly own_log="/tmp/${script_basename}.log"
 
 
 # global vars
-
 NVRAM_path="$NVRAM_path_default"
 download_server_URL="$default_download_server_URL"
 remote_package_filename="$stable_package_filename"
 
 
 # global flags
-
 dev_build_FLAG=0
 force_download_FLAG=0
 force_deploy_FLAG=0
@@ -426,7 +459,6 @@ executed_by_rc_FLAG=0
 
 
 # global exports
-
 case "$PATH" in
 	*'/hive/bin:/hive/sbin'*)	: ok good to go								;;
 	'')							export PATH='/hive/bin:/hive/sbin'			;;
@@ -436,9 +468,12 @@ export LD_LIBRARY_PATH=/hive/lib
 
 
 # code
+wait_for is_tmp_available '/tmp to become writeable'
 
 [ -t 1 ] || exec >> "$own_log" 2>&1
 trap 'echo_warning "SIGHUP received, ignoring..."' HUP # 'SIGHUP' isn't a POSIX name
+
+wait_for is_NVRAM_available 'NVRAM to become writeable'
 
 set_NVRAM_path
 parse_arguments "$@"
