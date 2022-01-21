@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.2.1'
+readonly script_version='1.2.2'
 readonly script_basename="${0##*/}"
 
 
@@ -242,11 +242,10 @@ fetch_package_at_any_cost () {
 	echo_action "Moving $temporary_file to $output_file"
 	if mv -f "$temporary_file" "$output_file"; then
 		echo_info "Moved OK"
+		sync
 	else
 		echo_warning "Moving FAILED"
 	fi
-	rm "$temporary_file" || echo_warning 'Removing temporary file FAILED'
-	sync
 
 	return 0
 }
