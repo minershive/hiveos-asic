@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.2.0'
+readonly script_version='1.2.1'
 readonly script_basename="${0##*/}"
 
 
@@ -239,11 +239,11 @@ fetch_package_at_any_cost () {
 		sleep "$snooze_time"
 	done
 
-	echo_action "Copying $temporary_file to $output_file"
-	if cp "$temporary_file" "$output_file"; then
-		echo_info "Copied OK"
+	echo_action "Moving $temporary_file to $output_file"
+	if mv -f "$temporary_file" "$output_file"; then
+		echo_info "Moved OK"
 	else
-		echo_warning "Copying FAILED"
+		echo_warning "Moving FAILED"
 	fi
 	rm "$temporary_file" || echo_warning 'Removing temporary file FAILED'
 	sync
