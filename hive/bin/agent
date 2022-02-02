@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.2-debug'
+readonly script_version='0.14.3-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1725,7 +1725,7 @@ function do_command {
 			#message default "$exec_command (running, id: $cmd_id)" --id="$cmd_id" --verbose
 
 			case "$exec_command" in
-				'hssh start')
+				'hssh start' | 'hssh start debug' | 'hssh restart' | 'hssh stop')
 					unset TMUX # !!! a duct tape for HSSH to start
 				;;
 				'sreboot shutdown')
