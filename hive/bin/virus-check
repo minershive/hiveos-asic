@@ -2,16 +2,16 @@
 
 
 #
-# Copyright (C) 2016-2020  Hiveon
-# Distributed under GNU GENERAL PUBLIC LICENSE 2.0
-# License information can be found in the LICENSE file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
+# Copyright (C) 2017  Hiveon Holding LTD
+# Distributed under Business Source License 1.1
+# License information can be found in the LICENSE.txt file or at https://github.com/minershive/hiveos-asic/blob/master/LICENSE.txt
 #
-# Linted by shellcheck 0.3.7
+# Linted by shellcheck 0.7.0
 #
 
 
 readonly script_mission='Client for ASICs: Check for known Antminer viruses'
-readonly script_version='0.7.2'
+readonly script_version='0.7.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -49,7 +49,7 @@ function parse_arguments {
 				is_silent=1
 				;;
 			'-h' | '--help' | *)
-				source colors
+				source /hive/bin/colors
 				print_script_version
 				print_script_usage
 				# shellcheck disable=SC2154
@@ -323,11 +323,12 @@ function check_system_files {
 	local -r -A files_to_check=(
 		['/usr/bin/ntpd']='bb965c01fbba97604b94813fcdaa0829 94699039a78b6ee320b2e1a5c436527a e5b8378fc39c16f4adbf0503fa988d6f e7d50aa47ac3414d978a0e761c55a50c'
 		#                                                   ^ Z11e stock                                                      ^ Z9 stock (not tested) @ 180913
-		['/lib/modules/bitmain_axi.ko']='e78d5effe8c1e4afd1cf514ba23844d1 f552505dcf1e7c61be414a40d6352684 27a0a0bfeee0d919ef03ba534caab51c f2517c6f9554babeb1cfca7ac55aed2d'
+		['/lib/modules/bitmain_axi.ko']='e78d5effe8c1e4afd1cf514ba23844d1 f552505dcf1e7c61be414a40d6352684 27a0a0bfeee0d919ef03ba534caab51c f2517c6f9554babeb1cfca7ac55aed2d 5d00a362d368efc009dd79aa53723a0d'
 		#                                ^ S9 Hiveon 1.02/1.03, T9 Hiveon 1.03
 		#                                                                 ^ S17/S17 Pro/S17E Hiveon
 		#                                                                                                  ^ T9 1.02@190810
 		#                                                                                                                                   ^ Z11e stock @ 191023
+		#                                                                                                                                                                    ^ Series 19 Hiveon
 	)
 
 	# vars
@@ -415,12 +416,8 @@ declare -r -i status_DANGER=$(( 10#10 )) # 10#2, status_DANGER+status_WARNING=3
 
 # global sources
 
-source asic-model
-if (( script_DEBUG )); then
-	source hive-functions.sh
-else
-	source /hive/bin/hive-functions.sh
-fi
+source /hive/bin/asic-model
+source /hive/bin/hive-functions.sh
 
 
 # global vars
@@ -435,7 +432,7 @@ declare -i is_colors=1
 parse_arguments "$@"
 
 if (( ! is_silent )); then
-	(( is_colors )) && source colors
+	(( is_colors )) && source /hive/bin/colors
 	print_script_version
 fi
 
