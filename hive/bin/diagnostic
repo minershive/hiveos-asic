@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Diagnostic'
-readonly script_version='0.0.5'
+readonly script_version='0.0.6'
 readonly script_basename="${0##*/}"
 
 
@@ -146,6 +146,14 @@ echo -e "\n---API---"
 # FARM: farm_id, rig_id, rig.conf file date, wallet file date
 echo -e "\n---FARM---"
 
+#check port
+ports=( 3333 4444 25 443 14931 1314)
+for port in ${ports[@]}; do
+	echo "$port":
+	curl http://portquiz.net:$port
+	echo
+done
 
-
+#mtr
+mtr -b -c 20 -r api.hiveos.farm -P 80
 
