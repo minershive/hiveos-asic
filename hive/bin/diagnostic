@@ -147,12 +147,15 @@ echo -e "\n---API---"
 echo -e "\n---FARM---"
 
 #check port
-ports=( 3333 4444 25 443 14931 1314)
+ports=( 3333 4444 25 443 14931 1314 )
 for port in ${ports[@]}; do
 	echo "$port":
-	curl http://portquiz.net:$port
+	curl -s http://portquiz.net:$port
 	echo
 done
+
+#dns
+nslookup api.hiveos.farm
 
 #mtr
 mtr -b -c 20 -r api.hiveos.farm -P 80
