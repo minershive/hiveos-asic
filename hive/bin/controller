@@ -1389,7 +1389,7 @@ function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) &
 
 	local -r HIVEON_CONF='/hive-config/hiveon.conf'
 	local -r ASIC_CONF='/config/config.conf'
-	local -r is_series_19_RE='Antminer [ST]19'
+#	local -r is_series_19_RE='Antminer [ST]19'
 
 	# vars
 
@@ -1402,9 +1402,9 @@ function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) &
 	# shellcheck disable=SC2154
 	# bc defined in the asic-model
 	(( ASIC_CUSTOM_FW_VERSION_MAJOR >= 2 )) || return $(( exitcode_OK_NOTHING_HAPPENED ))
-	if [[ "$ASIC_MODEL" =~ $is_series_19_RE ]]; then
-		return $(( exitcode_OK_NOTHING_HAPPENED ))
-	fi
+#	if [[ "$ASIC_MODEL" =~ $is_series_19_RE ]]; then #
+#		return $(( exitcode_OK_NOTHING_HAPPENED ))
+#	fi
 
 	# problem:
 	# 1. we aren't able to send config if RIG_ID isn't set
