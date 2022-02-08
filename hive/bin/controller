@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.5.3'
+readonly script_version='2.5.4'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -49,6 +49,7 @@ function parse_arguments {																			(( script_DEBUG )) && debugcho "$@"
 			print_script_version
 			print_last_lines_from_own_log "$option"
 			# shellcheck disable=SC2154
+			# bc defined in the library
 			exit $(( exitcode_OK ))
 		;;
 
@@ -66,6 +67,7 @@ function parse_arguments {																			(( script_DEBUG )) && debugcho "$@"
 			print_script_version
 			print_script_usage
 			# shellcheck disable=SC2154
+			# bc defined in the library
 			exit $(( exitcode_ERROR_IN_ARGUMENTS ))
 		;;
 	esac
@@ -220,6 +222,7 @@ function get_hash_value {																			(( script_DEBUG )) && debugcho "$@"
 
 	if [[ -z "${hashtable_by_ref[${key}]-}" ]]; then
 		# shellcheck disable=SC2154
+		# bc defined in the library
 		return $(( exitcode_ERROR_NOT_FOUND ))
 	else
 		echo "${hashtable_by_ref[${key}]}"
@@ -394,6 +397,7 @@ function list_checkup_counters {																	(( script_DEBUG )) && debugcho
 #
 # logs processing:
 #
+# are_sorted_files_differ()
 # split_log_line_to_date_and_message()
 # filter_lines_send_messages()
 # get_new_lines_from_log()
@@ -401,6 +405,38 @@ function list_checkup_counters {																	(( script_DEBUG )) && debugcho
 # print_controller_log_entry()
 # shrink_system_logs()
 #
+
+function are_sorted_files_differ {
+	#
+	# Usage: are_sorted_files_differ 'first_FILE' 'second_FILE'
+	#
+	# please use only on small files
+	#
+
+	# args
+
+	(( $# != 2 )) && { errcho 'invalid number of arguments'; return $(( exitcode_ERROR_IN_ARGUMENTS )); }
+	local -r first_FILE="${1-}"
+	local -r second_FILE="${2-}"
+
+	# vars
+
+	local first_file_sorted_content second_file_sorted_content
+
+	# code
+
+	if [[ -s "$first_FILE" && -s "$second_FILE" ]]; then
+		first_file_sorted_content="$( sort "$first_FILE" )"
+		second_file_sorted_content="$( sort "$second_FILE" )"
+		if [[ "$first_file_sorted_content" == "$second_file_sorted_content" ]]; then
+			# shellcheck disable=SC2154
+			# bc defined in the library
+			return $(( exitcode_NOT_OK )) # no, they are NOT differ
+		fi
+	fi
+
+	return $(( exitcode_OK )) # yes, they are differ (or not found, the same outcome)
+}
 
 function split_log_line_to_date_and_message {														(( script_DEBUG )) && debugcho "$@"
 	#
@@ -1431,10 +1467,10 @@ function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) &
 		elif [[ ! -f "$ASIC_CONF" ]]; then
 			(( is_something_happened = exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry 'warning' "$ASIC_CONF not found, hmm"
-		elif ! diff "$HIVEON_CONF" "$ASIC_CONF"; then
-			print_controller_log_entry 'info' "$HIVEON_CONF and $ASIC_CONF are different, check again"
-			snore 1 # pause and then recheck
-			if ! diff "$HIVEON_CONF" "$ASIC_CONF"; then
+		elif are_sorted_files_differ "$HIVEON_CONF" "$ASIC_CONF"; then
+			print_controller_log_entry 'info' "$HIVEON_CONF and $ASIC_CONF are different, wait 1s and check again"
+			snore 1
+			if are_sorted_files_differ "$HIVEON_CONF" "$ASIC_CONF"; then
 				(( is_something_happened = exitcode_WARNING_SOMETHING_HAPPENED ))
 				print_controller_log_entry 'info' "$ASIC_CONF changed"
 			fi
@@ -1549,6 +1585,7 @@ function checkup:is_build_updated {																	(( script_DEBUG )) && debugc
 			saved_Client_version="${saved_VERSION}${saved_build}"
 
 			# shellcheck disable=SC2154
+			# bc defined in the library
 			case "$( is_first_version_equal_to_second "$actual_Client_version" "$saved_Client_version"; echo $? )" in
 				$(( exitcode_GREATER_THAN ))	)	what_happened='updated'		;;
 				$(( exitcode_LESS_THAN ))		)	what_happened='degraded'	;;
@@ -2207,9 +2244,9 @@ declare -i is_RIG_ID_ok_FLAG=0 # means NOT OK at the start, will check this (and
 # shellcheck disable=SC2034
 declare -a crontab=(
 	'*/5 * * * *	checkup:is_miner_config_in_sync_with_FS'
-	'* * * * *		checkup:are_logs_updated'
+	'*/2 * * * *	checkup:are_logs_updated'
 	'* * * * *		checkup:is_overclock_profile_exist'
-	'* * * * *		checkup:is_custom_fw_config_in_sync'
+	'*/2 * * * *	checkup:is_custom_fw_config_in_sync'
 	'*/2 * * * *	checkup:is_miner_niceness_ok'
 	'*/2 * * * *	checkup:is_build_updated'
 	'*/5 * * * *	execute:agent_screen_dontattach'
@@ -2241,4 +2278,5 @@ check_ntpd
 do_cron_jobs_indefinitely
 
 # shellcheck disable=SC2154
-exit $(( exitcode_ERROR_SOMETHING_WEIRD )) # you should never see that they said
+# bc defined in the library
+exit $(( exitcode_ERROR_SOMETHING_WEIRD )) # you should never see that, they've said
