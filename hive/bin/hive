@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.14'
+readonly script_version='0.2.15'
 readonly script_basename="${0##*/}"
 
 
@@ -298,13 +298,13 @@ get_datetime_from_server
 echo_x action 'Saying hello to the server'
 hello boot
 hello_exitcode=$?
-if (( hello_exitcode )); then
+if (( hello_exitcode != 0 )); then
 	echo_x warning "hello failed with exitcode $hello_exitcode (it's ok in some cases like the first launch after an upgrade)"
 	if (( hello_exitcode > 1 )); then
 		# '> 1' do mean numerous curl errors
 		echo_x action 'Detaching hello to a background screen session (until the successful connect)'
 		screen -dmS 'trying_to_say_hello' /hive/sbin/bash -c \
-			'c=0; until hello boot; do printf "\n> hello failed with exitcode %u (attempt #%u), waiting 10s...\n" $? $(( ++c )); sleep 60; done |& tee /tmp/hello-boot.log'
+			'c=0; until hello boot; do printf "\n> hello failed with exitcode %u (attempt #%u), waiting 60s...\n" $? $(( ++c )); sleep 60; done |& tee /tmp/hello-boot.log'
 	fi
 fi
 
@@ -324,27 +324,35 @@ kill_all 'controller'
 	#
 	# consts
 	declare -r deprecated_controller_log='/config/hive-controller.log'
+	declare -r -i controller_log_lines_lower_limit=1000
+	declare -r -i controller_log_lines_upper_limit=2000
 	# vars
 	declare this_nvram_directory controller_log="$deprecated_controller_log"
+	declare -i controller_log_lines_count=0
+	declare controller_log_truncated_to_limit=''
 	# code
 	for this_nvram_directory in '/nvdata' '/opt' '/config'; do
 		if is_directory_exist_and_writable "$this_nvram_directory"; then
 			controller_log="$this_nvram_directory/client-controller.log"
-			# check for log at the deprecated path
+			# check for log at the deprecated path/name
 			if [[ -f "$deprecated_controller_log" ]]; then
-				echo_x action "Transplanting an old controller's log to $controller_log"
-				mv "$deprecated_controller_log" "$controller_log"
+				echo_x action "Renaming an old controller's log to $controller_log"
+				mv -f "$deprecated_controller_log" "$controller_log"
 			fi
 			break
 		fi
 	done
+
+	# sponge the log to save the space
+	if [[ -s "$controller_log" ]]; then
+		if controller_log_lines_count="$( wc -l < "$controller_log" )" && (( controller_log_lines_count > controller_log_lines_upper_limit )); then
+			echo_x action "$controller_log exceeded $controller_log_lines_upper_limit lines, truncating to the last $controller_log_lines_lower_limit lines"
+			controller_log_truncated_to_limit="$( tail -n "$controller_log_lines_lower_limit" "$controller_log" )"
+			echo "$controller_log_truncated_to_limit" > "$controller_log"
+		fi
+	fi
 }
 nohup /hive/bin/controller >> "$controller_log" 2>&1 & disown # disown is esp. for Innosilicon smart-ass
-
-
-#bmminer is autostarted after in /etc/rcS.d
-#echo_x action 'Starting miner'
-#miner start
 
 
 # averager service is turned out temporarily, as of August 2021
