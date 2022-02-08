@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.5.2'
+readonly script_version='2.5.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1431,9 +1431,10 @@ function checkup:is_custom_fw_config_in_sync {														(( script_DEBUG )) &
 		elif [[ ! -f "$ASIC_CONF" ]]; then
 			(( is_something_happened = exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry 'warning' "$ASIC_CONF not found, hmm"
-		elif ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
+		elif ! diff "$HIVEON_CONF" "$ASIC_CONF"; then
+			print_controller_log_entry 'info' "$HIVEON_CONF and $ASIC_CONF are different, check again"
 			snore 1 # pause and then recheck
-			if ! cmp -s "$HIVEON_CONF" "$ASIC_CONF"; then
+			if ! diff "$HIVEON_CONF" "$ASIC_CONF"; then
 				(( is_something_happened = exitcode_WARNING_SOMETHING_HAPPENED ))
 				print_controller_log_entry 'info' "$ASIC_CONF changed"
 			fi
