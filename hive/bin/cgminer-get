@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.6.0'
+readonly script_version='0.6.1'
 readonly script_basename="${0##*/}"
 
 
@@ -22,9 +22,9 @@ set -o nounset
 # functions
 
 function echo_ok		{ echo -e		"${LGRAY-}  ${BGREEN-}${*}${NOCOLOR-}"			; }
-function echo_action	{ echo -e		"${LGRAY-}> ${WHITE-}${*}...${NOCOLOR-}"			; }
+function echo_action	{ echo -e		"${LGRAY-}> ${WHITE-}${*}...${NOCOLOR-}"		; }
 function echo_action_n	{ echo -e -n	"${LGRAY-}> ${WHITE-}${*}...${NOCOLOR-}"		; }
-function echo_info		{ echo -e		"${LGRAY-}  ${CYAN-}${*}${NOCOLOR-}"				; }
+function echo_info		{ echo -e		"${LGRAY-}  ${CYAN-}${*}${NOCOLOR-}"			; }
 function echo_warning	{ echo -e		"${LGRAY-}? ${BYELLOW-}${*}${NOCOLOR-}"			; }
 function echo_debug		{ echo -e		"${LGRAY-}  ${BPURPLE-}[DEBUG] ${*}${NOCOLOR-}"	; } 1>&2
 function echo_error		{ echo -e		"${RED-}! ${BRED-}${*}${NOCOLOR-}"				; } 1>&2
