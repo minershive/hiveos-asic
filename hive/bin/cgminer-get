@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.6.1'
+readonly script_version='0.6.2'
 readonly script_basename="${0##*/}"
 
 
@@ -39,11 +39,23 @@ function print_script_usage {
 	echo
 	echo -e "    ${WHITE-}host${NOCOLOR-}     host name or IP address, default is $cgminer_host_DEFAULT"
 	echo -e "    ${WHITE-}port${NOCOLOR-}     port number, default is $cgminer_port_DEFAULT"
-	echo -e "    ${WHITE-}command${NOCOLOR-}  a cgminer command, default is to probe for all known"
+	echo -e "    ${WHITE-}command${NOCOLOR-}  a cgminer API command, default is to probe for the all knowns"
 	echo
 	echo -e "All gathered information will be located at $base_DIR/"
 	echo
 } 1>&2
+
+function is_JSON_string_empty_or_null {
+	#
+	# Usage: is_JSON_string_empty_or_null 'JSON_string_to_check'
+	#
+
+	# args
+	local -r JSON_string_to_check="${1-}"
+
+	# code
+	[[ -z "${JSON_string_to_check-}" || "${JSON_string_to_check-}" == 'null' ]]
+}
 
 function parse_url {
 	#
@@ -79,6 +91,7 @@ function parse_url {
 		return 1
 	fi
 
+	# kinda dirty take to set global vars inside a func, sorree
 	[[ -n "$host" ]] && cgminer_host="$host" || cgminer_host="$cgminer_host_DEFAULT"
 	[[ -n "$port" ]] && cgminer_port="$port" || cgminer_port="$cgminer_port_DEFAULT"
 }
@@ -153,10 +166,14 @@ declare -r message_script='/hive/bin/message'
 
 declare cgminer_host
 declare -i cgminer_port
-declare -i total_request_counter=0 answered_request_counter=0 command_supported_request_counter=0
-declare -i is_probe_for_custom_command=0
+declare -i total_requests_counter=0 answered_requests_counter=0 command_supported_requests_counter=0
 declare this_command this_command_cmd this_command_log_raw_FILE this_command_log_sanitized_FILE
 declare api_collection_FILE
+
+
+# global flags
+
+declare -i is_probe_for_custom_command_FLAG=0
 
 
 # code
@@ -172,7 +189,7 @@ fi
 # parse second argument
 if [[ -n "${2-}" ]]; then
 	cgminer_commands_DICT=( "$2" )
-	is_probe_for_custom_command=1
+	is_probe_for_custom_command_FLAG=1
 fi
 
 if ! hash nc; then
@@ -192,22 +209,22 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 	echo_action_n "Probing '$this_command'"
 
 	if timeout nc "$cgminer_host" "$cgminer_port" <<< "$this_command_cmd" > "$this_command_log_raw_FILE" 2> /dev/null; then
-		(( total_request_counter++ ))
+		(( total_requests_counter++ ))
 
 		if [[ -s "$this_command_log_raw_FILE" ]]; then # we have received something
-			(( answered_request_counter++ ))
+			(( answered_requests_counter++ ))
 
 			if ! tail -c 1 "$this_command_log_raw_FILE" | read -r _; then
 				#echo_info "No newline terminator at the end, appending..."
-				echo >> "$this_command_log_raw_FILE" # add a newline (actually it's for Gitlab to ease the file preview)
+				echo >> "$this_command_log_raw_FILE" # add a newline (actually it's a Gitlab thing, to ease the file preview)
 			fi
 
+			# JSON sanity check
 			if hash jq && ! jq_error="$( jq --exit-status 'empty' "$this_command_log_raw_FILE" 2>&1 )" && [[ -n "$jq_error" ]]; then
-				# sanity check
 				echo_warning "Invalid JSON, $jq_error"
 			fi
 
-			if (( is_probe_for_custom_command )); then
+			if (( is_probe_for_custom_command_FLAG )); then
 				echo_action_n 'Sending the answer to your Hive dashboard'
 				if "$message_script" file "$this_command_log_raw_FILE" --header="${this_command_log_raw_FILE##*/}.txt" --silent; then
 					echo_ok 'OK'
@@ -226,7 +243,7 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 						rm -- "$this_command_log_raw_FILE" "$this_command_log_sanitized_FILE" # we don't need those anymore
 					;;
 					*)
-						(( command_supported_request_counter++ ))
+						(( command_supported_requests_counter++ ))
 						echo_info "got answer '$cgminer_status_msg'"
 					;;
 				esac
@@ -244,10 +261,10 @@ for this_command in "${cgminer_commands_DICT[@]}"; do
 	fi
 done
 
-if (( is_probe_for_custom_command )); then
+if (( is_probe_for_custom_command_FLAG )); then
 	echo_info 'Done'
-elif (( command_supported_request_counter )); then
-	echo_ok "Done. $command_supported_request_counter supported commands, ${answered_request_counter} answered, ${total_request_counter} total"
+elif (( command_supported_requests_counter > 0 )); then
+	echo_ok "Done. $command_supported_requests_counter supported commands, ${answered_requests_counter} answered, ${total_requests_counter} total"
 
 	# probe HTTP
 	if hash curl; then
@@ -255,7 +272,7 @@ elif (( command_supported_request_counter )); then
 		if curl --verbose --silent --max-time 5 "$cgminer_host" > "$http_probe_FILE" 2>&1; then
 			echo_ok 'OK'
 		else
-			echo_error 'HTTP conection failed'
+			echo_error 'HTTP connection failed'
 		fi
 	fi
 
@@ -282,9 +299,14 @@ elif (( command_supported_request_counter )); then
 			firmware_version="$( jq --exit-status --raw-output "$get_version_JQ" "$api_collection_FILE" 2> /dev/null )" ||
 					echo_warning 'No ".CompileTime" key found'
 
-			# sanitize
-			[[ -z "$firmware_name"		|| "$firmware_name"		== 'null' ]]	&& firmware_name='unknown_name' # fallback
-			[[ -z "$firmware_version"	|| "$firmware_version"	== 'null' ]]	&& firmware_version='unknown_version' # fallback
+			# sanitize name & version
+			if is_JSON_string_empty_or_null "$firmware_name"; then
+				firmware_name='unknown_fw_name' # fallback
+			fi
+
+			if is_JSON_string_empty_or_null "$firmware_version"; then
+				firmware_version='unknown_fw_version' # fallback
+			fi
 
 			# parse the firmware name
 			IFS=' ' read -r -a firmware_name_ARR <<< "$firmware_name"
@@ -322,3 +344,5 @@ fi
 
 # cleanup
 rm -r -- "${sanitize_DIR:?}/" "${raw_DIR:?}/"
+
+exit 0
