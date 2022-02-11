@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.15'
+readonly script_version='0.2.16'
 readonly script_basename="${0##*/}"
 
 
@@ -171,6 +171,7 @@ declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /h
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
 [[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
+export LC_ALL=C # we don't need a fancy UTF or anything outside the POSIX/ANSI-C grammar
 
 
 # sources
