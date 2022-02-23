@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.4-debug'
+readonly script_version='0.14.5-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -96,6 +96,7 @@ function jq_batch_process {
 	# 1. assemble the big fat jq batch script with markup
 	# 2. reset output vars to null
 	#
+log_line debug 'jq_batch_process() step 1 and 2'
 	for this_var in "${!_jq_batch_request_hashtable[@]}"; do
 		# reset output vars to null
 		local -n this_var_ref="$this_var"
@@ -114,6 +115,7 @@ function jq_batch_process {
 	#
 	# 3. process jq batch script then get the output to array
 	#
+log_line debug 'jq_batch_process() step 3'
 	if is_JSON_string_not_empty_or_null "$JSON_input"; then
 		#echo "'$JSON_input'" && snore 1
 		jq_batch_response_raw="$( jq --compact-output --argjson 'max_fan_rpm' "$ASIC_MAX_FAN_RPM" "$jq_batch_script" <<< "$JSON_input" )"
