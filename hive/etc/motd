@@ -8,38 +8,55 @@
 #
 
 
-readonly script_mission='Client for ASICs: motd'
-readonly script_version='0.0.1'
-readonly script_basename="${0##*/}"
+# shellcheck disable=SC2034
+{
+	readonly script_mission='Client for ASICs: motd'
+	readonly script_version='0.0.2'
+	readonly script_basename="${0##*/}"
+}
 
 
 # functions
 
 function seconds2dhms {
+	#
 	# Usage: seconds2dhms 'time_in_seconds' ['delimiter']
+	#
 	# Renders time_in_seconds to 'XXd XXh XXm[ XXs]' string
+	# Default delimiter = ' '
+	#
 
 	# args
-	local -i -r time_in_seconds="${1#-}" # strip sign, get abs()
+
+	local -i -r time_in_seconds="${1#-}" # strip sign, get ABS (just in case)
 	local -r delimiter_DEFAULT=' '
 	local -r delimiter="${2-${delimiter_DEFAULT}}"
 
 	# vars
+
 	local -i days hours minutes seconds
+	local dhms_string
 
 	# code
+
 	((
-		days	= time_in_seconds / 60 / 60 / 24,
-		hours	= time_in_seconds / 60 / 60 % 24,
-		minutes	= time_in_seconds / 60 % 60,
-		seconds	= time_in_seconds % 60
+		days = time_in_seconds / 60 / 60 / 24,
+		hours = time_in_seconds / 60 / 60 % 24,
+		minutes = time_in_seconds / 60 % 60,
+		seconds = time_in_seconds % 60
 	)) # arithmetic context, GOD I LOVE IT
 
-	(( days ))				&&	printf '%ud%s'	"$days" "$delimiter"
-	(( hours ))				&&	printf '%uh%s'	"$hours" "$delimiter"
-	(( minutes ))			&&	printf '%um'	"$minutes"
-	(( ! days && ! hours ))	&&	printf '%s%us'	"$delimiter" "$seconds" # seconds only in the first hour
-								printf '\n'
+	if (( days )); then
+		dhms_string="${days}d${delimiter}${hours}h${delimiter}${minutes}m"
+	elif (( hours )); then
+		dhms_string="${hours}h${delimiter}${minutes}m"
+	elif (( minutes )); then
+		dhms_string="${minutes}m${delimiter}${seconds}s"
+	else
+		dhms_string="${seconds}s"
+	fi
+
+	echo "$dhms_string"
 }
 
 function netmask_to_cidr {
@@ -51,6 +68,8 @@ function netmask_to_cidr {
 	local x
 
 	# code
+	# shellcheck disable=SC2086
+	# bc it's convenient
 	x="0$( printf '%o' ${netmask//./ } )"
 
 	while (( x > 0 )); do
@@ -73,15 +92,35 @@ function get_uptime_in_dhm {
 }
 
 function get_fs_name {
+	# consts
+	local -r fs_RE='### FLIGHT SHEET "(.*)" ###'
+
 	# vars
-	local fs_name='' fs_RE='' fs_raw=''
+	local fs_name='' wallet_conf_raw_content=''
 
 	# code
 	if [[ -s /hive-config/wallet.conf ]]; then
-		fs_RE="### FLIGHT SHEET \"(.*)\" ###"
-		fs_raw="$( < /hive-config/wallet.conf )"
-		[[ $fs_raw =~ $fs_RE ]]
-		fs_name="${BASH_REMATCH[1]}"
+		# get the content
+		wallet_conf_raw_content="$( < /hive-config/wallet.conf )"
+
+		# then parse the name
+		if [[ $wallet_conf_raw_content =~ $fs_RE ]]; then
+			# ok case: FS name is not null
+			# ### FLIGHT SHEET "foobar" ###
+			fs_name="${BASH_REMATCH[1]}" # ="foobar"
+		else
+			# not ok case: absent FS name
+			# ### FLIGHT SHEET ###
+			fs_name='ERR_not_a_valid_fs_name'
+		fi
+
+		if [[ -z "$fs_name" ]]; then
+			# ok case: FS name is empty
+			# ### FLIGHT SHEET "" ###
+			fs_name='WARN_untitled_fs'
+		fi
+	else
+		fs_name='WARN_wallet_conf_empty_or_not_found'
 	fi
 
 	echo "$fs_name"
@@ -104,7 +143,7 @@ function pretty_print {
 		if [[ -n "$variable_name" ]]; then
 			printf '%b%s' "$variable_ok_color" "$variable_name"
 		else
-			printf '%b%s' "$variable_empty_color" "[not set]"
+			printf '%b%s' "$variable_empty_color" "[WARN_parameter_not_set]"
 		fi
 
 		if [[ -n "$delimiter" ]]; then
@@ -254,6 +293,8 @@ fi
 
 echo
 
-[[ "$1" != '--disable-logs' ]] && show_mixed_logs
+if [[ "$1" != '--disable-logs' ]]; then
+	show_mixed_logs
+fi
 
 exit 0
