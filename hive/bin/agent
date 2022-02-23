@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.5-debug'
+readonly script_version='0.14.6-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -78,6 +78,9 @@ function jq_batch_process {
 	local -r jq_batch_request_hashtable_by_ref="${1-}"
 	local -r JSON_input_by_ref="${2-}"
 
+	# consts
+	local -r jq_batch_script_FILE='/run/hive/tmp/jq_batch_script'
+
 	# vars by ref
 	local -r -n _jq_batch_request_hashtable="$jq_batch_request_hashtable_by_ref"
 	local -r -n JSON_input="$JSON_input_by_ref"
@@ -118,8 +121,9 @@ log_line debug 'jq_batch_process() step 1 and 2'
 log_line debug 'jq_batch_process() step 3'
 	if is_JSON_string_not_empty_or_null "$JSON_input"; then
 		#echo "'$JSON_input'" && snore 1
-		jq_batch_response_raw="$( jq --compact-output --argjson 'max_fan_rpm' "$ASIC_MAX_FAN_RPM" "$jq_batch_script" <<< "$JSON_input" )"
-		#                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, might refactor to get rid of it?
+		echo "$jq_batch_script" > "$jq_batch_script_FILE" # testing: let's use a file instead of a large jq's command-line parameter
+		jq_batch_response_raw="$( jq --ascii-output --compact-output --argjson 'max_fan_rpm' "$ASIC_MAX_FAN_RPM" --from-file "$jq_batch_script_FILE" <<< "$JSON_input" )"
+		#                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ duct tape, might refactor to get rid of it?
 		mapfile -t jq_batch_response_raw_array <<< "$jq_batch_response_raw"
 		#printf "%s\n" "${jq_batch_response_raw_array[@]}"
 
