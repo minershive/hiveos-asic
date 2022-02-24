@@ -10,16 +10,14 @@
 #
 
 
+readonly script_mission='Client for ASICs: Say hello to the server'
 # shellcheck disable=SC2034
 # just because
-{
-	readonly script_mission='Client for ASICs: Say hello to the server'
-	readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-	readonly script_version='0.7.3'
-	readonly script_basename="${0##*/}"
-	#
-	readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
-}
+readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
+readonly script_version='0.8.0'
+readonly script_basename="${0##*/}"
+#
+readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
 
 
 # !!! bash strict mode, no unbound variables
@@ -110,6 +108,11 @@ function parse_arguments {
 			;;
 		esac
 	done
+}
+
+function is_https_allowed {
+	# code
+	[[ -f "$https_semaphore_flag_FILE" ]]
 }
 
 function is_JSON_string_empty_or_null {
@@ -713,14 +716,27 @@ function send_hello_packet {
 					# ^^^^^^^^^^^^^ jq will exit with exitcode 0 only if output is 'true'
 					(( script_DEBUG )) && echo_debug 'API server is valid [OK]'
 					(( script_DEBUG )) && echo_debug "Connecting to get a config: '$work_URL'..."
-					server_response_by_ref="$(
-						curl \
-							--insecure --location --data @- --silent \
-							--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time" \
-							--request POST "$work_URL" \
-							--header "Content-Type: application/json" \
-						<<< "$server_request_by_ref"
-					)"
+					if (( is_https_allowed_FLAG )); then
+						server_response_by_ref="$(
+							curl \
+								--cacert "$ca_cert_FILE"												\
+								--location --data @- --silent											\
+								--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time"	\
+								--request POST "$work_URL"												\
+								--header 'Content-Type: application/json'								\
+							<<< "$server_request_by_ref"
+						)"
+					else
+						server_response_by_ref="$(
+							curl \
+								--insecure \
+								--location --data @- --silent											\
+								--connect-timeout "$curl_connect_timeout" --max-time "$curl_max_time"	\
+								--request POST "$work_URL"												\
+								--header 'Content-Type: application/json'								\
+							<<< "$server_request_by_ref"
+						)"
+					fi
 					curl_exitcode=$?
 					(( ! curl_exitcode )) && break
 				else
@@ -930,7 +946,7 @@ function process_json_sections {
 			fi
 		else
 			if (( this_section_is_mandatory )); then
-				die "No '$this_section_description' found in the server response that does not have any sense. Exiting..." 1
+				die "No '$this_section_description' found in the server response. That does not have any sense. Exiting..." 1
 			else
 				echo_warning "'$this_section_description' is empty or not found, saving to file skipped"
 			fi
@@ -939,16 +955,21 @@ function process_json_sections {
 }
 
 
+
 # global consts
 
 # paths
+declare -r client_run_DIR='/run/hive'
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r WALLET_CONF='/hive-config/wallet.conf'
 declare -r ASIC_CONF='/hive-config/hiveon.conf'
 declare -r ASIC_OC_CONF='/hive-config/asic_oc.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
-declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
+declare -r API_HOST_FILE="$client_run_DIR/api_host_url" # an accessory file for the /hive/bin/message and /hive/bin/hello
+# https support section
+declare -r ca_cert_FILE='/nvdata/cacert.crt'
+declare -r https_semaphore_flag_FILE="$client_run_DIR/https-supported.flag"
 # misc
 declare -r FARM_HASH_valid_RE='^[[:xdigit:]]{40}$'
 declare -r -i platform=2 # 1=GPU Rig, 2=ASIC, 3=ASIC Hub
@@ -958,6 +979,7 @@ declare -r -i platform=2 # 1=GPU Rig, 2=ASIC, 3=ASIC Hub
 
 declare -i arg_boot_FLAG=0				# send boot flag with hello message
 declare -i arg_restartminer_FLAG=0		# will need to restart miner after
+declare -i is_https_allowed_FLAG=0		# to choose between curl options
 
 
 # global vars
@@ -978,6 +1000,7 @@ declare server_request_json server_response_json
 # shellcheck disable=SC1091
 # just because
 [[ -f "$RIG_CONF" ]] && ! grep -Eq '^FARM_HASH=.+$' "$RIG_CONF" && source /hive/bin/colors # duct tape: turn the colors off for cgi-bin script
+# !!! do we still need this tape?
 
 
 # main
@@ -1126,6 +1149,10 @@ declare -a API_HOST_URLs_bootstrap_collection=(
 	'http://api2msk.hiveos.farm'
 	'http://api.hiveos.farm'
 )
+
+# check https, set flag
+is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
+
 
 # send the hello packet (mind the VarByRef function's parameters)
 for this_api_server in "$HIVE_HOST_URL" "${API_HOST_URLs_bootstrap_collection[@]}"; do
