@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.2.16'
+readonly script_version='0.3.0'
 readonly script_basename="${0##*/}"
 
 
@@ -26,7 +26,8 @@ function echo_x {
 	local -r event_statement="${3-}"
 
 	# vars
-	local event_prefix statement_color event_suffix name_color="${LGRAY-}"
+	local event_prefix statement_color event_suffix
+	local name_color="${LGRAY-}"
 
 	# code
 	case "$event_type" in
@@ -44,10 +45,75 @@ function echo_x {
 	fi
 }
 
+function enable_mtu_autodetect {
+	#
+	# Usage: enable_mtu_autodetect
+	#
+
+	# code
+	echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing # man 7 tcp: 1 Disabled by default, enabled when an ICMP black hole detected
+	echo '1024' > /proc/sys/net/ipv4/tcp_base_mss # bumps the starting MSS used in discovery from a miserable default of 512 bytes to an RFC4821 suggested 1,024 (c) Cloudflare blog
+}
+
+function disable_avahi_daemon {
+	#
+	# Usage: disable_avahi_daemon
+	#
+
+	# code
+	[[ -f /etc/init.d/avahi			]] && /etc/init.d/avahi stop # add && -f /usr/sbin/avahi-daemon ???
+	[[ -f /usr/sbin/avahi-daemon	]] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon-disabled
+	kill_all 'avahi' # because '/etc/init.d/avahi stop' does not work on some models
+}
+
+function set_https_semaphore_file {
+	#
+	# Usage: set_https_semaphore_file
+	#
+
+	# code
+	touch "$https_semaphore_flag_FILE"
+}
+
+function is_https_supported {
+	#
+	# Usage: is_https_supported
+	#
+
+	# consts
+	local -r is_openssl_RE='OpenSSL'
+
+	# vars
+	local curl_answer=''
+
+	# code
+
+	# 1. assert that curl does exist
+	if hash curl 2>/dev/null; then
+		: ok
+	else
+		return 1 # would we enhance error handling later?
+	fi
+
+	# 2. assert that ca-cert does exist
+	if [[ -s "$ca_cert_FILE" ]]; then
+		: ok
+	else
+		return 2
+	fi
+
+	# 3. assert that curl has the openssl backend build in
+	curl_answer="$( curl --version )"
+	if [[ "$curl_answer" =~ $is_openssl_RE ]]; then
+		: ok
+	else
+		return 3
+	fi
+
+	return 0
+}
+
 function is_process_not_running { # cloned from the hive-functions.sh library
-	#
-	# Usage: is_process_not_running 'process_name'
-	#
 
 	# args
 	(( $# == 1 )) || return 1
@@ -97,6 +163,10 @@ function kill_all {
 }
 
 function get_absolute_difference {
+	#
+	# Usage: get_absolute_difference 'number1' 'number2'
+	#
+
 	echo $(( $1 >= $2 ? $1 - $2 : $2 - $1 ))
 }
 
@@ -111,8 +181,8 @@ function get_datetime_from_server {
 	local -i curl_exitcode attempts_counter
 
 	# code
-	[[ -s "$RIG_CONF" ]] && source "$RIG_CONF"
-	[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
+	[[ -s "$RIG_CONF"		]] && source "$RIG_CONF"
+	[[ -s "$API_HOST_FILE"	]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable, if exists
 
 	if [[ -z "${HIVE_HOST_URL-}" ]]; then
 		echo_x warning "HIVE_HOST_URL is empty, using default server $HIVE_HOST_URL_default"
@@ -146,7 +216,9 @@ function get_datetime_from_server {
 		fi
 	done
 
-	(( curl_exitcode )) && echo_x error "Unable to connect to $HIVE_HOST_URL. No attempts left."
+	if (( curl_exitcode > 0 )); then
+		echo_x error "Unable to connect to $HIVE_HOST_URL. No attempts left."
+	fi
 }
 
 
@@ -160,18 +232,24 @@ function get_datetime_from_server {
 
 # consts
 
+# files and paths
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r client_run_DIR='/run/hive'
 declare -r client_tmp_DIR="${client_run_DIR}/tmp"
 declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
+# https support section
+declare -r ca_cert_FILE='/nvdata/cacert.crt'
+declare -r https_semaphore_flag_FILE="$client_run_DIR/https-supported.flag"
 
 
 # exports
 
 [[ ! "$PATH" =~ (^|:)/hive/bin:/hive/sbin(:|$) ]] && export PATH="$PATH:/hive/bin:/hive/sbin" # add only if not exist
 [[ ! "$LD_LIBRARY_PATH" =~ (^|:)/hive/lib(:|$) ]] && export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}${LD_LIBRARY_PATH:+:}/hive/lib" # save $LD_LIBRARY_PATH:/hive/share/S9/lib for hiveon
-export LC_ALL=C # we don't need a fancy UTF or anything outside the POSIX/ANSI-C grammar
+# we don't need a fancy UTF or anything outside the POSIX/ANSI-C grammar
+export LC_ALL=C
+export LANG=C
 
 
 # sources
@@ -190,11 +268,15 @@ source /hive/bin/asic-model
 
 uname -a
 
+
+# suid the busybox.suid
 if busybox_suid_FILE="$( command -v busybox.suid )" && [[ -n "$busybox_suid_FILE" ]]; then
 	# Antminer S9
-	chmod u+s "$busybox_suid_FILE" # suid busybox.suid, for the diagnostic utility running as 1000:1000 from cgi-bin
+	chmod u+s "$busybox_suid_FILE" # suid busybox.suid, for the diagnostic utility running as 1000:1000 from cgi-bin script
 fi
 
+
+# make our own tmpfs
 mkdir -p "$client_run_DIR"
 if ! mount | grep -q "$client_run_DIR type tmpfs"; then
 	# 1. not mounted with tmpfs
@@ -270,17 +352,13 @@ fi
 
 # [TEST] enable MTU autodetect
 echo_x action 'Enabling Path MTU Discovery'
-echo '1' > /proc/sys/net/ipv4/tcp_mtu_probing # man 7 tcp: 1 Disabled by default, enabled when an ICMP black hole detected
-echo '1024' > /proc/sys/net/ipv4/tcp_base_mss # bumps the starting MSS used in discovery from a miserable default of 512 bytes to an RFC4821 suggested 1,024 (c) Cloudflare blog
+enable_mtu_autodetect
 
 
 # [TEST] disable avahi-daemon
 if [[ "$ASIC_MODEL" == 'Antminer'* ]]; then
 	echo_x action 'Stopping Avahi daemon'
-	[[ -f /etc/init.d/avahi ]] && /etc/init.d/avahi stop # add && -f /usr/sbin/avahi-daemon ???
-	[[ -f /usr/sbin/avahi-daemon ]] && mv /usr/sbin/avahi-daemon /usr/sbin/avahi-daemon-disabled
-	# /etc/init.d/avahi stop -- does not work on some models
-	kill_all 'avahi'
+	disable_avahi_daemon
 fi
 
 
@@ -288,9 +366,17 @@ echo_x action 'Installing udhcpc helper'
 dns-helper install renew --verbose --pretty
 
 
-echo_x action 'Caching a host resolve for the server'
+echo_x action 'Caching a host resolve for the API server'
 cache-hive-ip
 
+
+# https
+if is_https_supported; then
+	echo_x ok 'HTTPS support' 'OK'
+	set_https_semaphore_file
+else
+	echo_x warning 'HTTPS' 'not supported'
+fi
 
 echo_x action 'Fetching an actual time from the server'
 get_datetime_from_server
@@ -310,13 +396,14 @@ if (( hello_exitcode != 0 )); then
 fi
 
 
-[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # should be reloaded after hello, will be needed to start WD later
+[[ -s "$RIG_CONF" ]] && source "$RIG_CONF" # should be reloaded after hello, will be needed to start our WD later
 
 
 echo_x action 'Starting agent screen session'
 agent-screen dontattach
 
-#
+
+# controller
 echo_x action 'Starting controller'
 kill_all 'controller'
 {
