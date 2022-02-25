@@ -14,7 +14,7 @@ readonly script_mission='Client for ASICs: Say hello to the server'
 # shellcheck disable=SC2034
 # just because
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.8.0'
+readonly script_version='0.8.1'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -968,7 +968,7 @@ declare -r ASIC_OC_CONF='/hive-config/asic_oc.conf'
 declare -r HELLO_OK_file='/tmp/.hive-hello-ok'
 declare -r API_HOST_FILE="$client_run_DIR/api_host_url" # an accessory file for the /hive/bin/message and /hive/bin/hello
 # https support section
-declare -r ca_cert_FILE='/nvdata/cacert.crt'
+declare -r ca_cert_FILE='/etc/ssl/certs/ca-certificates.crt'
 declare -r https_semaphore_flag_FILE="$client_run_DIR/https-supported.flag"
 # misc
 declare -r FARM_HASH_valid_RE='^[[:xdigit:]]{40}$'
