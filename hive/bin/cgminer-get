@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: cgminer API prober'
-readonly script_version='0.6.2'
+readonly script_version='0.6.3'
 readonly script_basename="${0##*/}"
 
 
@@ -141,6 +141,8 @@ declare -a cgminer_commands_DICT=(
 	'stats'
 	'summary'
 	'version'
+	'coin'
+	'config'
 	'miner_conf' # S19
 	'get_miner_conf' # S19
 	'set_miner_conf' # S19
