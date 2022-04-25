@@ -374,7 +374,7 @@ function generate_volt_conf {
 		chipsNum=$( cat /www/pages/rate.html | grep -Eo 'var chipsNum = [0-9]+' | grep -Eo '[0-9]+' )
 	elif is_series_19; then
 		model19=$( cat /www/pages/js/models.js | grep "^var model.*" | cut -d"'" -f2 )
-		chipsNum=$( cat /www/pages/js/models.js | grep -A 2 "$model19" | grep -Eo '(chipsNum: )[0-9]+' | grep -Eo '[0-9]+' ) #'
+		chipsNum=$( cat /www/pages/js/models.js | grep -A 2 "'$model19'" | grep -Eo '(chipsNum: )[0-9]+' | grep -Eo '[0-9]+' ) #'
 	fi
 
 	generate_voltage_array[0]="$volt"
