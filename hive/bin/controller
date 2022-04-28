@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.5.4'
+readonly script_version='2.5.5'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -726,6 +726,12 @@ function filter_lines_send_messages {																(( script_DEBUG )) && debug
 			'/config/watchdog.log')													# Hiveon
 
 				case "$log_message" in
+
+					'.'*)															# L3+
+						# originally it was like 'started' -- a simple service notification
+						# example: '. '
+						event_type='skip'
+					;;
 
 					'Tune is in progress'*)											# S9
 						# example: 'Tune is in progress, wait 30 seconds...'
