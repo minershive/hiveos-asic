@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.2.2'
+readonly script_version='1.2.3'
 readonly script_basename="${0##*/}"
 
 
@@ -328,10 +328,12 @@ deploy_client () {
 	# vars
 	local full_package_URL='' tar_output='' this_URL
 	local persistent_package_filename_w_path="${NVRAM_path}/${persistent_package_filename}"
+	local persistent_package_filename_ro_path_19="${NVRAM_ro_path_19}/${persistent_package_filename}"
 
 	# flags
 	local is_package_inplace_ok_FLAG=0 # the package already exists and its integrity is ok, 1/[0]
 	local is_package_fetched_ok_FLAG=0 # the package was downloaded ok, 1/[0]
+	local is_package_inplace_19_ok_FLAG=0 # the package already exists for 19 1/[0]
 
 	# code
 	echo_action 'The Client deployment launched in the background'
@@ -342,6 +344,15 @@ deploy_client () {
 			is_package_inplace_ok_FLAG=1
 		else
 			rm -rf "${persistent_package_filename_w_path:-SAFE}" # remove the broken package, to be sure
+			is_package_inplace_ok_FLAG=0
+		fi
+	elif [ -f "$persistent_package_filename_ro_path_19" ]; then
+		echo_info "Package $persistent_package_filename_ro_path_19 found"
+		if check_gz_integrity "$persistent_package_filename_ro_path_19"; then
+			is_package_inplace_ok_FLAG=1
+			is_package_inplace_19_ok_FLAG=1
+		else
+			echo_warning "Package $persistent_package_filename_ro_path_19 broken"
 			is_package_inplace_ok_FLAG=0
 		fi
 	else
@@ -378,8 +389,17 @@ deploy_client () {
 
 	echo_action "Extracting $persistent_package_filename_w_path"
 
-	cd "$NVRAM_path" || die "Changing directory to $NVRAM_path FAILED, exiting"
-	tar_output="$( tar -xzv -f "$persistent_package_filename_w_path" 2>&1 )" || die "${tar_output}\n\nExtracting $persistent_package_filename_w_path FAILED, exiting"
+	if [ -f "$persistent_package_filename_ro_path_19" ]; then
+		cd "$NVRAM_ro_path_19" || die "Changing directory to $NVRAM_path FAILED, exiting" # 19
+	else
+		cd "$NVRAM_path" || die "Changing directory to $NVRAM_path FAILED, exiting" # 17
+	fi
+
+	if [ "$is_package_inplace_19_ok_FLAG" -eq 1 ]; then
+		tar_output="$( tar -xzv -f "$persistent_package_filename_ro_path_19" 2>&1 )" || die "${tar_output}\n\nExtracting $persistent_package_filename_ro_path_19 FAILED, exiting" # 19
+	else
+		tar_output="$( tar -xzv -f "$persistent_package_filename_w_path" 2>&1 )" || die "${tar_output}\n\nExtracting $persistent_package_filename_w_path FAILED, exiting" # 17
+	fi
 
 	[ -L /hive ] && rm /hive
 	rm -rf hiveos-asic-*/hive/sbin/teleconsole # remove the legacy before copying
@@ -429,6 +449,7 @@ boot_client () {
 # global consts
 readonly NVRAM_path_default='/nvdata'
 readonly NVRAM_path_quirk='/opt'
+readonly NVRAM_ro_path_19='/nvdata19'
 readonly persistent_package_filename='latest.tar.gz'
 
 readonly dev_build_file='dev-build'
