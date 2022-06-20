@@ -351,6 +351,8 @@ case "$ASIC_MODEL" in
 	'Antminer S17'*		|\
 	'Antminer T15'*		|\
 	'Antminer T17'*		|\
+	'Antminer S19'*		|\
+	'Antminer T19'*		|\
 	'Antminer X17'*)	do_upgrade_for 'ro'	;;
 
 	'Antminer L3'*)		do_upgrade_for 'L3'	;;
