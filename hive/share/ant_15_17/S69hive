@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.2.3'
+readonly script_version='1.2.4'
 readonly script_basename="${0##*/}"
 
 
@@ -435,7 +435,7 @@ boot_client () {
 
 	# $FARM_HASH can be defined externally
 	if [ -s "$FARM_HASH_file" ]; then
-		FARM_HASH=$( cat "$FARM_HASH_file" )
+		FARM_HASH=$( sed -n 1p "$FARM_HASH_file" | tr -dc '[:alnum:]\n\r' | cut -c -40 )
 		echo_info "External FARM_HASH found in $FARM_HASH_file: $FARM_HASH"
 		/hive/sbin/bash -c "/hive/bin/firstrun $FARM_HASH"
 		rm "$FARM_HASH_file"
