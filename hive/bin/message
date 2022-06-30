@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.7.2'
+readonly script_version='0.7.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -127,11 +127,11 @@ function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be t
 	return "$incoming_exitcode" # pass on the exit code (let's be completely exitcode-transparent like in pipes)
 }
 
-function curl_select_protocol {
+function get_curl_cmdline {
 	if (( is_https_allowed_FLAG )); then
-		curl_protocol="curl --cacert ${ca_cert_FILE} "
+		printf '%s' "curl --cacert ${ca_cert_FILE} "
 	else
-		curl_protocol="curl --insecure "
+		printf '%s' "curl --insecure "
 	fi
 }
 
@@ -263,7 +263,7 @@ done
 
 # check https, set flag
 is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
-curl_select_protocol
+curl_protocol="$( get_curl_cmdline )"
 
 # send file
 if [[ -n "$file_to_send" ]]; then

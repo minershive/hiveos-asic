@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.6-debug'
+readonly script_version='0.14.7-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -179,6 +179,40 @@ log_line debug 'jq_batch_process() step 3'
 		errcho "$JSON_input_by_ref variable is empty"
 	fi
 }
+
+function is_https_allowed {
+	# code
+	[[ -f "$https_semaphore_flag_FILE" ]]
+}
+
+function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be the first command in the function to appropriately catch the exit code
+	#
+	# Usage: grab_exit_code_to_flag 'variable_by_ref'
+	#
+
+	# args
+	local -r -n variable_by_ref="$1"
+
+	# code
+	if (( incoming_exitcode == 0 )); then
+		variable_by_ref=1
+	else
+		# shellcheck disable=SC2034
+		# bc by ref
+		variable_by_ref=0
+	fi
+
+	return "$incoming_exitcode" # pass on the exit code (let's be completely exitcode-transparent like in pipes)
+}
+
+function get_curl_cmdline {
+	if (( is_https_allowed_FLAG )); then
+		printf '%s' "curl --cacert ${ca_cert_FILE} "
+	else
+		printf '%s' "curl --insecure "
+	fi
+}
+
 
 function screen_session_terminate {
 	#
@@ -1208,12 +1242,22 @@ function fetch_stats_and_push_them_to_server {
 			API_HOST_URLs_working_collection_index=0
 
 			# parse API_HOST_URLs to API_HOST_URLs_working_collection
-			if [[ -n "${API_HOST_URLs-}" ]]; then
-				# parse a whole API_HOST_URLs string to the URLs collection array; sanitizing 'https' to 'http' at the same time
-				read -t 10 -r -a API_HOST_URLs_working_collection <<< "${API_HOST_URLs//https:\/\//http:\/\/}"
+			if (( ! is_https_allowed_FLAG )); then
+				if [[ -n "${API_HOST_URLs-}" ]]; then
+					# parse a whole API_HOST_URLs string to the URLs collection array; sanitizing 'https' to 'http' at the same time
+					read -t 10 -r -a API_HOST_URLs_working_collection <<< "${API_HOST_URLs//https:\/\//http:\/\/}"
+				else
+					# HIVE_HOST_URL is deprecated, but better safe than sorry; sanitizing 'https' to 'http' at the same time
+					API_HOST_URLs_working_collection[0]="${HIVE_HOST_URL//https:\/\//http:\/\/}"
+				fi
 			else
-				# HIVE_HOST_URL is deprecated, but better safe than sorry; sanitizing 'https' to 'http' at the same time
-				API_HOST_URLs_working_collection[0]="${HIVE_HOST_URL//https:\/\//http:\/\/}"
+				if [[ -n "${API_HOST_URLs-}" ]]; then
+					# parse a whole API_HOST_URLs string to the URLs collection array; sanitizing 'https' to 'http' at the same time
+					read -t 10 -r -a API_HOST_URLs_working_collection <<< "${API_HOST_URLs}"
+				else
+					# HIVE_HOST_URL is deprecated, but better safe than sorry; sanitizing 'https' to 'http' at the same time
+					API_HOST_URLs_working_collection[0]="${HIVE_HOST_URL}"
+				fi
 			fi
 			if (( can_haz_bootstrap_servers_FLAG )); then
 				# append only unique hosts from API_HOST_URLs_bootstrap_collection
@@ -1358,12 +1402,16 @@ log_line debug 'process_total_khs_and_arr()'
 
 log_line debug 'check https'
 
+# check https, set flag
+is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
+curl_protocol="$( get_curl_cmdline )"
+
 	# !!! and now the duct tape
 	# !!! fix /hive/bin/message then ditch this under the bus
 	# protection measures -- we don't have https on the vast majority of ASICs
 	if [[ "$HIVE_HOST_URL" == 'https://'* ]]; then
 		log_line warning "Secure connection to $HIVE_HOST_URL is not supported, most likely"
-		if (( ! https_disabled_message_sent_FLAG )); then
+		if (( ! https_disabled_message_sent_FLAG )) && (( ! is_https_allowed_FLAG )); then
 			cp "$RIG_CONF" "${RIG_CONF}.original"
 			sed -i 's|HIVE_HOST_URL="https://|HIVE_HOST_URL="http://|' "$RIG_CONF"
 			message warning "Server URL with HTTPS might not be supported on this ASIC. It's recommended to switch to HTTP (Settings->Mirror select)" --silent
@@ -1440,9 +1488,9 @@ log_line debug 'is_failover_connection_in_force check'
 		request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=stats"
 		time_start_sending_stats="$( get_system_uptime_in_milliseconds )"
 		response="$(
-			curl												\
+			${curl_protocol}									\
 																\
-				--insecure --location --data @- --silent		\
+				--location --data @- --silent					\
 																\
 				--header 'Content-Type: application/json'		\
 				--request POST "$request_endpoint"				\
@@ -1932,9 +1980,9 @@ function do_command {
 					)"
 					request_endpoint="${API_HOST_URL_current}/worker/api?id_rig=${RIG_ID}&method=password_change_received"
 					response="$(
-						curl												\
+						${curl_protocol}									\
 																			\
-							--insecure --location --data @- --silent		\
+							--location --data @- --silent					\
 																			\
 							--header 'Content-Type: application/json'		\
 							--request POST "$request_endpoint"				\
@@ -2235,7 +2283,9 @@ declare -r -i failover_connection_duration_in_s_DEFAULT=$(( failover_connection_
 declare -r -i push_interval_DEFAULT=10
 #
 declare -r -i curl_connect_timeout=15 curl_max_time=25
-
+#
+declare -r https_semaphore_flag_FILE="/run/hive/https-supported.flag"
+declare -r ca_cert_FILE='/etc/ssl/certs/ca-certificates.crt'
 
 # global arrays
 
@@ -2281,7 +2331,7 @@ declare -i is_api_host_file_relevant_FLAG=0
 declare -i can_haz_bootstrap_servers_FLAG=1 # let's act willfully
 declare -i is_pstree_supported_FLAG=0
 declare -i is_custom_push_interval_FLAG=0
-
+declare -i is_https_allowed_FLAG=0
 
 # sources
 
