@@ -11,7 +11,7 @@
 
 
 readonly script_mission='Client for ASICs: The Messenger'
-readonly script_version='0.7.1'
+readonly script_version='0.7.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -102,12 +102,46 @@ function is_api_server_response_ok {
 	return 0
 }
 
+function is_https_allowed {
+	# code
+	[[ -f "$https_semaphore_flag_FILE" ]]
+}
+
+function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be the first command in the function to appropriately catch the exit code
+	#
+	# Usage: grab_exit_code_to_flag 'variable_by_ref'
+	#
+
+	# args
+	local -r -n variable_by_ref="$1"
+
+	# code
+	if (( incoming_exitcode == 0 )); then
+		variable_by_ref=1
+	else
+		# shellcheck disable=SC2034
+		# bc by ref
+		variable_by_ref=0
+	fi
+
+	return "$incoming_exitcode" # pass on the exit code (let's be completely exitcode-transparent like in pipes)
+}
+
+function curl_select_protocol {
+	if (( is_https_allowed_FLAG )); then
+		curl_protocol="curl --cacert ${ca_cert_FILE} "
+	else
+		curl_protocol="curl --insecure "
+	fi
+}
 
 # global consts
 
 declare -r RIG_CONF_default='/hive-config/rig.conf'
 declare -r RIG_CONF="${RIG_CONF:-$RIG_CONF_default}" # for ASIC emulator: set to default only if RIG_CONF variable is empty
 declare -r API_HOST_FILE='/run/hive/api_host_url' # an accessory file for the /hive/bin/message and /hive/bin/hello
+declare -r https_semaphore_flag_FILE="/run/hive/https-supported.flag"
+declare -r ca_cert_FILE='/etc/ssl/certs/ca-certificates.crt'
 
 # global vars
 
@@ -119,6 +153,7 @@ declare file_to_send='' file_size
 declare -i curl_exitcode script_exitcode=0
 declare -i is_silent_FLAG=0 is_verbose_FLAG=0 is_templates_escaped_FLAG=0
 declare console_message=''
+declare -i is_https_allowed_FLAG=0
 
 
 # global exports
@@ -226,6 +261,10 @@ done
 # try to expand templates in the message header
 [[ -n "$message_header" ]] && (( ! is_templates_escaped_FLAG )) && expand_hive_templates_in_variable_by_ref 'message_header'
 
+# check https, set flag
+is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
+curl_select_protocol
+
 # send file
 if [[ -n "$file_to_send" ]]; then
 	# if a regular file isn't empty OR
@@ -241,7 +280,7 @@ if [[ -n "$file_to_send" ]]; then
 			;;
 
 			'file.io')
-				filesharing_server_response="$( curl --form "file=@$file_to_send" --insecure --silent https://file.io )"
+				filesharing_server_response="$( ${curl_protocol} --form "file=@$file_to_send" --silent https://file.io )"
 				curl_exitcode=$?
 				if (( curl_exitcode )); then
 					errcho "$console_message ${BRED}NETWORK ERROR ($curl_exitcode)${NOCOLOR}"
@@ -264,7 +303,7 @@ if [[ -n "$file_to_send" ]]; then
 			;;
 
 			'transfer.sh')
-				filesharing_server_response="$( curl --insecure --silent --upload-file "$file_to_send" "https://transfer.sh/$message_header" )"
+				filesharing_server_response="$( ${curl_protocol} --silent --upload-file "$file_to_send" "https://transfer.sh/$message_header" )"
 				curl_exitcode=$?
 				if (( curl_exitcode )); then
 					errcho "$console_message ${BRED}NETWORK ERROR ($curl_exitcode)${NOCOLOR}"
@@ -365,8 +404,8 @@ for (( attempts_counter = 1; attempts_counter <= max_connection_attempts; attemp
 
 	api_server_response="$(
 		request_endpoint="${HIVE_API_endpoint}?id_rig=${RIG_ID}&method=message"
-		curl												\
-			--insecure --location --data @- --silent		\
+		${curl_protocol}									\
+			--location --data @- --silent					\
 															\
 			--connect-timeout "$curl_connect_timeout"		\
 			--max-time "$curl_max_time"						\
