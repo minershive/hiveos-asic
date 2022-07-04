@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.25'
+declare -r ant_functions_lib_version='0.1.26'
 
 
 # !!! bash strict mode, no unbound variables
@@ -500,6 +500,7 @@ function send_custom_fw_config_to_server {
 	for this_URL in "${HIVE_URL_collection[@]}"; do
 		this_URL="${this_URL%/}" # cut the trailing slash, if any (like as in rocketchain's local API server URL)
 		echo "Sending config to $this_URL..."
+		echo "DEBUG ${curl_protocol}"
 		response="$( jq --compact-output '.' <<< "$request" |
 			${curl_protocol} --location --data @- --silent \
 			--connect-timeout 15 --max-time 25  \
@@ -574,6 +575,8 @@ declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_UR
 	[6]='http://msk.hiveos.farm'
 	[7]='http://ca1.hiveos.farm'
 )
+declare -r https_semaphore_flag_FILE="/run/hive/https-supported.flag"
+declare -r ca_cert_FILE='/etc/ssl/certs/ca-certificates.crt'
 declare -i https_disabled_message_sent=0
 declare -i is_https_allowed_FLAG=0
 
