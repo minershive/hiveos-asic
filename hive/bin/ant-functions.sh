@@ -9,7 +9,7 @@
 
 
 declare -r ant_functions_lib_mission='Antminer and Custom FW functions'
-declare -r ant_functions_lib_version='0.1.24'
+declare -r ant_functions_lib_version='0.1.25'
 
 
 # !!! bash strict mode, no unbound variables
@@ -121,6 +121,39 @@ function __list_functions {
 
 
 #ant functions
+
+function is_https_allowed {
+	# code
+	[[ -f "$https_semaphore_flag_FILE" ]]
+}
+
+function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be the first command in the function to appropriately catch the exit code
+	#
+	# Usage: grab_exit_code_to_flag 'variable_by_ref'
+	#
+
+	# args
+	local -r -n variable_by_ref="$1"
+
+	# code
+	if (( incoming_exitcode == 0 )); then
+		variable_by_ref=1
+	else
+		# shellcheck disable=SC2034
+		# bc by ref
+		variable_by_ref=0
+	fi
+
+	return "$incoming_exitcode" # pass on the exit code (let's be completely exitcode-transparent like in pipes)
+}
+
+function get_curl_cmdline {
+	if (( is_https_allowed_FLAG )); then
+		printf '%s' "curl --cacert ${ca_cert_FILE} "
+	else
+		printf '%s' "curl --insecure "
+	fi
+}
 
 function is_series_17 {
 	# code
@@ -452,7 +485,7 @@ function send_custom_fw_config_to_server {
 	HIVE_URL_collection[0]="$HIVE_URL" # zeroth index for original HIVE_HOST_URL
 	# !!! duct tape
 	# protection measures -- we might don't have https on the vast majority of ASICs
-	if [[ "$HIVE_URL" =~ ^https:// ]]; then
+	if [[ "$HIVE_URL" =~ ^https:// ]] && (( ! is_https_allowed_FLAG )); then
 		echo "API server $HIVE_URL is not supported, most likely"
 		HIVE_URL_collection[1]="${HIVE_URL/https:\/\//http:\/\/}" # and 2nd place for a http form of https'ed HIVE_HOST_URL
 #		if (( https_disabled_message_sent == 0 )); then
@@ -468,7 +501,7 @@ function send_custom_fw_config_to_server {
 		this_URL="${this_URL%/}" # cut the trailing slash, if any (like as in rocketchain's local API server URL)
 		echo "Sending config to $this_URL..."
 		response="$( jq --compact-output '.' <<< "$request" |
-			curl --insecure --location --data @- --silent \
+			${curl_protocol} --location --data @- --silent \
 			--connect-timeout 15 --max-time 25  \
 			--request POST "$this_URL/worker/api?id_rig=$RIG_ID&method=set_asic_config" \
 			--header 'Content-Type: application/json'
@@ -542,11 +575,15 @@ declare -a HIVE_URL_collection=( # indices 0 and 1 are reserved for HIVE_HOST_UR
 	[7]='http://ca1.hiveos.farm'
 )
 declare -i https_disabled_message_sent=0
-
+declare -i is_https_allowed_FLAG=0
 
 # main
 
 if ! ( return 0 2>/dev/null ); then # not sourced
+
+# check https, set flag
+is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
+curl_protocol="$( get_curl_cmdline )"
 
 	declare -r script_mission="$ant_functions_lib_mission"
 	declare -r script_version="$ant_functions_lib_version"

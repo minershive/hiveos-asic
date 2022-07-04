@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.5.6'
+readonly script_version='2.5.7'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -71,6 +71,39 @@ function parse_arguments {																			(( script_DEBUG )) && debugcho "$@"
 			exit $(( exitcode_ERROR_IN_ARGUMENTS ))
 		;;
 	esac
+}
+
+function is_https_allowed {
+	# code
+	[[ -f "$https_semaphore_flag_FILE" ]]
+}
+
+function grab_exit_code_to_flag { local -r -i incoming_exitcode="$?" # must be the first command in the function to appropriately catch the exit code
+	#
+	# Usage: grab_exit_code_to_flag 'variable_by_ref'
+	#
+
+	# args
+	local -r -n variable_by_ref="$1"
+
+	# code
+	if (( incoming_exitcode == 0 )); then
+		variable_by_ref=1
+	else
+		# shellcheck disable=SC2034
+		# bc by ref
+		variable_by_ref=0
+	fi
+
+	return "$incoming_exitcode" # pass on the exit code (let's be completely exitcode-transparent like in pipes)
+}
+
+function get_curl_cmdline {
+	if (( is_https_allowed_FLAG )); then
+		printf '%s' "curl --cacert ${ca_cert_FILE} "
+	else
+		printf '%s' "curl --insecure "
+	fi
 }
 
 function initialize_dictionaries {																	(( script_DEBUG )) && debugcho
@@ -1212,7 +1245,7 @@ function sync_time_via_hive_server { # not used atm
 	if [[ -z ${HIVE_HOST_URL-} ]]; then
 		HIVE_HOST_URL='http://api.hiveos.farm'
 	fi
-	if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
+	if server_answer="$( ${curl_protocol} --silent --head "$HIVE_HOST_URL" 2>&1 )"; then
 		date_from_server_in_seconds="$( grep -F -m 1 'Date:' <<< "$server_answer" | cut -d' ' -f3-6 | timetran )"
 		echo "Setting actual date from API server: $( date -s "@$date_from_server_in_seconds" )"
 	else
@@ -1270,7 +1303,7 @@ function checkup:is_it_the_past {																	(( script_DEBUG )) && debugcho
 		if [[ -z ${HIVE_HOST_URL-} ]]; then
 			HIVE_HOST_URL='http://api.hiveos.farm'
 		fi
-		if server_answer="$( curl --silent --head "$HIVE_HOST_URL" 2>&1 )" && [[ -n "$server_answer" ]]; then
+		if server_answer="$( ${curl_protocol} --silent --head "$HIVE_HOST_URL" 2>&1 )" && [[ -n "$server_answer" ]]; then
 			if date_from_server_raw="$( grep -F -m 1 'Date:' <<< "$server_answer" )" && [[ -n "$date_from_server_raw" ]]; then
 				if date_from_server_in_seconds="$( cut -d' ' -f3-6 <<< "$date_from_server_raw" | timetran 2> /dev/null )" && [[ "$date_from_server_in_seconds" =~ positive_integer_RE ]]; then
 					print_controller_log_entry "$event_type_for_log" "System date's year is $current_year. Getting actual date from server: $( date -s "@$date_from_server_in_seconds" )"
@@ -2222,6 +2255,8 @@ declare -r -i exitcode_WARNING_SOMETHING_HAPPENED=1
 
 declare -r ntp_server='pool.ntp.org'
 
+declare -r https_semaphore_flag_FILE="/run/hive/https-supported.flag"
+declare -r ca_cert_FILE='/etc/ssl/certs/ca-certificates.crt'
 
 # global sources
 
@@ -2244,7 +2279,7 @@ declare -r ntp_server='pool.ntp.org'
 
 declare time_source # ntpd|ntpdate|hive
 declare -i is_RIG_ID_ok_FLAG=0 # means NOT OK at the start, will check this (and set to OK) in is_custom_fw_config_in_sync() later
-
+declare -i is_https_allowed_FLAG=0
 
 # crontab
 
@@ -2276,6 +2311,10 @@ declare -a crontab=(
 #DNS checks
 #wd
 # extended virus checks
+
+# check https, set flag
+is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
+curl_protocol="$( get_curl_cmdline )"
 
 parse_arguments "$@"
 initialize_dictionaries

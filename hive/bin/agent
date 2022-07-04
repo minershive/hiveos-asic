@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.7-debug'
+readonly script_version='0.14.8-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1400,11 +1400,6 @@ log_line debug 'process_total_khs_and_arr()'
 		return
 	fi
 
-log_line debug 'check https'
-
-# check https, set flag
-is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
-curl_protocol="$( get_curl_cmdline )"
 
 	# !!! and now the duct tape
 	# !!! fix /hive/bin/message then ditch this under the bus
@@ -2358,6 +2353,7 @@ fi
 
 log_line ok "$script_mission, version $script_version started"
 log_line info "Detected ASIC model: ${WHITE}$ASIC_MODEL"
+
 echo
 
 # (re)starting wd
@@ -2366,6 +2362,14 @@ if (( "${WD_ENABLED:-0}" )); then
 	snore 5
 fi
 wd start &
+
+log_line debug 'check https'
+
+# check https, set flag
+is_https_allowed; grab_exit_code_to_flag 'is_https_allowed_FLAG'
+curl_protocol="$( get_curl_cmdline )"
+log_line info "https flag: ${is_https_allowed_FLAG}"
+
 
 # set a flag for the process management
 pstree -p "$$" &> /dev/null	&& is_pstree_supported_FLAG=1
