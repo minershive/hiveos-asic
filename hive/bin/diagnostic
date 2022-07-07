@@ -9,9 +9,18 @@
 
 
 readonly script_mission='Client for ASICs: Diagnostic'
-readonly script_version='0.0.6'
+readonly script_version='0.1.0'
 readonly script_basename="${0##*/}"
 
+function script_usage {
+	echo -e "Usage: ${CYAN-}$script_basename [full|start|stop|pool]${NOCOLOR-}"
+	echo -e ""
+	echo -e "       ${CYAN-}$script_basename full ${NOCOLOR-}                               Show full diagnostic with all pools"
+	echo -e "       ${CYAN-}$script_basename start [minutes] ${NOCOLOR-}                    Run full diagnostic every X minutes. Default 30 min."
+	echo -e "       ${CYAN-}$script_basename pool ${NOCOLOR-}                               Test mtr fist pool from config, and send log every 1h."
+	echo -e "       ${CYAN-}$script_basename stop ${NOCOLOR-}                               Stop all cycle tests"
+	echo -e "Or you can run ${CYAN-}$script_basename${NOCOLOR-} without parameters"
+}
 
 function print_with_identation {
 	#
@@ -66,97 +75,214 @@ function ping_conntrack_check {
 
 # main
 
+function hw {
+	# HW: +date, +model, fw, +agent-version
+	echo '---HW---'
+	[[ -s /hive/etc/VERSION ]] && agent_release_version="$( < /hive/etc/VERSION )"
+	[[ -s /hive/etc/build ]] && agent_build_version="$( < /hive/etc/build )"
+	agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-release}"
+	echo "Date: $( date )"
+	echo "Model: $ASIC_MODEL ($ASIC_MANUFACTURER)"
+	echo "Client version: $agent_full_version"
+}
+
+function lan {
+# LAN: +ip, +gw, +dns, +route, +mac, +ping gw, +ping dns, +arp
+	ip="$(					LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
+	route="$(				LANG=C route -n | grep -v 'routing table' | print_with_identation )"
+	gateway="$(				rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' <<< $route )"
+	nameserver="$(			rematch 'nameserver[ \t]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' < /etc/resolv.conf )" # first nameserver
+#	nameserver="$(<>grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )"
+	mac="$(					LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
+	arp_check="$(			print_with_identation < /proc/net/arp )"
+	ping_gw="$(				ping -c 5 -q "$gateway" | grep -v -e '---' -e '^$' | print_with_identation )"
+	ping_gw_count="$(		ping_conntrack_check "$gateway" )"
+
+	if [[ "$gateway" == "$nameserver" ]]; then
+		is_gateway_and_dns_equal_FLAG=1
+	else
+		is_gateway_and_dns_equal_FLAG=0
+		ping_dns="$(		ping -c 5 -q "$nameserver" | grep -v -e '---' -e '^$' | print_with_identation )"
+		ping_dns_count="$(	ping_conntrack_check "$nameserver" )"
+	fi
+
+	echo -e "\n---LAN---"
+	echo "IP: $ip   Gateway: $gateway   Nameserver: $nameserver   MAC: $mac"
+	echo
+	echo -e "Ping GW:\n$ping_gw"
+	echo
+	echo -e "Ping GW 10 attempts (conntrack check): $ping_gw_count"
+	echo
+	if (( is_gateway_and_dns_equal_FLAG )); then
+
+		:
+		#echo -e "Ping DNS skipped: gateway = dns"
+	else
+		echo -e "Ping DNS:\n$ping_dns"
+		echo
+		echo -e "Ping DNS 10 attempts (conntrack check):\n$ping_dns_count"
+	fi
+	echo
+	echo -e "Routing table:\n$route"
+	echo
+	echo -e "ARP cache:\n$arp_check"
+	echo
+	echo '/etc/resolv.conf:'
+	print_with_identation < /etc/resolv.conf
+}
+
+function inet {
+	# INET: +ping inet DNS, +location and realip
+	echo -e "\n---INET---"
+	# ping inet DNS
+	ping_dns_1="$( ping -c 3 -q 8.8.8.8 | grep -v -e '---' -e '^$' | print_with_identation )"
+	ping_dns_2="$( ping -c 3 -q 1.1.1.1 | grep -v -e '---' -e '^$' | print_with_identation )"
+	# location and realip
+	location="$( curl -s 2ip.ua | print_with_identation )"
+
+	echo -e "Ping Inet DNS 1:\n$ping_dns_1"
+	echo
+	echo -e "Ping Inet DNS 2:\n$ping_dns_2"
+	echo
+	echo -e "Location:\n$location"
+	echo
+
+	#dns
+	nslookup api.hiveos.farm
+
+	#mtr
+	mtr -b -c 10 -r api.hiveos.farm -P 80
+
+	# SERVER: hive-api, resolve ip, ping, time curl, other servers
+	echo -e "\n---API---"
+
+	# FARM: farm_id, rig_id, rig.conf file date, wallet file date
+	echo -e "\n---FARM---"
+}
+
+function fee {
+	#check port
+	ports=( 3333 4444 25 443 14931 1314 )
+	for port in ${ports[@]}; do
+		echo "$port":
+		curl -s http://portquiz.net:$port
+		echo
+	done
+}
+
+function long_test {
+	echo -e "\n---STATS---"
+	echo '{"command":"stats"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n' | sed 's/}{/},{/' | jq '.' # Майнер статус
+	echo -e "\n---POOLS---"
+	echo '{"command":"pools"}' | timeout -t 7 nc localhost 4028 | tr -d '\0\n' | sed 's/}{/},{/' | jq '.' # APi pools
+	[ -e "/nvdata/miner_status.log" ] && message file "/nvdata/miner_status.log" # Лог статусов
+	[ -e "/config/log" ] && message file "/config/log" # Старый лог
+	miner log file # kernel log
+
+	echo -e "\n---MEM---"
+	free
+
+	echo -e "\n---FLASH---"
+	df -h
+
+	echo -e "\n---CPU---"
+	top -b -n1 | grep 'CPU:' | grep -v grep
+
+	echo -e "\n---DNS MTR---"
+	nameserver="$( grep -m1 '^nameserver' /etc/resolv.conf | awk '{ print $2 }' )"
+	mtr -b -c 30 -r "$nameserver"
+
+	echo -e "\n---POOLs MTR---"
+	pool1="$( cat /config/cgminer.conf | jq -c '.pools[0].url' | awk -F\: '{print $2}' | awk -F / '{print $NF}' )"
+	port1="$( cat /config/cgminer.conf | jq -c '.pools[0].url' | awk -F\: '{print $3}' | grep -o '[0-9]\+' )"
+	pool2="$( cat /config/cgminer.conf | jq -c '.pools[1].url' | awk -F\: '{print $2}' | awk -F / '{print $NF}' )"
+	port2="$( cat /config/cgminer.conf | jq -c '.pools[1].url' | awk -F\: '{print $3}' | grep -o '[0-9]\+' )"
+	pool3="$( cat /config/cgminer.conf | jq -c '.pools[2].url' | awk -F\: '{print $2}' | awk -F / '{print $NF}' )"
+	port3="$( cat /config/cgminer.conf | jq -c '.pools[2].url' | awk -F\: '{print $3}' | grep -o '[0-9]\+' )"
+	echo -e "pool 1: $pool1 $port1"
+	mtr -b -c 60 -r "$pool1" -P "$port1"
+	echo -e "pool 2: $pool2 $port2"
+	mtr -b -c 60 -r "$pool2" -P "$port2"
+	echo -e "pool 3: $pool3 $port3"
+	mtr -b -c 60 -r "$pool3" -P "$port3"
+}
+
+function pool_test {
+	echo -e "\n---POOLs MTR---"
+	pool1="$( cat /config/cgminer.conf | jq -c '.pools[0].url' | awk -F\: '{print $2}' | awk -F / '{print $NF}' )"
+	port1="$( cat /config/cgminer.conf | jq -c '.pools[0].url' | awk -F\: '{print $3}' | grep -o '[0-9]\+' )"
+	echo -e "pool 1: $pool1 $port1"
+	mtr -b -c 3600 -r "$pool1" -P "$port1"
+}
+
+
+function motd {
+  /hive/etc/motd
+}
+
 [[ -s /hive/bin/asic-model ]] && source /hive/bin/asic-model
 [[ -s /hive-config/rig.conf ]] && source /hive-config/rig.conf
+#[[ -s /hive/etc/motd ]] && source /hive/etc/motd
 
 
+function lite {
+	motd
+	hw
+	lan
+	inet
+	fee
+}
 
-# HW: +date, +model, fw, +agent-version
-echo '---HW---'
-[[ -s /hive/etc/VERSION ]] && agent_release_version="$( < /hive/etc/VERSION )"
-[[ -s /hive/etc/build ]] && agent_build_version="$( < /hive/etc/build )"
-agent_full_version="${agent_release_version:-[unknown]}-${agent_build_version:-release}"
-echo "Date: $( date )"
-echo "Model: $ASIC_MODEL ($ASIC_MANUFACTURER)"
-echo "Client version: $agent_full_version"
-
-
-
-# LAN: +ip, +gw, +dns, +route, +mac, +ping gw, +ping dns, +arp
-ip="$(					LANG=C ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1 }' )"
-route="$(				LANG=C route -n | grep -v 'routing table' | print_with_identation )"
-gateway="$(				rematch '[0-9\.]+[ \t]+([0-9\.]+).+UG' <<< $route )"
-nameserver="$(			rematch 'nameserver[ \t]+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' < /etc/resolv.conf )" # first nameserver
-mac="$(					LANG=C ifconfig eth0 | rematch 'HWaddr (.{17})' )"
-arp_check="$(			print_with_identation < /proc/net/arp )"
-ping_gw="$(				ping -c 5 -q "$gateway" | grep -v -e '---' -e '^$' | print_with_identation )"
-ping_gw_count="$(		ping_conntrack_check "$gateway" )"
-
-if [[ "$gateway" == "$nameserver" ]]; then
-	is_gateway_and_dns_equal_FLAG=1
-else
-	is_gateway_and_dns_equal_FLAG=0
-	ping_dns="$(		ping -c 5 -q "$nameserver" | grep -v -e '---' -e '^$' | print_with_identation )"
-	ping_dns_count="$(	ping_conntrack_check "$nameserver" )"
-fi
-
-echo -e "\n---LAN---"
-echo "IP: $ip   Gateway: $gateway   Nameserver: $nameserver   MAC: $mac"
-echo
-echo -e "Ping GW:\n$ping_gw"
-echo
-echo -e "Ping GW 10 attempts (conntrack check): $ping_gw_count"
-echo
-if (( is_gateway_and_dns_equal_FLAG )); then
-	echo -e "Ping DNS skipped: gateway = dns"
-else
-	echo -e "Ping DNS:\n$ping_dns"
-	echo
-	echo -e "Ping DNS 10 attempts (conntrack check):\n$ping_dns_count"
-fi
-echo
-echo -e "Routing table:\n$route"
-echo
-echo -e "ARP cache:\n$arp_check"
-echo
-echo '/etc/resolv.conf:'
-print_with_identation < /etc/resolv.conf
+function full {
+	motd
+	hw
+	lan
+	inet
+	fee
+	long_test
+}
 
 
+case "$1" in
+	'start')
+		interval=$(( ${2:-30} * 60 )) #default 30 min
+		while true; do
+			diagnostic full
+			sleep $interval
+		done
+	;;
 
-# INET: +ping inet DNS, +location and realip
-echo -e "\n---INET---"
-# ping inet DNS
-ping_dns_1="$( ping -c 3 -q 8.8.8.8 | grep -v -e '---' -e '^$' | print_with_identation )"
-ping_dns_2="$( ping -c 3 -q 1.1.1.1 | grep -v -e '---' -e '^$' | print_with_identation )"
-# location and realip
-location="$( curl -s 2ip.ua | print_with_identation )"
+	'stop')
+		killall diagnostic
+	;;
 
-echo -e "Ping Inet DNS 1:\n$ping_dns_1"
-echo
-echo -e "Ping Inet DNS 2:\n$ping_dns_2"
-echo
-echo -e "Location:\n$location"
-echo
+	'pool')
+		while true; do
+			date_start="$( printf '%(%m-%d-%H-%M-%S)T' )"
+			pool_test | tee "/tmp/mtr_pool1_3600.log"
+			cp -rf "/tmp/mtr_pool1_3600.log" "/tmp/mtr_pool1_3600_$date_start.log"
+			message file "/tmp/mtr_pool1_3600_$date_start.log"
+			rm "/tmp/mtr_pool1_3600_$date_start.log"
+		done
+	;;
 
 
-# SERVER: hive-api, resolve ip, ping, time curl, other servers
-echo -e "\n---API---"
+	'full')
+		date_start="$( printf '%(%m-%d-%H-%M-%S)T' )"
+		full | tee "/tmp/diag.log"
+		cp -rf "/tmp/diag.log" "/tmp/diag_$date_start.log"
+		message file "/tmp/diag_$date_start.log"
+		rm "/tmp/diag_$date_start.log"
+	;;
 
-# FARM: farm_id, rig_id, rig.conf file date, wallet file date
-echo -e "\n---FARM---"
+	'')
+#		print_script_version
+		lite
+	;;
 
-#check port
-ports=( 3333 4444 25 443 14931 1314 )
-for port in ${ports[@]}; do
-	echo "$port":
-	curl -s http://portquiz.net:$port
-	echo
-done
-
-#dns
-nslookup api.hiveos.farm
-
-#mtr
-mtr -b -c 20 -r api.hiveos.farm -P 80
+	'-h'|'--help'|*)
+#		print_script_version
+		script_usage
+	;;
+esac
 
