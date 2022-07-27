@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.10-debug'
+readonly script_version='0.14.11-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -598,7 +598,7 @@ function fetch_miner_stats {
 
 			# fix a broken API answer (like S9): '}{' -> '},{'                    vvvvvvvvvvv
 			STATS="$( jq --compact-output '.STATS'				<<< "${stats_raw//\}\{/\},\{}" 2> /dev/null )"	|| error_vars+=( "STATS#$?" )
-			hashrate_raw="$( jq --raw-output '.[1]."GHS 5s"'	<<< "$STATS" 2> /dev/null )"					|| error_vars+=( "hashrate_raw#$?" )
+			hashrate_raw="$( jq --raw-output '.[1]."GHS av"'	<<< "$STATS" 2> /dev/null )"					|| error_vars+=( "hashrate_raw#$?" )
 
 			# choose what units will be used
 			if [[ -n "$ASIC_TOTAL_HASHRATE_UNITS" ]]; then
