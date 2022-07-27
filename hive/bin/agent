@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Agent'
-readonly script_version='0.14.8-debug'
+readonly script_version='0.14.10-debug'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -613,6 +613,7 @@ function fetch_miner_stats {
 
 			uptime="$(			jq --raw-output		'.[1].Elapsed'																																			<<< "$STATS" 2> /dev/null )" || error_vars+=( "uptime#$?" )
 			hs="$(				jq --compact-output	'.[1] | with_entries( select(.key | test("chain_rate\\d+")) )	| to_entries | [ .[].value | if . != "" then tonumber else 0 end ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs#$?" )
+			hs_avg="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("chain_avgrate\\d+")) )| to_entries | [ .[].value | if . != "" then tonumber else 0 end ]'						<<< "$STATS" 2> /dev/null )" || error_vars+=( "hs_avg#$?" )
 			temp="$(			jq --compact-output	'.[1] | with_entries( select(.key | test("temp2_\\d+")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "temp#$?" )
 			chip_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp_chip\\d+")))		| to_entries | [ .[].value | split("-") | max | if . != "" then tonumber else "" end ]'	<<< "$STATS" 2> /dev/null )" || error_vars+=( "chip_temp#$?" )
 			board_temp="$(		jq --compact-output	'.[1] | with_entries( select(.key | test("temp\\d+$")) )		| to_entries | [ .[].value ]'															<<< "$STATS" 2> /dev/null )" || error_vars+=( "board_temp#$?" )
@@ -656,6 +657,7 @@ function fetch_miner_stats {
 
 			[[ "$chip_temp" =~ .[0-9]	]] && temp="$chip_temp"
 			[[ "$freq_new" =~ .[0-9]	]] && freq="$freq_new"
+			[[ "$hs_avg" =~ .[0-9]		]] && hs="$hs_avg"
 
 			stats="$( jq --null-input --compact-output																		\
 				--arg		'algo'			"$ASIC_ALGO"					--argjson	'hs'		"${hs:-null}"			\
@@ -671,7 +673,7 @@ function fetch_miner_stats {
 																															\
 				2> /dev/null
 			)" || error_vars+=( "stats#$?" )
-			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
+			(( script_DEBUG )) && debug_print_variable stats ASIC_ALGO hs ASIC_CHAIN_HASHRATE_UNITS hs_avg temp chip_temp board_temp fan_percent fan_rpm freq freq_new chain_voltage chain_acn power hw_errors chain_acs uptime ar asicboost
 		;;
 
 		'Antminer A3'										|\
