@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Antminer Firmware Upgrade'
-readonly script_version='0.1.22'
+readonly script_version='0.1.23'
 readonly script_basename="${0##*/}"
 
 
@@ -290,9 +290,9 @@ upgrade_ro () {
 	echo '> runme.sh finished'
 
 	if [ ! -s "$error_log" ]; then
-		echo -e "> ${BGREEN}Firmware upgrade complete. Rebooting in 10 seconds...${NOCOLOR}"
+		echo -e "> ${BGREEN}Firmware upgrade complete. Rebooting in 20 seconds...${NOCOLOR}"
 		# TODO should we fork the reboot to bg? so the agent can send a message to server?
-		sleep 10
+		sleep 20
 		sh /www/pages/cgi-bin/reboot.cgi || { sleep 5; /sbin/reboot -f; }
 	else
 		cat "$error_log"
