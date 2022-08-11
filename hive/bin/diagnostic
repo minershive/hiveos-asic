@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: Diagnostic'
-readonly script_version='0.1.1'
+readonly script_version='0.1.2'
 readonly script_basename="${0##*/}"
 
 function script_usage {
@@ -178,6 +178,7 @@ function long_test {
 	[ -e "/nvdata/miner_status.log" ] && message file "/nvdata/miner_status.log" # Лог статусов
 	[ -e "/config/log" ] && message file "/config/log" --header=previous_kernel.log # Старый лог
 	[ -e "/config/watchdog.log" ] && message file "/config/watchdog.log" # Ватчдог
+	[ -e "/tmp/tune_log.txt" ] && message file "/tmp/tune_log.txt" # Тюнлог
 	miner log file # kernel log
 
 	echo -e "\n---MEM---"
@@ -327,6 +328,14 @@ else
     watchdog_results="No watchdog logs"
 fi
 
+# get tune log
+if [ -e /www/pages/cgi-bin/get_tune_log.cgi ]; then
+    tune_results=$(sh /www/pages/cgi-bin/get_tune_log.cgi 2>&1)
+else
+    tune_results="No tune logs"
+fi
+
+
 
 # get miner config
 miner_config="$(ls /config/*miner.conf)\n\n\n"
@@ -408,6 +417,7 @@ bugreport_content="
 === Miner config:\n\n${miner_config}\n\n\n
 === API reply:\n\n${api_reply}\n\n\n
 === Watchdog:\n\n${watchdog_results}\n\n\n
+=== Tune log:\n\n${tune_results}\n\n\n
 === Drivers logs:\n\n${drivers_logs}\n\n\n
 === Kernel logs:\n\n${kernel_logs_results}"
 
