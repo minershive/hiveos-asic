@@ -1042,6 +1042,12 @@ wait_for_network
 # collect system information
 
 mb_manufacturer="$ASIC_MANUFACTURER"
+if [[ "$ASIC_MANUFACTURER" == 'Bitmain' && -s /usr/bin/manufacturer ]]; then
+	mb_manufacturer="$( < /usr/bin/manufacturer )"
+else
+	mb_manufacturer="$ASIC_MANUFACTURER"
+fi
+
 mb_product="$ASIC_MODEL"
 
 ip_json="$( get_ip_as_json )"
