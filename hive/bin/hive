@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.3.1'
+readonly script_version='0.3.2'
 readonly script_basename="${0##*/}"
 
 
@@ -337,6 +337,13 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_
 	#echo_x action 'Applying crontab'
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron1' > /dev/null 2>&1 &
 	#nohup /hive/sbin/bash -c 'sleep 60; /hive/bin/cron2' > /dev/null 2>&1 &
+	[ ! -f "/bin/cmp" ] && ln -s /hive/sbin/busybox.nosuid /bin/cmp
+	[ ! -f "/bin/nc" ] && ln -s /hive/sbin/busybox.nosuid /bin/nc
+	[ ! -f "/bin/nslookup" ] && ln -s /hive/sbin/busybox.nosuid /bin/nslookup
+	[ ! -f "/bin/renice" ] && ln -s /hive/sbin/busybox.nosuid /bin/renice
+	[ ! -f "/bin/free" ] && ln -s /hive/sbin/busybox.nosuid /bin/free
+	[ ! -f "/bin/time" ] && ln -s /hive/sbin/busybox.nosuid /bin/time
+	[ ! -f "/bin/uptime" ] && ln -s /hive/sbin/busybox.nosuid /bin/uptime
 
 	#hosts patch
 	touch /tmp/hosts

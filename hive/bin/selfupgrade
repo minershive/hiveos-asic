@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Update/install Client from repository'
-readonly script_version='0.18.5'
+readonly script_version='0.18.7'
 readonly script_basename="${0##*/}"
 
 
@@ -422,7 +422,7 @@ check_gz_integrity () {
 	if [ ! -s "$gz_to_check" ]; then
 		echo_error "$pretty_name not found or empty"
 		return 1
-	elif ! gunzip -tf "$gz_to_check" >/dev/null 2>&1; then
+	elif ! gunzip -tf "$gz_to_check" >/dev/null 2>&1 && ! tar -tvzf "$gz_to_check" >/dev/null 2>&1; then
 		echo_error "$pretty_name integrity check failed with error $?"
 		return 1
 	else
@@ -473,7 +473,7 @@ goto_temp_dir () {
 
 	# code
 
-	existing_temp_dir="$( df -h | grep -F '/tmp' | awk '{print $NF}' )" # find an existing temp dir
+	existing_temp_dir="$( df -h | grep -F '/tmp' | awk '{print $NF}' | head -1 )" # find an existing temp dir
 	[ -n "$existing_temp_dir" ] && temp_dir="$existing_temp_dir"
 	cd "$temp_dir" || die "cannot change directory to $temp_dir, exiting"
 }

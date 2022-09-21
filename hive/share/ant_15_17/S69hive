@@ -12,7 +12,7 @@
 
 
 readonly script_mission='Client for ASICs: Boot & Deploy'
-readonly script_version='1.2.4'
+readonly script_version='1.2.5'
 readonly script_basename="${0##*/}"
 
 
@@ -187,7 +187,7 @@ check_gz_integrity () {
 	if [ ! -s "$gz_to_check" ]; then
 		echo_warning "$gz_to_check not found or empty"
 		return 1
-	elif ! gunzip -tf "$gz_to_check" >/dev/null 2>&1; then
+	elif ! gunzip -tf "$gz_to_check" >/dev/null 2>&1 && ! tar -tvzf "$gz_to_check" >/dev/null 2>&1 ; then
 		echo_warning "Checking integrity FAILED with error $?"
 		return 1
 	else
