@@ -14,7 +14,7 @@ readonly script_mission='Client for ASICs: Say hello to the server'
 # shellcheck disable=SC2034
 # just because
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.8.1'
+readonly script_version='0.8.2'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -588,6 +588,10 @@ function get_kernel_version {
 		else
 			kernel_version+=' unsigned'
 		fi
+	fi
+
+	if [[ -s '/usr/bin/core' ]]; then
+		kernel_version+=" $( < /usr/bin/core )"
 	fi
 
 	echo "$kernel_version"
