@@ -9,7 +9,7 @@
 
 
 readonly script_mission='Client for ASICs: The Client Start'
-readonly script_version='0.3.2'
+readonly script_version='0.3.3'
 readonly script_basename="${0##*/}"
 
 
@@ -344,6 +344,8 @@ elif [[ $ASIC_MODEL =~ "Antminer T17" || $ASIC_MODEL =~ "Antminer S17" || $ASIC_
 	[ ! -f "/bin/free" ] && ln -s /hive/sbin/busybox.nosuid /bin/free
 	[ ! -f "/bin/time" ] && ln -s /hive/sbin/busybox.nosuid /bin/time
 	[ ! -f "/bin/uptime" ] && ln -s /hive/sbin/busybox.nosuid /bin/uptime
+	[ ! -f "/bin/gzip" ] && ln -s /hive/sbin/busybox.nosuid /bin/gzip
+	ln -sf /hive/sbin/busybox.nosuid /bin/ip
 
 	#hosts patch
 	touch /tmp/hosts
