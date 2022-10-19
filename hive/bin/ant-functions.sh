@@ -403,6 +403,10 @@ function generate_volt_conf {
 	volt="${volt##*=}"
 	freq="${freq##*=}"
 
+	if [[ -z "$volt" || -z "$freq" || "$volt" -eq 0 || "$freq" -eq 0 ]]; then
+		return
+	fi
+
 	if is_series_17; then
 		chipsNum=$( cat /www/pages/rate.html | grep -Eo 'var chipsNum = [0-9]+' | grep -Eo '[0-9]+' )
 	elif is_series_19; then
