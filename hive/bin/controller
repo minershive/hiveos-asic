@@ -12,7 +12,7 @@
 
 # shellcheck disable=SC2034
 readonly script_mission='Client for ASICs: Routine controller'
-readonly script_version='2.5.7'
+readonly script_version='2.5.8'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1335,6 +1335,7 @@ function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) 
 	# arrays
 
 	local -a df_output_ARR=()
+	local -a ls_output_ARR=()
 
 	# vars
 
@@ -1353,6 +1354,7 @@ function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) 
 	# [0]                         [1]        [2]      [3] [4] [5]
 
 	readarray -t df_output_ARR < <( df -k /config )
+	readarray -t ls_output_ARR < <( ls -l /config/ )
 	read -r _ _ _ NAND_free_space_in_kb _ <<< "${df_output_ARR[-1]}" # parse the last line
 
 	if [[ "$NAND_free_space_in_kb" =~ $positive_integer_RE ]]; then
@@ -1360,6 +1362,8 @@ function checkup:is_NAND_has_enough_free_space {													(( script_DEBUG )) 
 			is_something_happened=$(( exitcode_WARNING_SOMETHING_HAPPENED ))
 			print_controller_log_entry "$event_type_for_log" "/config directory running out of space: $NAND_free_space_in_kb Kb"
 			printf '%s\n' "${df_output_ARR[@]}" | tee >( message "$event_type_for_message" '/config directory running out of space. Click for technical details' --payload --silent )
+			printf '%s\n' "${ls_output_ARR[@]}" | tee >( message "$event_type_for_message" 'List of files /config. Click for technical details' --payload --silent )
+			[[ -e /config/log ]] && rm /config/log
 		else
 			: ok good to go
 		fi
