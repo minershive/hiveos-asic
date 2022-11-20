@@ -12,7 +12,7 @@
 
 readonly script_mission='Client for ASICs: Your First Run'
 readonly script_purpose='Checks if rig.conf config exists, asks for url/rig_id/pass if no config found'
-readonly script_version='0.1.10'
+readonly script_version='0.1.11'
 readonly script_basename="${0##*/}"
 
 
@@ -228,6 +228,10 @@ print_script_version
 process_arguments "$@"
 
 mkdir -p '/hive-config'
+
+if [[ -s "/run/hive/api_host_url" ]]; then
+	rm "/run/hive/api_host_url"
+fi
 
 #
 # 1. try to get a whitelabel default from a config file embedded in firmware

@@ -373,9 +373,9 @@ function agent_log {
 		snore 0.1 # it's pretty enough
 	done
 
-	echo "[DEBUG] there are $( sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log_FILE" )" | wc -l ) non-empty lines in the log"
+	echo "[DEBUG] there are $( sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log_FILE" )" | wc -l ) non-empty lines in the log" #'"
 
-	sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log_FILE" )" # remove all leading and trailing blank lines (https://unix.stackexchange.com/questions/552188)
+	sed '/[^[:blank:]]/,$!d' <<< "$( < "$agent_log_FILE" )" # remove all leading and trailing blank lines (https://unix.stackexchange.com/questions/552188) 
 	rm "$agent_log_FILE"
 
 	return $(( function_exitcode ))

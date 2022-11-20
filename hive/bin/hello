@@ -14,7 +14,7 @@ readonly script_mission='Client for ASICs: Say hello to the server'
 # shellcheck disable=SC2034
 # just because
 readonly script_mission_description='Sends hello to server, receives config files, restarts miner'
-readonly script_version='0.8.2'
+readonly script_version='0.8.3'
 readonly script_basename="${0##*/}"
 #
 readonly script_DEBUG="${script_DEBUG:-0}" # use value from env if exists
@@ -1025,7 +1025,8 @@ source "$RIG_CONF"
 
 # shellcheck disable=SC1090
 # just because
-[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
+#[[ -s "$API_HOST_FILE" ]] && source "$API_HOST_FILE" # load the most relevant HIVE_HOST_URL variable
+[[ -s "$API_HOST_FILE" ]] && rm "$API_HOST_FILE" # delete for change api
 
 [[ -n "${FARM_HASH-}" || -n "${RIG_ID-}" ]]							|| die "FARM_HASH or RIG_ID is not defined in $RIG_CONF, exiting..." 1
 [[ ( -n "${RIG_ID-}" && -n "${RIG_PASSWD-}" ) || -z "${RIG_ID-}" ]]	|| die "RIG_PASSWD is not defined in $RIG_CONF, exiting..." 1
