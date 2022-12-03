@@ -1,0 +1,1002 @@
+{
+    "0": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2000,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "1": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2100,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "2": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2200,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "3": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2300,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "4": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2400,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "5": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2500,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "6": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2600,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "7": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2700,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "8": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2800,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "9": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 2900,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "10": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3000,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "11": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3100,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "12": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3200,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "13": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3300,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "14": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3400,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "15": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3500,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "16": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3600,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "17": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3700,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "18": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3800,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "19": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 3900,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "20": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 4000,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "21": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 4100,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "22": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 4200,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "23": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 4300,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "24": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 4400,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "25": {
+        "tune_type": 0,
+        "tune_rate": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_power": 4500,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "26": {
+        "tune_type": 1,
+        "tune_rate": 65000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "27": {
+        "tune_type": 1,
+        "tune_rate": 66000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "28": {
+        "tune_type": 1,
+        "tune_rate": 67000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "29": {
+        "tune_type": 1,
+        "tune_rate": 68000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "30": {
+        "tune_type": 1,
+        "tune_rate": 69000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "31": {
+        "tune_type": 1,
+        "tune_rate": 70000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "32": {
+        "tune_type": 1,
+        "tune_rate": 71000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "33": {
+        "tune_type": 1,
+        "tune_rate": 72000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "34": {
+        "tune_type": 1,
+        "tune_rate": 73000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "35": {
+        "tune_type": 1,
+        "tune_rate": 74000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "36": {
+        "tune_type": 1,
+        "tune_rate": 75000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "37": {
+        "tune_type": 1,
+        "tune_rate": 76000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "38": {
+        "tune_type": 1,
+        "tune_rate": 77000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "39": {
+        "tune_type": 1,
+        "tune_rate": 78000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "40": {
+        "tune_type": 1,
+        "tune_rate": 79000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "41": {
+        "tune_type": 1,
+        "tune_rate": 80000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "42": {
+        "tune_type": 1,
+        "tune_rate": 81000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "43": {
+        "tune_type": 1,
+        "tune_rate": 82000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "44": {
+        "tune_type": 1,
+        "tune_rate": 83000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "45": {
+        "tune_type": 1,
+        "tune_rate": 84000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "46": {
+        "tune_type": 1,
+        "tune_rate": 85000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "47": {
+        "tune_type": 1,
+        "tune_rate": 86000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "48": {
+        "tune_type": 1,
+        "tune_rate": 87000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "49": {
+        "tune_type": 1,
+        "tune_rate": 88000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "50": {
+        "tune_type": 1,
+        "tune_rate": 89000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "51": {
+        "tune_type": 1,
+        "tune_rate": 90000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "52": {
+        "tune_type": 1,
+        "tune_rate": 91000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "53": {
+        "tune_type": 1,
+        "tune_rate": 92000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "54": {
+        "tune_type": 1,
+        "tune_rate": 93000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "55": {
+        "tune_type": 1,
+        "tune_rate": 94000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "56": {
+        "tune_type": 1,
+        "tune_rate": 95000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "57": {
+        "tune_type": 1,
+        "tune_rate": 96000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "58": {
+        "tune_type": 1,
+        "tune_rate": 97000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "59": {
+        "tune_type": 1,
+        "tune_rate": 98000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "60": {
+        "tune_type": 1,
+        "tune_rate": 99000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "61": {
+        "tune_type": 1,
+        "tune_rate": 100000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "62": {
+        "tune_type": 1,
+        "tune_rate": 101000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "63": {
+        "tune_type": 1,
+        "tune_rate": 102000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "64": {
+        "tune_type": 1,
+        "tune_rate": 103000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "65": {
+        "tune_type": 1,
+        "tune_rate": 104000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "66": {
+        "tune_type": 1,
+        "tune_rate": 105000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "67": {
+        "tune_type": 1,
+        "tune_rate": 106000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "68": {
+        "tune_type": 1,
+        "tune_rate": 107000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "69": {
+        "tune_type": 1,
+        "tune_rate": 108000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "70": {
+        "tune_type": 1,
+        "tune_rate": 109000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "71": {
+        "tune_type": 1,
+        "tune_rate": 110000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "72": {
+        "tune_type": 1,
+        "tune_rate": 111000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "73": {
+        "tune_type": 1,
+        "tune_rate": 112000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "74": {
+        "tune_type": 1,
+        "tune_rate": 113000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "75": {
+        "tune_type": 1,
+        "tune_rate": 114000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "76": {
+        "tune_type": 1,
+        "tune_rate": 115000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "77": {
+        "tune_type": 1,
+        "tune_rate": 116000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "78": {
+        "tune_type": 1,
+        "tune_rate": 117000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "79": {
+        "tune_type": 1,
+        "tune_rate": 118000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "80": {
+        "tune_type": 1,
+        "tune_rate": 119000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "81": {
+        "tune_type": 1,
+        "tune_rate": 120000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "82": {
+        "tune_type": 1,
+        "tune_rate": 121000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "83": {
+        "tune_type": 1,
+        "tune_rate": 122000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "84": {
+        "tune_type": 1,
+        "tune_rate": 123000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "85": {
+        "tune_type": 1,
+        "tune_rate": 124000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "86": {
+        "tune_type": 1,
+        "tune_rate": 125000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "87": {
+        "tune_type": 1,
+        "tune_rate": 126000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "88": {
+        "tune_type": 1,
+        "tune_rate": 127000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "89": {
+        "tune_type": 1,
+        "tune_rate": 128000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "90": {
+        "tune_type": 1,
+        "tune_rate": 129000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "91": {
+        "tune_type": 1,
+        "tune_rate": 130000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "92": {
+        "tune_type": 1,
+        "tune_rate": 131000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "93": {
+        "tune_type": 1,
+        "tune_rate": 132000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "94": {
+        "tune_type": 1,
+        "tune_rate": 133000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "95": {
+        "tune_type": 1,
+        "tune_rate": 134000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "96": {
+        "tune_type": 1,
+        "tune_rate": 135000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "97": {
+        "tune_type": 1,
+        "tune_rate": 136000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "98": {
+        "tune_type": 1,
+        "tune_rate": 137000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    },
+    "99": {
+        "tune_type": 1,
+        "tune_rate": 138000,
+        "tune_power": 0,
+        "tune_freq_yellow_step": 5,
+        "voltage_increase": 20,
+        "tune_freq_step": 10,
+        "tune_volt_step": 10,
+        "tune_bad_domains_threshold": 3
+    }
+}
